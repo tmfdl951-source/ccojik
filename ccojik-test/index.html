@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>꼬직 직장인 유형 테스트</title>
+<link rel="stylesheet" as="style" crossorigin
+  href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<style>
+  :root {
+    --cream: #FBF6EC;
+    --ivory: #FFFDF8;
+    --beige: #D9C7A7;
+    --beige-text: #B0854A;
+    --warmgray: #8E8A86;
+    --warmgray-text: #6F6B67;
+    --blush: #F5A9B0;
+    --ink: #4A423A;
+    --ink-soft: #8B8177;
+    --shadow: 22px 22px 44px rgba(158,138,102,.18), -10px -10px 26px rgba(255,255,255,.9);
+    --shadow-sm: 8px 8px 18px rgba(158,138,102,.16), -5px -5px 12px rgba(255,255,255,.85);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%;
+    font-family: "Pretendard Variable", Pretendard, -apple-system, system-ui, sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(circle at 28% 12%, #FFFDF8 0%, transparent 55%),
+      radial-gradient(circle at 82% 92%, #F5EDDC 0%, transparent 50%),
+      var(--cream);
+  }
+  body { display: flex; align-items: center; justify-content: center; min-height: 100dvh; padding: 12px; }
+
+  .phone {
+    position: relative;
+    width: min(430px, 96vw);
+    aspect-ratio: 9 / 16;
+    max-height: 96dvh;
+    background: linear-gradient(160deg, var(--ivory), var(--cream));
+    border-radius: 40px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .screen {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    padding: 30px 26px;
+    opacity: 0; pointer-events: none;
+    transform: scale(.985);
+    transition: opacity .35s ease, transform .35s ease;
+  }
+  .screen.active { opacity: 1; pointer-events: auto; transform: scale(1); }
+
+  /* ===== 시작 화면 ===== */
+  #startScreen { align-items: center; justify-content: center; text-align: center; gap: 6px; }
+  .kicker {
+    font-size: 13px; font-weight: 700; color: var(--beige-text);
+    background: #F3E9D5; padding: 7px 16px; border-radius: 999px; letter-spacing: .3px;
+  }
+  h1 { font-size: 30px; font-weight: 800; letter-spacing: -.8px; line-height: 1.3; margin-top: 16px; }
+  h1 .hl { color: var(--beige-text); }
+  h1 .hl2 { color: var(--warmgray-text); }
+  .desc { color: var(--ink-soft); font-size: 14.5px; font-weight: 500; margin-top: 12px; line-height: 1.5; }
+
+  .duo { display: flex; gap: 10px; margin: 26px 0 8px; }
+  .duo .char-card {
+    background: var(--ivory); border-radius: 26px; padding: 14px 10px 12px;
+    box-shadow: var(--shadow-sm); width: 128px;
+  }
+  .char { width: 96px; height: 96px; margin: 0 auto 6px; display: flex; align-items: center; justify-content: center; }
+  .char img { width: 100%; height: 100%; object-fit: contain; }
+  .char .ph { display: none; font-size: 56px; }
+  .char-card .nm { font-weight: 800; font-size: 15px; }
+  .char-card .rl { font-size: 11.5px; color: var(--ink-soft); font-weight: 500; margin-top: 2px; }
+
+  .cta {
+    margin-top: 22px; border: none; cursor: pointer; font-family: inherit;
+    background: linear-gradient(160deg, var(--beige), #C4AE86);
+    color: #fff; font-weight: 800; font-size: 18px;
+    padding: 17px 46px; border-radius: 22px; box-shadow: var(--shadow-sm);
+    transition: transform .14s ease;
+  }
+  .cta:active { transform: scale(.95); }
+  .time-note { font-size: 12.5px; color: var(--ink-soft); font-weight: 600; margin-top: 14px; }
+  .time-note::before { content: "⏱ "; }
+
+  /* ===== 질문 화면 ===== */
+  #quizScreen { padding-top: 26px; }
+  .progress-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .progress-track { flex: 1; height: 12px; background: #EFE7D6; border-radius: 999px; overflow: hidden;
+    box-shadow: inset 2px 2px 5px rgba(158,138,102,.15), inset -2px -2px 4px rgba(255,255,255,.7); }
+  .progress-fill { height: 100%; width: 10%; border-radius: 999px;
+    background: linear-gradient(90deg, var(--beige), #C4AE86); transition: width .4s cubic-bezier(.3,.9,.4,1); }
+  .progress-num { font-size: 13px; font-weight: 800; color: var(--ink-soft); min-width: 40px; text-align: right; }
+
+  .q-body { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+  .q-slide { animation: slideIn .4s cubic-bezier(.22,.8,.3,1); }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+
+  .q-index { font-size: 14px; font-weight: 800; color: var(--beige-text); }
+  .q-text { font-size: 22px; font-weight: 800; line-height: 1.45; margin: 10px 0 26px; letter-spacing: -.4px; }
+
+  .choices { display: flex; flex-direction: column; gap: 14px; }
+  .choice {
+    text-align: left; border: none; cursor: pointer; font-family: inherit;
+    background: var(--ivory); border-radius: 22px; padding: 20px 18px;
+    box-shadow: var(--shadow-sm); display: flex; align-items: center; gap: 14px;
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .choice:active { transform: scale(.97);
+    box-shadow: inset 5px 5px 12px rgba(158,138,102,.16), inset -4px -4px 10px rgba(255,255,255,.75); }
+  .choice .tag {
+    flex-shrink: 0; width: 38px; height: 38px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 17px; color: #fff;
+  }
+  .choice.a .tag { background: linear-gradient(150deg, var(--beige), #C4AE86); }
+  .choice.b .tag { background: linear-gradient(150deg, var(--warmgray), #6F6B67); }
+  .choice .ctext { font-size: 15px; font-weight: 600; line-height: 1.45; }
+
+  /* ===== 로딩 화면 ===== */
+  #loadScreen { align-items: center; justify-content: center; text-align: center; gap: 22px; }
+  .spinner {
+    width: 74px; height: 74px; border-radius: 50%;
+    border: 8px solid #EFE7D6; border-top-color: var(--beige);
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loadScreen .lt { font-size: 19px; font-weight: 800; }
+  #loadScreen .ls { font-size: 13.5px; color: var(--ink-soft); font-weight: 500; }
+  .dots::after { content: ""; animation: dots 1.4s steps(4,end) infinite; }
+  @keyframes dots { 0%{content:"";} 25%{content:".";} 50%{content:"..";} 75%{content:"...";} 100%{content:"";} }
+
+  /* ===== 결과 화면 ===== */
+  #resultScreen { padding: 24px 22px; overflow-y: auto; }
+  #resultScreen::-webkit-scrollbar { display: none; }
+  .r-top { text-align: center; }
+  .r-kicker { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+  .r-name { font-size: 30px; font-weight: 800; letter-spacing: -.6px; margin-top: 6px; }
+  .r-img-wrap { position: relative; width: 210px; height: 210px; margin: 14px auto 6px; }
+  .r-img-wrap .main { width: 100%; height: 100%; object-fit: contain;
+    filter: drop-shadow(8px 14px 18px rgba(158,138,102,.28)); animation: floaty 3.4s ease-in-out infinite; }
+  @keyframes floaty { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-9px);} }
+  .r-img-wrap .sub { position: absolute; right: -6px; bottom: 4px; width: 92px; height: 92px;
+    object-fit: contain; filter: drop-shadow(5px 8px 12px rgba(158,138,102,.3)); }
+  .r-quote { text-align: center; font-size: 17px; font-weight: 800; margin: 8px 0 4px; }
+  .r-quote::before { content: "“"; } .r-quote::after { content: "”"; }
+  .r-desc {
+    background: var(--ivory); border-radius: 22px; padding: 18px 18px; margin-top: 14px;
+    box-shadow: var(--shadow-sm); font-size: 14.5px; line-height: 1.65; color: #5c5349; font-weight: 500;
+  }
+  .r-tags { margin-top: 14px; text-align: center; font-size: 14px; font-weight: 800; color: var(--beige-text); letter-spacing: .2px; }
+
+  .r-actions { display: flex; gap: 12px; margin-top: 22px; }
+  .r-btn {
+    flex: 1; border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 15px;
+    padding: 16px 10px; border-radius: 20px; box-shadow: var(--shadow-sm); transition: transform .13s ease;
+  }
+  .r-btn:active { transform: scale(.95); }
+  .r-btn.save { background: linear-gradient(160deg, var(--beige), #C4AE86); color: #fff; }
+  .r-btn.retry { background: var(--ivory); color: var(--ink); }
+
+  .save-hint { text-align: center; font-size: 11.5px; color: var(--ink-soft); margin-top: 12px; opacity: .8; line-height:1.5; }
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <!-- 시작 -->
+  <section class="screen active" id="startScreen">
+    <span class="kicker">꼬직 직장인 자아 테스트</span>
+    <h1>나는 <span class="hl">빠글이형 사수</span>인가,<br><span class="hl2">심은하형 신입</span>인가?</h1>
+    <p class="desc">10개의 질문으로 알아보는<br>나의 진짜 직장인 자아</p>
+    <div class="duo">
+      <div class="char-card">
+        <div class="char"><img src="assets/ppaguli.png" alt="빠글이" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="ph">🧑‍🦱</span></div>
+        <div class="nm">빠글이</div><div class="rl">곱슬 장발 · 사수</div>
+      </div>
+      <div class="char-card">
+        <div class="char"><img src="assets/eunha.png" alt="심은하" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="ph">🧑</span></div>
+        <div class="nm">심은하</div><div class="rl">단발 · 신입</div>
+      </div>
+    </div>
+    <button class="cta" id="startBtn">테스트 시작</button>
+    <p class="time-note">소요시간 1분</p>
+  </section>
+
+  <!-- 질문 -->
+  <section class="screen" id="quizScreen">
+    <div class="progress-wrap">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <span class="progress-num" id="progressNum">1/10</span>
+    </div>
+    <div class="q-body"><div id="qContent"></div></div>
+  </section>
+
+  <!-- 로딩 -->
+  <section class="screen" id="loadScreen">
+    <div class="spinner"></div>
+    <div>
+      <div class="lt">당신의 직장인 자아 분석중<span class="dots"></span></div>
+      <div class="ls">잠시만 기다려주세요</div>
+    </div>
+  </section>
+
+  <!-- 결과 -->
+  <section class="screen" id="resultScreen">
+    <div class="r-top">
+      <div class="r-kicker">나의 직장인 유형은</div>
+      <div class="r-name" id="rName"></div>
+    </div>
+    <div class="r-img-wrap" id="rImgWrap"></div>
+    <div class="r-quote" id="rQuote"></div>
+    <div class="r-desc" id="rDesc"></div>
+    <div class="r-tags" id="rTags"></div>
+    <div class="r-actions">
+      <button class="r-btn save" id="saveBtn">결과 카드 저장</button>
+      <button class="r-btn retry" id="retryBtn">다시하기</button>
+    </div>
+    <p class="save-hint" id="saveHint"></p>
+  </section>
+
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ---------- 데이터 ---------- */
+// A답변 = 빠글(p), B답변 = 은하(e). Q1~5 = 겉모습축, Q6~10 = 속마음축
+const QUESTIONS = [
+  { q: "월요일 아침 출근길, 나는",
+    a: "어차피 갈 거 텐션이라도 올린다. 이어폰 볼륨 최대",
+    b: "조용히 걷는다. 말 걸면 물어버릴 수도 있음" },
+  { q: "회의에서 내 의견과 다른 결론이 나려고 할 때",
+    a: "일단 손 든다. \"저 잠깐만요\"",
+    b: "회의록에 조용히 기록해두고 나중에 1:1로 말한다" },
+  { q: "점심 메뉴 정할 때 나는",
+    a: "\"오늘 국밥 어때요?\" 먼저 던지는 쪽",
+    b: "\"다 좋아요~\" 하고 따라가는 쪽 (속으론 정해져 있음)" },
+  { q: "단체 회식에서 나는",
+    a: "분위기 담당. 마이크 잡으면 안 놓음",
+    b: "리액션 담당. 존재감은 없지만 없으면 허전한 사람" },
+  { q: "신입이 실수했을 때 나는",
+    a: "그 자리에서 바로 알려준다. 짧고 굵게",
+    b: "조용히 불러서 따로 말해준다" },
+  { q: "퇴근 5분 전 팀장이 \"잠깐 회의하자\"고 하면 속마음은",
+    a: "(하... 근데 뭐 어쩌겠어) 바로 노트북 들고 감",
+    b: "(오늘 저녁 약속 취소각) 표정 관리 들어감" },
+  { q: "내 일이 아닌 업무가 슬쩍 넘어올 때 속마음은",
+    a: "어차피 내가 하는 게 빠름. 받고 시작함",
+    b: "이거 왜 나한테 오는 건데? 일단 받긴 하는데 기억해둠" },
+  { q: "연차 쓰는 날 아침, 회사에서 전화가 오면",
+    a: "받는다. 5분이면 해결되는데 뭐",
+    b: "안 받는다. 연차는 연차다" },
+  { q: "회사에서 나의 진짜 원동력은",
+    a: "일이 되게 만드는 재미. 인정받으면 더 좋고",
+    b: "월급. 그리고 퇴근 후의 나의 삶" },
+  { q: "3년 뒤 나의 모습을 상상하면",
+    a: "여기서 팀 하나는 맡고 있지 않을까",
+    b: "여기 있을지 없을지도 모름. 더 좋은 데 가야지" },
+];
+
+const RESULTS = {
+  pp: {
+    name: "천생 빠글이형",
+    quote: "회사가 나고 내가 회사다",
+    desc: "회의에서 제일 먼저 손 들고, 회식에서 제일 늦게 일어나는 사람. 일이 되게 만드는 게 재밌어서 하는 진성 빠글이. 후배들은 무서워하지만 막상 제일 잘 챙겨주는 것도 당신입니다.",
+    tags: "#추진력만렙 #정들면끝까지 #회사의기둥",
+    main: "ppaguli", sub: null, color: "#B0854A", grad: null,
+  },
+  ee: {
+    name: "뼛속까지 은하형",
+    quote: "조용히 다니지만 조용히 다 하고 있음",
+    desc: "존재감 없다고요? 아니요, 티를 안 낼 뿐. 할 일은 다 해놓고 퇴근 시간엔 정확히 사라지는 프로 직장인. 워라밸이 곧 실력이라는 걸 아는 사람입니다.",
+    tags: "#조용한실세 #칼퇴는과학 #일은일삶은삶",
+    main: "eunha", sub: null, color: "#6F6B67", grad: null,
+  },
+  pe: {
+    name: "겉빠글 속은하형",
+    quote: "텐션은 사수, 마음은 신입",
+    desc: "겉으로는 씩씩하게 다 받아치는데 집 가면 침대와 한 몸. 회사에서 쓰는 에너지가 연기라는 걸 아무도 모릅니다. 오늘도 수고했어요, 진짜로.",
+    tags: "#사회생활만렙 #집순이집돌이 #페르소나출근중",
+    main: "ppaguli", sub: "eunha", color: "#9A8666", grad: ["#D9C7A7", "#8E8A86"],
+  },
+  ep: {
+    name: "겉은하 속빠글형",
+    quote: "조용한데 승부욕 있는 타입",
+    desc: "말은 없는데 일 욕심은 제일 많은 사람. 티 안 내고 조용히 다 이기고 있는 스타일이라 나중에 제일 무섭게 크는 유형입니다.",
+    tags: "#은둔고수 #조용한야망가 #다크호스",
+    main: "eunha", sub: "ppaguli", color: "#7C7A72", grad: ["#8E8A86", "#D9C7A7"],
+  },
+};
+
+const IMG_SRC = { ppaguli: "assets/ppaguli.png", eunha: "assets/eunha.png" };
+const EMOJI = { ppaguli: "🧑‍🦱", eunha: "🧑" };
+
+/* 캐릭터 이미지 미리 로드 (canvas 카드용) */
+const loadedImg = {};
+["ppaguli", "eunha"].forEach(k => {
+  const im = new Image();
+  im.onload = () => { loadedImg[k] = im; };
+  im.src = IMG_SRC[k];
+});
+
+/* ---------- 상태 ---------- */
+let current = 0;              // 0~9
+const answers = new Array(10).fill(null);  // 'A' or 'B'
+let result = null;
+
+function show(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  $(id).classList.add("active");
+}
+
+/* ---------- 질문 렌더 ---------- */
+function renderQuestion() {
+  const q = QUESTIONS[current];
+  $("progressFill").style.width = ((current + 1) / 10 * 100) + "%";
+  $("progressNum").textContent = (current + 1) + "/10";
+  $("qContent").innerHTML = `
+    <div class="q-slide">
+      <div class="q-index">Q${current + 1}.</div>
+      <div class="q-text">${q.q}</div>
+      <div class="choices">
+        <button class="choice a" data-ans="A"><span class="tag">A</span><span class="ctext">${q.a}</span></button>
+        <button class="choice b" data-ans="B"><span class="tag">B</span><span class="ctext">${q.b}</span></button>
+      </div>
+    </div>`;
+  $("qContent").querySelectorAll(".choice").forEach(btn => {
+    btn.addEventListener("click", () => choose(btn.dataset.ans));
+  });
+}
+
+function choose(ans) {
+  answers[current] = ans;
+  if (current < 9) {
+    current++;
+    renderQuestion();
+  } else {
+    finish();
+  }
+}
+
+/* ---------- 판정 ---------- */
+function computeResult() {
+  const outerA = answers.slice(0, 5).filter(a => a === "A").length;   // 겉모습
+  const innerA = answers.slice(5, 10).filter(a => a === "A").length;  // 속마음
+  const outer = outerA >= 3 ? "p" : "e";
+  const inner = innerA >= 3 ? "p" : "e";
+  return RESULTS[outer + inner];
+}
+
+function finish() {
+  result = computeResult();
+  show("loadScreen");
+  setTimeout(renderResult, 1500);
+}
+
+/* ---------- 결과 렌더 ---------- */
+function charMarkup(key, cls) {
+  return `<img class="${cls}" src="${IMG_SRC[key]}" alt=""
+    onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${EMOJI[key]}',className:'${cls}',style:'font-size:120px'}))">`;
+}
+function renderResult() {
+  const r = result;
+  $("rName").textContent = r.name;
+  $("rName").style.color = r.color;
+  let imgs = charMarkup(r.main, "main");
+  if (r.sub) imgs += charMarkup(r.sub, "sub");
+  $("rImgWrap").innerHTML = imgs;
+  $("rQuote").textContent = r.quote;
+  $("rDesc").textContent = r.desc;
+  $("rTags").textContent = r.tags;
+  $("rTags").style.color = r.color;
+  show("resultScreen");
+  $("resultScreen").scrollTop = 0;
+}
+
+/* ---------- Canvas 결과 카드 (1080x1920) ---------- */
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+// 가운데 정렬 줄바꿈. 반환: 마지막 줄 다음 y
+function wrapCenter(ctx, text, cx, y, maxW, lh) {
+  const chars = [...text];
+  let line = "";
+  for (let i = 0; i < chars.length; i++) {
+    const test = line + chars[i];
+    if (ctx.measureText(test).width > maxW && line !== "") {
+      ctx.fillText(line, cx, y);
+      y += lh;
+      line = chars[i];
+    } else {
+      line = test;
+    }
+  }
+  if (line) { ctx.fillText(line, cx, y); y += lh; }
+  return y;
+}
+function drawImageContain(ctx, img, cx, cy, boxW, boxH) {
+  const scale = Math.min(boxW / img.width, boxH / img.height);
+  const w = img.width * scale, h = img.height * scale;
+  ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
+}
+
+async function buildCard() {
+  const r = result;
+  const W = 1080, H = 1920;
+  const cv = document.createElement("canvas");
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext("2d");
+  ctx.textAlign = "center";
+
+  try { await document.fonts.ready; } catch (e) {}
+  const FF = '"Pretendard Variable", Pretendard, sans-serif';
+
+  // 배경 크림
+  ctx.fillStyle = "#FBF6EC";
+  ctx.fillRect(0, 0, W, H);
+
+  // 상단 포인트 밴드 (그라데이션 or 단색)
+  let band;
+  if (r.grad) {
+    band = ctx.createLinearGradient(0, 0, W, 0);
+    band.addColorStop(0, r.grad[0]); band.addColorStop(1, r.grad[1]);
+  } else {
+    band = r.main === "ppaguli" ? "#D9C7A7" : "#8E8A86";
+  }
+  ctx.fillStyle = band;
+  ctx.fillRect(0, 0, W, 16);
+
+  // 카드 패널
+  ctx.save();
+  ctx.shadowColor = "rgba(158,138,102,.22)";
+  ctx.shadowBlur = 50; ctx.shadowOffsetY = 24;
+  ctx.fillStyle = "#FFFDF8";
+  roundRect(ctx, 60, 90, W - 120, H - 180, 70);
+  ctx.fill();
+  ctx.restore();
+
+  const cx = W / 2;
+
+  // 소제목
+  ctx.fillStyle = "#8B8177";
+  ctx.font = "600 44px " + FF;
+  ctx.fillText("직장인 유형 테스트", cx, 250);
+
+  // 유형명 (그라데이션 or 단색)
+  let nameFill = r.color;
+  if (r.grad) {
+    const g = ctx.createLinearGradient(200, 0, 880, 0);
+    g.addColorStop(0, r.grad[0] === "#D9C7A7" ? "#B0854A" : "#6F6B67");
+    g.addColorStop(1, r.grad[1] === "#8E8A86" ? "#6F6B67" : "#B0854A");
+    nameFill = g;
+  }
+  ctx.fillStyle = nameFill;
+  ctx.font = "800 96px " + FF;
+  ctx.fillText(r.name, cx, 380);
+
+  // 캐릭터 이미지
+  const main = loadedImg[r.main];
+  const sub = r.sub ? loadedImg[r.sub] : null;
+  const imgCy = 690;
+  if (main) {
+    drawImageContain(ctx, main, sub ? cx - 40 : cx, imgCy, 560, 560);
+    if (sub) drawImageContain(ctx, sub, cx + 210, imgCy + 150, 260, 260);
+  } else {
+    ctx.font = "300px " + FF;
+    ctx.fillText(EMOJI[r.main], cx, imgCy + 100);
+  }
+
+  // 인용구
+  ctx.fillStyle = "#4A423A";
+  ctx.font = "800 54px " + FF;
+  wrapCenter(ctx, "“" + r.quote + "”", cx, 1080, 900, 70);
+
+  // 설명
+  ctx.fillStyle = "#5C5349";
+  ctx.font = "500 42px " + FF;
+  let y = wrapCenter(ctx, r.desc, cx, 1200, 880, 64);
+
+  // 해시태그
+  ctx.fillStyle = r.color;
+  ctx.font = "800 40px " + FF;
+  wrapCenter(ctx, r.tags, cx, Math.max(y + 40, 1560), 920, 56);
+
+  // 하단 워터마크
+  ctx.fillStyle = band;
+  ctx.font = "800 50px " + FF;
+  ctx.fillText("@ccojik.dh", cx, 1770);
+  ctx.fillStyle = "#8B8177";
+  ctx.font = "600 38px " + FF;
+  ctx.fillText("너의 유형도 테스트해봐", cx, 1830);
+
+  return cv;
+}
+
+async function saveCard() {
+  try {
+    const cv = await buildCard();
+    cv.toBlob(blob => {
+      if (!blob) { showSaveError(); return; }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "꼬직_직장인유형_" + result.name + ".png";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      $("saveHint").textContent = "저장 완료! 인스타 스토리에 올려보세요 📸";
+    }, "image/png");
+  } catch (e) {
+    showSaveError();
+  }
+}
+function showSaveError() {
+  $("saveHint").innerHTML = "⚠️ 이미지 저장이 차단됐어요. 아래 방법으로 로컬 서버에서 열어주세요:<br>" +
+    "터미널에서 <b>python -m http.server</b> 실행 후<br><b>http://localhost:8000/</b> 접속";
+}
+
+/* ---------- 이벤트 ---------- */
+$("startBtn").addEventListener("click", () => {
+  current = 0;
+  answers.fill(null);
+  show("quizScreen");
+  renderQuestion();
+});
+$("saveBtn").addEventListener("click", saveCard);
+$("retryBtn").addEventListener("click", () => {
+  current = 0;
+  answers.fill(null);
+  result = null;
+  $("saveHint").textContent = "";
+  show("startScreen");
+});
+</script>
+</body>
+</html>
