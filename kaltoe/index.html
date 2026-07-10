@@ -197,6 +197,101 @@
   .link-btn:active { transform: scale(.97); }
   .save-hint { text-align: center; font-size: 11.5px; color: var(--ink-soft); margin-top: 12px; opacity: .85; line-height: 1.5; }
 
+  /* ===== 모드 선택 ===== */
+  .mode-cards { display: flex; flex-direction: column; gap: 12px; width: 100%; margin-top: 18px; }
+  .mode-card { border: none; cursor: pointer; font-family: inherit; background: var(--ivory);
+    border-radius: 22px; padding: 15px 18px; box-shadow: var(--shadow-sm);
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    transition: transform .13s ease; border-bottom: 4px solid var(--beige); }
+  .mode-card.surv { border-bottom-color: var(--blush); }
+  .mode-card:active { transform: scale(.96); }
+  .mc-emoji { font-size: 28px; }
+  .mc-title { font-size: 17px; font-weight: 800; }
+  .mc-desc { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+
+  /* ===== 요일 인트로 ===== */
+  #dayScreen { align-items: center; justify-content: center; text-align: center; }
+  #dayScreen .d-count { font-size: 14px; font-weight: 800; color: var(--ink-soft); letter-spacing: 3px; }
+  #dayScreen .d-name { font-size: 58px; font-weight: 800; margin: 8px 0 6px; animation: dayPop .5s cubic-bezier(.3,.8,.4,1) both; }
+  #dayScreen .d-note { font-size: 15px; font-weight: 600; color: var(--ink-soft); animation: dayPop .5s ease .1s both; }
+  @keyframes dayPop { 0% { transform: scale(.7); opacity: 0; } 60% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); } }
+
+  /* 라운드 태그 */
+  .round-tag { font-size: 13px; font-weight: 800; color: var(--blush); background: #FBE9EC;
+    padding: 5px 14px; border-radius: 999px; margin-bottom: 4px; }
+  .round-tag:empty { display: none; }
+
+  /* 속도 뱃지 (화요일) */
+  .speed-badge { position: absolute; top: 20px; right: 20px; z-index: 17; font-size: 15px; font-weight: 800;
+    color: #fff; background: var(--warmgray-text); padding: 6px 12px; border-radius: 999px;
+    opacity: 0; transform: scale(.8); transition: opacity .2s, transform .2s; pointer-events: none; }
+  .speed-badge.show { opacity: 1; transform: scale(1); }
+  .speed-badge.flash { animation: spdFlash .5s ease; }
+  @keyframes spdFlash { 0%,100% { transform: scale(1); background: var(--warmgray-text); } 40% { transform: scale(1.3); background: var(--blush); } }
+
+  /* 메신저 팝업 (수요일) — 퇴근 버튼 위를 가림 */
+  .msg-popup { position: absolute; left: 0; right: 0; bottom: 0; height: 320px; z-index: 18;
+    display: none; align-items: center; justify-content: center; }
+  .msg-popup.show { display: flex; }
+  .msg-card { width: 300px; background: var(--ivory); border-radius: 20px; box-shadow: var(--shadow);
+    padding: 16px 16px 14px; text-align: left; position: relative; }
+  .msg-head { font-size: 12px; font-weight: 800; color: var(--blush); margin-bottom: 6px; }
+  .msg-body { font-size: 15px; font-weight: 700; line-height: 1.4; }
+  .msg-close { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; border-radius: 50%;
+    border: none; cursor: pointer; background: var(--cream); font-weight: 800; font-size: 14px; color: var(--ink-soft); }
+  .msg-close:active { transform: scale(.9); }
+
+  /* 걸어가는 사수 (목요일) */
+  .walker { position: absolute; left: 0; top: 96px; width: 100%; height: 190px; z-index: 16; pointer-events: none; display: none; }
+  .walker.show { display: block; }
+  .walker img { position: absolute; bottom: 0; left: -170px; width: 150px; height: 150px; object-fit: contain;
+    filter: drop-shadow(6px 8px 12px rgba(158,138,102,.3)); animation: walkAcross 2s linear forwards; }
+  @keyframes walkAcross {
+    0% { transform: translateX(0) rotate(-3deg); } 25% { transform: translateX(150px) rotate(3deg); }
+    50% { transform: translateX(300px) rotate(-3deg); } 75% { transform: translateX(450px) rotate(3deg); }
+    100% { transform: translateX(620px) rotate(0); }
+  }
+
+  /* 회식 팝업 (금요일) */
+  .hoesik { position: absolute; inset: 0; z-index: 20; display: none; align-items: center; justify-content: center;
+    background: rgba(74,66,58,.28); padding: 24px; }
+  .hoesik.show { display: flex; }
+  .hoesik-card { width: 300px; background: var(--ivory); border-radius: 22px; box-shadow: var(--shadow); padding: 20px 18px; text-align: center; }
+  .hoesik-head { font-size: 13px; font-weight: 800; color: var(--warmgray-text); }
+  .hoesik-body { font-size: 17px; font-weight: 800; margin: 8px 0 16px; line-height: 1.4; }
+  .hoesik-btns { display: flex; flex-direction: column; gap: 10px; }
+  .hoesik-btns button { border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 14px;
+    padding: 13px 10px; border-radius: 16px; }
+  .hoesik-btns .good { background: linear-gradient(160deg, var(--warmgray), #6F6B67); color: #fff; }
+  .hoesik-btns .bad { background: linear-gradient(160deg, var(--beige), #C4AE86); color: #fff; }
+  .hoesik-btns button:active { transform: scale(.96); }
+
+  /* 라운드 결과 토스트 */
+  .round-toast { position: absolute; left: 50%; top: 46%; transform: translate(-50%,-50%) scale(.9); z-index: 22;
+    background: var(--ivory); border-radius: 22px; box-shadow: var(--shadow); padding: 18px 26px; text-align: center;
+    opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; }
+  .round-toast.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+  .round-toast .rt-day { font-size: 13px; font-weight: 800; color: var(--ink-soft); }
+  .round-toast .rt-err { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; margin: 3px 0 1px; }
+  .round-toast .rt-grade { font-size: 13.5px; font-weight: 700; }
+
+  /* ===== 생존 결과 화면 ===== */
+  #survResultScreen { align-items: center; text-align: center; padding: 26px 24px; }
+  .sr-title { font-size: 27px; font-weight: 800; letter-spacing: -.5px; margin-top: 2px; }
+  .sr-sub { font-size: 14px; font-weight: 600; color: var(--ink-soft); margin-top: 4px; }
+  .sr-list { width: 100%; background: var(--ivory); border-radius: 20px; box-shadow: var(--shadow-sm); padding: 8px 16px; margin-top: 14px; }
+  .sr-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0;
+    font-size: 14.5px; font-weight: 700; border-bottom: 1px solid #F0E7D6; }
+  .sr-row:last-child { border-bottom: none; }
+  .sr-row .d { color: var(--ink-soft); }
+  .sr-row .v { font-variant-numeric: tabular-nums; }
+  .sr-row.dead .v { color: var(--warmgray-text); }
+  .sr-total { margin-top: 14px; font-size: 20px; font-weight: 800; }
+  .sr-grade { margin-top: 4px; font-size: 15px; font-weight: 800; color: var(--beige-text); }
+  .sr-best { margin-top: 8px; font-size: 13px; font-weight: 800; color: var(--beige-text); }
+  .sr-best .new { color: var(--blush); }
+  .kr-btn.survcta { width: 100%; margin-top: 12px; background: linear-gradient(160deg, var(--warmgray), #6F6B67); color: #fff; }
+
   /* 컨페티 */
   .confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 15; }
   .confetti i { position: absolute; top: -16px; width: 11px; height: 15px; border-radius: 2px; opacity: .95;
@@ -225,12 +320,16 @@
     <h1>6시 정각에<br><span class="hl">퇴근 버튼</span>을 눌러라</h1>
     <p class="desc">시계가 4배속으로 흐릅니다.<br>정확히 <b>18:00:00.00</b> 에 맞춰 퇴근!</p>
     <div class="char"><img src="../assets/eunha.png" alt="심은하" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="ph" style="display:none">🧑</span></div>
-    <button class="cta" id="startBtn">퇴근 준비</button>
+    <div class="mode-cards">
+      <button class="mode-card" id="modePractice"><span class="mc-emoji">🎯</span><span class="mc-title">연습 모드</span><span class="mc-desc">단판 칼퇴 타이밍</span></button>
+      <button class="mode-card surv" id="modeSurvival"><span class="mc-emoji">📅</span><span class="mc-title">한 주 생존 모드</span><span class="mc-desc">월~금 5연속 · 방해 요소</span></button>
+    </div>
     <p class="best-note" id="startBest"></p>
   </section>
 
   <!-- 게임 -->
   <section class="screen" id="gameScreen">
+    <div class="round-tag" id="roundTag"></div>
     <div class="target">🎯 목표 <b>18:00:00.00</b></div>
     <div class="clock-wrap" id="clockWrap">
       <span class="clock" id="clkMain">17:59:55</span><span class="clock cs" id="clkCs">.00</span>
@@ -252,9 +351,62 @@
       <button class="kr-btn save" id="saveBtn">결과 카드 저장</button>
       <button class="kr-btn again" id="againBtn">한 번 더</button>
     </div>
+    <button class="kr-btn survcta" id="toSurvivalBtn">📅 본게임(한 주 생존) 도전하기</button>
     <a class="link-btn" href="../">내 직장인 유형도 알아보기 →</a>
     <p class="save-hint" id="saveHint"></p>
   </section>
+
+  <!-- 요일 인트로 -->
+  <section class="screen" id="dayScreen">
+    <div class="d-count" id="dayCount"></div>
+    <div class="d-name" id="dayName"></div>
+    <div class="d-note" id="dayNote"></div>
+  </section>
+
+  <!-- 생존 결과 (실패/성공 공용) -->
+  <section class="screen" id="survResultScreen">
+    <div class="sr-title" id="srTitle"></div>
+    <div class="sr-sub" id="srSub"></div>
+    <div class="kr-bubble" id="srBubble" style="display:none"></div>
+    <div class="kr-img" id="srImg"></div>
+    <div class="sr-list" id="srList"></div>
+    <div class="sr-total" id="srTotal"></div>
+    <div class="sr-grade" id="srGrade"></div>
+    <div class="sr-best" id="srBest"></div>
+    <div class="kr-actions">
+      <button class="kr-btn save" id="srSaveBtn">결과 카드 저장</button>
+      <button class="kr-btn again" id="srAgainBtn">다시 도전</button>
+    </div>
+    <button class="kr-btn survcta" id="srHomeBtn">모드 선택으로</button>
+    <a class="link-btn" href="../">내 직장인 유형도 알아보기 →</a>
+    <p class="save-hint" id="srHint"></p>
+  </section>
+
+  <!-- 방해요소 오버레이 -->
+  <div class="speed-badge" id="speedBadge"></div>
+  <div class="walker" id="walker"><img src="../assets/ppaguli.png" alt="" onerror="this.style.visibility='hidden'"></div>
+  <div class="msg-popup" id="msgPopup">
+    <div class="msg-card">
+      <button class="msg-close" id="msgClose">✕</button>
+      <div class="msg-head">💬 사내 메신저</div>
+      <div class="msg-body">김대리: 혹시 아직 계세요...?</div>
+    </div>
+  </div>
+  <div class="hoesik" id="hoesikPopup">
+    <div class="hoesik-card">
+      <div class="hoesik-head">🍻 부장님</div>
+      <div class="hoesik-body">오늘 회식 어때?</div>
+      <div class="hoesik-btns">
+        <button class="good" id="hoesikGood">좋습니다!</button>
+        <button class="bad" id="hoesikBad">죄송합니다 선약이...</button>
+      </div>
+    </div>
+  </div>
+  <div class="round-toast" id="roundToast">
+    <div class="rt-day" id="rtDay"></div>
+    <div class="rt-err" id="rtErr"></div>
+    <div class="rt-grade" id="rtGrade"></div>
+  </div>
 
   <div class="confetti" id="confetti"></div>
 
@@ -308,14 +460,31 @@ function gradeFor(err) {                 // err: 부호 있는 오차(초). +면
 
 /* ---------- 상태 ---------- */
 const BEST_KEY = "ccojik-kaltoe-best";
+const WEEK_BEST_KEY = "ccojik-kaltoe-week-best";
 const START_MS = -5000;   // 17:59:55.00 (18:00:00 기준 상대 ms)
 const AUTO_MS = 3000;     // 18:00:03.00 자동 판정
-const SPEED = 4;          // 4배속
-let clockMs = START_MS, startPerf = 0, running = false, rafId = 0;
+const BASE_SPEED = 4;     // 기본 4배속
+let clockMs = START_MS, lastPerf = 0, running = false, rafId = 0, speed = BASE_SPEED;
 let curErr = 0, curGrade = null, isNewBest = false;
+
+let mode = "practice";    // "practice" | "survival"
+let flowToken = 0;        // 지연 전환(타이머) 무효화용
+
+// 한 주 생존 모드
+const DAYS = [
+  { name: "월요일", note: "아직은 평화롭다" },
+  { name: "화요일", note: "시간이 이상하게 빨라진다" },
+  { name: "수요일", note: "메신저가 조용할 리 없지" },
+  { name: "목요일", note: "사수가 어슬렁거린다" },
+  { name: "금요일", note: "다 왔다… 근데 회식 얘기가?" },
+];
+let day = 0, dayResults = [];
+let weekSuccess = false, weekTotal = 0, weekIsNewBest = false;
 
 function getBest() { const v = parseFloat(localStorage.getItem(BEST_KEY)); return isNaN(v) ? null : v; }
 function setBest(v) { localStorage.setItem(BEST_KEY, String(v)); }
+function getWeekBest() { const v = parseFloat(localStorage.getItem(WEEK_BEST_KEY)); return isNaN(v) ? null : v; }
+function setWeekBest(v) { localStorage.setItem(WEEK_BEST_KEY, String(v)); }
 
 function show(id) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
@@ -347,41 +516,55 @@ function renderClock() {
   $("clockWrap").style.transform = "scale(" + (1 + 0.07 * t) + ")";
 }
 
-/* ---------- 게임 루프 ---------- */
-function loop() {
-  const real = performance.now() - startPerf;
-  clockMs = START_MS + real * SPEED;
+/* ---------- 게임 루프 (가변 배속: 매 프레임 누적) ---------- */
+function loop(now) {
+  const dt = now - lastPerf; lastPerf = now;
+  clockMs += dt * speed;
+  if (obstacle) obstacle.onFrame(clockMs);
   if (clockMs >= AUTO_MS) {
-    clockMs = AUTO_MS;
-    renderClock();
-    endGame(clockMs / 1000);   // 자동 판정 = 늦음(+3.0)
+    clockMs = AUTO_MS; renderClock();
+    finishRound(clockMs / 1000);   // 자동 판정 = 늦음(+3.0)
     return;
   }
   renderClock();
   rafId = requestAnimationFrame(loop);
 }
-function startGame() {
-  clearConfetti();
+// 한 라운드 시작 (연습/생존 공통)
+function startRound() {
+  clearConfetti(); clearObstacles();
   $("phone").classList.remove("shake");
   $("saveHint").textContent = "";
+  speed = BASE_SPEED;
   clockMs = START_MS;
   renderClock();
+  if (mode === "survival") { setupObstacle(day); $("roundTag").textContent = DAYS[day].name + " · " + (day + 1) + "/5"; }
+  else { obstacle = null; $("roundTag").textContent = ""; }
   show("gameScreen");
   running = true;
-  startPerf = performance.now();
+  lastPerf = performance.now();
   rafId = requestAnimationFrame(loop);
 }
 function pressLeave() {
-  if (!running) return;
+  if (!running || msgPopupOpen) return;   // 수요일 메신저 팝업이 버튼을 가리는 중엔 무시
   running = false;
   cancelAnimationFrame(rafId);
-  endGame(clockMs / 1000);
+  finishRound(clockMs / 1000);
 }
-
-/* ---------- 판정 ---------- */
-function endGame(err) {
+function finishRound(err) {
   running = false;
   cancelAnimationFrame(rafId);
+  if (obstacle) obstacle.cleanup();
+  clearObstacles();
+  speed = BASE_SPEED;
+  if (mode === "practice") practiceResult(err);
+  else survivalRound(err);
+}
+// 모드 시작
+function startPractice() { mode = "practice"; flowToken++; startRound(); }
+function startSurvival() { mode = "survival"; flowToken++; day = 0; dayResults = []; showDayIntro(0); }
+
+/* ---------- 연습 모드 판정 ---------- */
+function practiceResult(err) {
   curErr = err;
   curGrade = gradeFor(err);
   const a = Math.abs(err);
@@ -390,7 +573,171 @@ function endGame(err) {
   if (isNewBest) setBest(a);
   renderResult();
   if (curGrade.success) confetti();
-  else { $("phone").classList.remove("shake"); void $("phone").offsetWidth; $("phone").classList.add("shake"); }
+  else shakePhone();
+}
+function shakePhone() { $("phone").classList.remove("shake"); void $("phone").offsetWidth; $("phone").classList.add("shake"); }
+
+/* ---------- 한 주 생존 모드 진행 ---------- */
+function showDayIntro(d) {
+  const tok = flowToken;
+  $("dayCount").textContent = "DAY " + (d + 1) + " / 5";
+  $("dayName").textContent = DAYS[d].name;
+  $("dayNote").textContent = DAYS[d].note;
+  ["dayName", "dayNote"].forEach(id => { const e = $(id); e.style.animation = "none"; void e.offsetWidth; e.style.animation = ""; });
+  show("dayScreen");
+  setTimeout(() => { if (mode === "survival" && tok === flowToken) startRound(); }, 1000);
+}
+function survivalRound(err) {
+  const grade = gradeFor(err);
+  if (grade === GRADES.late) { survivalFail(); return; }          // 야근 → 즉시 런 종료
+  const penalty = grade === GRADES.early ? 2.0 : 0;                // 조퇴 미수 → +2.0초 페널티, 계속
+  dayResults[day] = { err: err, recorded: Math.abs(err) + penalty, grade: grade, penalty: penalty };
+  showRoundToast(day, err, grade, penalty);
+  const finished = day, tok = flowToken;
+  setTimeout(() => {
+    if (mode !== "survival" || tok !== flowToken) return;
+    $("roundToast").classList.remove("show");
+    if (finished >= DAYS.length - 1) survivalSuccess();
+    else { day++; showDayIntro(day); }
+  }, 1200);
+}
+function survivalFail() { weekSuccess = false; renderSurvResult(); shakePhone(); }
+function survivalSuccess() {
+  weekSuccess = true;
+  weekTotal = dayResults.reduce((s, r) => s + (r ? r.recorded : 0), 0);
+  const best = getWeekBest();
+  weekIsNewBest = best === null || weekTotal < best;
+  if (weekIsNewBest) setWeekBest(weekTotal);
+  renderSurvResult();
+  confetti();
+}
+function weekGradeName(total) { return total <= 0.5 ? "칼퇴의 신" : total <= 1.5 ? "프로 직장인" : "생존 성공"; }
+
+function showRoundToast(d, err, grade, penalty) {
+  const col = grade.success ? "var(--beige-text)" : "var(--warmgray-text)";
+  $("rtDay").textContent = DAYS[d].name;
+  $("rtErr").textContent = fmtSigned(err); $("rtErr").style.color = col;
+  $("rtGrade").textContent = grade.name + (penalty ? " · +2.0초 페널티" : ""); $("rtGrade").style.color = col;
+  const t = $("roundToast"); t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 1050);
+}
+
+function renderSurvResult() {
+  const col = weekSuccess ? "var(--beige-text)" : "var(--warmgray-text)";
+  $("srTitle").style.color = col;
+  const imgBox = $("srImg"); imgBox.className = "kr-img";
+  if (weekSuccess) {
+    $("srTitle").textContent = "주간 생존 성공";
+    $("srSub").textContent = "월요일부터 금요일까지, 무사히 칼퇴!";
+    $("srBubble").style.display = "none";
+    imgBox.innerHTML = charMarkup(GRADES.safe);     // eunha_happy
+    void imgBox.offsetWidth; imgBox.classList.add("m-jump"); sparkle("srImg");
+  } else {
+    $("srTitle").textContent = DAYS[day].name + "에 야근당했다";
+    $("srSub").textContent = "버틴 요일: " + day + "일";
+    $("srBubble").style.display = ""; $("srBubble").textContent = GRADES.late.speech;
+    imgBox.innerHTML = charMarkup(GRADES.late);      // ppaguli_grin
+    void imgBox.offsetWidth; imgBox.classList.add("m-droop");
+  }
+  // 요일별 리스트
+  let rows = "";
+  for (let i = 0; i < DAYS.length; i++) {
+    const r = dayResults[i];
+    if (r) rows += `<div class="sr-row"><span class="d">${DAYS[i].name}</span><span class="v">${fmtSigned(r.err)}${r.penalty ? " ⚠+2.0" : ""}</span></div>`;
+    else if (!weekSuccess && i === day) rows += `<div class="sr-row dead"><span class="d">${DAYS[i].name}</span><span class="v">야근 💀</span></div>`;
+    else rows += `<div class="sr-row" style="opacity:.4"><span class="d">${DAYS[i].name}</span><span class="v">—</span></div>`;
+  }
+  $("srList").innerHTML = rows;
+  if (weekSuccess) {
+    $("srTotal").textContent = "총합 오차  ±" + weekTotal.toFixed(2) + "초";
+    $("srGrade").style.display = ""; $("srGrade").textContent = "등급: " + weekGradeName(weekTotal);
+    const b = getWeekBest();
+    $("srBest").innerHTML = "🏆 최소 총합 기록: ±" + (b === null ? "-" : b.toFixed(2)) + "초" + (weekIsNewBest ? " <span class='new'>· 신기록!</span>" : "");
+  } else {
+    $("srTotal").textContent = ""; $("srGrade").style.display = "none"; $("srBest").textContent = "";
+  }
+  $("srHint").textContent = "";
+  show("survResultScreen");
+  $("survResultScreen").scrollTop = 0;
+}
+
+/* ---------- 방해 요소 (요일별, 함수로 분리) ---------- */
+let obstacle = null;
+let msgPopupOpen = false;
+function clearObstacles() {
+  msgPopupOpen = false;
+  $("msgPopup").classList.remove("show");
+  $("hoesikPopup").classList.remove("show");
+  $("walker").classList.remove("show");
+  $("speedBadge").classList.remove("show", "flash");
+}
+function setupObstacle(d) {
+  clearObstacles();
+  if (d === 1) obstacle = obsTuesday();
+  else if (d === 2) obstacle = obsWednesday();
+  else if (d === 3) obstacle = obsThursday();
+  else if (d === 4) obstacle = obsFriday();
+  else obstacle = { onFrame() {}, cleanup() {} };
+}
+// 화요일: 라운드 중 1~2회 랜덤 시점에 배속 3~5로 변경
+function obsTuesday() {
+  const n = 1 + Math.floor(Math.random() * 2);
+  const pts = [];
+  for (let i = 0; i < n; i++) pts.push(-3800 + Math.random() * 3200);
+  pts.sort((a, b) => a - b);
+  const fired = pts.map(() => false);
+  return {
+    onFrame(ms) { pts.forEach((p, i) => { if (!fired[i] && ms >= p) { fired[i] = true; speed = 3 + Math.random() * 2; flashSpeed(); } }); },
+    cleanup() {},
+  };
+}
+function flashSpeed() {
+  const sb = $("speedBadge");
+  sb.textContent = "⚡ x" + speed.toFixed(1);
+  sb.classList.add("show"); sb.classList.remove("flash"); void sb.offsetWidth; sb.classList.add("flash");
+}
+// 수요일: 랜덤 시점(17:59:57~59)에 메신저 팝업이 퇴근 버튼을 가림 → X 눌러야 함
+function obsWednesday() {
+  const p = -3000 + Math.random() * 2000;
+  let fired = false;
+  return {
+    onFrame(ms) { if (!fired && ms >= p) { fired = true; msgPopupOpen = true; $("msgPopup").classList.add("show"); } },
+    cleanup() { msgPopupOpen = false; $("msgPopup").classList.remove("show"); },
+  };
+}
+// 목요일: 17:59:56쯤 빠글이가 화면을 가로질러 걸어가며 시계를 2초간 가림
+function obsThursday() {
+  const p = -4000 + Math.random() * 400;
+  let fired = false;
+  return {
+    onFrame(ms) {
+      if (!fired && ms >= p) {
+        fired = true;
+        const w = $("walker"); w.classList.remove("show"); void w.offsetWidth; w.classList.add("show");
+        const im = w.querySelector("img"); if (im) { im.style.animation = "none"; void im.offsetWidth; im.style.animation = ""; }
+        setTimeout(() => w.classList.remove("show"), 2050);
+      }
+    },
+    cleanup() { $("walker").classList.remove("show"); },
+  };
+}
+// 금요일: 17:59:57에 회식 팝업. [죄송합니다]로 닫아야 계속, [좋습니다!]는 즉시 야근
+function obsFriday() {
+  const p = -3000;
+  let fired = false;
+  return {
+    onFrame(ms) { if (!fired && ms >= p) { fired = true; $("hoesikPopup").classList.add("show"); } },
+    cleanup() { $("hoesikPopup").classList.remove("show"); },
+  };
+}
+function closeMsgPopup() { msgPopupOpen = false; $("msgPopup").classList.remove("show"); }
+function closeHoesik() { $("hoesikPopup").classList.remove("show"); }
+function fridayAccept() {                    // 좋습니다! → 즉시 야근 확정으로 런 종료
+  if (!running) return;
+  running = false; cancelAnimationFrame(rafId);
+  if (obstacle) obstacle.cleanup();
+  clearObstacles(); speed = BASE_SPEED;
+  survivalFail();
 }
 
 function fmtSigned(err) { return (err >= 0 ? "+" : "-") + Math.abs(err).toFixed(2) + "초"; }
@@ -417,7 +764,7 @@ function renderResult() {
   imgBox.innerHTML = charMarkup(g);
   void imgBox.offsetWidth;
   imgBox.classList.add(g.motion);
-  if (g.spark) sparkle();
+  if (g.spark) sparkle("krImg");
   $("krLine").textContent = g.line;
   const best = getBest();
   $("krBest").innerHTML = "🏆 내 최고 기록: ±" + (best === null ? "-" : best.toFixed(2)) + "초"
@@ -444,8 +791,8 @@ function confetti() {
 function clearConfetti() { $("confetti").innerHTML = ""; }
 
 /* 반짝이 파티클 (전설/프로 등급) — 캐릭터 주변 */
-function sparkle() {
-  const box = $("krImg");
+function sparkle(id) {
+  const box = $(id || "krImg");
   for (let i = 0; i < 10; i++) {
     const s = document.createElement("span");
     s.className = "spark";
@@ -527,6 +874,64 @@ async function buildCard() {
   return cv;
 }
 
+/* ---------- 생존 모드 결과 카드 (1080x1920) ---------- */
+async function buildWeekCard() {
+  const W = 1080, H = 1920, cx = W / 2;
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const ctx = cv.getContext("2d"); ctx.textAlign = "center";
+  try { await document.fonts.ready; } catch (e) {}
+  const FF = '"Pretendard Variable", Pretendard, sans-serif';
+  const success = weekSuccess;
+  const point = success ? "#D9C7A7" : "#8E8A86";
+  const pointText = success ? "#B0854A" : "#6F6B67";
+
+  ctx.fillStyle = "#FBF6EC"; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = point; ctx.fillRect(0, 0, W, 16);
+  ctx.save(); ctx.shadowColor = "rgba(158,138,102,.22)"; ctx.shadowBlur = 50; ctx.shadowOffsetY = 24;
+  ctx.fillStyle = "#FFFDF8"; roundRect(ctx, 60, 90, W - 120, H - 180, 70); ctx.fill(); ctx.restore();
+
+  ctx.fillStyle = "#8B8177"; ctx.font = "600 40px " + FF;
+  ctx.fillText("꼬직 칼퇴 챌린지 · 한 주 생존", cx, 210);
+
+  ctx.fillStyle = pointText; ctx.font = "800 84px " + FF;
+  ctx.fillText(success ? "주간 생존 성공" : (DAYS[day].name + " 야근 사망"), cx, 336);
+  if (success) { ctx.fillStyle = "#4A423A"; ctx.font = "800 58px " + FF; ctx.fillText(weekGradeName(weekTotal), cx, 424); }
+
+  const img = success ? (loadedImg["eunha_happy"] || loadedImg["eunha"]) : (loadedImg["ppaguli_grin"] || loadedImg["ppaguli"]);
+  const imgY = success ? 640 : 620;
+  if (img) drawImageContain(ctx, img, cx, imgY, 340, 340);
+  else { ctx.font = "220px " + FF; ctx.fillText(success ? EMOJI.eunha : EMOJI.ppaguli, cx, imgY + 70); }
+
+  // 요일별 오차 리스트
+  let y = success ? 900 : 890;
+  ctx.font = "700 46px " + FF;
+  for (let i = 0; i < DAYS.length; i++) {
+    const r = dayResults[i];
+    ctx.textAlign = "left"; ctx.fillStyle = "#5C5349"; ctx.fillText(DAYS[i].name, 210, y);
+    ctx.textAlign = "right";
+    if (r) { ctx.fillStyle = pointText; ctx.fillText(fmtSigned(r.err) + (r.penalty ? "  ⚠+2.0" : ""), 870, y); }
+    else if (!success && i === day) { ctx.fillStyle = "#8E8A86"; ctx.fillText("야근 💀", 870, y); }
+    else { ctx.fillStyle = "#C9BFAE"; ctx.fillText("—", 870, y); }
+    y += 82;
+  }
+  ctx.textAlign = "center";
+
+  if (success) {
+    ctx.fillStyle = "#4A423A"; ctx.font = "800 62px " + FF;
+    ctx.fillText("총합 오차  ±" + weekTotal.toFixed(2) + "초", cx, y + 66);
+  } else {
+    ctx.fillStyle = "#5C5349"; ctx.font = "600 44px " + FF;
+    ctx.fillText("버틴 요일: " + day + "일", cx, y + 54);
+  }
+
+  ctx.fillStyle = point; ctx.font = "800 50px " + FF;
+  ctx.fillText("@ccojik.dh", cx, 1780);
+  ctx.fillStyle = "#8B8177"; ctx.font = "600 38px " + FF;
+  ctx.fillText("너도 칼퇴 도전해봐", cx, 1840);
+
+  return cv;
+}
+
 /* ---------- 저장 (iOS는 꾹 눌러 저장) ---------- */
 const isIOS = /iP(hone|od|ad)/.test(navigator.userAgent) ||
   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -540,33 +945,49 @@ function closeSaveModal() {
   $("saveModal").classList.remove("show"); $("saveModalImg").removeAttribute("src");
   if (saveModalURL) { URL.revokeObjectURL(saveModalURL); saveModalURL = null; }
 }
+function outputCard(cv, name, hintId) {
+  cv.toBlob(blob => {
+    if (!blob) { $(hintId).textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요 🙏"; return; }
+    const url = URL.createObjectURL(blob);
+    if (!supportsDownload()) { openSaveModal(url); $(hintId).textContent = ""; return; }
+    const a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    $(hintId).textContent = "저장 완료! 📸";
+  }, "image/png");
+}
 async function saveCard() {
-  try {
-    const cv = await buildCard();
-    cv.toBlob(blob => {
-      if (!blob) { $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요 🙏"; return; }
-      const url = URL.createObjectURL(blob);
-      if (!supportsDownload()) { openSaveModal(url); $("saveHint").textContent = ""; return; }
-      const a = document.createElement("a");
-      a.href = url; a.download = "ccojik_kaltoe.png";
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      $("saveHint").textContent = "저장 완료! 📸";
-    }, "image/png");
-  } catch (e) { $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요 🙏"; }
+  try { outputCard(await buildCard(), "ccojik_kaltoe.png", "saveHint"); }
+  catch (e) { $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요 🙏"; }
+}
+async function saveWeekCard() {
+  try { outputCard(await buildWeekCard(), "ccojik_kaltoe_week.png", "srHint"); }
+  catch (e) { $("srHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요 🙏"; }
 }
 
-/* ---------- 시작 화면 최고기록 ---------- */
+/* ---------- 시작 화면 최고기록 (연습 + 생존) ---------- */
 function refreshStartBest() {
-  const b = getBest();
-  $("startBest").textContent = b === null ? "" : "🏆 내 최고 기록: ±" + b.toFixed(2) + "초";
+  const b = getBest(), w = getWeekBest();
+  let s = "";
+  if (b !== null) s += "🎯 연습 최고 ±" + b.toFixed(2) + "초";
+  if (w !== null) s += (s ? "   ·   " : "") + "📅 생존 최소 ±" + w.toFixed(2) + "초";
+  $("startBest").textContent = s;
 }
 
 /* ---------- 이벤트 ---------- */
-$("startBtn").addEventListener("click", startGame);
+$("modePractice").addEventListener("click", startPractice);
+$("modeSurvival").addEventListener("click", startSurvival);
 $("leaveBtn").addEventListener("click", pressLeave);
-$("againBtn").addEventListener("click", startGame);   // 시작 화면 안 거치고 즉시 재도전
+$("againBtn").addEventListener("click", startPractice);        // 연습 한 번 더
+$("toSurvivalBtn").addEventListener("click", startSurvival);   // 연습 결과 → 본게임
 $("saveBtn").addEventListener("click", saveCard);
+$("srSaveBtn").addEventListener("click", saveWeekCard);
+$("srAgainBtn").addEventListener("click", startSurvival);      // 생존 다시 도전
+$("srHomeBtn").addEventListener("click", () => { mode = "practice"; flowToken++; show("startScreen"); refreshStartBest(); });
+$("msgClose").addEventListener("click", closeMsgPopup);
+$("hoesikGood").addEventListener("click", fridayAccept);
+$("hoesikBad").addEventListener("click", closeHoesik);
 $("saveModalClose").addEventListener("click", closeSaveModal);
 $("saveModal").addEventListener("click", (e) => { if (e.target === $("saveModal")) closeSaveModal(); });
 
