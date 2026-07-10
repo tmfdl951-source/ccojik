@@ -73,6 +73,11 @@
   .char .ph { display: none; font-size: 56px; }
   .char-card .nm { font-weight: 800; font-size: 15px; }
   .char-card .rl { font-size: 11.5px; color: var(--ink-soft); font-weight: 500; margin-top: 2px; }
+  /* 시작화면: 두 캐릭터가 좌우로 기운 채 둥실 (서로 반대 위상) */
+  .duo .char-card:nth-child(1) .char { animation: floatL 3.6s ease-in-out infinite; }
+  .duo .char-card:nth-child(2) .char { animation: floatR 4.2s ease-in-out infinite; }
+  @keyframes floatL { 0%,100% { transform: translateY(0) rotate(-5deg); } 50% { transform: translateY(-11px) rotate(-8deg); } }
+  @keyframes floatR { 0%,100% { transform: translateY(-4px) rotate(5deg); } 50% { transform: translateY(8px) rotate(8deg); } }
 
   .cta {
     margin-top: 22px; border: none; cursor: pointer; font-family: inherit;
@@ -91,12 +96,12 @@
   .progress-track { flex: 1; height: 12px; background: #EFE7D6; border-radius: 999px; overflow: hidden;
     box-shadow: inset 2px 2px 5px rgba(158,138,102,.15), inset -2px -2px 4px rgba(255,255,255,.7); }
   .progress-fill { height: 100%; width: 10%; border-radius: 999px;
-    background: linear-gradient(90deg, var(--beige), #C4AE86); transition: width .4s cubic-bezier(.3,.9,.4,1); }
+    background: linear-gradient(90deg, var(--beige), #C4AE86); transition: width .55s cubic-bezier(.3,.9,.4,1); }
   .progress-num { font-size: 13px; font-weight: 800; color: var(--ink-soft); min-width: 40px; text-align: right; }
 
   .q-body { flex: 1; display: flex; flex-direction: column; justify-content: center; }
-  .q-slide { animation: slideIn .4s cubic-bezier(.22,.8,.3,1); }
-  @keyframes slideIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+  .q-slide { animation: slideIn .42s cubic-bezier(.22,.8,.3,1); }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(58px); } to { opacity: 1; transform: translateX(0); } }
 
   .q-index { font-size: 14px; font-weight: 800; color: var(--beige-text); }
   .q-text { font-size: 22px; font-weight: 800; line-height: 1.45; margin: 10px 0 26px; letter-spacing: -.4px; }
@@ -106,10 +111,16 @@
     text-align: left; border: none; cursor: pointer; font-family: inherit;
     background: var(--ivory); border-radius: 22px; padding: 20px 18px;
     box-shadow: var(--shadow-sm); display: flex; align-items: center; gap: 14px;
-    transition: transform .12s ease, box-shadow .12s ease;
+    transition: transform .16s ease, box-shadow .16s ease, opacity .22s ease;
   }
-  .choice:active { transform: scale(.97);
+  .choice:active { transform: scale(.96);
     box-shadow: inset 5px 5px 12px rgba(158,138,102,.16), inset -4px -4px 10px rgba(255,255,255,.75); }
+  /* 선택 순간: 눌린 채 유지 + 포인트 컬러 링, 나머지 선택지는 흐려짐 */
+  .choice.selected { transform: scale(.96); }
+  .choice.a.selected { box-shadow: 0 0 0 3px var(--beige), var(--shadow-sm); }
+  .choice.b.selected { box-shadow: 0 0 0 3px var(--warmgray), var(--shadow-sm); }
+  .choices.locked .choice:not(.selected) { opacity: .4; transform: scale(.985); }
+  .choices.locked .choice { cursor: default; }
   .choice .tag {
     flex-shrink: 0; width: 38px; height: 38px; border-radius: 14px;
     display: flex; align-items: center; justify-content: center;
@@ -131,17 +142,51 @@
   #loadScreen .ls { font-size: 13.5px; color: var(--ink-soft); font-weight: 500; }
   .dots::after { content: ""; animation: dots 1.4s steps(4,end) infinite; }
   @keyframes dots { 0%{content:"";} 25%{content:".";} 50%{content:"..";} 75%{content:"...";} 100%{content:"";} }
+  /* 분석 게이지 (겉모습축/속마음축) — 로딩 화면이 활성화되면 차오름 */
+  .analyze { width: 100%; max-width: 264px; display: flex; flex-direction: column; gap: 15px; }
+  .ag { text-align: left; }
+  .ag-top { display: flex; justify-content: space-between; align-items: baseline; }
+  .agl { font-size: 12.5px; font-weight: 700; color: var(--ink-soft); }
+  .agp { font-size: 11px; font-weight: 800; color: var(--ink-soft); opacity: .7; }
+  .agt { height: 13px; margin-top: 6px; background: #EFE7D6; border-radius: 999px; overflow: hidden;
+    box-shadow: inset 2px 2px 5px rgba(158,138,102,.15), inset -2px -2px 4px rgba(255,255,255,.7); }
+  .agf { height: 100%; width: 0; border-radius: 999px; }
+  .agf.outer { background: linear-gradient(90deg, var(--beige), #C4AE86); }
+  .agf.inner { background: linear-gradient(90deg, var(--warmgray), #6F6B67); }
+  #loadScreen.active .agf.outer { animation: fillGauge 1.7s cubic-bezier(.3,.9,.4,1) .1s forwards; }
+  #loadScreen.active .agf.inner { animation: fillGauge 1.7s cubic-bezier(.3,.9,.4,1) .45s forwards; }
+  @keyframes fillGauge { from { width: 0; } to { width: 100%; } }
 
   /* ===== 결과 화면 ===== */
   #resultScreen { padding: 24px 22px; overflow-y: auto; }
   #resultScreen::-webkit-scrollbar { display: none; }
-  .r-top { text-align: center; }
+  .r-top { text-align: center; background: var(--ivory); border-radius: 22px;
+    padding: 16px 14px 18px; box-shadow: var(--shadow-sm); transform-origin: center; }
   .r-kicker { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
   .r-name { font-size: 30px; font-weight: 800; letter-spacing: -.6px; margin-top: 6px; }
   .r-img-wrap { position: relative; width: 210px; height: 210px; margin: 14px auto 6px; }
   .r-img-wrap .main { width: 100%; height: 100%; object-fit: contain;
-    filter: drop-shadow(8px 14px 18px rgba(158,138,102,.28)); animation: floaty 3.4s ease-in-out infinite; }
+    filter: drop-shadow(8px 14px 18px rgba(158,138,102,.28));
+    animation: bounceUp .8s cubic-bezier(.28,.84,.42,1) both, floaty 3.4s ease-in-out .8s infinite; }
   @keyframes floaty { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-9px);} }
+  @keyframes bounceUp {
+    0%   { transform: translateY(135%) scale(.8); opacity: 0; }
+    55%  { transform: translateY(-14%) scale(1.07); opacity: 1; }
+    75%  { transform: translateY(5%) scale(.98); }
+    100% { transform: translateY(0) scale(1); }
+  }
+  /* 결과 화면 활성화 시 순차 등장 연출 */
+  #resultScreen.active .r-top { animation: flipIn .72s cubic-bezier(.3,.8,.4,1) both; }
+  #resultScreen.active .r-quote   { animation: riseIn .5s ease .55s both; }
+  #resultScreen.active .r-desc    { animation: riseIn .5s ease .7s both; }
+  #resultScreen.active .r-tags    { animation: riseIn .5s ease .85s both; }
+  #resultScreen.active .r-actions { animation: riseIn .5s ease 1s both; }
+  @keyframes flipIn {
+    0%   { transform: perspective(600px) rotateX(90deg); opacity: 0; }
+    60%  { transform: perspective(600px) rotateX(-12deg); opacity: 1; }
+    100% { transform: perspective(600px) rotateX(0); }
+  }
+  @keyframes riseIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
   .r-img-wrap .sub { position: absolute; right: -6px; bottom: 4px; width: 92px; height: 92px;
     object-fit: contain; filter: drop-shadow(5px 8px 12px rgba(158,138,102,.3)); }
   .r-quote { text-align: center; font-size: 17px; font-weight: 800; margin: 8px 0 4px; }
@@ -201,6 +246,16 @@
     <div>
       <div class="lt">당신의 직장인 자아 분석중<span class="dots"></span></div>
       <div class="ls">잠시만 기다려주세요</div>
+    </div>
+    <div class="analyze">
+      <div class="ag">
+        <div class="ag-top"><span class="agl">겉모습축</span><span class="agp">분석중</span></div>
+        <div class="agt"><div class="agf outer"></div></div>
+      </div>
+      <div class="ag">
+        <div class="ag-top"><span class="agl">속마음축</span><span class="agp">분석중</span></div>
+        <div class="agt"><div class="agf inner"></div></div>
+      </div>
     </div>
   </section>
 
@@ -328,8 +383,16 @@ function renderQuestion() {
         <button class="choice b" data-ans="B"><span class="tag">B</span><span class="ctext">${q.b}</span></button>
       </div>
     </div>`;
+  let picked = false;  // 연출용 잠금 (판정 로직과 무관)
+  const choicesEl = $("qContent").querySelector(".choices");
   $("qContent").querySelectorAll(".choice").forEach(btn => {
-    btn.addEventListener("click", () => choose(btn.dataset.ans));
+    btn.addEventListener("click", () => {
+      if (picked) return;
+      picked = true;
+      btn.classList.add("selected");
+      choicesEl.classList.add("locked");
+      setTimeout(() => choose(btn.dataset.ans), 320);  // 눌림·선택 표시 후 전환
+    });
   });
 }
 
@@ -355,7 +418,7 @@ function computeResult() {
 function finish() {
   result = computeResult();
   show("loadScreen");
-  setTimeout(renderResult, 1500);
+  setTimeout(renderResult, 2000);  // 게이지 차오르는 연출 시간 확보
 }
 
 /* ---------- 결과 렌더 ---------- */
