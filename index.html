@@ -428,35 +428,72 @@ const QUESTIONS = [
     b: "월급. 그리고 퇴근 후의 나의 삶" },
 ];
 
+// 8유형: 방향(pp/ee/pe/ep) + 강도(strong=두 축 모두 강 / soft=하나라도 약)
 const RESULTS = {
-  pp: {
-    name: "천생 빠글이형",
-    quote: "어지러운 게 아니라 나만의 배치임",
-    desc: "책상은 카오스, 바탕화면은 빼곡, 근데 일은 됨. 남들 눈엔 난장판이어도 당신 머릿속엔 다 지도가 있습니다. 정리에 쓸 시간에 일 하나 더 끝내는 실전형. 치우라는 말만 안 들으면 회사에서 제일 편한 사람입니다.",
-    tags: "#나만아는배치 #카오스속질서 #실전형인간",
+  pp_strong: {
+    name: "순도 100% 빠글이형",
+    quote: "정리요? 그 시간에 일 하나 더 함",
+    desc: "책상도 카오스, 머릿속도 프리스타일, 근데 결과물은 나오는 사람. 몰표가 나올 정도면 당신은 그냥 빠글이 그 자체입니다. 남들이 못 견디는 난장판 속에서 오히려 집중력이 올라가는 희귀 유형. 치우라는 말만 안 들으면 회사에서 제일 무서운 실전형입니다.",
+    tags: "#걸어다니는카오스 #근데일은됨 #빠글이그자체",
     main: "ppaguli", sub: null, color: "#B0854A", grad: null,
   },
-  ee: {
-    name: "뼛속까지 은하형",
-    quote: "공간이 정돈돼야 머리가 돌아감",
-    desc: "책상 위엔 노트북과 텀블러뿐. 파일명엔 날짜와 버전, 알림 뱃지는 항상 0. 유난 떠는 게 아니라 이게 당신의 작동 방식입니다. 시스템이 곧 실력이라는 걸 몸으로 증명하는 타입. 당신 폴더 구조 보고 반한 사람 분명 있습니다.",
-    tags: "#미니멀리스트 #뱃지0의평화 #시스템이실력",
+  pp_soft: {
+    name: "소프트 빠글이형",
+    quote: "어지럽긴 한데 선은 지킴",
+    desc: "기본 세팅은 카오스인데 최소한의 사회적 정리는 하는 사람. 책상은 어질러져 있어도 남에게 피해 가는 건 못 참습니다. 빠글이의 추진력에 눈치라는 옵션이 달린, 의외로 같이 일하기 편한 유형입니다.",
+    tags: "#생활형빠글이 #사회성패치완료 #적당한카오스",
+    main: "ppaguli", sub: null, color: "#B0854A", grad: null,
+  },
+  ee_strong: {
+    name: "순도 100% 은하형",
+    quote: "제 폴더 구조 보실래요?",
+    desc: "책상, 바탕화면, 메신저, 일정까지 전부 각 잡힌 사람. 몰표가 나올 정도면 정리는 습관이 아니라 당신의 운영체제입니다. 시스템이 곧 실력이라는 걸 몸으로 증명하는 타입. 당신 폴더 구조 보고 조용히 반한 사람 분명 있습니다.",
+    tags: "#인간시스템 #뱃지0의평화 #정리가운영체제",
     main: "eunha", sub: null, color: "#6F6B67", grad: null,
   },
-  pe: {
-    name: "겉빠글 속은하형",
-    quote: "책상은 난장판인데 파일명은 완벽함",
-    desc: "자리만 보면 카오스인데 폴더 열어보면 소름 돋게 정리돼 있는 반전 타입. 보이는 건 대충, 진짜 중요한 건 확실하게. 에너지를 쓸 곳과 안 쓸 곳을 구분할 줄 아는 효율의 고수입니다.",
-    tags: "#반전정리력 #폴더열면소름 #선택적완벽주의",
+  ee_soft: {
+    name: "소프트 은하형",
+    quote: "깔끔한데 융통성도 있음",
+    desc: "기본은 미니멀인데 상황 따라 유연하게 넘어갈 줄도 아는 사람. 완벽주의에 목숨 걸지 않고 필요한 만큼만 정돈합니다. 은하의 시스템에 여유라는 옵션이 달린, 제일 무난하게 오래가는 유형입니다.",
+    tags: "#실용미니멀 #각잡되집착안함 #지속가능한깔끔",
+    main: "eunha", sub: null, color: "#6F6B67", grad: null,
+  },
+  pe_strong: {
+    name: "반전만렙 겉빠글 속은하형",
+    quote: "책상은 재난현장, 폴더는 박물관",
+    desc: "겉과 속이 극과 극인 초반전 유형. 자리만 보면 카오스인데 폴더 열면 날짜별 버전별로 소름 돋게 정리돼 있습니다. 보이는 곳엔 에너지를 아예 안 쓰고 진짜 중요한 곳에만 전부 쏟는, 효율의 극단을 달리는 사람입니다.",
+    tags: "#반전폭최대치 #폴더열면소름 #극단적효율러",
     main: "ppaguli", sub: "eunha", color: "#9A8666", grad: ["#D9C7A7", "#8E8A86"],
   },
-  ep: {
-    name: "겉은하 속빠글형",
-    quote: "책상은 깔끔한데 머릿속은 즉흥임",
-    desc: "자리는 모델하우스인데 일하는 방식은 감과 애드리브. 계획표는 장식이고 결국 그날의 필이 결정합니다. 깔끔한 겉모습에 다들 속지만, 사실 제일 유연하고 제일 예측 불가능한 타입입니다.",
-    tags: "#모델하우스책상 #머릿속은프리스타일 #반전즉흥러",
+  pe_soft: {
+    name: "은은한 겉빠글 속은하형",
+    quote: "대충 사는 것 같은데 은근 다 챙김",
+    desc: "겉으로는 털털한데 속으로는 은근히 체크리스트가 돌아가는 사람. 완벽하게 각 잡진 않아도 중요한 건 절대 안 놓칩니다. 겉모습에 속아 만만하게 봤다가 꼼꼼함에 놀라게 되는 유형입니다.",
+    tags: "#은근꼼꼼러 #속으로체크중 #반전은디테일에",
+    main: "ppaguli", sub: "eunha", color: "#9A8666", grad: ["#D9C7A7", "#8E8A86"],
+  },
+  ep_strong: {
+    name: "반전만렙 겉은하 속빠글형",
+    quote: "자리는 모델하우스, 머릿속은 락페스티벌",
+    desc: "겉과 속이 극과 극인 초반전 유형. 책상은 완벽하게 정돈돼 있는데 일하는 방식은 100% 감과 애드리브입니다. 깔끔한 외관에 모두가 속지만 사실 회사에서 제일 예측 불가능한 사람. 그래서 제일 재밌는 사람이기도 합니다.",
+    tags: "#겉정리속즉흥 #모델하우스책상 #머릿속은프리스타일",
     main: "eunha", sub: "ppaguli", color: "#7C7A72", grad: ["#8E8A86", "#D9C7A7"],
   },
+  ep_soft: {
+    name: "은은한 겉은하 속빠글형",
+    quote: "단정한데 가끔 사고침",
+    desc: "평소엔 깔끔하고 계획적으로 사는 것 같은데 결정적인 순간엔 필대로 가는 사람. 정돈된 일상에 즉흥이라는 비상구를 하나 뚫어둔 유형입니다. 예측 가능한 듯 불가능한 그 밸런스가 당신의 매력입니다.",
+    tags: "#단정한즉흥러 #비상구는필 #밸런스형인간",
+    main: "eunha", sub: "ppaguli", color: "#7C7A72", grad: ["#8E8A86", "#D9C7A7"],
+  },
+};
+
+// 4계열 메타 (동료 궁합 표시용 — 8유형을 계열로 묶어 사용)
+const FAMILY = {
+  pp: { name: "빠글이형",         main: "ppaguli", color: "#B0854A" },
+  ee: { name: "은하형",           main: "eunha",   color: "#6F6B67" },
+  pe: { name: "겉빠글 속은하형",   main: "ppaguli", color: "#9A8666" },
+  ep: { name: "겉은하 속빠글형",   main: "eunha",   color: "#7C7A72" },
 };
 
 const IMG_SRC = { ppaguli: "./assets/ppaguli.png", eunha: "./assets/eunha.png" };
@@ -539,13 +576,15 @@ function choose(ans) {
   }
 }
 
-/* ---------- 판정 ---------- */
+/* ---------- 판정 (8유형: 방향 + 강도) ---------- */
 function computeResult() {
-  const outerA = answers.slice(0, 5).filter(a => a === "A").length;   // 겉모습
-  const innerA = answers.slice(5, 10).filter(a => a === "A").length;  // 속마음
-  const outer = outerA >= 3 ? "p" : "e";
-  const inner = innerA >= 3 ? "p" : "e";
-  resultKey = outer + inner;
+  const outerA = answers.slice(0, 5).filter(a => a === "A").length;   // 겉모습축 빠글 점수(0~5)
+  const innerA = answers.slice(5, 10).filter(a => a === "A").length;  // 속마음축 빠글 점수(0~5)
+  const dir = a => a >= 3 ? "p" : "e";                 // 3개 이상 빠글 / 2개 이하 은하
+  const strong = a => a >= 3 ? a >= 4 : a <= 1;        // 빠글: 4~5 강/3 약, 은하: 0~1 강/2 약
+  const fam = dir(outerA) + dir(innerA);               // pp/ee/pe/ep
+  const bothStrong = strong(outerA) && strong(innerA); // 두 축 모두 강이면 strong, 하나라도 약이면 soft
+  resultKey = fam + "_" + (bothStrong ? "strong" : "soft");
   return RESULTS[resultKey];
 }
 
@@ -560,18 +599,19 @@ function charMarkup(key, cls) {
   return `<img class="${cls}" src="${IMG_SRC[key]}" alt=""
     onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${EMOJI[key]}',className:'${cls}',style:'font-size:120px'}))">`;
 }
-// 동료 궁합 렌더 (웹 화면 전용)
+// 동료 궁합 렌더 (웹 화면 전용) — 8유형을 4계열로 묶어 표시
 function renderCompat() {
-  const c = COMPAT[resultKey];
+  const fam = resultKey ? resultKey.split("_")[0] : null;  // pp/ee/pe/ep
+  const c = fam && COMPAT[fam];
   if (!c) { $("compat").style.display = "none"; return; }
   $("compat").style.display = "";
   const fill = (which, data) => {
-    const rt = RESULTS[data.key];
+    const f = FAMILY[data.key];
     $("cc" + which + "Img").innerHTML =
-      `<img src="${IMG_SRC[rt.main]}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${EMOJI[rt.main]}',style:'font-size:32px'}))">`;
+      `<img src="${IMG_SRC[f.main]}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${EMOJI[f.main]}',style:'font-size:32px'}))">`;
     const nameEl = $("cc" + which + "Name");
-    nameEl.textContent = rt.name;
-    nameEl.style.color = rt.color;
+    nameEl.textContent = f.name;
+    nameEl.style.color = f.color;
     $("cc" + which + "Desc").textContent = data.text;
   };
   fill("Good", c.good);
