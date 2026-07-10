@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>꼬직 칼퇴 챌린지</title>
+<meta property="og:type" content="website" />
+<meta property="og:title" content="6시 정각에 퇴근 버튼을 눌러라 — 꼬직 칼퇴 챌린지" />
+<meta property="og:description" content="18:00:00.00에 딱 맞춰 퇴근하면 전설의 칼퇴" />
+<meta property="og:image" content="../assets/og.png" />
+<link rel="stylesheet" as="style" crossorigin
+  href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<style>
+  :root {
+    --cream: #FBF6EC; --ivory: #FFFDF8; --beige: #D9C7A7; --beige-text: #B0854A;
+    --warmgray: #8E8A86; --warmgray-text: #6F6B67; --blush: #F5A9B0; --ink: #4A423A; --ink-soft: #8B8177;
+    --shadow: 22px 22px 44px rgba(158,138,102,.18), -10px -10px 26px rgba(255,255,255,.9);
+    --shadow-sm: 8px 8px 18px rgba(158,138,102,.16), -5px -5px 12px rgba(255,255,255,.85);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%;
+    font-family: "Pretendard Variable", Pretendard, -apple-system, system-ui, sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(circle at 28% 12%, #FFFDF8 0%, transparent 55%),
+      radial-gradient(circle at 82% 92%, #F5EDDC 0%, transparent 50%),
+      var(--cream);
+  }
+  body { display: flex; align-items: center; justify-content: center; min-height: 100dvh; padding: 12px; }
+
+  .phone {
+    position: relative;
+    width: min(430px, 96vw);
+    aspect-ratio: 9 / 16;
+    max-height: 96dvh;
+    background: linear-gradient(160deg, var(--ivory), var(--cream));
+    border-radius: 40px; box-shadow: var(--shadow); overflow: hidden;
+  }
+  .phone.shake { animation: shakeX .5s; }
+  @keyframes shakeX {
+    0%,100% { transform: translateX(0); } 15% { transform: translateX(-10px) rotate(-1deg); }
+    35% { transform: translateX(9px) rotate(1deg); } 55% { transform: translateX(-7px); }
+    75% { transform: translateX(5px); } 90% { transform: translateX(-2px); }
+  }
+
+  .screen {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    padding: 30px 26px; opacity: 0; pointer-events: none; transform: scale(.985);
+    transition: opacity .35s ease, transform .35s ease;
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+  }
+  .screen::-webkit-scrollbar { display: none; }
+  .screen.active { opacity: 1; pointer-events: auto; transform: scale(1); }
+
+  .kicker { font-size: 13px; font-weight: 700; color: var(--beige-text);
+    background: #F3E9D5; padding: 7px 16px; border-radius: 999px; letter-spacing: .3px; }
+
+  /* ===== 시작 화면 ===== */
+  #startScreen { align-items: center; justify-content: safe center; text-align: center; gap: 6px; }
+  #startScreen h1 { font-size: 30px; font-weight: 800; letter-spacing: -.7px; line-height: 1.32; margin-top: 16px; }
+  #startScreen h1 .hl { color: var(--blush); }
+  #startScreen .desc { color: var(--ink-soft); font-size: 14.5px; font-weight: 500; margin-top: 12px; line-height: 1.55; }
+  .char { width: 118px; height: 118px; margin: 24px auto 6px; display: flex; align-items: center; justify-content: center;
+    animation: floaty 3.4s ease-in-out infinite; }
+  .char img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(6px 10px 14px rgba(158,138,102,.26)); }
+  .char .ph { font-size: 70px; }
+  @keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+
+  .cta {
+    margin-top: 22px; border: none; cursor: pointer; font-family: inherit;
+    background: linear-gradient(160deg, var(--beige), #C4AE86);
+    color: #fff; font-weight: 800; font-size: 18px; padding: 17px 46px; border-radius: 22px;
+    box-shadow: var(--shadow-sm); transition: transform .14s ease;
+  }
+  .cta:active { transform: scale(.95); }
+  .best-note { font-size: 12.5px; color: var(--ink-soft); font-weight: 700; margin-top: 16px; }
+
+  /* ===== 게임 화면 ===== */
+  #gameScreen { align-items: center; justify-content: center; text-align: center; }
+  .target { font-size: 14px; font-weight: 700; color: var(--ink-soft); }
+  .target b { color: var(--beige-text); }
+  .clock-wrap { margin: 26px 0 8px; display: flex; align-items: baseline; justify-content: center;
+    transition: transform .05s linear; }
+  .clock { font-size: 62px; font-weight: 800; letter-spacing: 1px; font-variant-numeric: tabular-nums;
+    line-height: 1; color: var(--ink); }
+  .clock .cs { font-size: 38px; opacity: .7; margin-left: 2px; }
+  .hint { font-size: 13px; color: var(--ink-soft); font-weight: 500; margin-top: 8px; min-height: 18px; }
+  .leave-btn {
+    margin-top: 40px; border: none; cursor: pointer; font-family: inherit;
+    background: linear-gradient(160deg, #F5C0C5, var(--blush)); color: #fff;
+    font-weight: 800; font-size: 26px; letter-spacing: 1px;
+    width: 210px; height: 210px; border-radius: 50%;
+    box-shadow: 12px 16px 30px rgba(245,169,176,.45), -6px -6px 16px rgba(255,255,255,.7);
+    transition: transform .08s ease, box-shadow .08s ease;
+  }
+  .leave-btn:active {
+    transform: scale(.93);
+    box-shadow: inset 8px 8px 18px rgba(180,110,120,.35), inset -6px -6px 14px rgba(255,255,255,.5);
+  }
+  .leave-btn small { display: block; font-size: 13px; font-weight: 700; opacity: .9; margin-top: 4px; }
+
+  /* ===== 결과 화면 ===== */
+  #resultScreen { align-items: center; text-align: center; padding: 26px 24px; }
+  .kr-grade { font-size: 30px; font-weight: 800; letter-spacing: -.5px; margin-top: 4px; }
+  .kr-err { font-size: 52px; font-weight: 800; font-variant-numeric: tabular-nums; margin-top: 6px; }
+  .kr-sub { font-size: 13px; font-weight: 600; color: var(--ink-soft); margin-top: 2px; }
+  .kr-img-wrap { position: relative; margin: 12px auto 2px; width: 168px; height: 168px; }
+  .kr-bubble {
+    display: inline-block; background: var(--ivory); border-radius: 18px; padding: 9px 16px;
+    box-shadow: var(--shadow-sm); font-size: 15px; font-weight: 700; position: relative; margin-bottom: 6px;
+  }
+  .kr-bubble::after { content: ""; position: absolute; left: 50%; bottom: -8px; width: 16px; height: 16px;
+    background: var(--ivory); transform: translateX(-50%) rotate(45deg); box-shadow: 5px 5px 10px rgba(158,138,102,.10); }
+  .kr-img { width: 168px; height: 168px; display: flex; align-items: center; justify-content: center;
+    animation: pop .5s cubic-bezier(.28,.84,.42,1); }
+  .kr-img img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(6px 10px 14px rgba(158,138,102,.28)); }
+  .kr-img .ph { font-size: 96px; }
+  @keyframes pop { 0% { transform: translateY(40px) scale(.7); opacity: 0; }
+    60% { transform: translateY(-8px) scale(1.06); opacity: 1; } 100% { transform: translateY(0) scale(1); } }
+  .kr-line {
+    background: var(--ivory); border-radius: 20px; padding: 15px 18px; margin-top: 14px;
+    box-shadow: var(--shadow-sm); font-size: 15px; font-weight: 600; color: #5c5349; line-height: 1.55;
+  }
+  .kr-best { margin-top: 14px; font-size: 13.5px; font-weight: 800; color: var(--beige-text); }
+  .kr-best .new { color: var(--blush); }
+
+  .kr-actions { display: flex; gap: 12px; margin-top: 20px; width: 100%; }
+  .kr-btn { flex: 1; border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 15px;
+    padding: 16px 8px; border-radius: 20px; box-shadow: var(--shadow-sm); transition: transform .13s ease; }
+  .kr-btn:active { transform: scale(.95); }
+  .kr-btn.save { background: linear-gradient(160deg, var(--beige), #C4AE86); color: #fff; }
+  .kr-btn.again { background: linear-gradient(160deg, #F5C0C5, var(--blush)); color: #fff; }
+  .link-btn {
+    display: block; width: 100%; margin-top: 12px; text-decoration: none; text-align: center;
+    background: var(--ivory); color: var(--ink); font-weight: 800; font-size: 14px;
+    padding: 15px 10px; border-radius: 18px; box-shadow: var(--shadow-sm); box-sizing: border-box;
+  }
+  .link-btn:active { transform: scale(.97); }
+  .save-hint { text-align: center; font-size: 11.5px; color: var(--ink-soft); margin-top: 12px; opacity: .85; line-height: 1.5; }
+
+  /* 컨페티 */
+  .confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 15; }
+  .confetti i { position: absolute; top: -16px; width: 11px; height: 15px; border-radius: 2px; opacity: .95;
+    animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(115vh) rotate(760deg); opacity: .65; } }
+
+  /* iOS 저장 안내 모달 */
+  .save-modal { position: absolute; inset: 0; z-index: 30; background: rgba(74,66,58,.62); backdrop-filter: blur(3px);
+    display: none; align-items: center; justify-content: center; padding: 22px; }
+  .save-modal.show { display: flex; }
+  .save-modal-inner { background: var(--ivory); border-radius: 24px; padding: 20px 18px 18px; box-shadow: var(--shadow);
+    max-width: 100%; max-height: 100%; overflow-y: auto; text-align: center; display: flex; flex-direction: column; align-items: center; }
+  .sm-title { font-size: 16px; font-weight: 800; } .sm-title::before { content: "👆 "; }
+  .sm-sub { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); line-height: 1.5; margin: 4px 0 10px; }
+  #saveModalImg { width: 100%; max-width: 260px; border-radius: 14px; box-shadow: var(--shadow-sm); }
+  .sm-close { margin-top: 14px; border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 14px;
+    background: var(--ivory); color: var(--ink); padding: 11px 30px; border-radius: 16px; box-shadow: var(--shadow-sm); }
+</style>
+</head>
+<body>
+<div class="phone" id="phone">
+
+  <!-- 시작 -->
+  <section class="screen active" id="startScreen">
+    <span class="kicker">꼬직 칼퇴 챌린지</span>
+    <h1>6시 정각에<br><span class="hl">퇴근 버튼</span>을 눌러라</h1>
+    <p class="desc">시계가 4배속으로 흐릅니다.<br>정확히 <b>18:00:00.00</b> 에 맞춰 퇴근!</p>
+    <div class="char"><img src="../assets/eunha.png" alt="심은하" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="ph" style="display:none">🧑</span></div>
+    <button class="cta" id="startBtn">퇴근 준비</button>
+    <p class="best-note" id="startBest"></p>
+  </section>
+
+  <!-- 게임 -->
+  <section class="screen" id="gameScreen">
+    <div class="target">🎯 목표 <b>18:00:00.00</b></div>
+    <div class="clock-wrap" id="clockWrap">
+      <span class="clock" id="clkMain">17:59:55</span><span class="clock cs" id="clkCs">.00</span>
+    </div>
+    <div class="hint">지금이야! 정각에 눌러!</div>
+    <button class="leave-btn" id="leaveBtn">퇴근<small>PUNCH OUT</small></button>
+  </section>
+
+  <!-- 결과 -->
+  <section class="screen" id="resultScreen">
+    <div class="kr-grade" id="krGrade"></div>
+    <div class="kr-err" id="krErr"></div>
+    <div class="kr-sub" id="krErrSub"></div>
+    <div class="kr-bubble" id="krBubble"></div>
+    <div class="kr-img" id="krImg"></div>
+    <div class="kr-line" id="krLine"></div>
+    <div class="kr-best" id="krBest"></div>
+    <div class="kr-actions">
+      <button class="kr-btn save" id="saveBtn">결과 카드 저장</button>
+      <button class="kr-btn again" id="againBtn">한 번 더</button>
+    </div>
+    <a class="link-btn" href="../">내 직장인 유형도 알아보기 →</a>
+    <p class="save-hint" id="saveHint"></p>
+  </section>
+
+  <div class="confetti" id="confetti"></div>
+
+  <div class="save-modal" id="saveModal">
+    <div class="save-modal-inner">
+      <p class="sm-title">이미지를 꾹 눌러 저장하세요</p>
+      <p class="sm-sub">아이폰은 아래 이미지를 길게 눌러<br>‘사진에 저장’ 을 선택하세요</p>
+      <img id="saveModalImg" alt="결과 카드" />
+      <button class="sm-close" id="saveModalClose">닫기</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ---------- 캐릭터 이미지 (상대경로: kaltoe에서 한 단계 위 assets) ---------- */
+const IMG_SRC = { ppaguli: "../assets/ppaguli.png", eunha: "../assets/eunha.png" };
+const EMOJI = { ppaguli: "🧑‍🦱", eunha: "🧑" };
+const loadedImg = {};
+["ppaguli", "eunha"].forEach(k => {
+  const im = new Image();
+  im.onload = () => { loadedImg[k] = im; };
+  im.src = IMG_SRC[k];
+});
+
+/* ---------- 등급 (오차 절대값 기준) ---------- */
+const GRADES = {
+  legend: { name: "전설의 칼퇴", line: "18:00:00. 소리 없이 사라졌다. 사수도 몰랐다.", char: "eunha", speech: "...퇴근하셨네?", success: true },
+  pro:    { name: "프로 칼퇴러", line: "동료들이 뒤돌아봤을 땐 이미 엘리베이터.", char: "eunha", speech: "존경합니다", success: true },
+  safe:   { name: "무사히 퇴근", line: "오늘도 지켜냈다, 나의 저녁.", char: "eunha", speech: "수고하셨습니다~", success: true },
+  eye:    { name: "사수와 눈 마주침", line: "문 앞에서 딱 마주쳤다. 어색한 목례.", char: "ppaguli", speech: "어~ 가나?", success: false },
+  early:  { name: "조퇴 미수", line: "너무 급했다. 아직 6시 전인데.", char: "ppaguli", speech: "어디 가? 아직 6시 안 됐는데?", success: false },
+  late:   { name: "야근 확정", line: "타이밍을 놓쳤다. 의자에 다시 앉는다.", char: "ppaguli", speech: "잘됐다, 이것 좀 같이 보자", success: false },
+};
+function gradeFor(err) {                 // err: 부호 있는 오차(초). +면 늦음, -면 이름
+  const a = Math.abs(err);
+  if (a <= 0.05) return GRADES.legend;
+  if (a <= 0.15) return GRADES.pro;
+  if (a <= 0.5)  return GRADES.safe;
+  if (a <= 1.5)  return GRADES.eye;
+  return err < 0 ? GRADES.early : GRADES.late;
+}
+
+/* ---------- 상태 ---------- */
+const BEST_KEY = "ccojik-kaltoe-best";
+const START_MS = -5000;   // 17:59:55.00 (18:00:00 기준 상대 ms)
+const AUTO_MS = 3000;     // 18:00:03.00 자동 판정
+const SPEED = 4;          // 4배속
+let clockMs = START_MS, startPerf = 0, running = false, rafId = 0;
+let curErr = 0, curGrade = null, isNewBest = false;
+
+function getBest() { const v = parseFloat(localStorage.getItem(BEST_KEY)); return isNaN(v) ? null : v; }
+function setBest(v) { localStorage.setItem(BEST_KEY, String(v)); }
+
+function show(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  $(id).classList.add("active");
+}
+
+/* ---------- 시계 표시 ---------- */
+const INK = [74, 66, 58], HOT = [245, 169, 176];
+function lerpColor(c1, c2, t) {
+  const r = Math.round(c1[0] + (c2[0] - c1[0]) * t);
+  const g = Math.round(c1[1] + (c2[1] - c1[1]) * t);
+  const b = Math.round(c1[2] + (c2[2] - c1[2]) * t);
+  return "rgb(" + r + "," + g + "," + b + ")";
+}
+function pad(n, w) { return String(n).padStart(w, "0"); }
+function renderClock() {
+  const total = 64800000 + clockMs;       // 18:00:00 = 64800000ms
+  const h = Math.floor(total / 3600000) % 24;
+  const m = Math.floor(total / 60000) % 60;
+  const s = Math.floor(total / 1000) % 60;
+  const cs = Math.floor((total % 1000) / 10);
+  $("clkMain").textContent = pad(h, 2) + ":" + pad(m, 2) + ":" + pad(s, 2);
+  $("clkCs").textContent = "." + pad(cs, 2);
+  // 18:00에 가까울수록 포인트 컬러 + 살짝 확대
+  const t = Math.max(0, Math.min(1, 1 - Math.abs(clockMs) / 2000));
+  const col = lerpColor(INK, HOT, t);
+  $("clkMain").style.color = col;
+  $("clkCs").style.color = col;
+  $("clockWrap").style.transform = "scale(" + (1 + 0.07 * t) + ")";
+}
+
+/* ---------- 게임 루프 ---------- */
+function loop() {
+  const real = performance.now() - startPerf;
+  clockMs = START_MS + real * SPEED;
+  if (clockMs >= AUTO_MS) {
+    clockMs = AUTO_MS;
+    renderClock();
+    endGame(clockMs / 1000);   // 자동 판정 = 늦음(+3.0)
+    return;
+  }
+  renderClock();
+  rafId = requestAnimationFrame(loop);
+}
+function startGame() {
+  clearConfetti();
+  $("phone").classList.remove("shake");
+  $("saveHint").textContent = "";
+  clockMs = START_MS;
+  renderClock();
+  show("gameScreen");
+  running = true;
+  startPerf = performance.now();
+  rafId = requestAnimationFrame(loop);
+}
+function pressLeave() {
+  if (!running) return;
+  running = false;
+  cancelAnimationFrame(rafId);
+  endGame(clockMs / 1000);
+}
+
+/* ---------- 판정 ---------- */
+function endGame(err) {
+  running = false;
+  cancelAnimationFrame(rafId);
+  curErr = err;
+  curGrade = gradeFor(err);
+  const a = Math.abs(err);
+  const best = getBest();
+  isNewBest = best === null || a < best;
+  if (isNewBest) setBest(a);
+  renderResult();
+  if (curGrade.success) confetti();
+  else { $("phone").classList.remove("shake"); void $("phone").offsetWidth; $("phone").classList.add("shake"); }
+}
+
+function fmtSigned(err) { return (err >= 0 ? "+" : "-") + Math.abs(err).toFixed(2) + "초"; }
+function charMarkup(key) {
+  return `<img src="${IMG_SRC[key]}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${EMOJI[key]}',className:'ph'}))">`;
+}
+function renderResult() {
+  const g = curGrade;
+  const color = g.success ? "var(--beige-text)" : "var(--warmgray-text)";
+  $("krGrade").textContent = g.name;
+  $("krGrade").style.color = color;
+  $("krErr").textContent = fmtSigned(curErr);
+  $("krErr").style.color = color;
+  $("krErrSub").textContent = Math.abs(curErr) < 0.001 ? "완벽한 정각!"
+    : (curErr < 0 ? "6시보다 빨랐어요" : "6시보다 늦었어요");
+  $("krBubble").textContent = g.speech;
+  $("krImg").innerHTML = charMarkup(g.char);
+  $("krLine").textContent = g.line;
+  const best = getBest();
+  $("krBest").innerHTML = "🏆 내 최고 기록: ±" + (best === null ? "-" : best.toFixed(2)) + "초"
+    + (isNewBest ? " <span class='new'>· 신기록!</span>" : "");
+  show("resultScreen");
+  $("resultScreen").scrollTop = 0;
+}
+
+/* ---------- 컨페티 ---------- */
+const CONFETTI_COLORS = ["#D9C7A7", "#F5A9B0", "#8E8A86", "#F0DFB8", "#FFFDF8"];
+function confetti() {
+  const box = $("confetti");
+  for (let i = 0; i < 40; i++) {
+    const el = document.createElement("i");
+    el.style.left = Math.random() * 100 + "%";
+    el.style.background = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+    el.style.animationDuration = (1.1 + Math.random() * 1.1) + "s";
+    el.style.animationDelay = (Math.random() * 0.3) + "s";
+    el.style.transform = "rotate(" + (Math.random() * 360) + "deg)";
+    box.appendChild(el);
+  }
+  setTimeout(clearConfetti, 2600);
+}
+function clearConfetti() { $("confetti").innerHTML = ""; }
+
+/* ---------- Canvas 결과 카드 (1080x1920) ---------- */
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+function wrapCenter(ctx, text, cx, y, maxW, lh) {
+  const chars = [...text]; let line = "";
+  for (let i = 0; i < chars.length; i++) {
+    const test = line + chars[i];
+    if (ctx.measureText(test).width > maxW && line !== "") { ctx.fillText(line, cx, y); y += lh; line = chars[i]; }
+    else line = test;
+  }
+  if (line) { ctx.fillText(line, cx, y); y += lh; }
+  return y;
+}
+function drawImageContain(ctx, img, cx, cy, boxW, boxH) {
+  const sc = Math.min(boxW / img.width, boxH / img.height);
+  const w = img.width * sc, h = img.height * sc;
+  ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
+}
+async function buildCard() {
+  const g = curGrade, W = 1080, H = 1920;
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const ctx = cv.getContext("2d"); ctx.textAlign = "center";
+  try { await document.fonts.ready; } catch (e) {}
+  const FF = '"Pretendard Variable", Pretendard, sans-serif';
+  const point = g.success ? "#D9C7A7" : "#8E8A86";
+  const pointText = g.success ? "#B0854A" : "#6F6B67";
+  const cx = W / 2;
+
+  ctx.fillStyle = "#FBF6EC"; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = point; ctx.fillRect(0, 0, W, 16);
+
+  ctx.save(); ctx.shadowColor = "rgba(158,138,102,.22)"; ctx.shadowBlur = 50; ctx.shadowOffsetY = 24;
+  ctx.fillStyle = "#FFFDF8"; roundRect(ctx, 60, 90, W - 120, H - 180, 70); ctx.fill(); ctx.restore();
+
+  ctx.fillStyle = "#8B8177"; ctx.font = "600 44px " + FF;
+  ctx.fillText("꼬직 칼퇴 챌린지", cx, 250);
+
+  // 오차 기록 크게
+  ctx.fillStyle = pointText; ctx.font = "800 150px " + FF;
+  ctx.fillText(fmtSigned(curErr), cx, 470);
+
+  // 등급명
+  ctx.fillStyle = "#4A423A"; ctx.font = "800 74px " + FF;
+  ctx.fillText(g.name, cx, 590);
+
+  // 캐릭터
+  const img = loadedImg[g.char];
+  if (img) drawImageContain(ctx, img, cx, 900, 460, 460);
+  else { ctx.font = "300px " + FF; ctx.fillText(EMOJI[g.char], cx, 1000); }
+
+  // 말풍선 대사
+  ctx.fillStyle = pointText; ctx.font = "800 52px " + FF;
+  ctx.fillText("“" + g.speech + "”", cx, 1250);
+
+  // 상황 문구
+  ctx.fillStyle = "#5C5349"; ctx.font = "500 42px " + FF;
+  wrapCenter(ctx, g.line, cx, 1370, 880, 62);
+
+  // 워터마크
+  ctx.fillStyle = point; ctx.font = "800 50px " + FF;
+  ctx.fillText("@ccojik.dh", cx, 1780);
+  ctx.fillStyle = "#8B8177"; ctx.font = "600 38px " + FF;
+  ctx.fillText("너도 칼퇴 도전해봐", cx, 1840);
+
+  return cv;
+}
+
+/* ---------- 저장 (iOS는 꾹 눌러 저장) ---------- */
+const isIOS = /iP(hone|od|ad)/.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+function supportsDownload() { return !isIOS && typeof document.createElement("a").download !== "undefined"; }
+let saveModalURL = null;
+function openSaveModal(url) {
+  if (saveModalURL) URL.revokeObjectURL(saveModalURL);
+  saveModalURL = url; $("saveModalImg").src = url; $("saveModal").classList.add("show");
+}
+function closeSaveModal() {
+  $("saveModal").classList.remove("show"); $("saveModalImg").removeAttribute("src");
+  if (saveModalURL) { URL.revokeObjectURL(saveModalURL); saveModalURL = null; }
+}
+async function saveCard() {
+  try {
+    const cv = await buildCard();
+    cv.toBlob(blob => {
+      if (!blob) { $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요 🙏"; return; }
+      const url = URL.createObjectURL(blob);
+      if (!supportsDownload()) { openSaveModal(url); $("saveHint").textContent = ""; return; }
+      const a = document.createElement("a");
+      a.href = url; a.download = "ccojik_kaltoe.png";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      $("saveHint").textContent = "저장 완료! 📸";
+    }, "image/png");
+  } catch (e) { $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요 🙏"; }
+}
+
+/* ---------- 시작 화면 최고기록 ---------- */
+function refreshStartBest() {
+  const b = getBest();
+  $("startBest").textContent = b === null ? "" : "🏆 내 최고 기록: ±" + b.toFixed(2) + "초";
+}
+
+/* ---------- 이벤트 ---------- */
+$("startBtn").addEventListener("click", startGame);
+$("leaveBtn").addEventListener("click", pressLeave);
+$("againBtn").addEventListener("click", startGame);   // 시작 화면 안 거치고 즉시 재도전
+$("saveBtn").addEventListener("click", saveCard);
+$("saveModalClose").addEventListener("click", closeSaveModal);
+$("saveModal").addEventListener("click", (e) => { if (e.target === $("saveModal")) closeSaveModal(); });
+
+refreshStartBest();
+</script>
+</body>
+</html>
