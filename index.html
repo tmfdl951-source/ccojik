@@ -2,17 +2,17 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>꼬직 직장인 유형 테스트</title>
 <!-- OG / 공유 미리보기 -->
 <meta property="og:type" content="website" />
 <meta property="og:title" content="나는 빠글이형 사수일까, 심은하형 신입일까?" />
 <meta property="og:description" content="직장인 자아 유형 테스트 - 1분이면 끝" />
-<meta property="og:image" content="assets/og.png" />
+<meta property="og:image" content="./assets/og.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="나는 빠글이형 사수일까, 심은하형 신입일까?" />
 <meta name="twitter:description" content="직장인 자아 유형 테스트 - 1분이면 끝" />
-<meta name="twitter:image" content="assets/og.png" />
+<meta name="twitter:image" content="./assets/og.png" />
 <link rel="stylesheet" as="style" crossorigin
   href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
 <style>
@@ -58,11 +58,13 @@
     opacity: 0; pointer-events: none;
     transform: scale(.985);
     transition: opacity .35s ease, transform .35s ease;
+    overflow-y: auto; -webkit-overflow-scrolling: touch;  /* 짧은 세로 기기에서 내용 넘치면 스크롤 */
   }
+  .screen::-webkit-scrollbar { display: none; }
   .screen.active { opacity: 1; pointer-events: auto; transform: scale(1); }
 
   /* ===== 시작 화면 ===== */
-  #startScreen { align-items: center; justify-content: center; text-align: center; gap: 6px; }
+  #startScreen { align-items: center; justify-content: safe center; text-align: center; gap: 6px; }
   .kicker {
     font-size: 13px; font-weight: 700; color: var(--beige-text);
     background: #F3E9D5; padding: 7px 16px; border-radius: 999px; letter-spacing: .3px;
@@ -108,7 +110,7 @@
     background: linear-gradient(90deg, var(--beige), #C4AE86); transition: width .55s cubic-bezier(.3,.9,.4,1); }
   .progress-num { font-size: 13px; font-weight: 800; color: var(--ink-soft); min-width: 40px; text-align: right; }
 
-  .q-body { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+  .q-body { flex: 1; display: flex; flex-direction: column; justify-content: safe center; }
   .q-slide { animation: slideIn .42s cubic-bezier(.22,.8,.3,1); }
   @keyframes slideIn { from { opacity: 0; transform: translateX(58px); } to { opacity: 1; transform: translateX(0); } }
 
@@ -140,7 +142,7 @@
   .choice .ctext { font-size: 15px; font-weight: 600; line-height: 1.45; }
 
   /* ===== 로딩 화면 ===== */
-  #loadScreen { align-items: center; justify-content: center; text-align: center; gap: 22px; }
+  #loadScreen { align-items: center; justify-content: safe center; text-align: center; gap: 22px; }
   .spinner {
     width: 74px; height: 74px; border-radius: 50%;
     border: 8px solid #EFE7D6; border-top-color: var(--beige);
@@ -253,6 +255,31 @@
   }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
+  /* iOS 저장 안내 모달 (다운로드가 새 탭으로 열리는 사파리 대응) */
+  .save-modal {
+    position: absolute; inset: 0; z-index: 30;
+    background: rgba(74,66,58,.62); backdrop-filter: blur(3px);
+    display: none; align-items: center; justify-content: center; padding: 22px;
+  }
+  .save-modal.show { display: flex; }
+  .save-modal-inner {
+    background: var(--ivory); border-radius: 24px; padding: 20px 18px 18px;
+    box-shadow: var(--shadow); max-width: 100%; text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    max-height: 100%; overflow-y: auto;
+  }
+  .sm-title { font-size: 16px; font-weight: 800; color: var(--ink); }
+  .sm-title::before { content: "👆 "; }
+  .sm-sub { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); line-height: 1.5; margin-bottom: 10px; }
+  #saveModalImg { width: 100%; max-width: 260px; height: auto; border-radius: 14px;
+    box-shadow: var(--shadow-sm); display: block; }
+  .sm-close {
+    margin-top: 14px; border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 14px;
+    background: var(--ivory); color: var(--ink); padding: 11px 30px; border-radius: 16px;
+    box-shadow: var(--shadow-sm);
+  }
+  .sm-close:active { transform: scale(.95); }
+
   .save-hint { text-align: center; font-size: 11.5px; color: var(--ink-soft); margin-top: 12px; opacity: .8; line-height:1.5; }
 </style>
 </head>
@@ -266,11 +293,11 @@
     <p class="desc">10개의 질문으로 알아보는<br>나의 진짜 직장인 자아</p>
     <div class="duo">
       <div class="char-card">
-        <div class="char"><img src="assets/ppaguli.png" alt="빠글이" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="ph">🧑‍🦱</span></div>
+        <div class="char"><img src="./assets/ppaguli.png" alt="빠글이" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="ph">🧑‍🦱</span></div>
         <div class="nm">빠글이</div><div class="rl">곱슬 장발 · 사수</div>
       </div>
       <div class="char-card">
-        <div class="char"><img src="assets/eunha.png" alt="심은하" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="ph">🧑</span></div>
+        <div class="char"><img src="./assets/eunha.png" alt="심은하" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="ph">🧑</span></div>
         <div class="nm">심은하</div><div class="rl">단발 · 신입</div>
       </div>
     </div>
@@ -351,6 +378,15 @@
 
   <div class="toast" id="toast"></div>
 
+  <div class="save-modal" id="saveModal">
+    <div class="save-modal-inner">
+      <p class="sm-title">이미지를 꾹 눌러 저장하세요</p>
+      <p class="sm-sub">아이폰은 아래 이미지를 길게 눌러<br>‘사진에 저장’ 을 선택하세요</p>
+      <img id="saveModalImg" alt="결과 카드" />
+      <button class="sm-close" id="saveModalClose">닫기</button>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -423,7 +459,7 @@ const RESULTS = {
   },
 };
 
-const IMG_SRC = { ppaguli: "assets/ppaguli.png", eunha: "assets/eunha.png" };
+const IMG_SRC = { ppaguli: "./assets/ppaguli.png", eunha: "./assets/eunha.png" };
 const EMOJI = { ppaguli: "🧑‍🦱", eunha: "🧑" };
 
 // 동료 궁합 (웹 화면 전용, 결과 카드에는 미포함) — key: 내 유형, good=환상 / bad=환장
@@ -701,6 +737,26 @@ async function buildCard(mode) {
   return cv;
 }
 
+// iOS(사파리)는 <a download>를 무시하고 새 탭으로 여니 별도 처리
+const isIOS = /iP(hone|od|ad)/.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);  // iPadOS 데스크탑 모드 포함
+function supportsDownload() {
+  return !isIOS && typeof document.createElement("a").download !== "undefined";
+}
+
+let saveModalURL = null;
+function openSaveModal(url) {
+  if (saveModalURL) URL.revokeObjectURL(saveModalURL);
+  saveModalURL = url;
+  $("saveModalImg").src = url;
+  $("saveModal").classList.add("show");
+}
+function closeSaveModal() {
+  $("saveModal").classList.remove("show");
+  $("saveModalImg").removeAttribute("src");
+  if (saveModalURL) { URL.revokeObjectURL(saveModalURL); saveModalURL = null; }
+}
+
 async function saveCard(mode) {
   try {
     const cv = await buildCard(mode);
@@ -708,9 +764,15 @@ async function saveCard(mode) {
     cv.toBlob(blob => {
       if (!blob) { showSaveError(); return; }
       const url = URL.createObjectURL(blob);
+      if (!supportsDownload()) {
+        // iOS 등: 다운로드가 새 탭으로 열리므로 이미지를 띄워 '꾹 눌러 저장' 유도
+        openSaveModal(url);
+        $("saveHint").textContent = "";
+        return;
+      }
       const a = document.createElement("a");
       a.href = url;
-      a.download = "꼬직_직장인유형_" + result.name + "_" + label + ".png";
+      a.download = "ccojik_" + (resultKey || "result") + "_" + mode + ".png";  // ASCII 파일명
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -722,8 +784,7 @@ async function saveCard(mode) {
   }
 }
 function showSaveError() {
-  $("saveHint").innerHTML = "⚠️ 이미지 저장이 차단됐어요. 아래 방법으로 로컬 서버에서 열어주세요:<br>" +
-    "터미널에서 <b>python -m http.server</b> 실행 후<br><b>http://localhost:8000/</b> 접속";
+  $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해서 공유해 주세요 🙏";
 }
 
 /* ---------- 토스트 ---------- */
@@ -787,6 +848,8 @@ $("startBtn").addEventListener("click", () => {
 $("saveStoryBtn").addEventListener("click", () => saveCard("story"));
 $("saveFeedBtn").addEventListener("click", () => saveCard("feed"));
 $("shareBtn").addEventListener("click", shareResult);
+$("saveModalClose").addEventListener("click", closeSaveModal);
+$("saveModal").addEventListener("click", (e) => { if (e.target === $("saveModal")) closeSaveModal(); });
 $("restartBtn").addEventListener("click", () => {
   resetTest();
   show("startScreen");
