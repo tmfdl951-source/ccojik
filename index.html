@@ -4,6 +4,15 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>꼬직 직장인 유형 테스트</title>
+<!-- OG / 공유 미리보기 -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="나는 빠글이형 사수일까, 심은하형 신입일까?" />
+<meta property="og:description" content="직장인 자아 유형 테스트 - 1분이면 끝" />
+<meta property="og:image" content="assets/og.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="나는 빠글이형 사수일까, 심은하형 신입일까?" />
+<meta name="twitter:description" content="직장인 자아 유형 테스트 - 1분이면 끝" />
+<meta name="twitter:image" content="assets/og.png" />
 <link rel="stylesheet" as="style" crossorigin
   href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
 <style>
@@ -203,8 +212,25 @@
     padding: 16px 10px; border-radius: 20px; box-shadow: var(--shadow-sm); transition: transform .13s ease;
   }
   .r-btn:active { transform: scale(.95); }
-  .r-btn.save { background: linear-gradient(160deg, var(--beige), #C4AE86); color: #fff; }
-  .r-btn.retry { background: var(--ivory); color: var(--ink); }
+  .r-btn .ic { margin-right: 5px; }
+  .r-btn.save  { background: linear-gradient(160deg, var(--beige), #C4AE86); color: #fff; }
+  .r-btn.save2 { background: linear-gradient(160deg, var(--warmgray), #6F6B67); color: #fff; }
+  .r-btn.share { background: var(--ivory); color: var(--ink); box-shadow: var(--shadow-sm), 0 0 0 2px var(--beige) inset; }
+  .r-actions.stacked { margin-top: 12px; }
+  .r-btn.restart {
+    width: 100%; margin-top: 14px;
+    background: linear-gradient(160deg, #F5D9DD, var(--blush)); color: #fff;
+    font-size: 16px; padding: 17px 10px;
+  }
+
+  /* 토스트 */
+  .toast {
+    position: absolute; left: 50%; bottom: 34px; transform: translate(-50%, 20px);
+    background: rgba(74,66,58,.94); color: #fff; font-size: 14px; font-weight: 700;
+    padding: 12px 22px; border-radius: 999px; box-shadow: 0 8px 22px rgba(0,0,0,.22);
+    opacity: 0; pointer-events: none; transition: opacity .25s ease, transform .25s ease; z-index: 20;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
   .save-hint { text-align: center; font-size: 11.5px; color: var(--ink-soft); margin-top: 12px; opacity: .8; line-height:1.5; }
 </style>
@@ -270,11 +296,17 @@
     <div class="r-desc" id="rDesc"></div>
     <div class="r-tags" id="rTags"></div>
     <div class="r-actions">
-      <button class="r-btn save" id="saveBtn">결과 카드 저장</button>
-      <button class="r-btn retry" id="retryBtn">다시하기</button>
+      <button class="r-btn save" id="saveStoryBtn"><span class="ic">📱</span>스토리용 저장</button>
+      <button class="r-btn save2" id="saveFeedBtn"><span class="ic">🖼️</span>피드용 저장</button>
     </div>
+    <div class="r-actions stacked">
+      <button class="r-btn share" id="shareBtn"><span class="ic">🔗</span>링크 공유</button>
+    </div>
+    <button class="r-btn restart" id="restartBtn">나도 테스트하기</button>
     <p class="save-hint" id="saveHint"></p>
   </section>
+
+  <div class="toast" id="toast"></div>
 
 </div>
 
@@ -363,6 +395,8 @@ const loadedImg = {};
 let current = 0;              // 0~9
 const answers = new Array(10).fill(null);  // 'A' or 'B'
 let result = null;
+let resultKey = null;         // 공유 URL용 유형 키 (pp/ee/pe/ep)
+let cameFromURL = false;      // 공유 링크로 결과 화면에 바로 진입했는지
 
 function show(id) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
@@ -412,7 +446,8 @@ function computeResult() {
   const innerA = answers.slice(5, 10).filter(a => a === "A").length;  // 속마음
   const outer = outerA >= 3 ? "p" : "e";
   const inner = innerA >= 3 ? "p" : "e";
-  return RESULTS[outer + inner];
+  resultKey = outer + inner;
+  return RESULTS[resultKey];
 }
 
 function finish() {
@@ -437,6 +472,10 @@ function renderResult() {
   $("rDesc").textContent = r.desc;
   $("rTags").textContent = r.tags;
   $("rTags").style.color = r.color;
+  // 진입 경로에 맞춘 재시작 버튼 라벨
+  $("restartBtn").textContent = cameFromURL ? "나도 테스트하기" : "다시하기";
+  // 결과별 공유 URL 반영
+  if (resultKey) history.replaceState(null, "", location.pathname + "?result=" + resultKey);
   show("resultScreen");
   $("resultScreen").scrollTop = 0;
 }
@@ -474,9 +513,24 @@ function drawImageContain(ctx, img, cx, cy, boxW, boxH) {
   ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
 }
 
-async function buildCard() {
+// 카드 2종 레이아웃 (스토리 1080x1920 / 피드 1080x1350)
+const CARD_LAYOUTS = {
+  story: { W:1080, H:1920, subY:250, nameY:380, nameFont:96, imgCy:700, imgBox:560, subBox:260, subDx:210, subDy:150,
+           quoteY:1090, quoteFont:54, quoteLH:70, quoteMaxW:900,
+           descY:1210, descFont:42, descLH:64, descMaxW:880,
+           tagsFont:40, tagsLH:56, tagsMaxW:920, tagsMinY:1560,
+           wm1Y:1770, wm1Font:50, wm2Y:1830, wm2Font:38 },
+  feed:  { W:1080, H:1350, subY:160, nameY:262, nameFont:82, imgCy:480, imgBox:360, subBox:175, subDx:150, subDy:105,
+           quoteY:762, quoteFont:44, quoteLH:58, quoteMaxW:900,
+           descY:868, descFont:31, descLH:45, descMaxW:920,
+           tagsFont:32, tagsLH:46, tagsMaxW:940, tagsMinY:1112,
+           wm1Y:1198, wm1Font:44, wm2Y:1252, wm2Font:32 },
+};
+
+async function buildCard(mode) {
+  const L = CARD_LAYOUTS[mode] || CARD_LAYOUTS.story;
   const r = result;
-  const W = 1080, H = 1920;
+  const W = L.W, H = L.H;
   const cv = document.createElement("canvas");
   cv.width = W; cv.height = H;
   const ctx = cv.getContext("2d");
@@ -514,7 +568,7 @@ async function buildCard() {
   // 소제목
   ctx.fillStyle = "#8B8177";
   ctx.font = "600 44px " + FF;
-  ctx.fillText("직장인 유형 테스트", cx, 250);
+  ctx.fillText("직장인 유형 테스트", cx, L.subY);
 
   // 유형명 (그라데이션 or 단색)
   let nameFill = r.color;
@@ -525,61 +579,62 @@ async function buildCard() {
     nameFill = g;
   }
   ctx.fillStyle = nameFill;
-  ctx.font = "800 96px " + FF;
-  ctx.fillText(r.name, cx, 380);
+  ctx.font = "800 " + L.nameFont + "px " + FF;
+  ctx.fillText(r.name, cx, L.nameY);
 
   // 캐릭터 이미지
   const main = loadedImg[r.main];
   const sub = r.sub ? loadedImg[r.sub] : null;
-  const imgCy = 690;
   if (main) {
-    drawImageContain(ctx, main, sub ? cx - 40 : cx, imgCy, 560, 560);
-    if (sub) drawImageContain(ctx, sub, cx + 210, imgCy + 150, 260, 260);
+    drawImageContain(ctx, main, sub ? cx - 40 : cx, L.imgCy, L.imgBox, L.imgBox);
+    if (sub) drawImageContain(ctx, sub, cx + L.subDx, L.imgCy + L.subDy, L.subBox, L.subBox);
   } else {
-    ctx.font = "300px " + FF;
-    ctx.fillText(EMOJI[r.main], cx, imgCy + 100);
+    ctx.font = Math.round(L.imgBox * 0.55) + "px " + FF;
+    ctx.fillText(EMOJI[r.main], cx, L.imgCy + L.imgBox * 0.18);
   }
 
   // 인용구
   ctx.fillStyle = "#4A423A";
-  ctx.font = "800 54px " + FF;
-  wrapCenter(ctx, "“" + r.quote + "”", cx, 1080, 900, 70);
+  ctx.font = "800 " + L.quoteFont + "px " + FF;
+  wrapCenter(ctx, "“" + r.quote + "”", cx, L.quoteY, L.quoteMaxW, L.quoteLH);
 
   // 설명
   ctx.fillStyle = "#5C5349";
-  ctx.font = "500 42px " + FF;
-  let y = wrapCenter(ctx, r.desc, cx, 1200, 880, 64);
+  ctx.font = "500 " + L.descFont + "px " + FF;
+  let y = wrapCenter(ctx, r.desc, cx, L.descY, L.descMaxW, L.descLH);
 
-  // 해시태그
+  // 해시태그 (설명 아래, 워터마크 위로 위치 제한)
   ctx.fillStyle = r.color;
-  ctx.font = "800 40px " + FF;
-  wrapCenter(ctx, r.tags, cx, Math.max(y + 40, 1560), 920, 56);
+  ctx.font = "800 " + L.tagsFont + "px " + FF;
+  const tagsY = Math.min(Math.max(y + 40, L.tagsMinY), L.wm1Y - 66);
+  wrapCenter(ctx, r.tags, cx, tagsY, L.tagsMaxW, L.tagsLH);
 
-  // 하단 워터마크
+  // 하단 워터마크 (두 카드 공통)
   ctx.fillStyle = band;
-  ctx.font = "800 50px " + FF;
-  ctx.fillText("@ccojik.dh", cx, 1770);
+  ctx.font = "800 " + L.wm1Font + "px " + FF;
+  ctx.fillText("@ccojik.dh", cx, L.wm1Y);
   ctx.fillStyle = "#8B8177";
-  ctx.font = "600 38px " + FF;
-  ctx.fillText("너의 유형도 테스트해봐", cx, 1830);
+  ctx.font = "600 " + L.wm2Font + "px " + FF;
+  ctx.fillText("너의 유형도 테스트해봐", cx, L.wm2Y);
 
   return cv;
 }
 
-async function saveCard() {
+async function saveCard(mode) {
   try {
-    const cv = await buildCard();
+    const cv = await buildCard(mode);
+    const label = mode === "feed" ? "피드용" : "스토리용";
     cv.toBlob(blob => {
       if (!blob) { showSaveError(); return; }
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "꼬직_직장인유형_" + result.name + ".png";
+      a.download = "꼬직_직장인유형_" + result.name + "_" + label + ".png";
       document.body.appendChild(a);
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      $("saveHint").textContent = "저장 완료! 인스타 스토리에 올려보세요 📸";
+      $("saveHint").textContent = label + " 카드 저장 완료! 📸";
     }, "image/png");
   } catch (e) {
     showSaveError();
@@ -590,21 +645,82 @@ function showSaveError() {
     "터미널에서 <b>python -m http.server</b> 실행 후<br><b>http://localhost:8000/</b> 접속";
 }
 
+/* ---------- 토스트 ---------- */
+let toastTimer = null;
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 1800);
+}
+
+/* ---------- 링크 공유 (Web Share → 클립보드 폴백) ---------- */
+async function shareResult() {
+  const url = location.href;
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: "나는 빠글이형 사수일까, 심은하형 신입일까?",
+        text: "내 직장인 유형은 '" + (result ? result.name : "") + "' — 너도 해봐!",
+        url: url,
+      });
+    } catch (e) { /* 사용자가 취소한 경우 무시 */ }
+    return;
+  }
+  copyToClipboard(url);
+}
+function copyToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => toast("링크 복사됨"), () => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
+}
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try { document.execCommand("copy"); toast("링크 복사됨"); }
+  catch (e) { toast("복사 실패 — 주소창을 길게 눌러 복사하세요"); }
+  ta.remove();
+}
+
 /* ---------- 이벤트 ---------- */
-$("startBtn").addEventListener("click", () => {
-  current = 0;
-  answers.fill(null);
-  show("quizScreen");
-  renderQuestion();
-});
-$("saveBtn").addEventListener("click", saveCard);
-$("retryBtn").addEventListener("click", () => {
+function resetTest() {
   current = 0;
   answers.fill(null);
   result = null;
+  resultKey = null;
+  cameFromURL = false;
   $("saveHint").textContent = "";
+  history.replaceState(null, "", location.pathname);  // ?result= 제거
+}
+$("startBtn").addEventListener("click", () => {
+  resetTest();
+  show("quizScreen");
+  renderQuestion();
+});
+$("saveStoryBtn").addEventListener("click", () => saveCard("story"));
+$("saveFeedBtn").addEventListener("click", () => saveCard("feed"));
+$("shareBtn").addEventListener("click", shareResult);
+$("restartBtn").addEventListener("click", () => {
+  resetTest();
   show("startScreen");
 });
+
+/* ---------- 공유 링크(?result=키)로 진입 시 결과 화면 바로 표시 ---------- */
+(function initFromURL() {
+  const key = new URLSearchParams(location.search).get("result");
+  if (key && RESULTS[key]) {
+    result = RESULTS[key];
+    resultKey = key;
+    cameFromURL = true;
+    renderResult();
+  }
+})();
 </script>
 </body>
 </html>
