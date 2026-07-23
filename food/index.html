@@ -9,6 +9,7 @@
 <meta property="og:description" content="룰렛 한 번이면 메뉴 고민 끝. 오늘의 식사 처방전 발급!" />
 <link rel="stylesheet" as="style" crossorigin
   href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Nanum+Pen+Script&display=swap" />
 <style>
   :root {
     --cream: #FCF5EA; --ivory: #FFFDF8; --paper: #FFFEFA;
@@ -141,9 +142,10 @@
   .sm-close { margin-top: 14px; border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 14px;
     background: var(--ivory); color: var(--ink); padding: 11px 30px; border-radius: 16px; box-shadow: var(--shadow-sm); }
 
-  /* ============ 봄날 하늘 + 그라데이션 워드아트 (레퍼런스 감성) ============ */
+  /* ============ 봄날 하늘 + 손글씨 + 그림판 낙서 박스 ============ */
+  html, body { font-family: "Gaegu", "Pretendard Variable", Pretendard, sans-serif; }
   body { background: #6EC7EE; }
-  .phone { background: linear-gradient(#4FB4E8 0%, #86D4F2 46%, #D3F0FB 100%); border: 5px solid #0a0a0a; box-shadow: 0 22px 50px rgba(0,0,0,.4); }
+  .phone { background: linear-gradient(#4FB4E8 0%, #86D4F2 46%, #D3F0FB 100%); border: 4px solid #111; box-shadow: 6px 8px 0 rgba(0,0,0,.22); border-radius: 34px; }
 
   /* 뭉게구름 */
   .sky { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
@@ -158,55 +160,63 @@
   .cloud.c5 { top: 40%; left: 58%; transform: scale(.62); opacity: .8; }
   .screen { z-index: 1; }
 
-  /* ===== 워드아트 (그라데이션 채움 + 검은 외곽선 + 그림자) ===== */
-  #startScreen h1, #startScreen h1 .hl, #wheelScreen h2, .rp-n, .ask-t, .rx-clinic, .rx-food .fn {
-    color: transparent; -webkit-background-clip: text; background-clip: text; font-weight: 900; letter-spacing: .5px;
-    text-shadow: 2px 0 0 #111, -2px 0 0 #111, 0 2px 0 #111, 0 -2px 0 #111, 2px 2px 0 #111, -2px 2px 0 #111, 2px -2px 0 #111, -2px -2px 0 #111, 5px 6px 0 rgba(0,0,0,.2);
+  /* ===== 제목: 휘갈긴 손글씨(가독성 위해 진한 잉크 + 흰 후광) ===== */
+  #startScreen h1, #wheelScreen h2, .rp-n, .ask-t, .rx-clinic, .rx-food .fn {
+    font-family: "Nanum Pen Script", "Gaegu", sans-serif; font-weight: 400; letter-spacing: 0;
+    text-shadow: 0 0 4px #fff, 2px 2px 0 rgba(255,255,255,.9), 2px 3px 0 rgba(0,0,0,.12);
   }
-  #startScreen h1 { font-size: 38px; line-height: 1.45; margin-top: 8px; background: linear-gradient(#5A86F2, #6A3BD0); }
-  #startScreen h1 .hl { background: linear-gradient(#8BE05A, #3E9E2E); }
-  #wheelScreen h2 { font-size: 28px; background: linear-gradient(#5A86F2, #6A3BD0); }
-  .rp-n { font-size: 32px; background: linear-gradient(#F58585, #D62B2B); }
-  .ask-t { font-size: 25px; background: linear-gradient(#F58585, #D62B2B); }
-  .rx-clinic { font-size: 21px; background: linear-gradient(#5A86F2, #2B7AD6); }
-  .rx-food .fn { font-size: 34px; background: linear-gradient(#8BE05A, #3E9E2E); }
-  .ask-e { color: #EE5B4E; font-weight: 900; -webkit-text-stroke: 2px #7a0e0e; paint-order: stroke fill; }
+  #startScreen h1 { font-size: 58px; line-height: 1.28; margin-top: 6px; color: #26347d; }
+  #startScreen h1 .hl { color: #2f8a3a; }
+  #wheelScreen h2 { font-size: 42px; color: #26347d; }
+  .rp-n { font-size: 50px; color: #cf3324; }
+  .ask-t { font-size: 40px; color: #cf3324; }
+  .rx-clinic { font-size: 34px; color: #26347d; }
+  .rx-food .fn { font-size: 54px; color: #2f8a3a; }
+  .ask-e { font-family: "Nanum Pen Script", sans-serif; color: #cf3324; font-weight: 400; -webkit-text-stroke: 0; }
 
-  /* 하늘 위 텍스트: 흰 글자 + 외곽선 (가독성) */
-  .kicker { background: #fff; color: #2B7AD6; border: 3px solid #111; font-weight: 900; box-shadow: 3px 3px 0 rgba(0,0,0,.18); }
-  #startScreen .desc, .note, #wheelScreen .sub, .rp-c {
-    color: #fff; font-weight: 800; text-shadow: 1.5px 0 0 #34618f, -1.5px 0 0 #34618f, 0 1.5px 0 #34618f, 0 -1.5px 0 #34618f, 2px 2px 0 rgba(0,0,0,.18); }
-  .rp-c { font-size: 15px; }
+  /* 설명/작은 글씨: Gaegu 볼드로 또렷하게 */
+  .kicker { font-family: "Gaegu", sans-serif; background: #fff; color: #26347d; border: 3px solid #111; font-weight: 700; font-size: 18px;
+    border-radius: 22px 8px 20px 9px / 9px 20px 8px 22px; box-shadow: 2px 3px 0 rgba(0,0,0,.2); }
+  #startScreen .desc, .note, #wheelScreen .sub, .rp-c { font-family: "Gaegu", sans-serif; color: #1e3a52; font-weight: 700; font-size: 18px;
+    text-shadow: 0 0 3px #fff, 1px 1px 0 rgba(255,255,255,.8); }
+  .rp-c { font-size: 20px; }
 
-  /* ===== 버튼: 원색 + 검은 테두리 + 광택 + 흰 외곽선 글자 ===== */
+  /* ===== 그림판 낙서 박스 버튼 (파스텔 + 삐뚤 검은 테두리 + 손글씨) ===== */
   .cta, .spin-btn, .rp-btn, .r-btn, .again-btn, .ask-btns button {
-    border: 4px solid #111; border-radius: 16px; color: #fff; font-weight: 900;
-    text-shadow: 1.5px 0 0 #111, -1.5px 0 0 #111, 0 1.5px 0 #111, 0 -1.5px 0 #111, 1.5px 1.5px 0 #111, -1.5px 1.5px 0 #111, 1.5px -1.5px 0 #111, -1.5px -1.5px 0 #111;
-    box-shadow: 0 6px 0 rgba(0,0,0,.3), inset 0 9px 0 rgba(255,255,255,.28);
-    transition: transform .08s ease, box-shadow .08s ease;
+    font-family: "Gaegu", sans-serif; font-weight: 700; color: #222; border: 3px solid #111;
+    border-radius: 26px 10px 24px 11px / 11px 24px 10px 26px; box-shadow: 3px 4px 0 rgba(0,0,0,.24);
+    text-shadow: none; -webkit-text-stroke: 0; transition: transform .07s ease, box-shadow .07s ease;
   }
   .cta:active, .spin-btn:active, .rp-btn:active, .r-btn:active, .again-btn:active, .ask-btns button:active {
-    transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,.3), inset 0 9px 0 rgba(255,255,255,.28);
+    transform: translate(2px, 3px); box-shadow: 1px 1px 0 rgba(0,0,0,.24);
   }
-  .cta { background: #EE5B4E; }
-  .spin-btn { background: #FFC93C; }
-  .rp-btn.rx { background: #EE5B4E; } .rp-btn.re { background: #4E8BE0; }
-  .r-btn.share { background: #EE5B4E; } .r-btn.save { background: #FFC93C; }
-  .again-btn { background: #5BC24A; }
-  .ask-btns .yes { background: #5BC24A; } .ask-btns .no { background: #EE5B4E; }
+  .cta { background: #FFD6CE; font-size: 26px; }
+  .spin-btn { background: #FFEFAF; font-size: 27px; border-radius: 14px 26px 12px 24px / 24px 12px 26px 14px; }
+  .rp-btn { font-size: 20px; } .rp-btn.rx { background: #FFD6CE; } .rp-btn.re { background: #CFE6FF; }
+  .r-btn { font-size: 19px; } .r-btn.share { background: #FFD6CE; } .r-btn.save { background: #FFEFAF; }
+  .again-btn { background: #D6F0CC; font-size: 21px; }
+  .ask-btns button { font-size: 21px; } .ask-btns .yes { background: #D6F0CC; } .ask-btns .no { background: #FFD6CE; }
 
-  /* 결과는 하늘 위 워드아트로 (흰 박스 제거) */
+  /* 결과는 하늘 위 손글씨로 (흰 박스 제거) */
   .result-panel { background: transparent; box-shadow: none; border: none; padding: 4px 0 0; }
-  .ask-card, .rx, .save-modal-inner, .toast { border: 4px solid #111; box-shadow: 6px 6px 0 rgba(0,0,0,.24); }
+  /* 카드/팝업 = 흰 낙서 박스 */
+  .ask-card, .rx, .save-modal-inner, .toast { background: #fff; border: 3px solid #111;
+    border-radius: 22px 9px 20px 11px / 11px 20px 9px 22px; box-shadow: 4px 5px 0 rgba(0,0,0,.2); }
   .rx { background: #FFFEF6; }
-  .mute-btn { border: 3px solid #111; box-shadow: 3px 3px 0 rgba(0,0,0,.18); font-weight: 900; color: #2B7AD6; }
+  .rx-row { font-family: "Gaegu", sans-serif; font-size: 17px; }
+  .rx-row .k { font-family: "Gaegu", sans-serif; font-weight: 700; }
+  .rx-sub, .rx-foot, .rx-stamp { font-family: "Gaegu", sans-serif; }
+  .save-hint { font-family: "Gaegu", sans-serif; font-size: 14px; }
+  .mute-btn { font-family: "Gaegu", sans-serif; border: 3px solid #111; box-shadow: 2px 3px 0 rgba(0,0,0,.18);
+    font-weight: 700; font-size: 15px; color: #26347d; border-radius: 14px 8px 12px 9px / 9px 12px 8px 14px; }
 
-  /* 룰렛 */
-  .wheel { border: 8px solid #111; box-shadow: 6px 6px 0 rgba(0,0,0,.3), inset 0 0 0 4px rgba(255,255,255,.5); }
-  .hub { border: 5px solid #111; box-shadow: 3px 3px 0 rgba(0,0,0,.24); }
-  .pointer { border-top-color: #EE5B4E; }
+  /* ===== 룰렛: 삐뚤빼뚤 검은 테두리 + 손글씨 라벨 ===== */
+  .wheel { border: 6px solid #111; box-shadow: 4px 5px 0 rgba(0,0,0,.26), inset 0 0 0 3px rgba(255,255,255,.5); }
+  .hub { font-family: "Gaegu", sans-serif; font-weight: 700; color: #222; border: 4px solid #111; box-shadow: 2px 2px 0 rgba(0,0,0,.22);
+    border-radius: 14px 9px 12px 10px / 10px 12px 9px 14px; }
+  .pointer { border-top-color: #111; }
   .wheel .lbl .e { display: none; }
-  .wheel .lbl .n { font-size: 15px; color: #fff; -webkit-text-stroke: 0;
+  .wheel .lbl .n { font-family: "Gaegu", sans-serif; font-size: 19px; font-weight: 700; color: #fff; -webkit-text-stroke: 0;
     text-shadow: 1.5px 0 0 #111, -1.5px 0 0 #111, 0 1.5px 0 #111, 0 -1.5px 0 #111, 1.5px 1.5px 0 #111, -1.5px -1.5px 0 #111, 1.5px -1.5px 0 #111, -1.5px 1.5px 0 #111; }
 </style>
 </head>
@@ -409,28 +419,23 @@ function issueRx() {
   show("rxScreen"); $("rxScreen").scrollTop = 0;
 }
 
-/* ---------- 처방전 카드 (1080x1350) — 봄날 하늘 + 워드아트 ---------- */
+/* ---------- 처방전 카드 (1080x1350) — 하늘 + 손글씨 ---------- */
 function drawCloud(c, x, y, s) {
   c.save(); c.translate(x, y); c.scale(s, s); c.fillStyle = "rgba(255,255,255,.95)";
   c.beginPath(); c.arc(-40, 8, 30, 0, 7); c.arc(-2, -16, 40, 0, 7); c.arc(40, 4, 32, 0, 7); c.arc(6, 18, 30, 0, 7); c.closePath(); c.fill();
   c.restore();
 }
-function waGrad(c, y0, y1, a, b) { const g = c.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, a); g.addColorStop(1, b); return g; }
-function drawWA(c, text, x, y, font, grad, sw) {
-  c.font = font; c.textAlign = "center"; c.lineJoin = "round"; c.miterLimit = 2;
-  c.fillStyle = "rgba(0,0,0,.2)"; c.fillText(text, x + 5, y + 6);
-  c.strokeStyle = "#111"; c.lineWidth = sw; c.strokeText(text, x, y);
-  c.fillStyle = grad; c.fillText(text, x, y);
-}
-function drawWhite(c, text, x, y, font) {
+// 손글씨 잉크: 흰 후광(가독성) + 살짝 그림자 + 색 채움
+function drawInk(c, text, x, y, font, color) {
   c.font = font; c.textAlign = "center"; c.lineJoin = "round";
-  c.strokeStyle = "#2c4a6a"; c.lineWidth = 8; c.strokeText(text, x, y);
-  c.fillStyle = "#fff"; c.fillText(text, x, y);
+  c.fillStyle = "rgba(0,0,0,.14)"; c.fillText(text, x + 2, y + 3);
+  c.strokeStyle = "#fff"; c.lineWidth = 9; c.strokeText(text, x, y);
+  c.fillStyle = color; c.fillText(text, x, y);
 }
-function wrapWhite(c, text, x, y, maxW, lh, font) {
+function wrapInk(c, text, x, y, maxW, lh, font, color) {
   c.font = font; const ch = [...text]; let line = "", yy = y;
-  for (let i = 0; i < ch.length; i++) { const t = line + ch[i]; if (c.measureText(t).width > maxW && line) { drawWhite(c, line, x, yy, font); yy += lh; line = ch[i]; } else line = t; }
-  if (line) { drawWhite(c, line, x, yy, font); yy += lh; }
+  for (let i = 0; i < ch.length; i++) { const t = line + ch[i]; if (c.measureText(t).width > maxW && line) { drawInk(c, line, x, yy, font, color); yy += lh; line = ch[i]; } else line = t; }
+  if (line) { drawInk(c, line, x, yy, font, color); yy += lh; }
   return yy;
 }
 async function buildCard() {
@@ -438,28 +443,28 @@ async function buildCard() {
   const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
   const c = cv.getContext("2d");
   try { await document.fonts.ready; } catch (e) {}
-  const FF = '"Pretendard Variable", Pretendard, sans-serif';
+  const FF = '"Gaegu", sans-serif', PEN = '"Nanum Pen Script", "Gaegu", sans-serif';
   // 봄날 하늘 + 구름
   const sky = c.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, "#4FB4E8"); sky.addColorStop(.5, "#86D4F2"); sky.addColorStop(1, "#D3F0FB");
   c.fillStyle = sky; c.fillRect(0, 0, W, H);
   drawCloud(c, 210, 240, 1.5); drawCloud(c, 870, 300, 1.1); drawCloud(c, 150, 940, 1.2); drawCloud(c, 930, 1010, 1.35); drawCloud(c, 560, 700, .8);
-  // 워드아트 타이틀
-  drawWA(c, "오늘뭐먹지 클리닉", cx, 205, "900 66px " + FF, waGrad(c, 135, 215, "#5A86F2", "#6A3BD0"), 12);
-  drawWhite(c, "TODAY'S MEAL PRESCRIPTION", cx, 252, "800 28px " + FF);
-  drawWhite(c, "진단명 : " + $("rxDiag").textContent, cx, 360, "800 42px " + FF);
-  // 음식 이름 크게 (초록 워드아트)
-  drawWA(c, f.name, cx, 640, "900 150px " + FF, waGrad(c, 495, 665, "#8BE05A", "#3E9E2E"), 16);
-  // 복용법 / 주의사항 (흰 워드아트)
+  // 손글씨 타이틀
+  drawInk(c, "오늘뭐먹지 클리닉", cx, 215, "82px " + PEN, "#26347d");
+  drawInk(c, "TODAY'S MEAL PRESCRIPTION", cx, 262, "700 30px " + FF, "#3a5a7a");
+  drawInk(c, "진단명 : " + $("rxDiag").textContent, cx, 368, "700 42px " + FF, "#1e3a52");
+  // 음식 이름 크게
+  drawInk(c, f.name, cx, 650, "180px " + PEN, "#2f8a3a");
+  // 복용법 / 주의사항
   let y = 800;
-  y = wrapWhite(c, "복용법  " + f.dose, cx, y, 920, 56, "800 40px " + FF) + 24;
-  wrapWhite(c, "주의사항  " + f.warn, cx, y, 920, 56, "800 40px " + FF);
+  y = wrapInk(c, "복용법  " + f.dose, cx, y, 920, 56, "700 40px " + FF, "#1e3a52") + 22;
+  wrapInk(c, "주의사항  " + f.warn, cx, y, 920, 56, "700 40px " + FF, "#1e3a52");
   // 원장 직인
-  c.save(); c.translate(W - 200, H - 250); c.rotate(-0.22); c.strokeStyle = "#EE5B4E"; c.lineWidth = 7;
-  c.beginPath(); c.arc(0, 0, 80, 0, 7); c.stroke(); c.fillStyle = "#EE5B4E"; c.textAlign = "center";
-  c.font = "900 27px " + FF; c.fillText("오늘뭐먹지", 0, -6); c.fillText("원장직인", 0, 28); c.restore();
+  c.save(); c.translate(W - 200, H - 250); c.rotate(-0.22); c.strokeStyle = "#cf3324"; c.lineWidth = 7;
+  c.beginPath(); c.arc(0, 0, 80, 0, 7); c.stroke(); c.fillStyle = "#cf3324"; c.textAlign = "center";
+  c.font = "700 30px " + FF; c.fillText("오늘뭐먹지", 0, -4); c.fillText("원장직인", 0, 30); c.restore();
   // 워터마크
-  drawWA(c, "@ccojik.dh", cx, H - 128, "900 48px " + FF, waGrad(c, H - 172, H - 118, "#F58585", "#D62B2B"), 9);
-  drawWhite(c, "친구도 못 정하면 이거 돌려보라고 해 ^^", cx, H - 76, "800 34px " + FF);
+  drawInk(c, "@ccojik.dh", cx, H - 126, "76px " + PEN, "#cf3324");
+  drawInk(c, "친구도 못 정하면 이거 돌려보라고 해 ^^", cx, H - 74, "700 34px " + FF, "#1e3a52");
   return cv;
 }
 
