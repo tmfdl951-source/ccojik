@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>오늘 뭐 먹지? · 결정장애 해결소</title>
+<meta property="og:type" content="website" />
+<meta property="og:title" content="오늘 뭐 먹지? · 결정장애 해결소" />
+<meta property="og:description" content="룰렛 한 번이면 메뉴 고민 끝. 오늘의 식사 처방전 발급!" />
+<link rel="stylesheet" as="style" crossorigin
+  href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<style>
+  :root {
+    --cream: #FCF5EA; --ivory: #FFFDF8; --paper: #FFFEFA;
+    --tomato: #E8533F; --tomato-d: #C7402E; --mustard: #E9A23B; --green: #6FAE62;
+    --ink: #3E332B; --ink-soft: #8B7F72;
+    --shadow: 20px 20px 42px rgba(150,110,80,.2), -10px -10px 24px rgba(255,255,255,.9);
+    --shadow-sm: 7px 7px 16px rgba(150,110,80,.18), -5px -5px 12px rgba(255,255,255,.85);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; font-family: "Pretendard Variable", Pretendard, -apple-system, system-ui, sans-serif; color: var(--ink);
+    background: radial-gradient(circle at 28% 12%, #FFFDF8 0%, transparent 55%), radial-gradient(circle at 82% 92%, #F6E7D2 0%, transparent 50%), var(--cream); }
+  body { display: flex; align-items: center; justify-content: center; min-height: 100dvh; padding: 12px; }
+  .phone { position: relative; width: min(430px, 96vw); aspect-ratio: 9 / 16; max-height: 96dvh;
+    background: linear-gradient(160deg, var(--ivory), var(--cream)); border-radius: 40px; box-shadow: var(--shadow); overflow: hidden; }
+  .screen { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 24px 22px;
+    opacity: 0; pointer-events: none; transform: scale(.985); transition: opacity .3s ease, transform .3s ease;
+    overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .screen::-webkit-scrollbar { display: none; }
+  .screen.active { opacity: 1; pointer-events: auto; transform: scale(1); }
+  .kicker { font-size: 13px; font-weight: 800; color: var(--tomato); background: #FBE4DE; padding: 7px 16px; border-radius: 999px; }
+  .cta { border: none; cursor: pointer; font-family: inherit; background: linear-gradient(160deg, var(--tomato), var(--tomato-d));
+    color: #fff; font-weight: 800; font-size: 19px; padding: 17px 44px; border-radius: 22px; box-shadow: var(--shadow-sm); transition: transform .13s ease; }
+  .cta:active { transform: scale(.95); }
+
+  /* 시작 */
+  #startScreen { align-items: center; justify-content: safe center; text-align: center; }
+  #startScreen h1 { font-size: 30px; font-weight: 800; letter-spacing: -.7px; line-height: 1.3; margin-top: 16px; }
+  #startScreen h1 .hl { color: var(--tomato); }
+  #startScreen .desc { color: var(--ink-soft); font-size: 14.5px; font-weight: 500; margin-top: 12px; line-height: 1.55; }
+  .food-emojis { font-size: 40px; margin: 20px 0 6px; letter-spacing: 4px; animation: bob 2.6s ease-in-out infinite; }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  #startScreen .cta { margin-top: 22px; }
+  .note { font-size: 12.5px; color: var(--ink-soft); font-weight: 600; margin-top: 16px; line-height: 1.5; }
+
+  /* 룰렛 */
+  #wheelScreen { align-items: center; text-align: center; }
+  #wheelScreen h2 { font-size: 21px; font-weight: 800; margin-top: 4px; }
+  #wheelScreen .sub { font-size: 13px; color: var(--ink-soft); font-weight: 600; margin-top: 4px; }
+  .wheel-wrap { position: relative; width: 290px; height: 290px; margin: 18px auto 6px; }
+  .pointer { position: absolute; top: -4px; left: 50%; transform: translateX(-50%); z-index: 6;
+    width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 26px solid var(--ink);
+    filter: drop-shadow(0 3px 2px rgba(0,0,0,.2)); }
+  .wheel { width: 100%; height: 100%; border-radius: 50%; position: relative; border: 8px solid var(--ink);
+    box-shadow: 0 10px 26px rgba(120,80,50,.32), inset 0 0 0 4px rgba(255,255,255,.5); }
+  .wheel .lbl { position: absolute; left: 50%; top: 50%; width: 70px; text-align: center; color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,.35); pointer-events: none; }
+  .wheel .lbl .e { font-size: 26px; display: block; }
+  .wheel .lbl .n { font-size: 13px; font-weight: 800; display: block; margin-top: 1px; }
+  .hub { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; transform: translate(-50%,-50%); z-index: 5;
+    background: #fff; border: 5px solid var(--ink); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .spin-btn { margin-top: 14px; border: none; cursor: pointer; font-family: inherit; width: 100%;
+    background: linear-gradient(160deg, var(--mustard), #D18B2C); color: #fff; font-weight: 800; font-size: 19px;
+    padding: 16px 10px; border-radius: 22px; box-shadow: var(--shadow-sm); transition: transform .13s ease; }
+  .spin-btn:active { transform: scale(.97); }
+  .spin-btn:disabled { opacity: .5; }
+
+  .result-panel { display: none; width: 100%; margin-top: 14px; background: var(--ivory); border-radius: 22px;
+    padding: 16px 16px 18px; box-shadow: var(--shadow-sm); }
+  .result-panel.show { display: block; animation: pop .4s cubic-bezier(.3,.8,.4,1); }
+  @keyframes pop { 0% { transform: scale(.85); opacity: 0; } 60% { transform: scale(1.04); opacity: 1; } 100% { transform: scale(1); } }
+  .result-panel .rp-e { font-size: 46px; }
+  .result-panel .rp-n { font-size: 24px; font-weight: 800; margin: 2px 0 2px; }
+  .result-panel .rp-c { font-size: 13.5px; font-weight: 600; color: var(--ink-soft); }
+  .rp-actions { display: flex; gap: 10px; margin-top: 14px; }
+  .rp-btn { flex: 1; border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 15px;
+    padding: 14px 8px; border-radius: 16px; box-shadow: var(--shadow-sm); transition: transform .12s ease; }
+  .rp-btn:active { transform: scale(.95); }
+  .rp-btn.rx { background: linear-gradient(160deg, var(--tomato), var(--tomato-d)); color: #fff; }
+  .rp-btn.re { background: var(--cream); color: var(--ink); }
+
+  /* 되묻기 오버레이 */
+  .ask { position: absolute; inset: 0; z-index: 20; background: rgba(62,51,43,.55); backdrop-filter: blur(2px);
+    display: none; align-items: center; justify-content: center; padding: 26px; }
+  .ask.show { display: flex; }
+  .ask-card { background: var(--ivory); border-radius: 24px; padding: 24px 20px; box-shadow: var(--shadow); text-align: center; width: 300px; }
+  .ask-e { font-size: 52px; }
+  .ask-t { font-size: 22px; font-weight: 800; margin: 6px 0 4px; }
+  .ask-d { font-size: 14px; color: var(--ink-soft); font-weight: 600; line-height: 1.5; }
+  .ask-btns { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+  .ask-btns button { border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 15px; padding: 14px 10px; border-radius: 16px; }
+  .ask-btns .yes { background: linear-gradient(160deg, var(--green), #5B9A54); color: #fff; }
+  .ask-btns .no { background: linear-gradient(160deg, var(--tomato), var(--tomato-d)); color: #fff; }
+  .ask-btns button:active { transform: scale(.96); }
+
+  /* 처방전 */
+  #rxScreen { align-items: center; }
+  .rx { width: 100%; background: var(--paper); border-radius: 18px; padding: 20px 20px 18px;
+    box-shadow: var(--shadow-sm); border: 2px dashed #E0D3BF; position: relative; }
+  .rx-head { text-align: center; border-bottom: 2px solid var(--ink); padding-bottom: 10px; margin-bottom: 12px; }
+  .rx-clinic { font-size: 18px; font-weight: 800; letter-spacing: -.3px; }
+  .rx-sub { font-size: 11px; color: var(--ink-soft); font-weight: 600; margin-top: 2px; }
+  .rx-row { display: flex; gap: 8px; font-size: 13.5px; padding: 5px 0; }
+  .rx-row .k { flex-shrink: 0; width: 62px; font-weight: 800; color: var(--tomato); }
+  .rx-row .v { font-weight: 600; line-height: 1.5; }
+  .rx-food { text-align: center; margin: 8px 0; }
+  .rx-food .fe { font-size: 52px; }
+  .rx-food .fn { font-size: 26px; font-weight: 800; }
+  .rx-stamp { position: absolute; right: 16px; bottom: 12px; width: 66px; height: 66px; border: 3px solid var(--tomato); color: var(--tomato);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; text-align: center;
+    transform: rotate(-14deg); opacity: .85; line-height: 1.15; }
+  .rx-foot { text-align: center; font-size: 11px; color: var(--ink-soft); font-weight: 600; margin-top: 14px; }
+
+  .r-actions { display: flex; gap: 10px; margin-top: 16px; width: 100%; }
+  .r-btn { flex: 1; border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 15px;
+    padding: 15px 8px; border-radius: 18px; box-shadow: var(--shadow-sm); transition: transform .13s ease; }
+  .r-btn:active { transform: scale(.95); }
+  .r-btn.share { background: linear-gradient(160deg, var(--tomato), var(--tomato-d)); color: #fff; }
+  .r-btn.save { background: linear-gradient(160deg, var(--mustard), #D18B2C); color: #fff; }
+  .again-btn { width: 100%; margin-top: 10px; border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 15px;
+    background: var(--cream); color: var(--ink); padding: 14px 10px; border-radius: 18px; box-shadow: var(--shadow-sm); }
+  .again-btn:active { transform: scale(.97); }
+  .save-hint { text-align: center; font-size: 11.5px; color: var(--ink-soft); margin-top: 10px; opacity: .85; line-height: 1.5; }
+
+  .mute-btn { position: absolute; top: 14px; right: 14px; z-index: 25; width: 38px; height: 38px; border-radius: 12px; border: none;
+    background: var(--ivory); box-shadow: var(--shadow-sm); cursor: pointer; font-size: 16px; }
+  .toast { position: absolute; left: 50%; bottom: 28px; transform: translate(-50%, 20px); z-index: 28;
+    background: rgba(62,51,43,.94); color: #fff; font-size: 14px; font-weight: 700; padding: 12px 22px; border-radius: 999px;
+    opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  .save-modal { position: absolute; inset: 0; z-index: 30; background: rgba(62,51,43,.62); backdrop-filter: blur(3px);
+    display: none; align-items: center; justify-content: center; padding: 22px; }
+  .save-modal.show { display: flex; }
+  .save-modal-inner { background: var(--ivory); border-radius: 24px; padding: 20px 18px; box-shadow: var(--shadow); max-width: 100%;
+    max-height: 100%; overflow-y: auto; text-align: center; display: flex; flex-direction: column; align-items: center; }
+  .sm-title { font-size: 16px; font-weight: 800; } .sm-title::before { content: "👆 "; }
+  .sm-sub { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); line-height: 1.5; margin: 4px 0 10px; }
+  #saveModalImg { width: 100%; max-width: 260px; border-radius: 14px; box-shadow: var(--shadow-sm); }
+  .sm-close { margin-top: 14px; border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 14px;
+    background: var(--ivory); color: var(--ink); padding: 11px 30px; border-radius: 16px; box-shadow: var(--shadow-sm); }
+</style>
+</head>
+<body>
+<div class="phone" id="phone">
+
+  <button class="mute-btn" id="muteBtn">🔊</button>
+
+  <!-- 시작 -->
+  <section class="screen active" id="startScreen">
+    <span class="kicker">🍚 결정장애 해결소</span>
+    <h1>오늘 뭐 먹지…<br><span class="hl">그만 고민</span>하고 돌려!</h1>
+    <p class="desc">메뉴 못 정하는 당신을 위한 처방소.<br>룰렛 한 번이면 오늘 저녁 결정 완료.</p>
+    <div class="food-emojis">🍲🍗🍜🍕</div>
+    <button class="cta" id="startBtn">룰렛 돌리러 가기</button>
+    <p class="note">결정 못 하는 친구·연인에게<br>"너 이거 돌려봐" 하고 보내보세요 📤</p>
+  </section>
+
+  <!-- 룰렛 -->
+  <section class="screen" id="wheelScreen">
+    <h2 id="wheelTitle">운명의 메뉴 룰렛 🎯</h2>
+    <div class="sub" id="wheelSub">버튼을 눌러 오늘의 저녁을 정하세요</div>
+    <div class="wheel-wrap">
+      <div class="pointer"></div>
+      <div class="wheel" id="wheel"></div>
+      <div class="hub">🍽️</div>
+    </div>
+    <button class="spin-btn" id="spinBtn">돌리기!</button>
+    <div class="result-panel" id="resultPanel">
+      <div class="rp-e" id="rpEmoji">🍲</div>
+      <div class="rp-n" id="rpName">국밥</div>
+      <div class="rp-c" id="rpComment">오늘의 메뉴가 정해졌습니다</div>
+      <div class="rp-actions">
+        <button class="rp-btn rx" id="toRxBtn">처방전 받기 📋</button>
+        <button class="rp-btn re" id="reSpinBtn">다시 돌리기 🔄</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 처방전 -->
+  <section class="screen" id="rxScreen">
+    <div class="rx" id="rxCard">
+      <div class="rx-head">
+        <div class="rx-clinic">🍚 오늘뭐먹지 클리닉</div>
+        <div class="rx-sub">TODAY'S MEAL PRESCRIPTION</div>
+      </div>
+      <div class="rx-row"><span class="k">환자</span><span class="v">배고픈 결정장애인 님</span></div>
+      <div class="rx-row"><span class="k">진단명</span><span class="v" id="rxDiag">만성 결정장애 3기</span></div>
+      <div class="rx-food"><div class="fe" id="rxFe">🍲</div><div class="fn" id="rxFn">국밥</div></div>
+      <div class="rx-row"><span class="k">복용법</span><span class="v" id="rxDose">-</span></div>
+      <div class="rx-row"><span class="k">주의사항</span><span class="v" id="rxWarn">-</span></div>
+      <div class="rx-stamp">오늘뭐먹지<br>원장직인</div>
+      <div class="rx-foot">본 처방전은 오늘 저녁에 한하여 유효함</div>
+    </div>
+    <div class="r-actions">
+      <button class="r-btn share" id="shareBtn">🔗 친구한테 돌려보라기</button>
+      <button class="r-btn save" id="saveBtn">📸 처방전 저장</button>
+    </div>
+    <button class="again-btn" id="againBtn">🎯 다시 룰렛 돌리기</button>
+    <p class="save-hint" id="saveHint"></p>
+  </section>
+
+  <!-- 되묻기 -->
+  <div class="ask" id="ask">
+    <div class="ask-card">
+      <div class="ask-e" id="askE">🥗</div>
+      <div class="ask-t" id="askT">샐러드…?</div>
+      <div class="ask-d" id="askD">진심이야..? 다시 생각해봐 👀</div>
+      <div class="ask-btns">
+        <button class="yes" id="askYes">응, 이걸로 할래</button>
+        <button class="no" id="askNo">아니 다시 돌릴래</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <div class="save-modal" id="saveModal">
+    <div class="save-modal-inner">
+      <p class="sm-title">이미지를 꾹 눌러 저장하세요</p>
+      <p class="sm-sub">아이폰은 아래 이미지를 길게 눌러<br>‘사진에 저장’ 을 선택하세요</p>
+      <img id="saveModalImg" alt="처방전" />
+      <button class="sm-close" id="saveModalClose">닫기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ---------- 메뉴 ---------- */
+const FOODS = [
+  { name: "국밥",   emoji: "🍲", color: "#E9A23B", dose: "뜨끈할 때 후루룩. 밥은 말아서 원샷.", warn: "국물 화상 주의 🔥 (근데 또 국밥이야?)" },
+  { name: "치킨",   emoji: "🍗", color: "#E8533F", dose: "콜라와 1:1 비율로 섭취 권장.", warn: "1인 1닭은 국룰, 죄책감 금지" },
+  { name: "라면",   emoji: "🍜", color: "#D9743B", dose: "4분 30초, 꼬들함을 사수할 것.", warn: "계란은 반숙이 정답입니다" },
+  { name: "떡볶이", emoji: "🌶️", color: "#E05038", dose: "튀김·순대 세트로 병행 복용.", warn: "매움 = 스트레스 완화제" },
+  { name: "피자",   emoji: "🍕", color: "#EDAE44", dose: "식기 전에, 도우 끝까지 섭취.", warn: "파인애플 토핑 논쟁 주의" },
+  { name: "마라탕", emoji: "🥘", color: "#C7402E", dose: "당면·청경채 필수, 맵기는 중간.", warn: "다음 날 화장실 미리 예약" },
+  { name: "초밥",   emoji: "🍣", color: "#5AA9A0", dose: "간장 살짝, 와사비는 취향껏.", warn: "지갑 화상 위험 💸" },
+  { name: "샐러드", emoji: "🥗", color: "#6FAE62", dose: "정말요…? 드레싱은 원 없이.", warn: "내일의 나를 위한 갸륵한 선택" },
+];
+const WEIGHT = [3.4, 1, 1, 1, 1, 1, 1, 0.5];   // 국밥이 자주 나오게, 샐러드는 드물게
+const DIAGS = ["만성 결정장애 3기", "급성 메뉴선택 불능증", "점심·저녁 방황 증후군", "배고픔 동반 우유부단증", "무한 '아무거나' 루프"];
+const N = FOODS.length, SEG = 360 / N;
+
+/* ---------- 사운드 ---------- */
+const MUTE_KEY = "ccojik-food-muted";
+let audioCtx = null, muted = localStorage.getItem(MUTE_KEY) === "1";
+function ac() { if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } } if (audioCtx.state === "suspended") audioCtx.resume(); return audioCtx; }
+function beep(f, d, t, v, w) { if (muted) return; const c = ac(); if (!c) return; const t0 = c.currentTime + (w || 0); const o = c.createOscillator(), g = c.createGain(); o.type = t || "square"; o.frequency.setValueAtTime(f, t0); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(v || 0.12, t0 + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d); o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + d + 0.02); }
+function sfxSpin() { for (let i = 0; i < 14; i++) beep(500 + i * 20, 0.04, "square", 0.07, i * 0.22); }
+function sfxDing() { [660, 880, 1180].forEach((f, i) => beep(f, 0.13, "square", 0.13, i * 0.08)); }
+function sfxHuh() { beep(400, 0.16, "sawtooth", 0.12); beep(300, 0.22, "sawtooth", 0.12, 0.16); }
+function toggleMute() { muted = !muted; localStorage.setItem(MUTE_KEY, muted ? "1" : "0"); $("muteBtn").textContent = muted ? "🔇" : "🔊"; if (!muted) sfxDing(); }
+
+/* ---------- 상태 ---------- */
+let spinning = false, wheelRot = 0, lastIndex = -1, gukStreak = 0, chosen = 0;
+function show(id) { document.querySelectorAll(".screen").forEach(s => s.classList.remove("active")); $(id).classList.add("active"); }
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove("show"), 1600); }
+
+/* ---------- 룰렛 만들기 ---------- */
+function buildWheel() {
+  const stops = FOODS.map((f, i) => `${f.color} ${i * SEG}deg ${(i + 1) * SEG}deg`).join(", ");
+  const wheel = $("wheel");
+  wheel.style.background = `conic-gradient(${stops})`;
+  wheel.innerHTML = "";
+  FOODS.forEach((f, i) => {
+    const el = document.createElement("div"); el.className = "lbl";
+    el.innerHTML = `<span class="e">${f.emoji}</span><span class="n">${f.name}</span>`;
+    const center = i * SEG + SEG / 2;
+    el.style.transform = `translate(-50%,-50%) rotate(${center}deg) translateY(-92px) rotate(${-center}deg)`;
+    wheel.appendChild(el);
+  });
+}
+function weightedPick() {
+  const total = WEIGHT.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < N; i++) { r -= WEIGHT[i]; if (r <= 0) return i; }
+  return N - 1;
+}
+function spin(forceIndex) {
+  if (spinning) return;
+  spinning = true; $("spinBtn").disabled = true; $("resultPanel").classList.remove("show");
+  sfxSpin();
+  const i = (forceIndex != null) ? forceIndex : weightedPick();
+  const center = i * SEG + SEG / 2;
+  const jitter = (Math.random() - 0.5) * SEG * 0.6;
+  const desired = ((360 - center - jitter) % 360 + 360) % 360;
+  let rot = wheelRot - (((wheelRot % 360) + 360) % 360) + desired + 360 * 6;
+  if (rot <= wheelRot + 360 * 5) rot += 360;
+  wheelRot = rot;
+  const wheel = $("wheel");
+  wheel.style.transition = "transform 3.6s cubic-bezier(.15,.82,.25,1)";
+  wheel.style.transform = `rotate(${rot}deg)`;
+  setTimeout(() => onResult(i), 3680);
+}
+function onResult(i) {
+  spinning = false; $("spinBtn").disabled = false;
+  lastIndex = i; chosen = i;
+  gukStreak = (i === 0) ? gukStreak + 1 : 0;
+  const f = FOODS[i];
+  if (f.name === "샐러드") { sfxHuh(); askConfirm("🥗", "샐러드…?", "진심이야..? 다시 생각해봐 👀", () => accept(i), () => spin()); return; }
+  if (i === 0 && gukStreak >= 2) {
+    sfxHuh();
+    const line = gukStreak >= 3 ? "국밥의 저주… 이쯤 되면 운명이야 🌀" : "또 국밥이야?! 이거 실화냐 😳";
+    askConfirm("🍲", line, "그냥 국밥이 너의 소울푸드인 걸로…", () => accept(i), () => spin());
+    return;
+  }
+  sfxDing();
+  accept(i);
+}
+function accept(i) {
+  chosen = i; const f = FOODS[i];
+  $("rpEmoji").textContent = f.emoji;
+  $("rpName").textContent = f.name;
+  $("rpComment").textContent = FOOD_COMMENT(i);
+  $("resultPanel").classList.add("show");
+}
+function FOOD_COMMENT(i) {
+  const f = FOODS[i];
+  if (f.name === "샐러드") return "오… 건강 챙기는 당신, 리스펙 🥗";
+  if (i === 0) return "역시 국밥. 실패 없는 선택이지 🍲";
+  return "오늘 저녁은 " + f.name + "! 고민 끝 🎉";
+}
+
+/* ---------- 되묻기 오버레이 ---------- */
+let askYesCb = null, askNoCb = null;
+function askConfirm(e, t, d, yes, no) {
+  $("askE").textContent = e; $("askT").textContent = t; $("askD").textContent = d;
+  askYesCb = yes; askNoCb = no;
+  $("ask").classList.add("show");
+}
+function closeAsk() { $("ask").classList.remove("show"); }
+
+/* ---------- 처방전 ---------- */
+function issueRx() {
+  const f = FOODS[chosen];
+  $("rxDiag").textContent = DIAGS[Math.floor(Math.random() * DIAGS.length)];
+  $("rxFe").textContent = f.emoji; $("rxFn").textContent = f.name;
+  $("rxDose").textContent = f.dose; $("rxWarn").textContent = f.warn;
+  $("saveHint").textContent = "";
+  show("rxScreen"); $("rxScreen").scrollTop = 0;
+}
+
+/* ---------- 처방전 카드 (1080x1350) ---------- */
+function roundRect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+function wrap(c, text, x, y, maxW, lh) { const words = [...text]; let line = ""; for (let i = 0; i < words.length; i++) { const t = line + words[i]; if (c.measureText(t).width > maxW && line) { c.fillText(line, x, y); y += lh; line = words[i]; } else line = t; } if (line) { c.fillText(line, x, y); y += lh; } return y; }
+async function buildCard() {
+  const f = FOODS[chosen], W = 1080, H = 1350, cx = W / 2;
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const c = cv.getContext("2d");
+  try { await document.fonts.ready; } catch (e) {}
+  const FF = '"Pretendard Variable", Pretendard, sans-serif';
+  c.fillStyle = "#FCF5EA"; c.fillRect(0, 0, W, H);
+  c.fillStyle = "#E8533F"; c.fillRect(0, 0, W, 18);
+  // 처방전 종이
+  c.save(); c.shadowColor = "rgba(150,110,80,.22)"; c.shadowBlur = 40; c.shadowOffsetY = 20;
+  c.fillStyle = "#FFFEFA"; roundRect(c, 70, 90, W - 140, H - 180, 40); c.fill(); c.restore();
+  c.strokeStyle = "#E0D3BF"; c.lineWidth = 4; c.setLineDash([14, 10]); roundRect(c, 70, 90, W - 140, H - 180, 40); c.stroke(); c.setLineDash([]);
+
+  c.textAlign = "center"; c.fillStyle = "#3E332B"; c.font = "800 62px " + FF; c.fillText("🍚 오늘뭐먹지 클리닉", cx, 210);
+  c.fillStyle = "#8B7F72"; c.font = "600 30px " + FF; c.fillText("TODAY'S MEAL PRESCRIPTION", cx, 258);
+  c.strokeStyle = "#3E332B"; c.lineWidth = 4; c.beginPath(); c.moveTo(130, 295); c.lineTo(W - 130, 295); c.stroke();
+
+  c.textAlign = "left"; const lx = 150; let y = 370;
+  c.font = "800 36px " + FF; c.fillStyle = "#E8533F"; c.fillText("진단명", lx, y);
+  c.fillStyle = "#3E332B"; c.font = "600 36px " + FF; c.fillText($("rxDiag").textContent, lx + 160, y);
+
+  // 음식 크게
+  c.textAlign = "center"; c.font = "160px " + FF; c.fillText(f.emoji, cx, 560);
+  c.fillStyle = "#3E332B"; c.font = "800 92px " + FF; c.fillText(f.name, cx, 660);
+
+  c.textAlign = "left"; y = 800;
+  c.font = "800 36px " + FF; c.fillStyle = "#E8533F"; c.fillText("복용법", lx, y);
+  c.fillStyle = "#5c5045"; c.font = "600 34px " + FF; wrap(c, f.dose, lx + 160, y, 620, 46);
+  y = 900;
+  c.font = "800 36px " + FF; c.fillStyle = "#E8533F"; c.fillText("주의사항", lx, y);
+  c.fillStyle = "#5c5045"; c.font = "600 34px " + FF; wrap(c, f.warn, lx + 160, y, 620, 46);
+
+  // 도장
+  c.save(); c.translate(W - 210, 1080); c.rotate(-0.24); c.strokeStyle = "#E8533F"; c.lineWidth = 6;
+  c.beginPath(); c.arc(0, 0, 78, 0, 7); c.stroke(); c.fillStyle = "#E8533F"; c.textAlign = "center";
+  c.font = "800 26px " + FF; c.fillText("오늘뭐먹지", 0, -6); c.fillText("원장직인", 0, 26); c.restore();
+
+  // 워터마크
+  c.textAlign = "center"; c.fillStyle = "#E8533F"; c.font = "800 44px " + FF; c.fillText("@ccojik.dh", cx, H - 150);
+  c.fillStyle = "#8B7F72"; c.font = "600 34px " + FF; c.fillText("친구도 못 정하면 이거 돌려보라고 해!", cx, H - 100);
+  return cv;
+}
+
+/* ---------- 저장/공유 ---------- */
+const isIOS = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+function supportsDownload() { return !isIOS && typeof document.createElement("a").download !== "undefined"; }
+let saveURL = null;
+function openSaveModal(u) { if (saveURL) URL.revokeObjectURL(saveURL); saveURL = u; $("saveModalImg").src = u; $("saveModal").classList.add("show"); }
+function closeSaveModal() { $("saveModal").classList.remove("show"); $("saveModalImg").removeAttribute("src"); if (saveURL) { URL.revokeObjectURL(saveURL); saveURL = null; } }
+async function saveCard() {
+  try {
+    const cv = await buildCard();
+    cv.toBlob(blob => {
+      if (!blob) { $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요 🙏"; return; }
+      const u = URL.createObjectURL(blob);
+      if (!supportsDownload()) { openSaveModal(u); $("saveHint").textContent = ""; return; }
+      const a = document.createElement("a"); a.href = u; a.download = "오늘뭐먹지_처방전.png";
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 1000);
+      $("saveHint").textContent = "처방전 저장 완료! 📸";
+    }, "image/png");
+  } catch (e) { $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요 🙏"; }
+}
+async function shareLink() {
+  const url = location.href.split("?")[0];
+  const text = "나 오늘 '" + FOODS[chosen].name + "' 먹으래ㅋㅋ 너도 뭐 먹을지 못 정하면 이거 돌려봐 👉";
+  if (navigator.share) { try { await navigator.share({ title: "오늘 뭐 먹지? 결정장애 해결소", text, url }); } catch (e) {} return; }
+  const full = text + " " + url;
+  if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(full).then(() => toast("링크 복사됨! 친구한테 붙여넣기 📤"), () => toast("복사 실패 — 주소창을 길게 눌러 복사하세요")); }
+  else toast("주소창 링크를 복사해 보내주세요");
+}
+
+/* ---------- 이벤트 ---------- */
+$("startBtn").addEventListener("click", () => { sfxDing(); show("wheelScreen"); });
+$("spinBtn").addEventListener("click", () => spin());
+$("reSpinBtn").addEventListener("click", () => spin());
+$("toRxBtn").addEventListener("click", issueRx);
+$("againBtn").addEventListener("click", () => { $("resultPanel").classList.remove("show"); show("wheelScreen"); });
+$("askYes").addEventListener("click", () => { closeAsk(); sfxDing(); if (askYesCb) askYesCb(); });
+$("askNo").addEventListener("click", () => { closeAsk(); if (askNoCb) askNoCb(); });
+$("shareBtn").addEventListener("click", shareLink);
+$("saveBtn").addEventListener("click", saveCard);
+$("saveModalClose").addEventListener("click", closeSaveModal);
+$("saveModal").addEventListener("click", e => { if (e.target === $("saveModal")) closeSaveModal(); });
+$("muteBtn").addEventListener("click", toggleMute);
+
+$("muteBtn").textContent = muted ? "🔇" : "🔊";
+buildWheel();
+</script>
+</body>
+</html>
