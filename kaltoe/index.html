@@ -459,9 +459,27 @@
   .office-bg .plant { position: absolute; bottom: 2%; right: 4%; width: 26px; height: 32px; }
   .office-bg .plant i { position: absolute; bottom: 0; left: 3px; width: 20px; height: 14px; background: #b98a5a; border: 3px solid var(--line); }
   .office-bg .plant::before { content: ""; position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); width: 26px; height: 26px; border-radius: 50%; background: #6fae62; border: 3px solid var(--line); }
-  /* 플레이어 졸라맨 */
-  .office-bg .stickman { position: absolute; bottom: 2%; left: 4%; width: 60px; height: 92px; filter: drop-shadow(3px 4px 0 rgba(0,0,0,.15)); }
+  /* 플레이어 = 심은하 캐릭터 (원래 캐릭터로 복원) */
+  .office-bg .player-char { position: absolute; bottom: 2%; left: 3%; width: 96px; height: 96px; object-fit: contain;
+    filter: drop-shadow(3px 6px 9px rgba(0,0,0,.28)); }
   .hs-d b { color: var(--warmgray-text); }
+
+  /* ===== 생존 결과 화면 컴팩트 (안 잘리게) ===== */
+  #survResultScreen { padding: 18px 22px; }
+  #survResultScreen .kr-img { width: 130px; height: 130px; margin-top: 4px; }
+  #survResultScreen .sr-title { font-size: 24px; }
+  #survResultScreen .sr-sub { font-size: 13px; margin-top: 2px; }
+  #survResultScreen .kr-bubble { font-size: 14px; padding: 7px 14px; }
+  #survResultScreen .sr-list { padding: 4px 14px; margin-top: 10px; }
+  #survResultScreen .sr-row { padding: 6px 0; font-size: 14px; }
+  #survResultScreen .sr-total { margin-top: 10px; font-size: 18px; }
+  #survResultScreen .sr-grade { font-size: 14px; margin-top: 3px; }
+  #survResultScreen .sr-best { margin-top: 6px; font-size: 12.5px; }
+  #survResultScreen .kr-actions { margin-top: 14px; }
+  #survResultScreen .kr-btn { padding: 13px 8px; font-size: 14px; }
+  #survResultScreen .kr-btn.survcta { margin-top: 9px; padding: 12px 8px; }
+  #survResultScreen .link-btn { margin-top: 9px; padding: 12px 10px; font-size: 13px; }
+  #survResultScreen .save-hint { margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -510,19 +528,7 @@
       <svg class="co co1" viewBox="0 0 40 40"><g fill="none" stroke="#2b2620" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><circle cx="20" cy="14" r="9" fill="#fbead0"/><path d="M5 40 Q20 25 35 40"/></g></svg>
       <svg class="co co2" viewBox="0 0 40 40"><g fill="none" stroke="#2b2620" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><circle cx="20" cy="14" r="9" fill="#f6d8bb"/><path d="M5 40 Q20 25 35 40"/></g></svg>
       <div class="plant"><i></i></div>
-      <svg class="stickman" viewBox="0 0 60 96">
-        <g fill="none" stroke="#2b2620" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="30" cy="13" r="10" fill="#fbead0"/>
-          <line x1="30" y1="23" x2="30" y2="56"/>
-          <line x1="30" y1="31" x2="15" y2="45"/>
-          <line x1="30" y1="31" x2="45" y2="45"/>
-          <line x1="30" y1="56" x2="19" y2="86"/>
-          <line x1="30" y1="56" x2="41" y2="86"/>
-          <rect x="26" y="30" width="8" height="10" fill="#fff" stroke-width="2"/>
-        </g>
-        <circle cx="26" cy="12" r="1.6" fill="#2b2620"/><circle cx="34" cy="12" r="1.6" fill="#2b2620"/>
-        <path d="M26 17 Q30 20 34 17" fill="none" stroke="#2b2620" stroke-width="2" stroke-linecap="round"/>
-      </svg>
+      <img class="player-char" src="../assets/eunha.png" alt="심은하" onerror="this.style.display='none'">
     </div>
     <div class="round-tag" id="roundTag"></div>
     <div class="target">🎯 목표 <b>18:00:00.00</b></div>
