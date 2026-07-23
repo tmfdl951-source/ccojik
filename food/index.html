@@ -251,6 +251,17 @@
   .setup-hint { font-family: "Gaegu", sans-serif; font-weight: 700; font-size: 15px; color: #1e3a52; line-height: 1.5;
     min-height: 20px; margin-top: 10px; text-shadow: 0 0 3px #fff; word-break: break-all; }
   #setupScreen .again-btn { margin-top: 14px; }
+
+  /* ===== 첫 화면: 둥둥 떠다니는 음식 누끼 사진 ===== */
+  .foods-layer { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+  .foods-layer img { position: absolute; width: var(--s, 100px); height: auto;
+    filter: drop-shadow(2px 4px 6px rgba(50,80,110,.32));
+    animation: floaty var(--d, 5s) ease-in-out infinite; animation-delay: var(--dl, 0s); will-change: transform; }
+  @keyframes floaty {
+    0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+    50% { transform: translateY(-13px) rotate(calc(var(--r, 0deg) + 3deg)); }
+  }
+  #startScreen > :not(.foods-layer) { position: relative; z-index: 1; }
 </style>
 </head>
 <body>
@@ -265,6 +276,14 @@
 
   <!-- 시작 -->
   <section class="screen active" id="startScreen">
+    <div class="foods-layer" aria-hidden="true">
+      <img src="./foods/pizza.png" alt="" style="top:4%;right:-5%;--s:136px;--d:5.5s;--dl:0s;--r:8deg;">
+      <img src="./foods/chicken.png" alt="" style="top:8%;left:-6%;--s:114px;--d:6s;--dl:.6s;--r:-7deg;">
+      <img src="./foods/gukbap.png" alt="" style="top:39%;left:-9%;--s:122px;--d:5s;--dl:1.1s;--r:-5deg;">
+      <img src="./foods/sushi.png" alt="" style="top:33%;right:-9%;--s:114px;--d:6.4s;--dl:.3s;--r:6deg;">
+      <img src="./foods/tteok.png" alt="" style="bottom:8%;left:-4%;--s:120px;--d:5.8s;--dl:.9s;--r:-6deg;">
+      <img src="./foods/burger.png" alt="" style="bottom:4%;right:-5%;--s:124px;--d:5.2s;--dl:1.4s;--r:7deg;">
+    </div>
     <span class="kicker">결정장애 해결소</span>
     <h1>오늘 뭐 먹지?<br><span class="hl">고민 끝!</span></h1>
     <p class="desc">메뉴 못 정하는 당신을 위한 처방소.<br>룰렛 한 번이면 오늘 저녁 결정 완료 ^^</p>
