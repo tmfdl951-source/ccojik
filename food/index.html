@@ -266,11 +266,13 @@
   /* ===== 배경: 초원+산 이미지 (레퍼런스풍) ===== */
   .sky { display: none; }
   .phone { background: url("./bg.webp") center/cover no-repeat, #8fd06a; }
-  /* 첫 화면 타이틀: 두꺼운 펀치 폰트 + 코믹 검정 외곽선 */
-  #startScreen h1 { font-family: "Black Han Sans", "Gaegu", sans-serif; font-weight: 400; font-size: 50px; line-height: 1.16;
-    color: #fff; letter-spacing: -0.5px; margin-top: 6px;
-    text-shadow: -3px -3px 0 #1b2a4a, 3px -3px 0 #1b2a4a, -3px 3px 0 #1b2a4a, 3px 3px 0 #1b2a4a,
-      0 -3px 0 #1b2a4a, 0 3px 0 #1b2a4a, -3px 0 0 #1b2a4a, 3px 0 0 #1b2a4a, 4px 7px 0 rgba(0,0,0,.28); }
+  /* 첫 화면 타이틀: 빨간 타원 블롭 + 두꺼운 흰 글씨 (살짝 기울임) */
+  #startScreen h1 { font-family: "Black Han Sans", "Gaegu", sans-serif; font-weight: 400; font-size: 42px; line-height: 1.12;
+    color: #fff; letter-spacing: -0.5px; display: inline-block; align-self: center;
+    background: #ec3b2c; padding: 26px 44px; border-radius: 50%; margin: 16px 0 8px;
+    transform: rotate(-7deg); transform-origin: center;
+    box-shadow: 3px 6px 0 rgba(0,0,0,.22), inset 0 0 0 3px rgba(255,255,255,.14);
+    text-shadow: 2px 2px 0 rgba(140,18,8,.6), -1px -1px 0 rgba(140,18,8,.4); }
   #startScreen h1 .hl { color: #FFE24A; }
 </style>
 </head>
