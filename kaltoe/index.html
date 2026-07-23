@@ -10,6 +10,7 @@
 <meta property="og:image" content="../assets/og.png" />
 <link rel="stylesheet" as="style" crossorigin
   href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri/dist/galmuri.css" />
 <style>
   :root {
     --cream: #FBF6EC; --ivory: #FFFDF8; --beige: #D9C7A7; --beige-text: #B0854A;
@@ -309,6 +310,70 @@
   #saveModalImg { width: 100%; max-width: 260px; border-radius: 14px; box-shadow: var(--shadow-sm); }
   .sm-close { margin-top: 14px; border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 14px;
     background: var(--ivory); color: var(--ink); padding: 11px 30px; border-radius: 16px; box-shadow: var(--shadow-sm); }
+
+  /* ============ 레트로 플래시게임 스킨 ============ */
+  :root { --line: #3E362E; --rs: 5px 5px 0 var(--line); --rs-sm: 3px 3px 0 var(--line); }
+
+  .phone { border: 4px solid var(--line); }
+  .phone::after {   /* 스캔라인(CRT 느낌) */
+    content: ""; position: absolute; inset: 0; z-index: 40; pointer-events: none; border-radius: 36px;
+    background: repeating-linear-gradient(0deg, rgba(62,54,46,.055) 0 2px, transparent 2px 4px);
+  }
+
+  /* 픽셀 폰트: 타이틀·라벨·버튼 */
+  .kicker, #startScreen h1, #startScreen h1 .hl, #startScreen h1 .hl2,
+  .mc-title, #dayScreen .d-count, #dayScreen .d-name, .round-tag,
+  .sr-title, .kr-grade, .kr-sub, .cta, .kr-btn, .leave-btn, .sm-title,
+  .hoesik-head, .hoesik-body, .msg-head, #howtoScreen h2, .hs-t,
+  .hoesik-btns button, .rt-day, .rt-grade, .sr-grade, .best-note {
+    font-family: "Galmuri11", "Pretendard Variable", Pretendard, sans-serif;
+  }
+  /* 숫자: 모노 픽셀 */
+  .clock, .kr-err, .sr-total, .rt-err { font-family: "GalmuriMono11", "Galmuri11", monospace; }
+
+  /* 타이틀 하드 섀도 */
+  #startScreen h1 { text-shadow: 3px 3px 0 rgba(62,54,46,.22); line-height: 1.5; }
+  .sr-title, #dayScreen .d-name { text-shadow: 3px 3px 0 rgba(62,54,46,.20); }
+
+  /* 버튼: 두꺼운 외곽선 + 하드 섀도 + 눌리면 내려앉음 */
+  .cta, .kr-btn, .mode-card, .hoesik-btns button, .howto-back, .link-btn {
+    border: 3px solid var(--line); border-radius: 16px; box-shadow: var(--rs-sm);
+    transition: transform .06s ease, box-shadow .06s ease;
+  }
+  .cta:active, .kr-btn:active, .mode-card:active, .hoesik-btns button:active,
+  .howto-back:active, .link-btn:active {
+    transform: translate(3px, 3px); box-shadow: 0 0 0 0 var(--line);
+  }
+  .mode-card { border-bottom-width: 3px; }
+
+  /* 퇴근 버튼: 아케이드 버튼 */
+  .leave-btn { border: 4px solid var(--line); box-shadow: var(--rs); }
+  .leave-btn:active { transform: translate(4px, 4px); box-shadow: 0 0 0 0 var(--line);
+    background: linear-gradient(160deg, var(--blush), #E88E97); }
+
+  /* LCD 시계 패널 */
+  .clock-wrap { background: #37302A; border: 4px solid var(--line); border-radius: 14px;
+    padding: 12px 20px; box-shadow: var(--rs), inset 0 0 0 3px #4E453B; transform-origin: center; }
+  .target b { color: var(--beige-text); }
+
+  /* 카드/팝업/리스트 외곽선 */
+  .msg-card, .hoesik-card, .save-modal-inner, .round-toast, .howto-step, .sr-list, .speed-badge {
+    border: 3px solid var(--line); box-shadow: var(--rs-sm); }
+  .msg-close, .sm-close { border: 2px solid var(--line); }
+
+  /* ===== 게임 방법 화면 ===== */
+  #howtoScreen { align-items: center; text-align: center; padding: 24px 20px; }
+  #howtoScreen h2 { font-size: 24px; margin: 12px 0 2px; }
+  .howto-list { width: 100%; display: flex; flex-direction: column; gap: 9px; margin-top: 10px; }
+  .howto-step { display: flex; gap: 11px; align-items: flex-start; text-align: left;
+    background: var(--ivory); border-radius: 14px; padding: 11px 13px; }
+  .hs-ic { font-size: 22px; flex-shrink: 0; line-height: 1.25; }
+  .hs-t { font-size: 13.5px; font-weight: 800; }
+  .hs-d { font-size: 12px; font-weight: 500; color: var(--ink-soft); line-height: 1.5; margin-top: 3px;
+    font-family: "Pretendard Variable", Pretendard, sans-serif; }
+  #howtoScreen .cta { margin-top: 16px; }
+  .howto-back { display: block; width: 100%; margin-top: 10px; cursor: pointer; font-family: inherit;
+    font-weight: 800; font-size: 14px; background: var(--ivory); color: var(--ink); padding: 13px 10px; border-radius: 16px; }
 </style>
 </head>
 <body>
@@ -325,6 +390,22 @@
       <button class="mode-card surv" id="modeSurvival"><span class="mc-emoji">📅</span><span class="mc-title">한 주 생존 모드</span><span class="mc-desc">월~금 5연속 · 방해 요소</span></button>
     </div>
     <p class="best-note" id="startBest"></p>
+  </section>
+
+  <!-- 게임 방법 (생존 모드 시작 전) -->
+  <section class="screen" id="howtoScreen">
+    <span class="kicker">📅 한 주 생존 챌린지</span>
+    <h2>게임 방법</h2>
+    <div class="howto-list">
+      <div class="howto-step"><span class="hs-ic">🎯</span><div><div class="hs-t">18:00:00.00에 맞춰 퇴근!</div><div class="hs-d">시계가 4배속으로 흘러요. 정각에 가깝게 ‘퇴근’ 버튼을 누를수록 오차가 적어요.</div></div></div>
+      <div class="howto-step"><span class="hs-ic">📅</span><div><div class="hs-t">월~금 5일 연속 도전</div><div class="hs-d">하루가 한 라운드. 5일을 모두 버텨야 ‘주간 생존 성공’!</div></div></div>
+      <div class="howto-step"><span class="hs-ic">💀</span><div><div class="hs-t">‘야근 확정’이면 그날로 끝</div><div class="hs-d">6시를 한참 넘겨서 누르면 야근 → 그 요일에서 게임 오버.</div></div></div>
+      <div class="howto-step"><span class="hs-ic">⚠️</span><div><div class="hs-t">‘조퇴 미수’는 +2.0초 페널티</div><div class="hs-d">너무 일찍 눌러도 죽진 않아요. 벌점만 받고 다음 날로 계속!</div></div></div>
+      <div class="howto-step"><span class="hs-ic">🎲</span><div><div class="hs-t">요일마다 방해 요소 등장</div><div class="hs-d">화-속도 변화 / 수-메신저 팝업 / 목-사수가 시계 가림 / 금-회식 제안. 당황 금지!</div></div></div>
+      <div class="howto-step"><span class="hs-ic">🏆</span><div><div class="hs-t">오차 총합이 적을수록 고등급</div><div class="hs-d">금요일까지 살아남고 총합 0.5초 이내면 ‘칼퇴의 신’!</div></div></div>
+    </div>
+    <button class="cta" id="howtoStartBtn">시작하기 →</button>
+    <button class="howto-back" id="howtoBackBtn">← 모드 선택으로</button>
   </section>
 
   <!-- 게임 -->
@@ -492,7 +573,7 @@ function show(id) {
 }
 
 /* ---------- 시계 표시 ---------- */
-const INK = [74, 66, 58], HOT = [245, 169, 176];
+const IDLE = [242, 228, 198], HOT = [245, 169, 176];   // 어두운 LCD 패널 위: 크림 → 볼터치핑크
 function lerpColor(c1, c2, t) {
   const r = Math.round(c1[0] + (c2[0] - c1[0]) * t);
   const g = Math.round(c1[1] + (c2[1] - c1[1]) * t);
@@ -510,7 +591,7 @@ function renderClock() {
   $("clkCs").textContent = "." + pad(cs, 2);
   // 18:00에 가까울수록 포인트 컬러 + 살짝 확대
   const t = Math.max(0, Math.min(1, 1 - Math.abs(clockMs) / 2000));
-  const col = lerpColor(INK, HOT, t);
+  const col = lerpColor(IDLE, HOT, t);
   $("clkMain").style.color = col;
   $("clkCs").style.color = col;
   $("clockWrap").style.transform = "scale(" + (1 + 0.07 * t) + ")";
@@ -561,7 +642,8 @@ function finishRound(err) {
 }
 // 모드 시작
 function startPractice() { mode = "practice"; flowToken++; startRound(); }
-function startSurvival() { mode = "survival"; flowToken++; day = 0; dayResults = []; showDayIntro(0); }
+function showHowto() { flowToken++; show("howtoScreen"); }               // 생존 모드 → 게임 방법 먼저
+function beginSurvival() { mode = "survival"; flowToken++; day = 0; dayResults = []; showDayIntro(0); }
 
 /* ---------- 연습 모드 판정 ---------- */
 function practiceResult(err) {
@@ -977,13 +1059,15 @@ function refreshStartBest() {
 
 /* ---------- 이벤트 ---------- */
 $("modePractice").addEventListener("click", startPractice);
-$("modeSurvival").addEventListener("click", startSurvival);
+$("modeSurvival").addEventListener("click", showHowto);        // 방법 화면 먼저
+$("howtoStartBtn").addEventListener("click", beginSurvival);
+$("howtoBackBtn").addEventListener("click", () => { mode = "practice"; flowToken++; show("startScreen"); refreshStartBest(); });
 $("leaveBtn").addEventListener("click", pressLeave);
 $("againBtn").addEventListener("click", startPractice);        // 연습 한 번 더
-$("toSurvivalBtn").addEventListener("click", startSurvival);   // 연습 결과 → 본게임
+$("toSurvivalBtn").addEventListener("click", showHowto);       // 연습 결과 → 본게임(방법부터)
 $("saveBtn").addEventListener("click", saveCard);
 $("srSaveBtn").addEventListener("click", saveWeekCard);
-$("srAgainBtn").addEventListener("click", startSurvival);      // 생존 다시 도전
+$("srAgainBtn").addEventListener("click", beginSurvival);      // 생존 다시 도전(방법 스킵)
 $("srHomeBtn").addEventListener("click", () => { mode = "practice"; flowToken++; show("startScreen"); refreshStartBest(); });
 $("msgClose").addEventListener("click", closeMsgPopup);
 $("hoesikGood").addEventListener("click", fridayAccept);
