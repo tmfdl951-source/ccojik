@@ -134,99 +134,113 @@
   .save-modal.show { display: flex; }
   .save-modal-inner { background: var(--ivory); border-radius: 24px; padding: 20px 18px; box-shadow: var(--shadow); max-width: 100%;
     max-height: 100%; overflow-y: auto; text-align: center; display: flex; flex-direction: column; align-items: center; }
-  .sm-title { font-size: 16px; font-weight: 800; } .sm-title::before { content: "👆 "; }
+  .sm-title { font-size: 16px; font-weight: 800; }
+  .mute-btn.off { text-decoration: line-through; opacity: .55; }
   .sm-sub { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); line-height: 1.5; margin: 4px 0 10px; }
   #saveModalImg { width: 100%; max-width: 260px; border-radius: 14px; box-shadow: var(--shadow-sm); }
   .sm-close { margin-top: 14px; border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 14px;
     background: var(--ivory); color: var(--ink); padding: 11px 30px; border-radius: 16px; box-shadow: var(--shadow-sm); }
 
-  /* ============ 찐 2000년대 한국 플래시/워드아트 감성 ============ */
-  :root { --k-navy:#0E1A6E; --k-blue:#1B2FB0; --k-red:#EE2B2B; --k-redd:#7a0e0e; --k-yellow:#FFD21E; --k-green:#3CB93C; --k-line:#0a0a0a; }
-  body { background: #16a9e0; }
-  .phone { background: linear-gradient(#31C7F5 0%, #A8EAFF 100%); border: 5px solid var(--k-line);
-    box-shadow: 0 22px 50px rgba(0,0,0,.45); }
+  /* ============ 봄날 하늘 + 그라데이션 워드아트 (레퍼런스 감성) ============ */
+  body { background: #6EC7EE; }
+  .phone { background: linear-gradient(#4FB4E8 0%, #86D4F2 46%, #D3F0FB 100%); border: 5px solid #0a0a0a; box-shadow: 0 22px 50px rgba(0,0,0,.4); }
 
-  /* ===== 워드아트 제목 (쨍한 원색 + 두꺼운 외곽선 + 그림자) ===== */
-  #startScreen h1, #wheelScreen h2, .rp-n, .ask-t, .rx-clinic {
-    color: #fff; font-weight: 900; letter-spacing: .5px;
-    -webkit-text-stroke: 3px var(--k-navy); paint-order: stroke fill;
-    text-shadow: 4px 4px 0 rgba(0,0,0,.28);
+  /* 뭉게구름 */
+  .sky { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+  .cloud { position: absolute; width: 96px; height: 32px; background: #fff; border-radius: 40px; opacity: .92; filter: drop-shadow(0 10px 14px rgba(90,140,190,.22)); }
+  .cloud::before, .cloud::after { content: ""; position: absolute; background: #fff; border-radius: 50%; }
+  .cloud::before { width: 48px; height: 48px; top: -20px; left: 14px; }
+  .cloud::after { width: 36px; height: 36px; top: -12px; right: 16px; }
+  .cloud.c1 { top: 7%; left: -6%; transform: scale(1.1); }
+  .cloud.c2 { top: 22%; right: -8%; transform: scale(.8); }
+  .cloud.c3 { top: 50%; left: -8%; transform: scale(.95); }
+  .cloud.c4 { top: 72%; right: -6%; transform: scale(1.05); }
+  .cloud.c5 { top: 40%; left: 58%; transform: scale(.62); opacity: .8; }
+  .screen { z-index: 1; }
+
+  /* ===== 워드아트 (그라데이션 채움 + 검은 외곽선 + 그림자) ===== */
+  #startScreen h1, #startScreen h1 .hl, #wheelScreen h2, .rp-n, .ask-t, .rx-clinic, .rx-food .fn {
+    color: transparent; -webkit-background-clip: text; background-clip: text; font-weight: 900; letter-spacing: .5px;
+    text-shadow: 2px 0 0 #111, -2px 0 0 #111, 0 2px 0 #111, 0 -2px 0 #111, 2px 2px 0 #111, -2px 2px 0 #111, 2px -2px 0 #111, -2px -2px 0 #111, 5px 6px 0 rgba(0,0,0,.2);
   }
-  #startScreen h1 { font-size: 33px; line-height: 1.4; margin-top: 8px; padding: 30px 26px;
-    background: radial-gradient(ellipse at center, #4257E8 0%, #1B2FB0 100%);
-    border: 4px solid var(--k-line); border-radius: 50%; box-shadow: 0 8px 0 rgba(0,0,0,.3); }
-  #startScreen h1 .hl { color: var(--k-yellow); -webkit-text-stroke: 3px var(--k-redd); }
-  #wheelScreen h2 { font-size: 25px; -webkit-text-stroke: 2.5px var(--k-navy); }
-  .rp-n { color: var(--k-red); -webkit-text-stroke: 2.5px var(--k-redd); font-size: 26px; }
-  .ask-t { color: var(--k-red); -webkit-text-stroke: 2.5px var(--k-redd); }
-  .rx-clinic { color: var(--k-blue); -webkit-text-stroke: 2px #fff; text-shadow: 2px 2px 0 rgba(0,0,0,.2); }
+  #startScreen h1 { font-size: 38px; line-height: 1.45; margin-top: 8px; background: linear-gradient(#5A86F2, #6A3BD0); }
+  #startScreen h1 .hl { background: linear-gradient(#8BE05A, #3E9E2E); }
+  #wheelScreen h2 { font-size: 28px; background: linear-gradient(#5A86F2, #6A3BD0); }
+  .rp-n { font-size: 32px; background: linear-gradient(#F58585, #D62B2B); }
+  .ask-t { font-size: 25px; background: linear-gradient(#F58585, #D62B2B); }
+  .rx-clinic { font-size: 21px; background: linear-gradient(#5A86F2, #2B7AD6); }
+  .rx-food .fn { font-size: 34px; background: linear-gradient(#8BE05A, #3E9E2E); }
+  .ask-e { color: #EE5B4E; font-weight: 900; -webkit-text-stroke: 2px #7a0e0e; paint-order: stroke fill; }
 
-  /* 라벨/설명 가독성 (원색 배경 위) */
-  .kicker { background: var(--k-red); color: #fff; border: 3px solid var(--k-line); font-weight: 900; text-shadow: 1px 1px 0 rgba(0,0,0,.35); }
-  #startScreen .desc, .note, #wheelScreen .sub, .rp-c { color: #0C2A4A; font-weight: 700; text-shadow: 0 1px 0 rgba(255,255,255,.55); }
+  /* 하늘 위 텍스트: 흰 글자 + 외곽선 (가독성) */
+  .kicker { background: #fff; color: #2B7AD6; border: 3px solid #111; font-weight: 900; box-shadow: 3px 3px 0 rgba(0,0,0,.18); }
+  #startScreen .desc, .note, #wheelScreen .sub, .rp-c {
+    color: #fff; font-weight: 800; text-shadow: 1.5px 0 0 #34618f, -1.5px 0 0 #34618f, 0 1.5px 0 #34618f, 0 -1.5px 0 #34618f, 2px 2px 0 rgba(0,0,0,.18); }
+  .rp-c { font-size: 15px; }
 
-  /* ===== 버튼: 원색 + 두꺼운 검은 테두리 + 광택 + 눌리면 쑥 ===== */
+  /* ===== 버튼: 원색 + 검은 테두리 + 광택 + 흰 외곽선 글자 ===== */
   .cta, .spin-btn, .rp-btn, .r-btn, .again-btn, .ask-btns button {
-    border: 4px solid var(--k-line); border-radius: 16px; color: #fff; font-weight: 900;
-    text-shadow: 2px 2px 0 rgba(0,0,0,.32); -webkit-text-stroke: .5px rgba(0,0,0,.3);
-    box-shadow: 0 6px 0 rgba(0,0,0,.32), inset 0 9px 0 rgba(255,255,255,.3);
+    border: 4px solid #111; border-radius: 16px; color: #fff; font-weight: 900;
+    text-shadow: 1.5px 0 0 #111, -1.5px 0 0 #111, 0 1.5px 0 #111, 0 -1.5px 0 #111, 1.5px 1.5px 0 #111, -1.5px 1.5px 0 #111, 1.5px -1.5px 0 #111, -1.5px -1.5px 0 #111;
+    box-shadow: 0 6px 0 rgba(0,0,0,.3), inset 0 9px 0 rgba(255,255,255,.28);
     transition: transform .08s ease, box-shadow .08s ease;
   }
   .cta:active, .spin-btn:active, .rp-btn:active, .r-btn:active, .again-btn:active, .ask-btns button:active {
-    transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,.32), inset 0 9px 0 rgba(255,255,255,.3);
+    transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,.3), inset 0 9px 0 rgba(255,255,255,.28);
   }
-  .cta { background: var(--k-red); }
-  .spin-btn { background: var(--k-yellow); color: #5a3d00; text-shadow: 2px 2px 0 rgba(255,255,255,.5); }
-  .rp-btn.rx { background: var(--k-red); } .rp-btn.re { background: var(--k-blue); }
-  .r-btn.share { background: var(--k-red); } .r-btn.save { background: var(--k-yellow); color: #5a3d00; text-shadow: 2px 2px 0 rgba(255,255,255,.5); }
-  .again-btn { background: var(--k-green); color: #fff; }
-  .ask-btns .yes { background: var(--k-green); } .ask-btns .no { background: var(--k-red); }
+  .cta { background: #EE5B4E; }
+  .spin-btn { background: #FFC93C; }
+  .rp-btn.rx { background: #EE5B4E; } .rp-btn.re { background: #4E8BE0; }
+  .r-btn.share { background: #EE5B4E; } .r-btn.save { background: #FFC93C; }
+  .again-btn { background: #5BC24A; }
+  .ask-btns .yes { background: #5BC24A; } .ask-btns .no { background: #EE5B4E; }
 
-  /* 패널/카드: 흰 바탕 + 두꺼운 검은 테두리 + 하드 그림자 */
-  .result-panel, .ask-card, .rx, .save-modal-inner, .toast, .mute-btn {
-    border: 4px solid var(--k-line); box-shadow: 6px 6px 0 rgba(0,0,0,.28); }
-  .result-panel { background: #fff; }
-  .rx { background: #FFFEF4; }
+  /* 결과는 하늘 위 워드아트로 (흰 박스 제거) */
+  .result-panel { background: transparent; box-shadow: none; border: none; padding: 4px 0 0; }
+  .ask-card, .rx, .save-modal-inner, .toast { border: 4px solid #111; box-shadow: 6px 6px 0 rgba(0,0,0,.24); }
+  .rx { background: #FFFEF6; }
+  .mute-btn { border: 3px solid #111; box-shadow: 3px 3px 0 rgba(0,0,0,.18); font-weight: 900; color: #2B7AD6; }
 
-  /* 룰렛: 두꺼운 검은 테두리 */
-  .wheel { border: 8px solid var(--k-line); box-shadow: 6px 6px 0 rgba(0,0,0,.35), inset 0 0 0 4px rgba(255,255,255,.55); }
-  .hub { border: 5px solid var(--k-line); box-shadow: 3px 3px 0 rgba(0,0,0,.3); }
-  .pointer { border-top-color: var(--k-red); }
-  .wheel .lbl .n { -webkit-text-stroke: 2px rgba(0,0,0,.55); paint-order: stroke fill; }
+  /* 룰렛 */
+  .wheel { border: 8px solid #111; box-shadow: 6px 6px 0 rgba(0,0,0,.3), inset 0 0 0 4px rgba(255,255,255,.5); }
+  .hub { border: 5px solid #111; box-shadow: 3px 3px 0 rgba(0,0,0,.24); }
+  .pointer { border-top-color: #EE5B4E; }
+  .wheel .lbl .e { display: none; }
+  .wheel .lbl .n { font-size: 15px; color: #fff; -webkit-text-stroke: 0;
+    text-shadow: 1.5px 0 0 #111, -1.5px 0 0 #111, 0 1.5px 0 #111, 0 -1.5px 0 #111, 1.5px 1.5px 0 #111, -1.5px -1.5px 0 #111, 1.5px -1.5px 0 #111, -1.5px 1.5px 0 #111; }
 </style>
 </head>
 <body>
 <div class="phone" id="phone">
+  <div class="sky" aria-hidden="true"><i class="cloud c1"></i><i class="cloud c2"></i><i class="cloud c3"></i><i class="cloud c4"></i><i class="cloud c5"></i></div>
 
-  <button class="mute-btn" id="muteBtn">🔊</button>
+  <button class="mute-btn" id="muteBtn">소리</button>
 
   <!-- 시작 -->
   <section class="screen active" id="startScreen">
-    <span class="kicker">🍚 결정장애 해결소</span>
+    <span class="kicker">결정장애 해결소</span>
     <h1>오늘 뭐 먹지?<br><span class="hl">고민 끝!</span></h1>
-    <p class="desc">메뉴 못 정하는 당신을 위한 처방소.<br>룰렛 한 번이면 오늘 저녁 결정 완료.</p>
-    <div class="food-emojis">🍲🍗🍜🍕</div>
+    <p class="desc">메뉴 못 정하는 당신을 위한 처방소.<br>룰렛 한 번이면 오늘 저녁 결정 완료 ^^</p>
     <button class="cta" id="startBtn">룰렛 돌리러 가기</button>
-    <p class="note">결정 못 하는 친구·연인에게<br>"너 이거 돌려봐" 하고 보내보세요 📤</p>
+    <p class="note">결정 못 하는 친구·연인에게<br>"너 이거 돌려봐" 하고 보내보세요 ~^^</p>
   </section>
 
   <!-- 룰렛 -->
   <section class="screen" id="wheelScreen">
-    <h2 id="wheelTitle">운명의 메뉴 룰렛 🎯</h2>
-    <div class="sub" id="wheelSub">버튼을 눌러 오늘의 저녁을 정하세요</div>
+    <h2 id="wheelTitle">운명의 메뉴 룰렛</h2>
+    <div class="sub" id="wheelSub">버튼을 눌러 오늘의 저녁을 정하세요 ^^</div>
     <div class="wheel-wrap">
       <div class="pointer"></div>
       <div class="wheel" id="wheel"></div>
-      <div class="hub">🍽️</div>
+      <div class="hub">밥</div>
     </div>
     <button class="spin-btn" id="spinBtn">돌리기!</button>
     <div class="result-panel" id="resultPanel">
-      <div class="rp-e" id="rpEmoji">🍲</div>
       <div class="rp-n" id="rpName">국밥</div>
       <div class="rp-c" id="rpComment">오늘의 메뉴가 정해졌습니다</div>
       <div class="rp-actions">
-        <button class="rp-btn rx" id="toRxBtn">처방전 받기 📋</button>
-        <button class="rp-btn re" id="reSpinBtn">다시 돌리기 🔄</button>
+        <button class="rp-btn rx" id="toRxBtn">처방전 받기</button>
+        <button class="rp-btn re" id="reSpinBtn">다시 돌리기</button>
       </div>
     </div>
   </section>
@@ -235,31 +249,31 @@
   <section class="screen" id="rxScreen">
     <div class="rx" id="rxCard">
       <div class="rx-head">
-        <div class="rx-clinic">🍚 오늘뭐먹지 클리닉</div>
+        <div class="rx-clinic">오늘뭐먹지 클리닉</div>
         <div class="rx-sub">TODAY'S MEAL PRESCRIPTION</div>
       </div>
       <div class="rx-row"><span class="k">환자</span><span class="v">배고픈 결정장애인 님</span></div>
       <div class="rx-row"><span class="k">진단명</span><span class="v" id="rxDiag">만성 결정장애 3기</span></div>
-      <div class="rx-food"><div class="fe" id="rxFe">🍲</div><div class="fn" id="rxFn">국밥</div></div>
+      <div class="rx-food"><div class="fn" id="rxFn">국밥</div></div>
       <div class="rx-row"><span class="k">복용법</span><span class="v" id="rxDose">-</span></div>
       <div class="rx-row"><span class="k">주의사항</span><span class="v" id="rxWarn">-</span></div>
       <div class="rx-stamp">오늘뭐먹지<br>원장직인</div>
       <div class="rx-foot">본 처방전은 오늘 저녁에 한하여 유효함</div>
     </div>
     <div class="r-actions">
-      <button class="r-btn share" id="shareBtn">🔗 친구한테 돌려보라기</button>
-      <button class="r-btn save" id="saveBtn">📸 처방전 저장</button>
+      <button class="r-btn share" id="shareBtn">친구한테 돌려보라기</button>
+      <button class="r-btn save" id="saveBtn">처방전 저장</button>
     </div>
-    <button class="again-btn" id="againBtn">🎯 다시 룰렛 돌리기</button>
+    <button class="again-btn" id="againBtn">다시 룰렛 돌리기</button>
     <p class="save-hint" id="saveHint"></p>
   </section>
 
   <!-- 되묻기 -->
   <div class="ask" id="ask">
     <div class="ask-card">
-      <div class="ask-e" id="askE">🥗</div>
+      <div class="ask-e" id="askE">?!</div>
       <div class="ask-t" id="askT">샐러드…?</div>
-      <div class="ask-d" id="askD">진심이야..? 다시 생각해봐 👀</div>
+      <div class="ask-d" id="askD">진심이야..? 다시 생각해봐</div>
       <div class="ask-btns">
         <button class="yes" id="askYes">응, 이걸로 할래</button>
         <button class="no" id="askNo">아니 다시 돌릴래</button>
@@ -284,14 +298,14 @@ const $ = id => document.getElementById(id);
 
 /* ---------- 메뉴 ---------- */
 const FOODS = [
-  { name: "국밥",   emoji: "🍲", color: "#E9A23B", dose: "뜨끈할 때 후루룩. 밥은 말아서 원샷.", warn: "국물 화상 주의 🔥 (근데 또 국밥이야?)" },
-  { name: "치킨",   emoji: "🍗", color: "#E8533F", dose: "콜라와 1:1 비율로 섭취 권장.", warn: "1인 1닭은 국룰, 죄책감 금지" },
-  { name: "라면",   emoji: "🍜", color: "#D9743B", dose: "4분 30초, 꼬들함을 사수할 것.", warn: "계란은 반숙이 정답입니다" },
-  { name: "떡볶이", emoji: "🌶️", color: "#E05038", dose: "튀김·순대 세트로 병행 복용.", warn: "매움 = 스트레스 완화제" },
-  { name: "피자",   emoji: "🍕", color: "#EDAE44", dose: "식기 전에, 도우 끝까지 섭취.", warn: "파인애플 토핑 논쟁 주의" },
-  { name: "마라탕", emoji: "🥘", color: "#C7402E", dose: "당면·청경채 필수, 맵기는 중간.", warn: "다음 날 화장실 미리 예약" },
-  { name: "초밥",   emoji: "🍣", color: "#5AA9A0", dose: "간장 살짝, 와사비는 취향껏.", warn: "지갑 화상 위험 💸" },
-  { name: "샐러드", emoji: "🥗", color: "#6FAE62", dose: "정말요…? 드레싱은 원 없이.", warn: "내일의 나를 위한 갸륵한 선택" },
+  { name: "국밥",   color: "#E9A23B", dose: "뜨끈할 때 후루룩. 밥은 말아서 원샷.", warn: "국물 화상 주의! (근데 또 국밥이야?)" },
+  { name: "치킨",   color: "#E8533F", dose: "콜라와 1:1 비율로 섭취 권장.", warn: "1인 1닭은 국룰, 죄책감 금지" },
+  { name: "라면",   color: "#D9743B", dose: "4분 30초, 꼬들함을 사수할 것.", warn: "계란은 반숙이 정답입니다" },
+  { name: "떡볶이", color: "#E05038", dose: "튀김·순대 세트로 병행 복용.", warn: "매움 = 스트레스 완화제" },
+  { name: "피자",   color: "#EDAE44", dose: "식기 전에, 도우 끝까지 섭취.", warn: "파인애플 토핑 논쟁 주의" },
+  { name: "마라탕", color: "#C7402E", dose: "당면·청경채 필수, 맵기는 중간.", warn: "다음 날 화장실 미리 예약" },
+  { name: "초밥",   color: "#5AA9A0", dose: "간장 살짝, 와사비는 취향껏.", warn: "지갑 화상 위험 (돈 순삭)" },
+  { name: "샐러드", color: "#6FAE62", dose: "정말요…? 드레싱은 원 없이.", warn: "내일의 나를 위한 갸륵한 선택" },
 ];
 const WEIGHT = [3.4, 1, 1, 1, 1, 1, 1, 0.5];   // 국밥이 자주 나오게, 샐러드는 드물게
 const DIAGS = ["만성 결정장애 3기", "급성 메뉴선택 불능증", "점심·저녁 방황 증후군", "배고픔 동반 우유부단증", "무한 '아무거나' 루프"];
@@ -305,7 +319,7 @@ function beep(f, d, t, v, w) { if (muted) return; const c = ac(); if (!c) return
 function sfxSpin() { for (let i = 0; i < 14; i++) beep(500 + i * 20, 0.04, "square", 0.07, i * 0.22); }
 function sfxDing() { [660, 880, 1180].forEach((f, i) => beep(f, 0.13, "square", 0.13, i * 0.08)); }
 function sfxHuh() { beep(400, 0.16, "sawtooth", 0.12); beep(300, 0.22, "sawtooth", 0.12, 0.16); }
-function toggleMute() { muted = !muted; localStorage.setItem(MUTE_KEY, muted ? "1" : "0"); $("muteBtn").textContent = muted ? "🔇" : "🔊"; if (!muted) sfxDing(); }
+function toggleMute() { muted = !muted; localStorage.setItem(MUTE_KEY, muted ? "1" : "0"); $("muteBtn").classList.toggle("off", muted); if (!muted) sfxDing(); }
 
 /* ---------- 상태 ---------- */
 let spinning = false, wheelRot = 0, lastIndex = -1, gukStreak = 0, chosen = 0;
@@ -320,7 +334,7 @@ function buildWheel() {
   wheel.innerHTML = "";
   FOODS.forEach((f, i) => {
     const el = document.createElement("div"); el.className = "lbl";
-    el.innerHTML = `<span class="e">${f.emoji}</span><span class="n">${f.name}</span>`;
+    el.innerHTML = `<span class="n">${f.name}</span>`;
     const center = i * SEG + SEG / 2;
     el.style.transform = `translate(-50%,-50%) rotate(${center}deg) translateY(-92px) rotate(${-center}deg)`;
     wheel.appendChild(el);
@@ -353,11 +367,11 @@ function onResult(i) {
   lastIndex = i; chosen = i;
   gukStreak = (i === 0) ? gukStreak + 1 : 0;
   const f = FOODS[i];
-  if (f.name === "샐러드") { sfxHuh(); askConfirm("🥗", "샐러드…?", "진심이야..? 다시 생각해봐 👀", () => accept(i), () => spin()); return; }
+  if (f.name === "샐러드") { sfxHuh(); askConfirm("?!", "샐러드…?", "진심이야..? 다시 생각해봐", () => accept(i), () => spin()); return; }
   if (i === 0 && gukStreak >= 2) {
     sfxHuh();
-    const line = gukStreak >= 3 ? "국밥의 저주… 이쯤 되면 운명이야 🌀" : "또 국밥이야?! 이거 실화냐 😳";
-    askConfirm("🍲", line, "그냥 국밥이 너의 소울푸드인 걸로…", () => accept(i), () => spin());
+    const line = gukStreak >= 3 ? "국밥의 저주… 이쯤 되면 운명이야;;" : "또 국밥이야?! 이거 실화냐;;";
+    askConfirm("!?", line, "그냥 국밥이 너의 소울푸드인 걸로…", () => accept(i), () => spin());
     return;
   }
   sfxDing();
@@ -365,16 +379,15 @@ function onResult(i) {
 }
 function accept(i) {
   chosen = i; const f = FOODS[i];
-  $("rpEmoji").textContent = f.emoji;
   $("rpName").textContent = f.name;
   $("rpComment").textContent = FOOD_COMMENT(i);
   $("resultPanel").classList.add("show");
 }
 function FOOD_COMMENT(i) {
   const f = FOODS[i];
-  if (f.name === "샐러드") return "오… 건강 챙기는 당신, 리스펙 🥗";
-  if (i === 0) return "역시 국밥. 실패 없는 선택이지 🍲";
-  return "오늘 저녁은 " + f.name + "! 고민 끝 🎉";
+  if (f.name === "샐러드") return "오… 건강 챙기는 당신, 리스펙 ^^";
+  if (i === 0) return "역시 국밥. 실패 없는 선택이지 ^^";
+  return "오늘 저녁은 " + f.name + "! 고민 끝 ^^";
 }
 
 /* ---------- 되묻기 오버레이 ---------- */
@@ -390,55 +403,63 @@ function closeAsk() { $("ask").classList.remove("show"); }
 function issueRx() {
   const f = FOODS[chosen];
   $("rxDiag").textContent = DIAGS[Math.floor(Math.random() * DIAGS.length)];
-  $("rxFe").textContent = f.emoji; $("rxFn").textContent = f.name;
+  $("rxFn").textContent = f.name;
   $("rxDose").textContent = f.dose; $("rxWarn").textContent = f.warn;
   $("saveHint").textContent = "";
   show("rxScreen"); $("rxScreen").scrollTop = 0;
 }
 
-/* ---------- 처방전 카드 (1080x1350) ---------- */
-function roundRect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
-function wrap(c, text, x, y, maxW, lh) { const words = [...text]; let line = ""; for (let i = 0; i < words.length; i++) { const t = line + words[i]; if (c.measureText(t).width > maxW && line) { c.fillText(line, x, y); y += lh; line = words[i]; } else line = t; } if (line) { c.fillText(line, x, y); y += lh; } return y; }
+/* ---------- 처방전 카드 (1080x1350) — 봄날 하늘 + 워드아트 ---------- */
+function drawCloud(c, x, y, s) {
+  c.save(); c.translate(x, y); c.scale(s, s); c.fillStyle = "rgba(255,255,255,.95)";
+  c.beginPath(); c.arc(-40, 8, 30, 0, 7); c.arc(-2, -16, 40, 0, 7); c.arc(40, 4, 32, 0, 7); c.arc(6, 18, 30, 0, 7); c.closePath(); c.fill();
+  c.restore();
+}
+function waGrad(c, y0, y1, a, b) { const g = c.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, a); g.addColorStop(1, b); return g; }
+function drawWA(c, text, x, y, font, grad, sw) {
+  c.font = font; c.textAlign = "center"; c.lineJoin = "round"; c.miterLimit = 2;
+  c.fillStyle = "rgba(0,0,0,.2)"; c.fillText(text, x + 5, y + 6);
+  c.strokeStyle = "#111"; c.lineWidth = sw; c.strokeText(text, x, y);
+  c.fillStyle = grad; c.fillText(text, x, y);
+}
+function drawWhite(c, text, x, y, font) {
+  c.font = font; c.textAlign = "center"; c.lineJoin = "round";
+  c.strokeStyle = "#2c4a6a"; c.lineWidth = 8; c.strokeText(text, x, y);
+  c.fillStyle = "#fff"; c.fillText(text, x, y);
+}
+function wrapWhite(c, text, x, y, maxW, lh, font) {
+  c.font = font; const ch = [...text]; let line = "", yy = y;
+  for (let i = 0; i < ch.length; i++) { const t = line + ch[i]; if (c.measureText(t).width > maxW && line) { drawWhite(c, line, x, yy, font); yy += lh; line = ch[i]; } else line = t; }
+  if (line) { drawWhite(c, line, x, yy, font); yy += lh; }
+  return yy;
+}
 async function buildCard() {
   const f = FOODS[chosen], W = 1080, H = 1350, cx = W / 2;
   const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
   const c = cv.getContext("2d");
   try { await document.fonts.ready; } catch (e) {}
   const FF = '"Pretendard Variable", Pretendard, sans-serif';
-  c.fillStyle = "#FCF5EA"; c.fillRect(0, 0, W, H);
-  c.fillStyle = "#E8533F"; c.fillRect(0, 0, W, 18);
-  // 처방전 종이
-  c.save(); c.shadowColor = "rgba(150,110,80,.22)"; c.shadowBlur = 40; c.shadowOffsetY = 20;
-  c.fillStyle = "#FFFEFA"; roundRect(c, 70, 90, W - 140, H - 180, 40); c.fill(); c.restore();
-  c.strokeStyle = "#E0D3BF"; c.lineWidth = 4; c.setLineDash([14, 10]); roundRect(c, 70, 90, W - 140, H - 180, 40); c.stroke(); c.setLineDash([]);
-
-  c.textAlign = "center"; c.fillStyle = "#3E332B"; c.font = "800 62px " + FF; c.fillText("🍚 오늘뭐먹지 클리닉", cx, 210);
-  c.fillStyle = "#8B7F72"; c.font = "600 30px " + FF; c.fillText("TODAY'S MEAL PRESCRIPTION", cx, 258);
-  c.strokeStyle = "#3E332B"; c.lineWidth = 4; c.beginPath(); c.moveTo(130, 295); c.lineTo(W - 130, 295); c.stroke();
-
-  c.textAlign = "left"; const lx = 150; let y = 370;
-  c.font = "800 36px " + FF; c.fillStyle = "#E8533F"; c.fillText("진단명", lx, y);
-  c.fillStyle = "#3E332B"; c.font = "600 36px " + FF; c.fillText($("rxDiag").textContent, lx + 160, y);
-
-  // 음식 크게
-  c.textAlign = "center"; c.font = "160px " + FF; c.fillText(f.emoji, cx, 560);
-  c.fillStyle = "#3E332B"; c.font = "800 92px " + FF; c.fillText(f.name, cx, 660);
-
-  c.textAlign = "left"; y = 800;
-  c.font = "800 36px " + FF; c.fillStyle = "#E8533F"; c.fillText("복용법", lx, y);
-  c.fillStyle = "#5c5045"; c.font = "600 34px " + FF; wrap(c, f.dose, lx + 160, y, 620, 46);
-  y = 900;
-  c.font = "800 36px " + FF; c.fillStyle = "#E8533F"; c.fillText("주의사항", lx, y);
-  c.fillStyle = "#5c5045"; c.font = "600 34px " + FF; wrap(c, f.warn, lx + 160, y, 620, 46);
-
-  // 도장
-  c.save(); c.translate(W - 210, 1080); c.rotate(-0.24); c.strokeStyle = "#E8533F"; c.lineWidth = 6;
-  c.beginPath(); c.arc(0, 0, 78, 0, 7); c.stroke(); c.fillStyle = "#E8533F"; c.textAlign = "center";
-  c.font = "800 26px " + FF; c.fillText("오늘뭐먹지", 0, -6); c.fillText("원장직인", 0, 26); c.restore();
-
+  // 봄날 하늘 + 구름
+  const sky = c.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, "#4FB4E8"); sky.addColorStop(.5, "#86D4F2"); sky.addColorStop(1, "#D3F0FB");
+  c.fillStyle = sky; c.fillRect(0, 0, W, H);
+  drawCloud(c, 210, 240, 1.5); drawCloud(c, 870, 300, 1.1); drawCloud(c, 150, 940, 1.2); drawCloud(c, 930, 1010, 1.35); drawCloud(c, 560, 700, .8);
+  // 워드아트 타이틀
+  drawWA(c, "오늘뭐먹지 클리닉", cx, 205, "900 66px " + FF, waGrad(c, 135, 215, "#5A86F2", "#6A3BD0"), 12);
+  drawWhite(c, "TODAY'S MEAL PRESCRIPTION", cx, 252, "800 28px " + FF);
+  drawWhite(c, "진단명 : " + $("rxDiag").textContent, cx, 360, "800 42px " + FF);
+  // 음식 이름 크게 (초록 워드아트)
+  drawWA(c, f.name, cx, 640, "900 150px " + FF, waGrad(c, 495, 665, "#8BE05A", "#3E9E2E"), 16);
+  // 복용법 / 주의사항 (흰 워드아트)
+  let y = 800;
+  y = wrapWhite(c, "복용법  " + f.dose, cx, y, 920, 56, "800 40px " + FF) + 24;
+  wrapWhite(c, "주의사항  " + f.warn, cx, y, 920, 56, "800 40px " + FF);
+  // 원장 직인
+  c.save(); c.translate(W - 200, H - 250); c.rotate(-0.22); c.strokeStyle = "#EE5B4E"; c.lineWidth = 7;
+  c.beginPath(); c.arc(0, 0, 80, 0, 7); c.stroke(); c.fillStyle = "#EE5B4E"; c.textAlign = "center";
+  c.font = "900 27px " + FF; c.fillText("오늘뭐먹지", 0, -6); c.fillText("원장직인", 0, 28); c.restore();
   // 워터마크
-  c.textAlign = "center"; c.fillStyle = "#E8533F"; c.font = "800 44px " + FF; c.fillText("@ccojik.dh", cx, H - 150);
-  c.fillStyle = "#8B7F72"; c.font = "600 34px " + FF; c.fillText("친구도 못 정하면 이거 돌려보라고 해!", cx, H - 100);
+  drawWA(c, "@ccojik.dh", cx, H - 128, "900 48px " + FF, waGrad(c, H - 172, H - 118, "#F58585", "#D62B2B"), 9);
+  drawWhite(c, "친구도 못 정하면 이거 돌려보라고 해 ^^", cx, H - 76, "800 34px " + FF);
   return cv;
 }
 
@@ -452,21 +473,21 @@ async function saveCard() {
   try {
     const cv = await buildCard();
     cv.toBlob(blob => {
-      if (!blob) { $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요 🙏"; return; }
+      if (!blob) { $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요~"; return; }
       const u = URL.createObjectURL(blob);
       if (!supportsDownload()) { openSaveModal(u); $("saveHint").textContent = ""; return; }
       const a = document.createElement("a"); a.href = u; a.download = "오늘뭐먹지_처방전.png";
       document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 1000);
-      $("saveHint").textContent = "처방전 저장 완료! 📸";
+      $("saveHint").textContent = "처방전 저장 완료! ^^";
     }, "image/png");
-  } catch (e) { $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요 🙏"; }
+  } catch (e) { $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요~"; }
 }
 async function shareLink() {
   const url = location.href.split("?")[0];
-  const text = "나 오늘 '" + FOODS[chosen].name + "' 먹으래ㅋㅋ 너도 뭐 먹을지 못 정하면 이거 돌려봐 👉";
+  const text = "나 오늘 '" + FOODS[chosen].name + "' 먹으래ㅋㅋ 너도 뭐 먹을지 못 정하면 이거 돌려봐 ^^";
   if (navigator.share) { try { await navigator.share({ title: "오늘 뭐 먹지? 결정장애 해결소", text, url }); } catch (e) {} return; }
   const full = text + " " + url;
-  if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(full).then(() => toast("링크 복사됨! 친구한테 붙여넣기 📤"), () => toast("복사 실패 — 주소창을 길게 눌러 복사하세요")); }
+  if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(full).then(() => toast("링크 복사됨! 친구한테 붙여넣기 ^^"), () => toast("복사 실패 — 주소창을 길게 눌러 복사하세요")); }
   else toast("주소창 링크를 복사해 보내주세요");
 }
 
@@ -484,7 +505,7 @@ $("saveModalClose").addEventListener("click", closeSaveModal);
 $("saveModal").addEventListener("click", e => { if (e.target === $("saveModal")) closeSaveModal(); });
 $("muteBtn").addEventListener("click", toggleMute);
 
-$("muteBtn").textContent = muted ? "🔇" : "🔊";
+$("muteBtn").classList.toggle("off", muted);
 buildWheel();
 </script>
 </body>
