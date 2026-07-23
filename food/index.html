@@ -218,9 +218,23 @@
   .wheel .lbl .e { display: none; }
   .wheel .lbl .n { font-family: "Gaegu", sans-serif; font-size: 19px; font-weight: 700; color: #fff; -webkit-text-stroke: 0;
     text-shadow: 1.5px 0 0 #111, -1.5px 0 0 #111, 0 1.5px 0 #111, 0 -1.5px 0 #111, 1.5px 1.5px 0 #111, -1.5px -1.5px 0 #111, 1.5px -1.5px 0 #111, -1.5px 1.5px 0 #111; }
+
+  /* ===== 그림판으로 직접 그린 듯 선 울렁이기 (SVG 왜곡 필터) ===== */
+  .cta, .spin-btn, .rp-btn, .r-btn, .again-btn, .ask-btns button,
+  .kicker, .mute-btn, .hub, .pointer, .cloud,
+  .ask-card, .rx, .toast, .save-modal-inner { filter: url(#hand); }
+  .wheel { filter: url(#handW); }
+  /* 종이(크레용) 질감 배경 */
+  .phone { background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)' opacity='0.055'/%3E%3C/svg%3E") repeat,
+    linear-gradient(#4FB4E8 0%, #86D4F2 46%, #D3F0FB 100%); }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <filter id="hand"><feTurbulence type="fractalNoise" baseFrequency="0.017" numOctaves="2" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter>
+  <filter id="handW"><feTurbulence type="fractalNoise" baseFrequency="0.013" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="4.5" xChannelSelector="R" yChannelSelector="G"/></filter>
+</defs></svg>
 <div class="phone" id="phone">
   <div class="sky" aria-hidden="true"><i class="cloud c1"></i><i class="cloud c2"></i><i class="cloud c3"></i><i class="cloud c4"></i><i class="cloud c5"></i></div>
 
@@ -340,7 +354,7 @@ function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add
 function buildWheel() {
   const stops = FOODS.map((f, i) => `${f.color} ${i * SEG}deg ${(i + 1) * SEG}deg`).join(", ");
   const wheel = $("wheel");
-  wheel.style.background = `conic-gradient(${stops})`;
+  wheel.style.background = `repeating-conic-gradient(rgba(17,17,17,.92) 0 1.5deg, transparent 1.5deg ${SEG}deg), conic-gradient(${stops})`;
   wheel.innerHTML = "";
   FOODS.forEach((f, i) => {
     const el = document.createElement("div"); el.className = "lbl";
