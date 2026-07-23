@@ -374,6 +374,45 @@
   #howtoScreen .cta { margin-top: 16px; }
   .howto-back { display: block; width: 100%; margin-top: 10px; cursor: pointer; font-family: inherit;
     font-weight: 800; font-size: 14px; background: var(--ivory); color: var(--ink); padding: 13px 10px; border-radius: 16px; }
+
+  /* ============ 진짜 CRT / 그런지 / 아케이드 ============ */
+  body { background: radial-gradient(circle at 50% 26%, #3a3128 0%, #1b1611 78%); }
+
+  .phone { border: 10px solid #22201b;
+    box-shadow: 0 0 0 3px #4a4038, 0 26px 60px rgba(0,0,0,.6), 0 0 70px rgba(245,220,160,.14); }
+
+  /* 비네팅 + 필름 그레인 + 미세 깜빡임 */
+  .phone::before {
+    content: ""; position: absolute; inset: 0; z-index: 41; pointer-events: none; border-radius: 30px;
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E") repeat,
+      radial-gradient(ellipse at center, transparent 52%, rgba(24,18,12,.34) 100%);
+    animation: crtFlicker 4s infinite steps(40);
+  }
+  @keyframes crtFlicker { 0%,100% { opacity: 1; } 46% { opacity: .96; } 50% { opacity: .9; } 54% { opacity: .97; } }
+  /* 스캔라인 조금 더 진하게 */
+  .phone::after { background: repeating-linear-gradient(0deg, rgba(40,30,20,.09) 0 1px, transparent 1px 3px); }
+
+  /* 화면 켜짐 플래시 (라운드 시작 시) */
+  .power-flash { position: absolute; inset: 0; z-index: 45; pointer-events: none; background: #fff; opacity: 0; border-radius: 30px; }
+  .power-flash.on { animation: powerOn .5s ease; }
+  @keyframes powerOn { 0% { opacity: .9; } 30% { opacity: .12; } 60% { opacity: .4; } 100% { opacity: 0; } }
+
+  /* 음소거 버튼 */
+  .mute-btn { position: absolute; top: 16px; left: 16px; z-index: 42; width: 40px; height: 40px; border-radius: 12px;
+    border: 3px solid var(--line); background: var(--ivory); box-shadow: var(--rs-sm); cursor: pointer; font-size: 17px; line-height: 1;
+    transition: transform .06s ease, box-shadow .06s ease; }
+  .mute-btn:active { transform: translate(3px,3px); box-shadow: 0 0 0 var(--line); }
+
+  /* 깜빡이는 시작 프롬프트 */
+  .blink-prompt { margin-top: 14px; font-family: "Galmuri11", sans-serif; font-size: 14px; font-weight: 700;
+    color: var(--warmgray-text); animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 0%,49% { opacity: 1; } 50%,100% { opacity: .12; } }
+
+  /* 낡고 허름한 캐릭터 톤 (세월의 흔적) */
+  .char img, .kr-img img {
+    filter: drop-shadow(5px 9px 12px rgba(0,0,0,.32)) contrast(1.08) saturate(.82) sepia(.14) brightness(.97);
+  }
 </style>
 </head>
 <body>
@@ -381,10 +420,11 @@
 
   <!-- 시작 -->
   <section class="screen active" id="startScreen">
-    <span class="kicker">꼬직 칼퇴 챌린지</span>
-    <h1>6시 정각에<br><span class="hl">퇴근 버튼</span>을 눌러라</h1>
-    <p class="desc">시계가 4배속으로 흐릅니다.<br>정확히 <b>18:00:00.00</b> 에 맞춰 퇴근!</p>
+    <span class="kicker">🕹 꼬직 칼퇴 아케이드</span>
+    <h1>6시 정각,<br><span class="hl">칼퇴 각</span>을 노려라</h1>
+    <p class="desc">직장인이라면 누구나 아는 그 순간.<br>시계가 4배속으로 흐른다 — 정각에 ‘퇴근’!</p>
     <div class="char"><img src="../assets/eunha.png" alt="심은하" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="ph" style="display:none">🧑</span></div>
+    <p class="blink-prompt">▶ 모드를 골라 시작 ◀</p>
     <div class="mode-cards">
       <button class="mode-card" id="modePractice"><span class="mc-emoji">🎯</span><span class="mc-title">연습 모드</span><span class="mc-desc">단판 칼퇴 타이밍</span></button>
       <button class="mode-card surv" id="modeSurvival"><span class="mc-emoji">📅</span><span class="mc-title">한 주 생존 모드</span><span class="mc-desc">월~금 5연속 · 방해 요소</span></button>
@@ -489,6 +529,8 @@
     <div class="rt-grade" id="rtGrade"></div>
   </div>
 
+  <button class="mute-btn" id="muteBtn">🔊</button>
+  <div class="power-flash" id="powerFlash"></div>
   <div class="confetti" id="confetti"></div>
 
   <div class="save-modal" id="saveModal">
@@ -505,6 +547,36 @@
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
+
+/* ---------- 8비트 사운드 (Web Audio, 외부 파일 없음) ---------- */
+const MUTE_KEY = "ccojik-kaltoe-muted";
+let audioCtx = null, muted = localStorage.getItem(MUTE_KEY) === "1";
+function ac() {
+  if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+  if (audioCtx.state === "suspended") audioCtx.resume();
+  return audioCtx;
+}
+function beep(freq, dur, type, vol, when) {
+  if (muted) return; const c = ac(); if (!c) return;
+  const t0 = c.currentTime + (when || 0);
+  const o = c.createOscillator(), g = c.createGain();
+  o.type = type || "square"; o.frequency.setValueAtTime(freq, t0);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol || 0.14, t0 + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+}
+function sfxBlip()   { beep(880, 0.07, "square", 0.12); }
+function sfxSelect() { beep(560, 0.05, "square", 0.12); beep(840, 0.07, "square", 0.12, 0.05); }
+function sfxWin()    { [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.12, "square", 0.14, i * 0.09)); }
+function sfxLose()   { [392, 330, 262, 175].forEach((f, i) => beep(f, 0.16, "sawtooth", 0.14, i * 0.11)); }
+function sfxDay()    { beep(440, 0.08, "square", 0.11); beep(660, 0.1, "square", 0.11, 0.08); }
+function toggleMute() {
+  muted = !muted; localStorage.setItem(MUTE_KEY, muted ? "1" : "0");
+  $("muteBtn").textContent = muted ? "🔇" : "🔊";
+  if (!muted) sfxBlip();
+}
+const COUNTDOWN = [{ at: -1500, f: 700 }, { at: -1000, f: 800 }, { at: -500, f: 950 }, { at: 0, f: 1250 }];
 
 /* ---------- 캐릭터 이미지 (상대경로: kaltoe에서 한 단계 위 assets) ----------
    표정 PNG(eunha_happy / ppaguli_grin)가 있으면 우선 사용, 없으면 기본 이미지로 자동 대체 */
@@ -601,6 +673,7 @@ function renderClock() {
 function loop(now) {
   const dt = now - lastPerf; lastPerf = now;
   clockMs += dt * speed;
+  for (const cd of COUNTDOWN) if (!cd.done && clockMs >= cd.at) { cd.done = true; beep(cd.f, 0.06, "square", 0.1); }
   if (obstacle) obstacle.onFrame(clockMs);
   if (clockMs >= AUTO_MS) {
     clockMs = AUTO_MS; renderClock();
@@ -617,6 +690,8 @@ function startRound() {
   $("saveHint").textContent = "";
   speed = BASE_SPEED;
   clockMs = START_MS;
+  COUNTDOWN.forEach(c => c.done = false);
+  const pf = $("powerFlash"); pf.classList.remove("on"); void pf.offsetWidth; pf.classList.add("on");
   renderClock();
   if (mode === "survival") { setupObstacle(day); $("roundTag").textContent = DAYS[day].name + " · " + (day + 1) + "/5"; }
   else { obstacle = null; $("roundTag").textContent = ""; }
@@ -629,6 +704,7 @@ function pressLeave() {
   if (!running || msgPopupOpen) return;   // 수요일 메신저 팝업이 버튼을 가리는 중엔 무시
   running = false;
   cancelAnimationFrame(rafId);
+  sfxBlip();
   finishRound(clockMs / 1000);
 }
 function finishRound(err) {
@@ -641,9 +717,9 @@ function finishRound(err) {
   else survivalRound(err);
 }
 // 모드 시작
-function startPractice() { mode = "practice"; flowToken++; startRound(); }
-function showHowto() { flowToken++; show("howtoScreen"); }               // 생존 모드 → 게임 방법 먼저
-function beginSurvival() { mode = "survival"; flowToken++; day = 0; dayResults = []; showDayIntro(0); }
+function startPractice() { sfxSelect(); mode = "practice"; flowToken++; startRound(); }
+function showHowto() { sfxSelect(); flowToken++; show("howtoScreen"); }   // 생존 모드 → 게임 방법 먼저
+function beginSurvival() { sfxSelect(); mode = "survival"; flowToken++; day = 0; dayResults = []; showDayIntro(0); }
 
 /* ---------- 연습 모드 판정 ---------- */
 function practiceResult(err) {
@@ -654,8 +730,8 @@ function practiceResult(err) {
   isNewBest = best === null || a < best;
   if (isNewBest) setBest(a);
   renderResult();
-  if (curGrade.success) confetti();
-  else shakePhone();
+  if (curGrade.success) { confetti(); sfxWin(); }
+  else { shakePhone(); sfxLose(); }
 }
 function shakePhone() { $("phone").classList.remove("shake"); void $("phone").offsetWidth; $("phone").classList.add("shake"); }
 
@@ -666,6 +742,7 @@ function showDayIntro(d) {
   $("dayName").textContent = DAYS[d].name;
   $("dayNote").textContent = DAYS[d].note;
   ["dayName", "dayNote"].forEach(id => { const e = $(id); e.style.animation = "none"; void e.offsetWidth; e.style.animation = ""; });
+  sfxDay();
   show("dayScreen");
   setTimeout(() => { if (mode === "survival" && tok === flowToken) startRound(); }, 1000);
 }
@@ -683,7 +760,7 @@ function survivalRound(err) {
     else { day++; showDayIntro(day); }
   }, 1200);
 }
-function survivalFail() { weekSuccess = false; renderSurvResult(); shakePhone(); }
+function survivalFail() { weekSuccess = false; renderSurvResult(); shakePhone(); sfxLose(); }
 function survivalSuccess() {
   weekSuccess = true;
   weekTotal = dayResults.reduce((s, r) => s + (r ? r.recorded : 0), 0);
@@ -691,7 +768,7 @@ function survivalSuccess() {
   weekIsNewBest = best === null || weekTotal < best;
   if (weekIsNewBest) setWeekBest(weekTotal);
   renderSurvResult();
-  confetti();
+  confetti(); sfxWin();
 }
 function weekGradeName(total) { return total <= 0.5 ? "칼퇴의 신" : total <= 1.5 ? "프로 직장인" : "생존 성공"; }
 
@@ -1074,7 +1151,9 @@ $("hoesikGood").addEventListener("click", fridayAccept);
 $("hoesikBad").addEventListener("click", closeHoesik);
 $("saveModalClose").addEventListener("click", closeSaveModal);
 $("saveModal").addEventListener("click", (e) => { if (e.target === $("saveModal")) closeSaveModal(); });
+$("muteBtn").addEventListener("click", toggleMute);
 
+$("muteBtn").textContent = muted ? "🔇" : "🔊";
 refreshStartBest();
 </script>
 </body>
