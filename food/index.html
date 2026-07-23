@@ -9,7 +9,7 @@
 <meta property="og:description" content="룰렛 한 번이면 메뉴 고민 끝. 오늘의 식사 처방전 발급!" />
 <link rel="stylesheet" as="style" crossorigin
   href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gaegu:wght@400;700&family=Nanum+Pen+Script&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Song+Myung&display=swap" />
 <style>
   :root {
     --cream: #FCF5EA; --ivory: #FFFDF8; --paper: #FFFEFA;
@@ -29,25 +29,25 @@
     overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .screen::-webkit-scrollbar { display: none; }
   .screen.active { opacity: 1; pointer-events: auto; transform: scale(1); }
-  .kicker { font-size: 13px; font-weight: 800; color: var(--tomato); background: #FBE4DE; padding: 7px 16px; border-radius: 999px; }
+  .kicker { font-size: 13px; font-weight: 400; color: var(--tomato); background: #FBE4DE; padding: 7px 16px; border-radius: 999px; }
   .cta { border: none; cursor: pointer; font-family: inherit; background: linear-gradient(160deg, var(--tomato), var(--tomato-d));
-    color: #fff; font-weight: 800; font-size: 19px; padding: 17px 44px; border-radius: 22px; box-shadow: var(--shadow-sm); transition: transform .13s ease; }
+    color: #fff; font-weight: 400; font-size: 19px; padding: 17px 44px; border-radius: 22px; box-shadow: var(--shadow-sm); transition: transform .13s ease; }
   .cta:active { transform: scale(.95); }
 
   /* 시작 */
   #startScreen { align-items: center; justify-content: safe center; text-align: center; }
-  #startScreen h1 { font-size: 30px; font-weight: 800; letter-spacing: -.7px; line-height: 1.3; margin-top: 16px; }
+  #startScreen h1 { font-size: 30px; font-weight: 400; letter-spacing: -.7px; line-height: 1.3; margin-top: 16px; }
   #startScreen h1 .hl { color: var(--tomato); }
   #startScreen .desc { color: var(--ink-soft); font-size: 14.5px; font-weight: 500; margin-top: 12px; line-height: 1.55; }
   .food-emojis { font-size: 40px; margin: 20px 0 6px; letter-spacing: 4px; animation: bob 2.6s ease-in-out infinite; }
   @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
   #startScreen .cta { margin-top: 22px; }
-  .note { font-size: 12.5px; color: var(--ink-soft); font-weight: 600; margin-top: 16px; line-height: 1.5; }
+  .note { font-size: 12.5px; color: var(--ink-soft); font-weight: 400; margin-top: 16px; line-height: 1.5; }
 
   /* 룰렛 */
   #wheelScreen { align-items: center; text-align: center; }
-  #wheelScreen h2 { font-size: 21px; font-weight: 800; margin-top: 4px; }
-  #wheelScreen .sub { font-size: 13px; color: var(--ink-soft); font-weight: 600; margin-top: 4px; }
+  #wheelScreen h2 { font-size: 21px; font-weight: 400; margin-top: 4px; }
+  #wheelScreen .sub { font-size: 13px; color: var(--ink-soft); font-weight: 400; margin-top: 4px; }
   .wheel-wrap { position: relative; width: 290px; height: 290px; margin: 18px auto 6px; }
   .pointer { position: absolute; top: -4px; left: 50%; transform: translateX(-50%); z-index: 6;
     width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 26px solid var(--ink);
@@ -57,11 +57,11 @@
   .wheel .lbl { position: absolute; left: 50%; top: 50%; width: 70px; text-align: center; color: #fff;
     text-shadow: 0 1px 2px rgba(0,0,0,.35); pointer-events: none; }
   .wheel .lbl .e { font-size: 26px; display: block; }
-  .wheel .lbl .n { font-size: 13px; font-weight: 800; display: block; margin-top: 1px; }
+  .wheel .lbl .n { font-size: 13px; font-weight: 400; display: block; margin-top: 1px; }
   .hub { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; transform: translate(-50%,-50%); z-index: 5;
     background: #fff; border: 5px solid var(--ink); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
   .spin-btn { margin-top: 14px; border: none; cursor: pointer; font-family: inherit; width: 100%;
-    background: linear-gradient(160deg, var(--mustard), #D18B2C); color: #fff; font-weight: 800; font-size: 19px;
+    background: linear-gradient(160deg, var(--mustard), #D18B2C); color: #fff; font-weight: 400; font-size: 19px;
     padding: 16px 10px; border-radius: 22px; box-shadow: var(--shadow-sm); transition: transform .13s ease; }
   .spin-btn:active { transform: scale(.97); }
   .spin-btn:disabled { opacity: .5; }
@@ -71,10 +71,10 @@
   .result-panel.show { display: block; animation: pop .4s cubic-bezier(.3,.8,.4,1); }
   @keyframes pop { 0% { transform: scale(.85); opacity: 0; } 60% { transform: scale(1.04); opacity: 1; } 100% { transform: scale(1); } }
   .result-panel .rp-e { font-size: 46px; }
-  .result-panel .rp-n { font-size: 24px; font-weight: 800; margin: 2px 0 2px; }
-  .result-panel .rp-c { font-size: 13.5px; font-weight: 600; color: var(--ink-soft); }
+  .result-panel .rp-n { font-size: 24px; font-weight: 400; margin: 2px 0 2px; }
+  .result-panel .rp-c { font-size: 13.5px; font-weight: 400; color: var(--ink-soft); }
   .rp-actions { display: flex; gap: 10px; margin-top: 14px; }
-  .rp-btn { flex: 1; border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 15px;
+  .rp-btn { flex: 1; border: none; cursor: pointer; font-family: inherit; font-weight: 400; font-size: 15px;
     padding: 14px 8px; border-radius: 16px; box-shadow: var(--shadow-sm); transition: transform .12s ease; }
   .rp-btn:active { transform: scale(.95); }
   .rp-btn.rx { background: linear-gradient(160deg, var(--tomato), var(--tomato-d)); color: #fff; }
@@ -86,10 +86,10 @@
   .ask.show { display: flex; }
   .ask-card { background: var(--ivory); border-radius: 24px; padding: 24px 20px; box-shadow: var(--shadow); text-align: center; width: 300px; }
   .ask-e { font-size: 52px; }
-  .ask-t { font-size: 22px; font-weight: 800; margin: 6px 0 4px; }
-  .ask-d { font-size: 14px; color: var(--ink-soft); font-weight: 600; line-height: 1.5; }
+  .ask-t { font-size: 22px; font-weight: 400; margin: 6px 0 4px; }
+  .ask-d { font-size: 14px; color: var(--ink-soft); font-weight: 400; line-height: 1.5; }
   .ask-btns { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
-  .ask-btns button { border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 15px; padding: 14px 10px; border-radius: 16px; }
+  .ask-btns button { border: none; cursor: pointer; font-family: inherit; font-weight: 400; font-size: 15px; padding: 14px 10px; border-radius: 16px; }
   .ask-btns .yes { background: linear-gradient(160deg, var(--green), #5B9A54); color: #fff; }
   .ask-btns .no { background: linear-gradient(160deg, var(--tomato), var(--tomato-d)); color: #fff; }
   .ask-btns button:active { transform: scale(.96); }
@@ -99,26 +99,26 @@
   .rx { width: 100%; background: var(--paper); border-radius: 18px; padding: 20px 20px 18px;
     box-shadow: var(--shadow-sm); border: 2px dashed #E0D3BF; position: relative; }
   .rx-head { text-align: center; border-bottom: 2px solid var(--ink); padding-bottom: 10px; margin-bottom: 12px; }
-  .rx-clinic { font-size: 18px; font-weight: 800; letter-spacing: -.3px; }
-  .rx-sub { font-size: 11px; color: var(--ink-soft); font-weight: 600; margin-top: 2px; }
+  .rx-clinic { font-size: 18px; font-weight: 400; letter-spacing: -.3px; }
+  .rx-sub { font-size: 11px; color: var(--ink-soft); font-weight: 400; margin-top: 2px; }
   .rx-row { display: flex; gap: 8px; font-size: 13.5px; padding: 5px 0; }
-  .rx-row .k { flex-shrink: 0; width: 62px; font-weight: 800; color: var(--tomato); }
-  .rx-row .v { font-weight: 600; line-height: 1.5; }
+  .rx-row .k { flex-shrink: 0; width: 62px; font-weight: 400; color: var(--tomato); }
+  .rx-row .v { font-weight: 400; line-height: 1.5; }
   .rx-food { text-align: center; margin: 8px 0; }
   .rx-food .fe { font-size: 52px; }
-  .rx-food .fn { font-size: 26px; font-weight: 800; }
+  .rx-food .fn { font-size: 26px; font-weight: 400; }
   .rx-stamp { position: absolute; right: 16px; bottom: 12px; width: 66px; height: 66px; border: 3px solid var(--tomato); color: var(--tomato);
-    border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; text-align: center;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 400; text-align: center;
     transform: rotate(-14deg); opacity: .85; line-height: 1.15; }
-  .rx-foot { text-align: center; font-size: 11px; color: var(--ink-soft); font-weight: 600; margin-top: 14px; }
+  .rx-foot { text-align: center; font-size: 11px; color: var(--ink-soft); font-weight: 400; margin-top: 14px; }
 
   .r-actions { display: flex; gap: 10px; margin-top: 16px; width: 100%; }
-  .r-btn { flex: 1; border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 15px;
+  .r-btn { flex: 1; border: none; cursor: pointer; font-family: inherit; font-weight: 400; font-size: 15px;
     padding: 15px 8px; border-radius: 18px; box-shadow: var(--shadow-sm); transition: transform .13s ease; }
   .r-btn:active { transform: scale(.95); }
   .r-btn.share { background: linear-gradient(160deg, var(--tomato), var(--tomato-d)); color: #fff; }
   .r-btn.save { background: linear-gradient(160deg, var(--mustard), #D18B2C); color: #fff; }
-  .again-btn { width: 100%; margin-top: 10px; border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 15px;
+  .again-btn { width: 100%; margin-top: 10px; border: none; cursor: pointer; font-family: inherit; font-weight: 400; font-size: 15px;
     background: var(--cream); color: var(--ink); padding: 14px 10px; border-radius: 18px; box-shadow: var(--shadow-sm); }
   .again-btn:active { transform: scale(.97); }
   .save-hint { text-align: center; font-size: 11.5px; color: var(--ink-soft); margin-top: 10px; opacity: .85; line-height: 1.5; }
@@ -126,7 +126,7 @@
   .mute-btn { position: absolute; top: 14px; right: 14px; z-index: 25; width: 38px; height: 38px; border-radius: 12px; border: none;
     background: var(--ivory); box-shadow: var(--shadow-sm); cursor: pointer; font-size: 16px; }
   .toast { position: absolute; left: 50%; bottom: 28px; transform: translate(-50%, 20px); z-index: 28;
-    background: rgba(62,51,43,.94); color: #fff; font-size: 14px; font-weight: 700; padding: 12px 22px; border-radius: 999px;
+    background: rgba(62,51,43,.94); color: #fff; font-size: 14px; font-weight: 400; padding: 12px 22px; border-radius: 999px;
     opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
@@ -135,15 +135,15 @@
   .save-modal.show { display: flex; }
   .save-modal-inner { background: var(--ivory); border-radius: 24px; padding: 20px 18px; box-shadow: var(--shadow); max-width: 100%;
     max-height: 100%; overflow-y: auto; text-align: center; display: flex; flex-direction: column; align-items: center; }
-  .sm-title { font-size: 16px; font-weight: 800; }
+  .sm-title { font-size: 16px; font-weight: 400; }
   .mute-btn.off { text-decoration: line-through; opacity: .55; }
-  .sm-sub { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); line-height: 1.5; margin: 4px 0 10px; }
+  .sm-sub { font-size: 12.5px; font-weight: 400; color: var(--ink-soft); line-height: 1.5; margin: 4px 0 10px; }
   #saveModalImg { width: 100%; max-width: 260px; border-radius: 14px; box-shadow: var(--shadow-sm); }
-  .sm-close { margin-top: 14px; border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 14px;
+  .sm-close { margin-top: 14px; border: none; cursor: pointer; font-family: inherit; font-weight: 400; font-size: 14px;
     background: var(--ivory); color: var(--ink); padding: 11px 30px; border-radius: 16px; box-shadow: var(--shadow-sm); }
 
   /* ============ 봄날 하늘 + 손글씨 + 그림판 낙서 박스 ============ */
-  html, body { font-family: "Gaegu", "Pretendard Variable", Pretendard, sans-serif; }
+  html, body { font-family: "Gowun Dodum", "Pretendard Variable", Pretendard, sans-serif; }
   body { background: #6EC7EE; }
   .phone { background: linear-gradient(#4FB4E8 0%, #86D4F2 46%, #D3F0FB 100%); border: 4px solid #111; box-shadow: 6px 8px 0 rgba(0,0,0,.22); border-radius: 34px; }
 
@@ -162,7 +162,7 @@
 
   /* ===== 제목: 휘갈긴 손글씨(가독성 위해 진한 잉크 + 흰 후광) ===== */
   #startScreen h1, #wheelScreen h2, .rp-n, .ask-t, .rx-clinic, .rx-food .fn {
-    font-family: "Nanum Pen Script", "Gaegu", sans-serif; font-weight: 400; letter-spacing: 0;
+    font-family: "Song Myung", "Gowun Dodum", sans-serif; font-weight: 400; letter-spacing: 0;
     text-shadow: 0 0 4px #fff, 2px 2px 0 rgba(255,255,255,.9), 2px 3px 0 rgba(0,0,0,.12);
   }
   #startScreen h1 { font-size: 58px; line-height: 1.28; margin-top: 6px; color: #26347d; }
@@ -172,18 +172,18 @@
   .ask-t { font-size: 40px; color: #cf3324; }
   .rx-clinic { font-size: 34px; color: #26347d; }
   .rx-food .fn { font-size: 54px; color: #2f8a3a; }
-  .ask-e { font-family: "Nanum Pen Script", sans-serif; color: #cf3324; font-weight: 400; -webkit-text-stroke: 0; }
+  .ask-e { font-family: "Song Myung", sans-serif; color: #cf3324; font-weight: 400; -webkit-text-stroke: 0; }
 
   /* 설명/작은 글씨: Gaegu 볼드로 또렷하게 */
-  .kicker { font-family: "Gaegu", sans-serif; background: #fff; color: #26347d; border: 3px solid #111; font-weight: 700; font-size: 18px;
+  .kicker { font-family: "Gowun Dodum", sans-serif; background: #fff; color: #26347d; border: 3px solid #111; font-weight: 400; font-size: 18px;
     border-radius: 22px 8px 20px 9px / 9px 20px 8px 22px; box-shadow: 2px 3px 0 rgba(0,0,0,.2); }
-  #startScreen .desc, .note, #wheelScreen .sub, .rp-c { font-family: "Gaegu", sans-serif; color: #1e3a52; font-weight: 700; font-size: 18px;
+  #startScreen .desc, .note, #wheelScreen .sub, .rp-c { font-family: "Gowun Dodum", sans-serif; color: #1e3a52; font-weight: 400; font-size: 18px;
     text-shadow: 0 0 3px #fff, 1px 1px 0 rgba(255,255,255,.8); }
   .rp-c { font-size: 20px; }
 
   /* ===== 그림판 낙서 박스 버튼 (파스텔 + 삐뚤 검은 테두리 + 손글씨) ===== */
   .cta, .spin-btn, .rp-btn, .r-btn, .again-btn, .ask-btns button {
-    font-family: "Gaegu", sans-serif; font-weight: 700; color: #222; border: 3px solid #111;
+    font-family: "Gowun Dodum", sans-serif; font-weight: 400; color: #222; border: 3px solid #111;
     border-radius: 26px 10px 24px 11px / 11px 24px 10px 26px; box-shadow: 3px 4px 0 rgba(0,0,0,.24);
     text-shadow: none; -webkit-text-stroke: 0; transition: transform .07s ease, box-shadow .07s ease;
   }
@@ -203,21 +203,21 @@
   .ask-card, .rx, .save-modal-inner, .toast { background: #fff; border: 3px solid #111;
     border-radius: 22px 9px 20px 11px / 11px 20px 9px 22px; box-shadow: 4px 5px 0 rgba(0,0,0,.2); }
   .rx { background: #FFFEF6; }
-  .rx-row { font-family: "Gaegu", sans-serif; font-size: 17px; }
-  .rx-row .k { font-family: "Gaegu", sans-serif; font-weight: 700; }
-  .rx-sub, .rx-foot, .rx-stamp { font-family: "Gaegu", sans-serif; }
-  .save-hint { font-family: "Gaegu", sans-serif; font-size: 14px; }
-  .mute-btn { font-family: "Gaegu", sans-serif; border: 3px solid #111; box-shadow: 2px 3px 0 rgba(0,0,0,.18);
-    font-weight: 700; font-size: 15px; color: #26347d; border-radius: 14px 8px 12px 9px / 9px 12px 8px 14px; }
+  .rx-row { font-family: "Gowun Dodum", sans-serif; font-size: 17px; }
+  .rx-row .k { font-family: "Gowun Dodum", sans-serif; font-weight: 400; }
+  .rx-sub, .rx-foot, .rx-stamp { font-family: "Gowun Dodum", sans-serif; }
+  .save-hint { font-family: "Gowun Dodum", sans-serif; font-size: 14px; }
+  .mute-btn { font-family: "Gowun Dodum", sans-serif; border: 3px solid #111; box-shadow: 2px 3px 0 rgba(0,0,0,.18);
+    font-weight: 400; font-size: 15px; color: #26347d; border-radius: 14px 8px 12px 9px / 9px 12px 8px 14px; }
 
   /* ===== 룰렛: 삐뚤빼뚤 검은 테두리 + 손글씨 라벨 ===== */
   .wheel { border: 6px solid #111; box-shadow: 4px 5px 0 rgba(0,0,0,.26), inset 0 0 0 3px rgba(255,255,255,.5); }
-  .hub { font-family: "Gaegu", sans-serif; font-weight: 700; color: #222; border: 4px solid #111; box-shadow: 2px 2px 0 rgba(0,0,0,.22);
+  .hub { font-family: "Gowun Dodum", sans-serif; font-weight: 400; color: #222; border: 4px solid #111; box-shadow: 2px 2px 0 rgba(0,0,0,.22);
     border-radius: 14px 9px 12px 10px / 10px 12px 9px 14px; }
   .pointer { border-top-color: #111; }
   .wheel .lbl .e { display: none; }
-  .wheel .lbl .n { font-family: "Gaegu", sans-serif; font-size: 17px; font-weight: 700; color: #fff; -webkit-text-stroke: 0;
-    text-shadow: 1.5px 0 0 #111, -1.5px 0 0 #111, 0 1.5px 0 #111, 0 -1.5px 0 #111, 1.5px 1.5px 0 #111, -1.5px -1.5px 0 #111, 1.5px -1.5px 0 #111, -1.5px 1.5px 0 #111; }
+  .wheel .lbl .n { font-family: "Gowun Dodum", sans-serif; font-size: 17px; font-weight: 400; color: #fff; -webkit-text-stroke: 0;
+    text-shadow: 1px 0 0 #111, -1px 0 0 #111, 0 1px 0 #111, 0 -1px 0 #111, 1px 1px 0 #111, -1px -1px 0 #111, 1px -1px 0 #111, -1px 1px 0 #111; }
 
   /* ===== 그림판으로 직접 그린 듯 선 울렁이기 (SVG 왜곡 필터) ===== */
   .cta, .spin-btn, .rp-btn, .r-btn, .again-btn, .ask-btns button,
@@ -230,25 +230,25 @@
     linear-gradient(#4FB4E8 0%, #86D4F2 46%, #D3F0FB 100%); }
 
   /* ===== 답정너 세팅 화면 ===== */
-  .mode-btn { font-family: "Gaegu", sans-serif; font-weight: 700; color: #222; border: 3px solid #111;
+  .mode-btn { font-family: "Gowun Dodum", sans-serif; font-weight: 400; color: #222; border: 3px solid #111;
     border-radius: 26px 10px 24px 11px / 11px 24px 10px 26px; box-shadow: 3px 4px 0 rgba(0,0,0,.24);
     cursor: pointer; margin-top: 12px; background: #CFE6FF; font-size: 18px; padding: 12px 20px;
     filter: url(#hand); transition: transform .07s ease, box-shadow .07s ease; }
   .mode-btn:active { transform: translate(2px, 3px); box-shadow: 1px 1px 0 rgba(0,0,0,.24); }
   #setupScreen { align-items: center; text-align: center; justify-content: safe center; }
-  #setupScreen h2.setup-h { font-family: "Nanum Pen Script", "Gaegu", sans-serif; font-weight: 400; font-size: 40px; color: #26347d;
+  #setupScreen h2.setup-h { font-family: "Song Myung", "Gowun Dodum", sans-serif; font-weight: 400; font-size: 40px; color: #26347d;
     line-height: 1.2; margin-top: 2px; text-shadow: 0 0 4px #fff, 2px 2px 0 rgba(255,255,255,.9), 2px 3px 0 rgba(0,0,0,.12); }
-  .setup-sub { font-family: "Gaegu", sans-serif; color: #1e3a52; font-weight: 700; font-size: 17px; line-height: 1.5;
+  .setup-sub { font-family: "Gowun Dodum", sans-serif; color: #1e3a52; font-weight: 400; font-size: 17px; line-height: 1.5;
     text-shadow: 0 0 3px #fff, 1px 1px 0 rgba(255,255,255,.8); margin-top: 6px; }
   .menu-grid { display: flex; flex-wrap: wrap; gap: 9px; justify-content: center; margin: 16px 0 4px; width: 100%; }
-  .menu-item { font-family: "Gaegu", sans-serif; font-weight: 700; font-size: 19px; color: #222; background: #fff;
+  .menu-item { font-family: "Gowun Dodum", sans-serif; font-weight: 400; font-size: 19px; color: #222; background: #fff;
     border: 3px solid #111; border-radius: 16px 8px 14px 9px / 9px 14px 8px 16px; box-shadow: 2px 3px 0 rgba(0,0,0,.2);
     padding: 9px 14px; cursor: pointer; filter: url(#hand); transition: transform .07s ease; }
   .menu-item:active { transform: translate(1px, 2px); }
   .menu-item.sel { color: #fff; box-shadow: 3px 4px 0 rgba(0,0,0,.3); transform: rotate(-2.5deg) scale(1.05); text-shadow: 1px 1px 0 rgba(0,0,0,.35); }
   .make-cta { margin-top: 12px; font-size: 22px; background: #D6F0CC; }
   .make-cta:disabled { opacity: .5; }
-  .setup-hint { font-family: "Gaegu", sans-serif; font-weight: 700; font-size: 15px; color: #1e3a52; line-height: 1.5;
+  .setup-hint { font-family: "Gowun Dodum", sans-serif; font-weight: 400; font-size: 15px; color: #1e3a52; line-height: 1.5;
     min-height: 20px; margin-top: 10px; text-shadow: 0 0 3px #fff; word-break: break-all; }
   #setupScreen .again-btn { margin-top: 14px; }
 
@@ -267,7 +267,7 @@
   .sky { display: none; }
   .phone { background: url("./bg.webp") center/cover no-repeat, #8fd06a; }
   /* 첫 화면 타이틀: 빨간 타원 블롭 + 두꺼운 흰 글씨 (살짝 기울임) */
-  #startScreen h1 { font-family: "Black Han Sans", "Gaegu", sans-serif; font-weight: 400; font-size: 42px; line-height: 1.12;
+  #startScreen h1 { font-family: "Song Myung", "Gowun Dodum", sans-serif; font-weight: 400; font-size: 42px; line-height: 1.12;
     color: #fff; letter-spacing: -0.5px; display: inline-block; align-self: center;
     background: #ec3b2c; padding: 26px 44px; border-radius: 50%; margin: 16px 0 8px;
     transform: rotate(-7deg); transform-origin: center;
@@ -536,7 +536,7 @@ async function buildCard() {
   const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
   const c = cv.getContext("2d");
   try { await document.fonts.ready; } catch (e) {}
-  const FF = '"Gaegu", sans-serif', PEN = '"Nanum Pen Script", "Gaegu", sans-serif';
+  const FF = '"Gowun Dodum", sans-serif', PEN = '"Song Myung", "Gowun Dodum", sans-serif';
   // 봄날 하늘 + 구름
   const sky = c.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, "#4FB4E8"); sky.addColorStop(.5, "#86D4F2"); sky.addColorStop(1, "#D3F0FB");
   c.fillStyle = sky; c.fillRect(0, 0, W, H);
