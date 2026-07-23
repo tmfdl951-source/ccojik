@@ -216,7 +216,7 @@
     border-radius: 14px 9px 12px 10px / 10px 12px 9px 14px; }
   .pointer { border-top-color: #111; }
   .wheel .lbl .e { display: none; }
-  .wheel .lbl .n { font-family: "Gaegu", sans-serif; font-size: 19px; font-weight: 700; color: #fff; -webkit-text-stroke: 0;
+  .wheel .lbl .n { font-family: "Gaegu", sans-serif; font-size: 17px; font-weight: 700; color: #fff; -webkit-text-stroke: 0;
     text-shadow: 1.5px 0 0 #111, -1.5px 0 0 #111, 0 1.5px 0 #111, 0 -1.5px 0 #111, 1.5px 1.5px 0 #111, -1.5px -1.5px 0 #111, 1.5px -1.5px 0 #111, -1.5px 1.5px 0 #111; }
 
   /* ===== 그림판으로 직접 그린 듯 선 울렁이기 (SVG 왜곡 필터) ===== */
@@ -228,6 +228,29 @@
   .phone { background:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)' opacity='0.055'/%3E%3C/svg%3E") repeat,
     linear-gradient(#4FB4E8 0%, #86D4F2 46%, #D3F0FB 100%); }
+
+  /* ===== 답정너 세팅 화면 ===== */
+  .mode-btn { font-family: "Gaegu", sans-serif; font-weight: 700; color: #222; border: 3px solid #111;
+    border-radius: 26px 10px 24px 11px / 11px 24px 10px 26px; box-shadow: 3px 4px 0 rgba(0,0,0,.24);
+    cursor: pointer; margin-top: 12px; background: #CFE6FF; font-size: 18px; padding: 12px 20px;
+    filter: url(#hand); transition: transform .07s ease, box-shadow .07s ease; }
+  .mode-btn:active { transform: translate(2px, 3px); box-shadow: 1px 1px 0 rgba(0,0,0,.24); }
+  #setupScreen { align-items: center; text-align: center; justify-content: safe center; }
+  #setupScreen h2.setup-h { font-family: "Nanum Pen Script", "Gaegu", sans-serif; font-weight: 400; font-size: 40px; color: #26347d;
+    line-height: 1.2; margin-top: 2px; text-shadow: 0 0 4px #fff, 2px 2px 0 rgba(255,255,255,.9), 2px 3px 0 rgba(0,0,0,.12); }
+  .setup-sub { font-family: "Gaegu", sans-serif; color: #1e3a52; font-weight: 700; font-size: 17px; line-height: 1.5;
+    text-shadow: 0 0 3px #fff, 1px 1px 0 rgba(255,255,255,.8); margin-top: 6px; }
+  .menu-grid { display: flex; flex-wrap: wrap; gap: 9px; justify-content: center; margin: 16px 0 4px; width: 100%; }
+  .menu-item { font-family: "Gaegu", sans-serif; font-weight: 700; font-size: 19px; color: #222; background: #fff;
+    border: 3px solid #111; border-radius: 16px 8px 14px 9px / 9px 14px 8px 16px; box-shadow: 2px 3px 0 rgba(0,0,0,.2);
+    padding: 9px 14px; cursor: pointer; filter: url(#hand); transition: transform .07s ease; }
+  .menu-item:active { transform: translate(1px, 2px); }
+  .menu-item.sel { color: #fff; box-shadow: 3px 4px 0 rgba(0,0,0,.3); transform: rotate(-2.5deg) scale(1.05); text-shadow: 1px 1px 0 rgba(0,0,0,.35); }
+  .make-cta { margin-top: 12px; font-size: 22px; background: #D6F0CC; }
+  .make-cta:disabled { opacity: .5; }
+  .setup-hint { font-family: "Gaegu", sans-serif; font-weight: 700; font-size: 15px; color: #1e3a52; line-height: 1.5;
+    min-height: 20px; margin-top: 10px; text-shadow: 0 0 3px #fff; word-break: break-all; }
+  #setupScreen .again-btn { margin-top: 14px; }
 </style>
 </head>
 <body>
@@ -246,7 +269,19 @@
     <h1>오늘 뭐 먹지?<br><span class="hl">고민 끝!</span></h1>
     <p class="desc">메뉴 못 정하는 당신을 위한 처방소.<br>룰렛 한 번이면 오늘 저녁 결정 완료 ^^</p>
     <button class="cta" id="startBtn">룰렛 돌리러 가기</button>
+    <button class="mode-btn" id="makeModeBtn">친구용 답정너 룰렛 만들기</button>
     <p class="note">결정 못 하는 친구·연인에게<br>"너 이거 돌려봐" 하고 보내보세요 ~^^</p>
+  </section>
+
+  <!-- 답정너 세팅 -->
+  <section class="screen" id="setupScreen">
+    <span class="kicker">답정너 룰렛</span>
+    <h2 class="setup-h">친구가 뭘<br>먹었으면 좋겠어?</h2>
+    <p class="setup-sub">고른 메뉴가 룰렛에서 계속 나와요 ㅋㅋ<br>친구는 우연인 줄 안답니다 ^^</p>
+    <div class="menu-grid" id="menuGrid"></div>
+    <button class="cta make-cta" id="makeLinkBtn" disabled>메뉴 먼저 골라줘</button>
+    <p class="setup-hint" id="setupHint"></p>
+    <button class="again-btn" id="setupBack">← 그냥 내가 돌릴래</button>
   </section>
 
   <!-- 룰렛 -->
@@ -329,9 +364,11 @@ const FOODS = [
   { name: "피자",   color: "#EDAE44", dose: "식기 전에, 도우 끝까지 섭취.", warn: "파인애플 토핑 논쟁 주의" },
   { name: "마라탕", color: "#C7402E", dose: "당면·청경채 필수, 맵기는 중간.", warn: "다음 날 화장실 미리 예약" },
   { name: "초밥",   color: "#5AA9A0", dose: "간장 살짝, 와사비는 취향껏.", warn: "지갑 화상 위험 (돈 순삭)" },
+  { name: "삼겹살", color: "#E86A52", dose: "노릇하게 구워 쌈은 크게 한입.", warn: "다 익기 전에 집으면 눈총 주의" },
+  { name: "햄버거", color: "#CE9A3A", dose: "두 손으로 꽉, 소스 흐름 주의.", warn: "감튀는 식기 전에 속전속결" },
   { name: "샐러드", color: "#6FAE62", dose: "정말요…? 드레싱은 원 없이.", warn: "내일의 나를 위한 갸륵한 선택" },
 ];
-const WEIGHT = [3.4, 1, 1, 1, 1, 1, 1, 0.5];   // 국밥이 자주 나오게, 샐러드는 드물게
+const WEIGHT = [2.8, 1, 1, 1, 1, 1, 1, 1, 1, 0.5];   // 국밥이 자주 나오게, 샐러드는 드물게
 const DIAGS = ["만성 결정장애 3기", "급성 메뉴선택 불능증", "점심·저녁 방황 증후군", "배고픔 동반 우유부단증", "무한 '아무거나' 루프"];
 const N = FOODS.length, SEG = 360 / N;
 
@@ -346,7 +383,8 @@ function sfxHuh() { beep(400, 0.16, "sawtooth", 0.12); beep(300, 0.22, "sawtooth
 function toggleMute() { muted = !muted; localStorage.setItem(MUTE_KEY, muted ? "1" : "0"); $("muteBtn").classList.toggle("off", muted); if (!muted) sfxDing(); }
 
 /* ---------- 상태 ---------- */
-let spinning = false, wheelRot = 0, lastIndex = -1, gukStreak = 0, chosen = 0;
+let spinning = false, wheelRot = 0, chosen = 0;
+let streakIdx = -1, streakN = 0, spinCount = 0, fixIndex = -1, selIndex = -1;
 function show(id) { document.querySelectorAll(".screen").forEach(s => s.classList.remove("active")); $(id).classList.add("active"); }
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove("show"), 1600); }
 
@@ -370,11 +408,18 @@ function weightedPick() {
   for (let i = 0; i < N; i++) { r -= WEIGHT[i]; if (r <= 0) return i; }
   return N - 1;
 }
+function otherPick(exclude) { let i, g = 0; do { i = weightedPick(); } while (i === exclude && ++g < 20); return i; }
+/* 답정너: 링크에 정해둔 메뉴(fixIndex)가 거의 항상 나오게. 첫 스핀은 100%, 이후에도 80%. */
+function pickIndex() {
+  if (fixIndex >= 0) return (spinCount === 0 || Math.random() < 0.8) ? fixIndex : otherPick(fixIndex);
+  return weightedPick();
+}
 function spin(forceIndex) {
   if (spinning) return;
   spinning = true; $("spinBtn").disabled = true; $("resultPanel").classList.remove("show");
   sfxSpin();
-  const i = (forceIndex != null) ? forceIndex : weightedPick();
+  const i = (forceIndex != null) ? forceIndex : pickIndex();
+  spinCount++;
   const center = i * SEG + SEG / 2;
   const jitter = (Math.random() - 0.5) * SEG * 0.6;
   const desired = ((360 - center - jitter) % 360 + 360) % 360;
@@ -388,14 +433,17 @@ function spin(forceIndex) {
 }
 function onResult(i) {
   spinning = false; $("spinBtn").disabled = false;
-  lastIndex = i; chosen = i;
-  gukStreak = (i === 0) ? gukStreak + 1 : 0;
+  chosen = i;
+  if (i === streakIdx) streakN++; else { streakIdx = i; streakN = 1; }
   const f = FOODS[i];
   if (f.name === "샐러드") { sfxHuh(); askConfirm("?!", "샐러드…?", "진심이야..? 다시 생각해봐", () => accept(i), () => spin()); return; }
-  if (i === 0 && gukStreak >= 2) {
+  if (streakN >= 2) {
     sfxHuh();
-    const line = gukStreak >= 3 ? "국밥의 저주… 이쯤 되면 운명이야;;" : "또 국밥이야?! 이거 실화냐;;";
-    askConfirm("!?", line, "그냥 국밥이 너의 소울푸드인 걸로…", () => accept(i), () => spin());
+    let t, d;
+    if (i === 0) { t = streakN >= 3 ? "국밥의 저주…" : "또 국밥이야?!"; d = "그냥 국밥이 너의 소울푸드인 걸로… ^^"; }
+    else if (streakN >= 3) { t = f.name + "의 저주…"; d = "이쯤 되면 오늘은 " + f.name + " 먹으란 계시야 ^^"; }
+    else { t = "또 " + f.name + "?!"; d = "우연이라기엔 좀… 운명인가봐;;"; }
+    askConfirm("!?", t, d, () => accept(i), () => spin());
     return;
   }
   sfxDing();
@@ -502,16 +550,54 @@ async function saveCard() {
   } catch (e) { $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요~"; }
 }
 async function shareLink() {
-  const url = location.href.split("?")[0];
-  const text = "나 오늘 '" + FOODS[chosen].name + "' 먹으래ㅋㅋ 너도 뭐 먹을지 못 정하면 이거 돌려봐 ^^";
+  const url = location.href.split("?")[0].split("#")[0] + "?to=" + encFix(chosen);
+  const text = "나 오늘 룰렛 돌렸는데 운명이 정해졌어 ㅋㅋ 너도 한 번만 돌려봐 ^^";
   if (navigator.share) { try { await navigator.share({ title: "오늘 뭐 먹지? 결정장애 해결소", text, url }); } catch (e) {} return; }
   const full = text + " " + url;
   if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(full).then(() => toast("링크 복사됨! 친구한테 붙여넣기 ^^"), () => toast("복사 실패 — 주소창을 길게 눌러 복사하세요")); }
   else toast("주소창 링크를 복사해 보내주세요");
 }
 
+/* ---------- 답정너 세팅 ---------- */
+function encFix(i) { return btoa("ccdh" + i).replace(/=/g, ""); }
+function decFix(s) { if (!s) return -1; try { const t = atob(s); if (t.indexOf("ccdh") === 0) { const n = parseInt(t.slice(4), 10); if (n >= 0 && n < N) return n; } } catch (e) {} return -1; }
+function buildMenuGrid() {
+  const g = $("menuGrid"); g.innerHTML = "";
+  FOODS.forEach((f, i) => {
+    const b = document.createElement("button"); b.className = "menu-item"; b.textContent = f.name;
+    b.addEventListener("click", () => selectMenu(i));
+    g.appendChild(b);
+  });
+}
+function selectMenu(i) {
+  selIndex = i;
+  [...$("menuGrid").children].forEach((el, idx) => {
+    const on = idx === i; el.classList.toggle("sel", on);
+    el.style.background = on ? FOODS[idx].color : "#fff";
+  });
+  const mk = $("makeLinkBtn"); mk.disabled = false; mk.textContent = "'" + FOODS[i].name + "' 답정너 링크 만들기";
+  sfxDing();
+}
+async function makeLink() {
+  if (selIndex < 0) return;
+  const url = location.href.split("?")[0].split("#")[0] + "?to=" + encFix(selIndex);
+  const name = FOODS[selIndex].name;
+  const text = "[오늘 뭐 먹지?] 이 룰렛 한 번만 돌려봐~ 운명의 저녁 메뉴가 나온대 ^^";
+  if (navigator.share) { try { await navigator.share({ title: "오늘 뭐 먹지? 결정장애 해결소", text, url }); $("setupHint").textContent = "링크 전송! 친구가 돌리면 계속 '" + name + "' 나와요 ㅋㅋ"; } catch (e) {} return; }
+  const full = text + " " + url;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(full).then(
+      () => { toast("답정너 링크 복사됨! 붙여넣기 ^^"); $("setupHint").textContent = "복사됨 — 친구가 돌리면 계속 '" + name + "' 나옴 ㅋㅋ"; },
+      () => { $("setupHint").textContent = full; toast("아래 링크를 길게 눌러 복사하세요"); }
+    );
+  } else { $("setupHint").textContent = full; }
+}
+
 /* ---------- 이벤트 ---------- */
 $("startBtn").addEventListener("click", () => { sfxDing(); show("wheelScreen"); });
+$("makeModeBtn").addEventListener("click", () => { sfxDing(); buildMenuGrid(); selIndex = -1; $("makeLinkBtn").disabled = true; $("makeLinkBtn").textContent = "메뉴 먼저 골라줘"; $("setupHint").textContent = ""; show("setupScreen"); });
+$("setupBack").addEventListener("click", () => show("startScreen"));
+$("makeLinkBtn").addEventListener("click", makeLink);
 $("spinBtn").addEventListener("click", () => spin());
 $("reSpinBtn").addEventListener("click", () => spin());
 $("toRxBtn").addEventListener("click", issueRx);
@@ -523,6 +609,10 @@ $("saveBtn").addEventListener("click", saveCard);
 $("saveModalClose").addEventListener("click", closeSaveModal);
 $("saveModal").addEventListener("click", e => { if (e.target === $("saveModal")) closeSaveModal(); });
 $("muteBtn").addEventListener("click", toggleMute);
+
+/* 답정너 링크로 들어온 경우: 티 안 나게 만들기 버튼 숨김 */
+fixIndex = decFix(new URLSearchParams(location.search).get("to"));
+if (fixIndex >= 0) $("makeModeBtn").style.display = "none";
 
 $("muteBtn").classList.toggle("off", muted);
 buildWheel();
