@@ -9,6 +9,7 @@
 <meta property="og:description" content="룰렛 한 번이면 메뉴 고민 끝. 오늘의 식사 처방전 발급!" />
 <link rel="stylesheet" as="style" crossorigin
   href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri/dist/galmuri.css" />
 <style>
   :root {
     --cream: #FCF5EA; --ivory: #FFFDF8; --paper: #FFFEFA;
@@ -139,6 +140,50 @@
   #saveModalImg { width: 100%; max-width: 260px; border-radius: 14px; box-shadow: var(--shadow-sm); }
   .sm-close { margin-top: 14px; border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 14px;
     background: var(--ivory); color: var(--ink); padding: 11px 30px; border-radius: 16px; box-shadow: var(--shadow-sm); }
+
+  /* ============ 옛날 플래시게임 레트로 스킨 ============ */
+  :root { --line: #3A2E24; --rs: 5px 5px 0 var(--line); --rs-sm: 3px 3px 0 var(--line); }
+  body { background: radial-gradient(circle at 50% 26%, #3a2e22 0%, #1a130d 78%); }
+  .phone { border: 10px solid #241a12; box-shadow: 0 0 0 3px #4a3a2a, 0 26px 60px rgba(0,0,0,.6), 0 0 70px rgba(240,180,90,.14); }
+  /* 비네팅 + 필름 그레인 + 깜빡임 */
+  .phone::before { content: ""; position: absolute; inset: 0; z-index: 41; pointer-events: none; border-radius: 30px;
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E") repeat,
+      radial-gradient(ellipse at center, transparent 52%, rgba(20,14,8,.34) 100%);
+    animation: crtFlicker 4s infinite steps(40); }
+  @keyframes crtFlicker { 0%,100% { opacity: 1; } 46% { opacity: .96; } 50% { opacity: .9; } 54% { opacity: .97; } }
+  /* 스캔라인 */
+  .phone::after { content: ""; position: absolute; inset: 0; z-index: 40; pointer-events: none; border-radius: 30px;
+    background: repeating-linear-gradient(0deg, rgba(40,26,14,.09) 0 1px, transparent 1px 3px); }
+
+  /* 픽셀 폰트 */
+  .kicker, #startScreen h1, #startScreen h1 .hl, #wheelScreen h2, #wheelScreen .sub,
+  .rp-n, .rp-c, .ask-t, .rx-clinic, .rx-sub, .rx-food .fn, .rx-row .k, .rx-stamp,
+  .cta, .spin-btn, .rp-btn, .r-btn, .again-btn, .ask-btns button, .wheel .lbl .n, .mute-btn {
+    font-family: "Galmuri11", "Pretendard Variable", Pretendard, sans-serif;
+  }
+  #startScreen h1 { text-shadow: 3px 3px 0 rgba(58,46,36,.22); line-height: 1.45; }
+  #wheelScreen h2 { text-shadow: 2px 2px 0 rgba(58,46,36,.18); }
+
+  /* 버튼: 두꺼운 외곽선 + 하드 섀도 + 눌리면 내려앉음 */
+  .cta, .spin-btn, .rp-btn, .r-btn, .again-btn, .ask-btns button {
+    border: 3px solid var(--line); border-radius: 14px; box-shadow: var(--rs-sm);
+    transition: transform .06s ease, box-shadow .06s ease;
+  }
+  .cta:active, .rp-btn:active, .r-btn:active, .again-btn:active, .ask-btns button:active {
+    transform: translate(3px, 3px); box-shadow: 0 0 0 0 var(--line);
+  }
+  .spin-btn { border-width: 4px; box-shadow: var(--rs); }
+  .spin-btn:active { transform: translate(4px, 4px); box-shadow: 0 0 0 0 var(--line); }
+
+  /* 카드·패널 외곽선 */
+  .result-panel, .ask-card, .save-modal-inner, .toast, .mute-btn { border: 3px solid var(--line); box-shadow: var(--rs-sm); }
+  .rx { border: 3px solid var(--line); box-shadow: var(--rs); }
+
+  /* 룰렛 레트로 (두꺼운 외곽선 + 하드 섀도) */
+  .wheel { border: 7px solid var(--line); box-shadow: var(--rs), inset 0 0 0 3px rgba(255,255,255,.45); }
+  .hub { border: 5px solid var(--line); box-shadow: var(--rs-sm); }
+  .pointer { border-top-color: var(--line); }
 </style>
 </head>
 <body>
