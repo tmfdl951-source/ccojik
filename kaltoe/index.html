@@ -413,6 +413,29 @@
   .char img, .kr-img img {
     filter: drop-shadow(5px 9px 12px rgba(0,0,0,.32)) contrast(1.08) saturate(.82) sepia(.14) brightness(.97);
   }
+
+  /* ===== 졸라맨 사무실 배경 (게임 화면) ===== */
+  #gameScreen > *:not(.office-bg) { position: relative; z-index: 1; }
+  .office-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; background: #d3d6d9; }
+  .office-bg .ceil { position: absolute; top: 0; left: 0; right: 0; height: 15%; background: #e2e4e6; border-bottom: 3px solid var(--line); }
+  .office-bg .fluoro { position: absolute; top: 5%; height: 9px; width: 30%; background: #fffdf0; border: 3px solid var(--line);
+    box-shadow: 0 0 14px 3px rgba(255,255,190,.75); border-radius: 2px; }
+  .office-bg .fluoro.l { left: 11%; } .office-bg .fluoro.r { right: 11%; }
+  .office-bg .sign { position: absolute; top: 19%; left: 50%; transform: translateX(-50%);
+    background: #2f6fb0; color: #fff; border: 3px solid var(--line); border-radius: 4px; padding: 3px 13px;
+    font-family: "Galmuri11", sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 2px; }
+  .office-bg .sign::before, .office-bg .sign::after { content: ""; position: absolute; top: -11px; width: 2px; height: 11px; background: var(--line); }
+  .office-bg .sign::before { left: 22%; } .office-bg .sign::after { right: 22%; }
+  .office-bg .window { position: absolute; top: 30%; left: 7%; width: 24%; height: 20%;
+    background: linear-gradient(160deg, #c3e2f2, #9ec9e6); border: 3px solid var(--line); }
+  .office-bg .window::after { content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: 3px; background: var(--line); }
+  .office-bg .partition { position: absolute; bottom: 0; left: 0; right: 0; height: 33%; background: #c8c1b1; border-top: 3px solid var(--line); }
+  .office-bg .partition::before { content: ""; position: absolute; top: 24%; left: 0; right: 0; height: 3px; background: var(--line); opacity: .45; }
+  .office-bg .monitor { position: absolute; bottom: 5%; right: 13%; width: 54px; height: 40px; background: #33383e; border: 3px solid var(--line); border-radius: 3px; }
+  .office-bg .monitor::after { content: ""; position: absolute; left: 50%; bottom: -13px; transform: translateX(-50%); width: 18px; height: 13px; background: #6b7178; border: 3px solid var(--line); }
+  .office-bg .stickman { position: absolute; bottom: 3%; left: 6%; width: 64px; height: 96px;
+    filter: drop-shadow(3px 4px 0 rgba(0,0,0,.15)); }
+  .hs-d b { color: var(--warmgray-text); }
 </style>
 </head>
 <body>
@@ -441,7 +464,8 @@
       <div class="howto-step"><span class="hs-ic">📅</span><div><div class="hs-t">월~금 5일 연속 도전</div><div class="hs-d">하루가 한 라운드. 5일을 모두 버텨야 ‘주간 생존 성공’!</div></div></div>
       <div class="howto-step"><span class="hs-ic">💀</span><div><div class="hs-t">‘야근 확정’이면 그날로 끝</div><div class="hs-d">6시를 한참 넘겨서 누르면 야근 → 그 요일에서 게임 오버.</div></div></div>
       <div class="howto-step"><span class="hs-ic">⚠️</span><div><div class="hs-t">‘조퇴 미수’는 +2.0초 페널티</div><div class="hs-d">너무 일찍 눌러도 죽진 않아요. 벌점만 받고 다음 날로 계속!</div></div></div>
-      <div class="howto-step"><span class="hs-ic">🎲</span><div><div class="hs-t">요일마다 방해 요소 등장</div><div class="hs-d">화-속도 변화 / 수-메신저 팝업 / 목-사수가 시계 가림 / 금-회식 제안. 당황 금지!</div></div></div>
+      <div class="howto-step"><span class="hs-ic">🚨</span><div><div class="hs-t">중간에 방해 팝업이 뜬다!</div><div class="hs-d">메신저·회식 같은 팝업이 화면을 가려요. <b>✕나 버튼으로 빠르게 닫고</b>, 그 와중에도 흐르는 시계 타이밍을 놓치지 마세요!</div></div></div>
+      <div class="howto-step"><span class="hs-ic">🎲</span><div><div class="hs-t">요일마다 다른 방해</div><div class="hs-d">화-속도 변화 / 수-메신저 / 목-사수가 시계 가림 / 금-회식 제안.</div></div></div>
       <div class="howto-step"><span class="hs-ic">🏆</span><div><div class="hs-t">오차 총합이 적을수록 고등급</div><div class="hs-d">금요일까지 살아남고 총합 0.5초 이내면 ‘칼퇴의 신’!</div></div></div>
     </div>
     <button class="cta" id="howtoStartBtn">시작하기 →</button>
@@ -450,6 +474,26 @@
 
   <!-- 게임 -->
   <section class="screen" id="gameScreen">
+    <div class="office-bg" aria-hidden="true">
+      <div class="ceil"><i class="fluoro l"></i><i class="fluoro r"></i></div>
+      <div class="sign">영업부</div>
+      <div class="window"></div>
+      <div class="partition"></div>
+      <div class="monitor"></div>
+      <svg class="stickman" viewBox="0 0 60 96">
+        <g fill="none" stroke="#2b2620" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="30" cy="13" r="10" fill="#fbead0"/>
+          <line x1="30" y1="23" x2="30" y2="56"/>
+          <line x1="30" y1="31" x2="15" y2="45"/>
+          <line x1="30" y1="31" x2="45" y2="45"/>
+          <line x1="30" y1="56" x2="19" y2="86"/>
+          <line x1="30" y1="56" x2="41" y2="86"/>
+          <rect x="26" y="30" width="8" height="10" fill="#fff" stroke-width="2"/>
+        </g>
+        <circle cx="26" cy="12" r="1.6" fill="#2b2620"/><circle cx="34" cy="12" r="1.6" fill="#2b2620"/>
+        <path d="M26 17 Q30 20 34 17" fill="none" stroke="#2b2620" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
     <div class="round-tag" id="roundTag"></div>
     <div class="target">🎯 목표 <b>18:00:00.00</b></div>
     <div class="clock-wrap" id="clockWrap">
