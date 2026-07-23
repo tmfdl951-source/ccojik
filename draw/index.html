@@ -106,6 +106,24 @@
   .link.kaltoe { background: linear-gradient(160deg, var(--warmgray), #6F6B67); }
   .save-hint { font-size: 11.5px; color: var(--ink-soft); margin-top: 10px; opacity: .85; line-height: 1.5; }
 
+  /* 폰 넘기기 */
+  #passScreen { align-items: center; justify-content: safe center; text-align: center; }
+  .pass-emoji { font-size: 74px; margin-bottom: 6px; }
+  .pass-t { font-size: 27px; font-weight: 800; }
+  .pass-d { font-size: 15px; color: var(--ink-soft); font-weight: 600; margin-top: 10px; line-height: 1.6; }
+  .pass-d b { color: var(--blush); }
+  .pass-skip { margin-top: 16px; border: none; background: transparent; color: var(--ink-soft); font-family: inherit;
+    font-weight: 700; font-size: 13px; cursor: pointer; text-decoration: underline; }
+
+  /* 4지선다 */
+  .options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 14px; }
+  .opt { border: none; cursor: pointer; font-family: inherit; background: var(--ivory); color: var(--ink);
+    font-weight: 800; font-size: 16px; padding: 18px 6px; border-radius: 18px; box-shadow: var(--shadow-sm);
+    transition: transform .1s ease; }
+  .opt:active { transform: scale(.95); }
+  .opt.correct { background: linear-gradient(160deg, var(--beige), #C4AE86); color: #fff; }
+  .opt.wrong { background: linear-gradient(160deg, var(--warmgray), #6F6B67); color: #fff; opacity: .85; }
+
   /* 음소거 */
   .mute-btn { position: absolute; top: 14px; right: 14px; z-index: 20; width: 38px; height: 38px; border-radius: 12px; border: none;
     background: var(--ivory); box-shadow: var(--shadow-sm); cursor: pointer; font-size: 16px; }
@@ -138,10 +156,10 @@
   <section class="screen active" id="startScreen">
     <span class="kicker">꼬직 스피드 드로잉</span>
     <h1>제시어를<br><span class="hl">20초</span> 안에 그려라!</h1>
-    <p class="desc">랜덤 제시어가 뜨면 20초 안에 그리기.<br>망해도 괜찮아 — 그게 더 웃기니까 😆</p>
+    <p class="desc">제시어를 20초 안에 그리고,<br>폰을 넘겨 <b>친구가 맞히게</b> 하는 게임!</p>
     <div class="pencil">✏️</div>
     <button class="cta" id="startBtn">그리기 시작</button>
-    <p class="best-note">완성하면 "이거 뭐게?" 카드로 저장해서<br>친구한테 맞혀보라고 보내봐 🎨</p>
+    <p class="best-note">혼자라면 "이거 뭐게?" 카드로 저장해서<br>친구한테 맞혀보라고 보내도 돼 🎨</p>
   </section>
 
   <!-- 그리기 -->
@@ -169,12 +187,28 @@
     <button class="done-btn" id="doneBtn">완성! 🎉</button>
   </section>
 
+  <!-- 폰 넘기기 -->
+  <section class="screen" id="passScreen">
+    <div class="pass-emoji">🙈</div>
+    <h2 class="pass-t">다 그렸어요!</h2>
+    <p class="pass-d">이제 폰을 <b>옆 사람</b>에게 넘기고<br>무슨 그림인지 맞혀보게 하세요 👉</p>
+    <button class="cta" id="toGuessBtn">맞히기 시작</button>
+    <button class="pass-skip" id="selfGuessBtn">혼자 할래요 · 바로 정답 보기</button>
+  </section>
+
+  <!-- 맞히기 (4지선다) -->
+  <section class="screen" id="guessScreen">
+    <div class="r-sub">이 그림, 뭘 그린 걸까요?</div>
+    <div class="r-q">🤔 정답을 골라보세요</div>
+    <div class="result-pic"><img id="guessImg" alt="그림"></div>
+    <div class="options" id="options"></div>
+  </section>
+
   <!-- 결과 -->
   <section class="screen" id="resultScreen">
-    <div class="r-sub">20초 스피드 드로잉 완성!</div>
-    <div class="r-q">이게 뭘로 보여? 👀</div>
-    <div class="result-pic"><img id="resultImg" alt="내 그림"></div>
-    <div class="answer">정답은… <b id="answerWord">-</b> 이었어요</div>
+    <div class="r-q" id="resultTitle">정답! 🎉</div>
+    <div class="result-pic"><img id="resultImg" alt="그림"></div>
+    <div class="answer">정답은 <b id="answerWord">-</b> 였어요!</div>
     <div class="r-actions">
       <button class="r-btn save" id="saveBtn">이거 뭐게? 카드 저장</button>
       <button class="r-btn again" id="againBtn">새 제시어</button>
@@ -204,11 +238,14 @@ const $ = id => document.getElementById(id);
 
 /* ---------- 제시어 (대중 + 꼬직 오피스 믹스) ---------- */
 const WORDS = [
-  "강아지","고양이","토끼","펭귄","판다","공룡","상어","문어","달팽이","나비",
-  "피자","치킨","햄버거","아이스크림","케이크","붕어빵","김밥","라면","떡볶이","커피",
-  "자동차","비행기","자전거","로켓","우산","안경","시계","선물","풍선","무지개",
-  "로봇","유령","눈사람","왕관","하트","별","해바라기","나무","집","꽃",
-  "부장님","야근","사원증","엘리베이터","회식","복사기","월급봉투","칼퇴","정수기","넥타이"
+  // 그리기 까다로운 동물
+  "문어","카멜레온","고슴도치","나무늘보","공작새","낙타","코뿔소","캥거루","박쥐","부엉이","홍학","해마",
+  // 복잡한 사물·구조물
+  "등대","대관람차","헬리콥터","잠수함","소방차","굴착기","풍차","선인장","분수대","자판기","신호등","회전문",
+  // 오피스·추상 개념 (그리기 난이도 최상)
+  "야근","월요병","회식","승진","워라밸","지각","눈치","마감","카페인수혈","재택근무","화상회의","월급순삭",
+  // 현상·이벤트
+  "무지개","화산","태풍","오로라","도미노","불꽃놀이","교통체증","다이어트"
 ];
 const CHO = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
 function chosung(str) {
@@ -229,10 +266,11 @@ function beep(f, d, t, v, w) { if (muted) return; const c = ac(); if (!c) return
 function sfxStart() { [523, 659, 784].forEach((f, i) => beep(f, 0.1, "square", 0.12, i * 0.07)); }
 function sfxTick() { beep(880, 0.05, "square", 0.1); }
 function sfxDone() { [784, 988, 1319].forEach((f, i) => beep(f, 0.12, "square", 0.13, i * 0.08)); }
+function sfxWrong() { [400, 300, 220].forEach((f, i) => beep(f, 0.15, "sawtooth", 0.13, i * 0.1)); }
 function toggleMute() { muted = !muted; localStorage.setItem(MUTE_KEY, muted ? "1" : "0"); $("muteBtn").textContent = muted ? "🔇" : "🔊"; if (!muted) sfxTick(); }
 
 /* ---------- 상태 ---------- */
-let currentWord = "", token = 0;
+let currentWord = "", token = 0, drawingURL = "";
 let color = "#2B2620", size = 10, erasing = false;
 const COLORS = ["#2B2620", "#E0736F", "#4C86C6", "#6FAE62", "#F0C24B", "#A9754B", "#F5A9B0"];
 const SIZES = [4, 10, 22];
@@ -325,12 +363,44 @@ function tickTimer() {
 function finishDraw() {
   token++; canDraw = false; cancelAnimationFrame(timerRAF);
   $("timerNum").classList.remove("warn");
-  sfxDone();
-  $("resultImg").src = board.toDataURL("image/png");
+  drawingURL = board.toDataURL("image/png");
+  sfxTick();
+  show("passScreen");           // 폰 넘기기 → 친구가 맞히기
+}
+
+/* ---------- 맞히기 (패스앤플레이 4지선다) ---------- */
+function makeOptions() {
+  const opts = [currentWord];
+  const pool = WORDS.filter(w => w !== currentWord);
+  while (opts.length < 4) { const w = pool[Math.floor(Math.random() * pool.length)]; if (!opts.includes(w)) opts.push(w); }
+  for (let i = opts.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [opts[i], opts[j]] = [opts[j], opts[i]]; }
+  return opts;
+}
+function startGuess() {
+  $("guessImg").src = drawingURL;
+  const box = $("options"); box.innerHTML = "";
+  makeOptions().forEach(w => {
+    const b = document.createElement("button"); b.className = "opt"; b.textContent = w;
+    b.addEventListener("click", () => pickGuess(w, b, box));
+    box.appendChild(b);
+  });
+  show("guessScreen"); $("guessScreen").scrollTop = 0;
+}
+function pickGuess(w, btn, box) {
+  box.querySelectorAll(".opt").forEach(o => { o.disabled = true; if (o.textContent === currentWord) o.classList.add("correct"); });
+  const correct = w === currentWord;
+  if (!correct) btn.classList.add("wrong");
+  if (correct) sfxDone(); else sfxWrong();
+  setTimeout(() => showResult(correct ? "정답! 🎉" : "아쉽다! 😅", correct), 750);
+}
+function selfReveal() { showResult("완성! ✏️", true); }
+function showResult(title, ok) {
+  $("resultTitle").textContent = title;
+  $("resultTitle").style.color = ok ? "var(--beige-text)" : "var(--warmgray-text)";
+  $("resultImg").src = drawingURL;
   $("answerWord").textContent = currentWord;
   $("saveHint").textContent = "";
-  show("resultScreen");
-  $("resultScreen").scrollTop = 0;
+  show("resultScreen"); $("resultScreen").scrollTop = 0;
 }
 
 /* ---------- 공유 카드 (1080x1350, 정답 숨김 + 초성 힌트) ---------- */
@@ -389,6 +459,8 @@ async function saveCard() {
 /* ---------- 이벤트 ---------- */
 $("startBtn").addEventListener("click", startGame);
 $("doneBtn").addEventListener("click", () => { if (canDraw) finishDraw(); });
+$("toGuessBtn").addEventListener("click", startGuess);
+$("selfGuessBtn").addEventListener("click", selfReveal);
 $("againBtn").addEventListener("click", startGame);
 $("eraserBtn").addEventListener("click", () => { erasing = !erasing; $("eraserBtn").classList.toggle("on", erasing); });
 $("undoBtn").addEventListener("click", undo);
