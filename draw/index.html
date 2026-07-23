@@ -115,14 +115,17 @@
   .pass-skip { margin-top: 16px; border: none; background: transparent; color: var(--ink-soft); font-family: inherit;
     font-weight: 700; font-size: 13px; cursor: pointer; text-decoration: underline; }
 
-  /* 4지선다 */
-  .options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 14px; }
-  .opt { border: none; cursor: pointer; font-family: inherit; background: var(--ivory); color: var(--ink);
-    font-weight: 800; font-size: 16px; padding: 18px 6px; border-radius: 18px; box-shadow: var(--shadow-sm);
-    transition: transform .1s ease; }
-  .opt:active { transform: scale(.95); }
-  .opt.correct { background: linear-gradient(160deg, var(--beige), #C4AE86); color: #fff; }
-  .opt.wrong { background: linear-gradient(160deg, var(--warmgray), #6F6B67); color: #fff; opacity: .85; }
+  /* 주관식 입력 */
+  .guess-input-row { display: flex; gap: 8px; width: 100%; margin-top: 14px; }
+  #guessInput { flex: 1; min-width: 0; border: none; font-family: inherit; font-size: 16px; font-weight: 700; color: var(--ink);
+    background: var(--ivory); border-radius: 16px; padding: 15px 16px; outline: none;
+    box-shadow: inset 3px 3px 7px rgba(158,138,102,.14), inset -2px -2px 5px rgba(255,255,255,.7); }
+  #guessInput::placeholder { color: var(--ink-soft); opacity: .7; font-weight: 500; }
+  #guessSubmit { flex-shrink: 0; border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 15px; color: #fff;
+    background: linear-gradient(160deg, var(--blush), #E88E97); border-radius: 16px; padding: 15px 22px; box-shadow: var(--shadow-sm); }
+  #guessSubmit:active { transform: scale(.95); }
+  .giveup { margin-top: 12px; border: none; background: transparent; color: var(--ink-soft); font-family: inherit;
+    font-weight: 700; font-size: 13px; cursor: pointer; text-decoration: underline; }
 
   /* 음소거 */
   .mute-btn { position: absolute; top: 14px; right: 14px; z-index: 20; width: 38px; height: 38px; border-radius: 12px; border: none;
@@ -199,9 +202,13 @@
   <!-- 맞히기 (4지선다) -->
   <section class="screen" id="guessScreen">
     <div class="r-sub">이 그림, 뭘 그린 걸까요?</div>
-    <div class="r-q">🤔 정답을 골라보세요</div>
+    <div class="r-q">🤔 정답을 입력하세요</div>
     <div class="result-pic"><img id="guessImg" alt="그림"></div>
-    <div class="options" id="options"></div>
+    <div class="guess-input-row">
+      <input id="guessInput" type="text" inputmode="text" autocomplete="off" placeholder="정답을 적어보세요" maxlength="12" />
+      <button id="guessSubmit">확인</button>
+    </div>
+    <button class="giveup" id="giveUpBtn">모르겠어요 · 정답 보기</button>
   </section>
 
   <!-- 결과 -->
@@ -368,30 +375,20 @@ function finishDraw() {
   show("passScreen");           // 폰 넘기기 → 친구가 맞히기
 }
 
-/* ---------- 맞히기 (패스앤플레이 4지선다) ---------- */
-function makeOptions() {
-  const opts = [currentWord];
-  const pool = WORDS.filter(w => w !== currentWord);
-  while (opts.length < 4) { const w = pool[Math.floor(Math.random() * pool.length)]; if (!opts.includes(w)) opts.push(w); }
-  for (let i = opts.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [opts[i], opts[j]] = [opts[j], opts[i]]; }
-  return opts;
-}
+/* ---------- 맞히기 (패스앤플레이 · 주관식 입력) ---------- */
+const norm = s => (s || "").replace(/\s+/g, "").toLowerCase();
 function startGuess() {
   $("guessImg").src = drawingURL;
-  const box = $("options"); box.innerHTML = "";
-  makeOptions().forEach(w => {
-    const b = document.createElement("button"); b.className = "opt"; b.textContent = w;
-    b.addEventListener("click", () => pickGuess(w, b, box));
-    box.appendChild(b);
-  });
+  const inp = $("guessInput"); inp.value = "";
   show("guessScreen"); $("guessScreen").scrollTop = 0;
+  setTimeout(() => { try { inp.focus(); } catch (e) {} }, 200);
 }
-function pickGuess(w, btn, box) {
-  box.querySelectorAll(".opt").forEach(o => { o.disabled = true; if (o.textContent === currentWord) o.classList.add("correct"); });
-  const correct = w === currentWord;
-  if (!correct) btn.classList.add("wrong");
+function submitGuess() {
+  const g = $("guessInput").value;
+  if (!norm(g)) { $("guessInput").focus(); return; }
+  const correct = norm(g) === norm(currentWord);
   if (correct) sfxDone(); else sfxWrong();
-  setTimeout(() => showResult(correct ? "정답! 🎉" : "아쉽다! 😅", correct), 750);
+  showResult(correct ? "정답! 🎉" : "아쉽다! 😅", correct);
 }
 function selfReveal() { showResult("완성! ✏️", true); }
 function showResult(title, ok) {
@@ -461,6 +458,9 @@ $("startBtn").addEventListener("click", startGame);
 $("doneBtn").addEventListener("click", () => { if (canDraw) finishDraw(); });
 $("toGuessBtn").addEventListener("click", startGuess);
 $("selfGuessBtn").addEventListener("click", selfReveal);
+$("guessSubmit").addEventListener("click", submitGuess);
+$("guessInput").addEventListener("keydown", e => { if (e.key === "Enter") submitGuess(); });
+$("giveUpBtn").addEventListener("click", () => showResult("이거였어요! 👀", false));
 $("againBtn").addEventListener("click", startGame);
 $("eraserBtn").addEventListener("click", () => { erasing = !erasing; $("eraserBtn").classList.toggle("on", erasing); });
 $("undoBtn").addEventListener("click", undo);
