@@ -205,6 +205,7 @@
     display: flex; flex-direction: column; align-items: center; gap: 2px;
     transition: transform .13s ease; border-bottom: 4px solid var(--beige); }
   .mode-card.surv { border-bottom-color: var(--blush); }
+  .mode-card.hell { border-bottom-color: #D9534F; }
   .mode-card:active { transform: scale(.96); }
   .mc-emoji { font-size: 28px; }
   .mc-title { font-size: 17px; font-weight: 800; }
@@ -506,6 +507,14 @@
   #survResultScreen .kr-btn.survcta { margin-top: 9px; padding: 12px 8px; }
   #survResultScreen .link-btn { margin-top: 9px; padding: 12px 10px; font-size: 13px; }
   #survResultScreen .save-hint { margin-top: 8px; }
+
+  /* ===== 정전(시계 블랙아웃) — 극악 모드 방해요소 ===== */
+  .clock-wrap { position: relative; }
+  .clock-wrap.blk::after { content: "⚡ 정전"; position: absolute; inset: 0; z-index: 5;
+    display: flex; align-items: center; justify-content: center; background: #29231e; color: var(--blush);
+    font-family: "Galmuri11", sans-serif; font-size: 19px; border-radius: 8px; letter-spacing: 1px;
+    animation: blkFlick .16s steps(2) infinite; }
+  @keyframes blkFlick { 0%,49% { opacity: 1; } 50%,100% { opacity: .45; } }
 </style>
 </head>
 <body>
@@ -521,16 +530,17 @@
     <div class="mode-cards">
       <button class="mode-card" id="modePractice"><span class="mc-emoji">🎯</span><span class="mc-tx"><span class="mc-title">연습 모드</span><span class="mc-desc">단판 칼퇴 타이밍</span></span></button>
       <button class="mode-card surv" id="modeSurvival"><span class="mc-emoji">📅</span><span class="mc-tx"><span class="mc-title">한 주 생존 모드</span><span class="mc-desc">월~금 5연속 · 방해 요소</span></span></button>
+      <button class="mode-card hell" id="modeHell"><span class="mc-emoji">🔥</span><span class="mc-tx"><span class="mc-title">극악: 지옥의 한 주</span><span class="mc-desc">6배속 · 정전·중첩 방해요소</span></span></button>
     </div>
     <p class="best-note" id="startBest"></p>
   </section>
 
   <!-- 게임 방법 (생존 모드 시작 전) -->
   <section class="screen" id="howtoScreen">
-    <span class="kicker">📅 한 주 생존 챌린지</span>
+    <span class="kicker" id="howtoKicker">📅 한 주 생존 챌린지</span>
     <h2>게임 방법</h2>
     <div class="howto-list">
-      <div class="howto-step"><span class="hs-ic">🎯</span><div><div class="hs-t">18:00:00.00에 맞춰 ‘퇴근’!</div><div class="hs-d">시계는 4배속. 정각에 가까울수록 오차가 적어요.</div></div></div>
+      <div class="howto-step"><span class="hs-ic">🎯</span><div><div class="hs-t">18:00:00.00에 맞춰 ‘퇴근’!</div><div class="hs-d" id="howtoSpeedNote">시계는 4배속. 정각에 가까울수록 오차가 적어요.</div></div></div>
       <div class="howto-step"><span class="hs-ic">🚨</span><div><div class="hs-t">팝업이 뜨면 빠르게!</div><div class="hs-d"><b>✕나 버튼으로 빠르게 닫고, 그 사이에도 흐르는 시계 타이밍 맞추기!</b></div></div></div>
       <div class="howto-step"><span class="hs-ic">💀</span><div><div class="hs-t">야근=게임오버 / 조퇴=페널티</div><div class="hs-d">너무 늦으면 그날로 끝, 너무 일찍이면 +2.0초 벌점.</div></div></div>
       <div class="howto-step"><span class="hs-ic">🏆</span><div><div class="hs-t">월~금 버티고 총합 낮추기</div><div class="hs-d">5일 생존 + 오차 총합 0.5초 이내면 ‘칼퇴의 신’!</div></div></div>
@@ -767,10 +777,14 @@ const WEEK_BEST_KEY = "ccojik-kaltoe-week-best";
 const START_MS = -5000;   // 17:59:55.00 (18:00:00 기준 상대 ms)
 const AUTO_MS = 3000;     // 18:00:03.00 자동 판정
 const BASE_SPEED = 4;     // 기본 4배속
+const HELL_BEST_KEY = "ccojik-kaltoe-hell-best";
+const HELL_NOTES = ["첫날부터 심상치 않다…", "시계가 미쳐 날뛴다", "메신저 폭탄 + 정전", "사수가 계속 어슬렁", "회식·정전·메신저 총공격"];
 let clockMs = START_MS, lastPerf = 0, running = false, rafId = 0, speed = BASE_SPEED;
 let curErr = 0, curGrade = null, isNewBest = false;
 
 let mode = "practice";    // "practice" | "survival"
+let level = "week";       // "week"(한 주 생존) | "hell"(지옥의 한 주)
+let curBaseSpeed = BASE_SPEED;
 let flowToken = 0;        // 지연 전환(타이머) 무효화용
 
 // 한 주 생존 모드
@@ -786,8 +800,10 @@ let weekSuccess = false, weekTotal = 0, weekIsNewBest = false;
 
 function getBest() { const v = parseFloat(localStorage.getItem(BEST_KEY)); return isNaN(v) ? null : v; }
 function setBest(v) { localStorage.setItem(BEST_KEY, String(v)); }
-function getWeekBest() { const v = parseFloat(localStorage.getItem(WEEK_BEST_KEY)); return isNaN(v) ? null : v; }
-function setWeekBest(v) { localStorage.setItem(WEEK_BEST_KEY, String(v)); }
+function curWeekBestKey() { return level === "hell" ? HELL_BEST_KEY : WEEK_BEST_KEY; }
+function getBestByKey(k) { const v = parseFloat(localStorage.getItem(k)); return isNaN(v) ? null : v; }
+function getWeekBest() { return getBestByKey(curWeekBestKey()); }
+function setWeekBest(v) { localStorage.setItem(curWeekBestKey(), String(v)); }
 
 function show(id) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
@@ -842,7 +858,7 @@ function startRound() {
   clearConfetti(); clearObstacles();
   $("phone").classList.remove("shake");
   $("saveHint").textContent = "";
-  speed = BASE_SPEED;
+  speed = curBaseSpeed;
   clockMs = START_MS;
   COUNTDOWN.forEach(c => c.done = false);
   // 심은하 걷기 초기화
@@ -851,7 +867,7 @@ function startRound() {
   pc.classList.remove("frustrated"); void pc.offsetWidth; pc.classList.add("walking");
   const pf = $("powerFlash"); pf.classList.remove("on"); void pf.offsetWidth; pf.classList.add("on");
   renderClock();
-  if (mode === "survival") { setupObstacle(day); $("roundTag").textContent = DAYS[day].name + " · " + (day + 1) + "/5"; }
+  if (mode === "survival") { setupObstacle(day); $("roundTag").textContent = (level === "hell" ? "🔥 " : "") + DAYS[day].name + " · " + (day + 1) + "/5"; }
   else { obstacle = null; $("roundTag").textContent = ""; }
   show("gameScreen");
   running = true;
@@ -870,7 +886,7 @@ function finishRound(err) {
   cancelAnimationFrame(rafId);
   if (obstacle) obstacle.cleanup();
   clearObstacles();
-  speed = BASE_SPEED;
+  speed = curBaseSpeed;
   playerOutcome(gradeFor(err).success);   // 성공→문 밖 / 실패→그 자리 좌절
   setTimeout(() => { if (mode === "practice") practiceResult(err); else survivalRound(err); }, 900);
 }
@@ -885,9 +901,16 @@ function playerOutcome(success) {
   }
 }
 // 모드 시작
-function startPractice() { sfxSelect(); mode = "practice"; flowToken++; startRound(); }
-function showHowto() { sfxSelect(); flowToken++; show("howtoScreen"); }   // 생존 모드 → 게임 방법 먼저
-function beginSurvival() { sfxSelect(); mode = "survival"; flowToken++; day = 0; dayResults = []; showDayIntro(0); }
+function startPractice() { sfxSelect(); mode = "practice"; curBaseSpeed = BASE_SPEED; flowToken++; startRound(); }
+function showHowto() {   // 생존/극악 모드 → 게임 방법 먼저 (레벨별 안내 문구)
+  sfxSelect(); flowToken++;
+  $("howtoKicker").textContent = level === "hell" ? "🔥 지옥의 한 주" : "📅 한 주 생존 챌린지";
+  $("howtoSpeedNote").textContent = level === "hell"
+    ? "시계는 6배속! 게다가 정전·중첩 방해요소가 쏟아져요."
+    : "시계는 4배속. 정각에 가까울수록 오차가 적어요.";
+  show("howtoScreen");
+}
+function beginSurvival() { sfxSelect(); mode = "survival"; curBaseSpeed = level === "hell" ? 6 : BASE_SPEED; flowToken++; day = 0; dayResults = []; showDayIntro(0); }
 
 /* ---------- 연습 모드 판정 ---------- */
 function practiceResult(err) {
@@ -908,7 +931,7 @@ function showDayIntro(d) {
   const tok = flowToken;
   $("dayCount").textContent = "DAY " + (d + 1) + " / 5";
   $("dayName").textContent = DAYS[d].name;
-  $("dayNote").textContent = DAYS[d].note;
+  $("dayNote").textContent = level === "hell" ? HELL_NOTES[d] : DAYS[d].note;
   ["dayName", "dayNote"].forEach(id => { const e = $(id); e.style.animation = "none"; void e.offsetWidth; e.style.animation = ""; });
   sfxDay();
   show("dayScreen");
@@ -938,7 +961,10 @@ function survivalSuccess() {
   renderSurvResult();
   confetti(); sfxWin();
 }
-function weekGradeName(total) { return total <= 0.5 ? "칼퇴의 신" : total <= 1.5 ? "프로 직장인" : "생존 성공"; }
+function weekGradeName(total) {
+  if (level === "hell") return total <= 0.5 ? "지옥에서 살아남은 자" : total <= 1.5 ? "불사조 직장인" : "지옥 탈출 성공";
+  return total <= 0.5 ? "칼퇴의 신" : total <= 1.5 ? "프로 직장인" : "생존 성공";
+}
 
 function showRoundToast(d, err, grade, penalty) {
   const col = grade.success ? "var(--beige-text)" : "var(--warmgray-text)";
@@ -954,13 +980,13 @@ function renderSurvResult() {
   $("srTitle").style.color = col;
   const imgBox = $("srImg"); imgBox.className = "kr-img";
   if (weekSuccess) {
-    $("srTitle").textContent = "주간 생존 성공";
-    $("srSub").textContent = "월요일부터 금요일까지, 무사히 칼퇴!";
+    $("srTitle").textContent = level === "hell" ? "지옥의 한 주 클리어" : "주간 생존 성공";
+    $("srSub").textContent = level === "hell" ? "정전·회식·메신저 다 뚫고 칼퇴!" : "월요일부터 금요일까지, 무사히 칼퇴!";
     $("srBubble").style.display = "none";
     imgBox.innerHTML = charMarkup(GRADES.safe);     // eunha_happy
     void imgBox.offsetWidth; imgBox.classList.add("m-jump"); sparkle("srImg");
   } else {
-    $("srTitle").textContent = DAYS[day].name + "에 야근당했다";
+    $("srTitle").textContent = DAYS[day].name + (level === "hell" ? "에 지옥불 야근" : "에 야근당했다");
     $("srSub").textContent = "버틴 요일: " + day + "일";
     $("srBubble").style.display = ""; $("srBubble").textContent = GRADES.late.speech;
     imgBox.innerHTML = charMarkup(GRADES.late);      // ppaguli_grin
@@ -997,9 +1023,11 @@ function clearObstacles() {
   $("hoesikPopup").classList.remove("show");
   $("walker").classList.remove("show");
   $("speedBadge").classList.remove("show", "flash");
+  $("clockWrap").classList.remove("blk");
 }
 function setupObstacle(d) {
   clearObstacles();
+  if (level === "hell") { obstacle = obsHellForDay(d); return; }
   if (d === 1) obstacle = obsTuesday();
   else if (d === 2) obstacle = obsWednesday();
   else if (d === 3) obstacle = obsThursday();
@@ -1028,7 +1056,7 @@ function obsWednesday() {
   const p = -3000 + Math.random() * 2000;
   let fired = false;
   return {
-    onFrame(ms) { if (!fired && ms >= p) { fired = true; msgPopupOpen = true; $("msgPopup").classList.add("show"); } },
+    onFrame(ms) { if (!fired && ms >= p) { fired = true; $("msgPopup").querySelector(".msg-body").textContent = "김대리: 혹시 아직 계세요...?"; msgPopupOpen = true; $("msgPopup").classList.add("show"); } },
     cleanup() { msgPopupOpen = false; $("msgPopup").classList.remove("show"); },
   };
 }
@@ -1057,13 +1085,64 @@ function obsFriday() {
     cleanup() { $("hoesikPopup").classList.remove("show"); },
   };
 }
+/* ---------- 극악(지옥의 한 주) 방해요소 ---------- */
+function combine(list) {
+  return { onFrame(ms) { list.forEach(o => o.onFrame(ms)); }, cleanup() { list.forEach(o => o.cleanup && o.cleanup()); } };
+}
+// 배속 서지: n회 랜덤 시점에 smin~smax배속으로 급변
+function obsSurge(n, smin, smax) {
+  const pts = []; for (let i = 0; i < n; i++) pts.push(-3900 + Math.random() * 3500);
+  pts.sort((a, b) => a - b); const fired = pts.map(() => false);
+  return { onFrame(ms) { pts.forEach((p, i) => { if (!fired[i] && ms >= p) { fired[i] = true; speed = smin + Math.random() * (smax - smin); flashSpeed(); } }); }, cleanup() {} };
+}
+// 정전: 접근 중 1.6초(게임시간) 동안 시계 블랙아웃. 배속 무관하게 18:00 직전엔 해제되어 마지막 승부는 보임
+function obsBlackout() {
+  const p = -4200 + Math.random() * 1400;   // 시작 시점(게임ms): -4200~-2800
+  const end = p + 1600;                       // 1.6초(게임시간) 뒤 해제 → 최대 -1200ms에 해제
+  let on = false, off = false;
+  return {
+    onFrame(ms) {
+      if (!on && ms >= p) { on = true; $("clockWrap").classList.add("blk"); beep(180, 0.12, "sawtooth", 0.1); }
+      if (on && !off && ms >= end) { off = true; $("clockWrap").classList.remove("blk"); }
+    },
+    cleanup() { $("clockWrap").classList.remove("blk"); },
+  };
+}
+// 메신저 2연타
+function obsMsg2() {
+  const pts = [-3300 + Math.random() * 700, -1700 + Math.random() * 700];
+  const fired = [false, false];
+  const texts = ["김대리: 아직 자리에 계시죠...?", "부장님: 나가기 전에 나 좀 잠깐~"];
+  return {
+    onFrame(ms) { pts.forEach((p, i) => { if (!fired[i] && ms >= p) { fired[i] = true; $("msgPopup").querySelector(".msg-body").textContent = texts[i]; msgPopupOpen = true; $("msgPopup").classList.add("show"); } }); },
+    cleanup() { msgPopupOpen = false; $("msgPopup").classList.remove("show"); },
+  };
+}
+// 사수 2회 가로지르기(시계 가림)
+function obsWalkerHell() {
+  const pts = [-4000 + Math.random() * 300, -2200 + Math.random() * 300];
+  const fired = [false, false];
+  return {
+    onFrame(ms) { pts.forEach((p, i) => { if (!fired[i] && ms >= p) { fired[i] = true; const w = $("walker"); w.classList.remove("show"); void w.offsetWidth; w.classList.add("show"); const im = w.querySelector("img"); if (im) { im.style.animation = "none"; void im.offsetWidth; im.style.animation = ""; } setTimeout(() => w.classList.remove("show"), 2050); } }); },
+    cleanup() { $("walker").classList.remove("show"); },
+  };
+}
+// 요일별 지옥 구성(중첩): 매일 배속서지 + 정전, 요일별 시그니처
+function obsHellForDay(d) {
+  const parts = [obsSurge(Math.min(d + 1, 3), 6, 8), obsBlackout()];
+  if (d === 1 || d === 3) parts.push(obsWalkerHell());
+  if (d === 2 || d === 4) parts.push(obsMsg2());
+  if (d === 4) parts.push(obsFriday());
+  return combine(parts);
+}
+
 function closeMsgPopup() { msgPopupOpen = false; $("msgPopup").classList.remove("show"); }
 function closeHoesik() { $("hoesikPopup").classList.remove("show"); }
 function fridayAccept() {                    // 좋습니다! → 즉시 야근 확정으로 런 종료
   if (!running) return;
   running = false; cancelAnimationFrame(rafId);
   if (obstacle) obstacle.cleanup();
-  clearObstacles(); speed = BASE_SPEED;
+  clearObstacles(); speed = curBaseSpeed;
   playerOutcome(false);
   setTimeout(survivalFail, 850);
 }
@@ -1219,10 +1298,10 @@ async function buildWeekCard() {
   ctx.fillStyle = "#FFFDF8"; roundRect(ctx, 60, 90, W - 120, H - 180, 70); ctx.fill(); ctx.restore();
 
   ctx.fillStyle = "#8B8177"; ctx.font = "600 40px " + FF;
-  ctx.fillText("꼬직 칼퇴 챌린지 · 한 주 생존", cx, 210);
+  ctx.fillText("꼬직 칼퇴 챌린지 · " + (level === "hell" ? "지옥의 한 주" : "한 주 생존"), cx, 210);
 
   ctx.fillStyle = pointText; ctx.font = "800 84px " + FF;
-  ctx.fillText(success ? "주간 생존 성공" : (DAYS[day].name + " 야근 사망"), cx, 336);
+  ctx.fillText(success ? (level === "hell" ? "지옥의 한 주 클리어" : "주간 생존 성공") : (DAYS[day].name + " 야근 사망"), cx, 336);
   if (success) { ctx.fillStyle = "#4A423A"; ctx.font = "800 58px " + FF; ctx.fillText(weekGradeName(weekTotal), cx, 424); }
 
   const img = success ? (loadedImg["eunha_happy"] || loadedImg["eunha"]) : (loadedImg["ppaguli_grin"] || loadedImg["ppaguli"]);
@@ -1296,21 +1375,23 @@ async function saveWeekCard() {
 
 /* ---------- 시작 화면 최고기록 (연습 + 생존) ---------- */
 function refreshStartBest() {
-  const b = getBest(), w = getWeekBest();
+  const b = getBest(), w = getBestByKey(WEEK_BEST_KEY), h = getBestByKey(HELL_BEST_KEY);
   let s = "";
-  if (b !== null) s += "🎯 연습 최고 ±" + b.toFixed(2) + "초";
-  if (w !== null) s += (s ? "   ·   " : "") + "📅 생존 최소 ±" + w.toFixed(2) + "초";
+  if (b !== null) s += "🎯 연습 ±" + b.toFixed(2) + "초";
+  if (w !== null) s += (s ? "  ·  " : "") + "📅 생존 ±" + w.toFixed(2) + "초";
+  if (h !== null) s += (s ? "  ·  " : "") + "🔥 지옥 ±" + h.toFixed(2) + "초";
   $("startBest").textContent = s;
 }
 
 /* ---------- 이벤트 ---------- */
 $("modePractice").addEventListener("click", startPractice);
-$("modeSurvival").addEventListener("click", showHowto);        // 방법 화면 먼저
+$("modeSurvival").addEventListener("click", () => { level = "week"; showHowto(); });   // 방법 화면 먼저
+$("modeHell").addEventListener("click", () => { level = "hell"; showHowto(); });        // 극악 난이도
 $("howtoStartBtn").addEventListener("click", beginSurvival);
 $("howtoBackBtn").addEventListener("click", () => { mode = "practice"; flowToken++; show("startScreen"); refreshStartBest(); });
 $("leaveBtn").addEventListener("click", pressLeave);
 $("againBtn").addEventListener("click", startPractice);        // 연습 한 번 더
-$("toSurvivalBtn").addEventListener("click", showHowto);       // 연습 결과 → 본게임(방법부터)
+$("toSurvivalBtn").addEventListener("click", () => { level = "week"; showHowto(); });   // 연습 결과 → 본게임(방법부터)
 $("saveBtn").addEventListener("click", saveCard);
 $("srSaveBtn").addEventListener("click", saveWeekCard);
 $("srAgainBtn").addEventListener("click", beginSurvival);      // 생존 다시 도전(방법 스킵)
