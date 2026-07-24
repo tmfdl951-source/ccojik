@@ -825,10 +825,11 @@ const GRADES = {
 };
 function gradeFor(err) {                 // err: 부호 있는 오차(초). +면 늦음, -면 이름
   const a = Math.abs(err);
-  if (a <= 0.05) return GRADES.legend;
-  if (a <= 0.15) return GRADES.pro;
-  if (a <= 0.5)  return GRADES.safe;
-  if (a <= 1.5)  return GRADES.eye;
+  const k = (mode === "survival" && level === "hell") ? 1.45 : 1;   // 극악: 방해요소가 많아 판정창을 살짝 넓게(통과 가능하게)
+  if (a <= 0.05 * k) return GRADES.legend;
+  if (a <= 0.15 * k) return GRADES.pro;
+  if (a <= 0.5 * k)  return GRADES.safe;
+  if (a <= 1.5 * k)  return GRADES.eye;
   return err < 0 ? GRADES.early : GRADES.late;
 }
 
