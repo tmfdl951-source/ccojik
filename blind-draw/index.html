@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>눈 감고 그리기 · 괴작 생성기</title>
+<meta property="og:type" content="website" />
+<meta property="og:title" content="눈 감고 그리기 · 괴작 생성기" />
+<meta property="og:description" content="눈 감고 그리면 괴물이 완성된다. 친구·연인에게 시켜보세요 ^^" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&display=swap" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root { --ink: #33323a; --paper: #FFFDF6; --red: #EF5B5B; --blue: #4C86C6; --yel: #FFD24C; --grn: #5FB971; }
+  html, body { height: 100%; font-family: "Gaegu", system-ui, sans-serif; color: var(--ink);
+    background: #F0E6D2; -webkit-user-select: none; user-select: none; }
+  body { display: flex; align-items: center; justify-content: center; min-height: 100dvh; padding: 10px; }
+
+  .phone { position: relative; width: min(430px, 96vw); aspect-ratio: 9/16; max-height: 97dvh;
+    background:
+      linear-gradient(#fff, #fff) padding-box,
+      repeating-linear-gradient(0deg, transparent 0 27px, #d9ecff 27px 28px) padding-box,
+      var(--paper);
+    background-blend-mode: normal; background-color: var(--paper);
+    border: 4px solid var(--ink); border-radius: 22px; overflow: hidden;
+    box-shadow: 7px 9px 0 rgba(51,50,58,.2); }
+  /* 종이 질감 + 왼쪽 스프링 구멍 */
+  .phone::before { content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E") repeat; }
+
+  .screen { position: absolute; inset: 0; z-index: 1; display: none; flex-direction: column; align-items: center;
+    padding: 22px 20px; text-align: center; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .screen::-webkit-scrollbar { display: none; }
+  .screen.active { display: flex; }
+  #startScreen, #promptScreen, #resultScreen { justify-content: safe center; }
+
+  .kicker { font-weight: 700; font-size: 17px; color: #fff; background: var(--ink);
+    padding: 5px 16px; border-radius: 14px 6px 13px 7px / 7px 13px 6px 14px; }
+  h1 { font-size: 46px; font-weight: 700; line-height: 1.15; margin-top: 14px; }
+  h1 .hl { color: var(--red); }
+  .desc { font-size: 19px; font-weight: 700; color: #6a6560; margin-top: 12px; line-height: 1.5; }
+  .doodle { font-size: 76px; margin: 10px 0; animation: bob 2.6s ease-in-out infinite; }
+  @keyframes bob { 0%,100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-10px) rotate(3deg); } }
+
+  .btn { font-family: inherit; font-weight: 700; cursor: pointer; border: 3px solid var(--ink); color: var(--ink);
+    border-radius: 20px 9px 18px 10px / 10px 18px 9px 20px; box-shadow: 3px 4px 0 rgba(51,50,58,.25);
+    transition: transform .07s ease, box-shadow .07s ease; background: #fff; }
+  .btn:active { transform: translate(3px,4px); box-shadow: 0 0 0 rgba(51,50,58,.25); }
+  .btn.big { font-size: 26px; padding: 15px 34px; }
+  .btn.red { background: var(--red); color: #fff; } .btn.blue { background: var(--blue); color: #fff; }
+  .btn.yel { background: var(--yel); } .btn.grn { background: var(--grn); color: #fff; }
+  .note { font-size: 15px; font-weight: 700; color: #8a857f; margin-top: 16px; line-height: 1.5; }
+  #startScreen .btn.big { margin-top: 22px; }
+
+  /* 제시어 화면 */
+  .p-label { font-size: 18px; font-weight: 700; color: #8a857f; }
+  .p-word { font-size: 72px; font-weight: 700; color: var(--blue); margin: 6px 0 4px;
+    animation: pop .4s cubic-bezier(.3,.8,.4,1) both; }
+  @keyframes pop { 0% { transform: scale(.6); opacity: 0; } 60% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); } }
+  .p-guide { font-size: 21px; font-weight: 700; margin-top: 14px; line-height: 1.5; }
+  .p-guide b { color: var(--red); }
+  #promptScreen .btn.big { margin-top: 26px; }
+
+  /* 그리기 화면 */
+  #drawScreen { padding: 12px; justify-content: flex-start; }
+  .draw-top { font-size: 17px; font-weight: 700; color: #6a6560; margin-bottom: 8px; }
+  .draw-top b { color: var(--blue); font-size: 20px; }
+  .draw-area { position: relative; width: 100%; flex: 1; border: 3px dashed #c9c2b4; border-radius: 12px; overflow: hidden; background: var(--paper); }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+  .blindfold { position: absolute; inset: 0; z-index: 3; pointer-events: none;
+    background: radial-gradient(circle at 50% 40%, #3a3a4d, #26262f);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #fff; }
+  .blindfold .bf-eye { font-size: 62px; animation: bfbob 1.6s ease-in-out infinite; }
+  @keyframes bfbob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  .blindfold .bf-t { font-size: 24px; font-weight: 700; }
+  .blindfold .bf-w { font-size: 19px; font-weight: 700; color: var(--yel); }
+  .blindfold .bf-hint { font-size: 15px; font-weight: 700; color: #c9c6d6; margin-top: 4px; }
+  .draw-actions { display: flex; gap: 10px; width: 100%; margin-top: 10px; }
+  .draw-actions .btn { flex: 1; font-size: 20px; padding: 13px 8px; }
+
+  /* 결과 화면 */
+  .r-verdict { font-size: 30px; font-weight: 700; color: var(--red); line-height: 1.25; margin-bottom: 6px; }
+  .r-frame { width: 78%; max-width: 300px; aspect-ratio: 1/1; border: 4px solid var(--ink); border-radius: 8px;
+    background: var(--paper); box-shadow: 4px 5px 0 rgba(51,50,58,.2); overflow: hidden; margin: 4px auto;
+    animation: reveal .6s cubic-bezier(.3,.8,.4,1) both; }
+  @keyframes reveal { 0% { transform: scale(.3) rotate(-12deg); opacity: 0; } 60% { transform: scale(1.06) rotate(3deg); opacity: 1; } 100% { transform: scale(1) rotate(0); } }
+  .r-frame img { width: 100%; height: 100%; display: block; }
+  .r-was { font-size: 17px; font-weight: 700; color: #8a857f; margin-top: 8px; }
+  .r-was b { color: var(--blue); }
+  .r-grade { font-size: 26px; font-weight: 700; margin-top: 4px; }
+  .r-bar { width: 80%; max-width: 300px; height: 20px; border: 3px solid var(--ink); border-radius: 999px; background: #fff; margin: 8px auto 2px; overflow: hidden; }
+  .r-bar i { display: block; height: 100%; background: var(--grn); width: 0; transition: width .8s cubic-bezier(.3,.8,.4,1); }
+  .r-pct { font-size: 16px; font-weight: 700; color: #6a6560; }
+  .r-comments { width: 100%; margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .r-cm { background: #fff; border: 3px solid var(--ink); border-radius: 16px 7px 14px 8px / 8px 14px 7px 16px;
+    box-shadow: 3px 3px 0 rgba(51,50,58,.16); font-size: 18px; font-weight: 700; padding: 10px 14px; line-height: 1.4; }
+  .r-actions { display: flex; gap: 10px; width: 100%; margin-top: 16px; }
+  .r-actions .btn { flex: 1; font-size: 19px; padding: 13px 8px; }
+  #resultScreen .btn.share { width: 100%; margin-top: 10px; font-size: 18px; padding: 13px 10px; }
+  .save-hint { font-size: 14px; font-weight: 700; color: #8a857f; margin-top: 10px; min-height: 18px; }
+
+  /* 음소거 */
+  .mute-btn { position: absolute; top: 12px; right: 12px; z-index: 20; width: 40px; height: 40px;
+    border: 3px solid var(--ink); border-radius: 12px 7px 11px 8px / 8px 11px 7px 12px; background: #fff;
+    box-shadow: 2px 3px 0 rgba(51,50,58,.2); cursor: pointer; font-size: 18px; }
+
+  .toast { position: absolute; left: 50%; bottom: 24px; transform: translate(-50%, 20px); z-index: 25;
+    background: var(--ink); color: #fff; font-weight: 700; font-size: 16px; padding: 11px 22px; border-radius: 999px;
+    opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  .save-modal { position: absolute; inset: 0; z-index: 30; background: rgba(38,38,47,.62); backdrop-filter: blur(3px);
+    display: none; align-items: center; justify-content: center; padding: 22px; }
+  .save-modal.show { display: flex; }
+  .save-modal-inner { background: #fff; border: 3px solid var(--ink); border-radius: 20px; padding: 18px 16px; box-shadow: 5px 6px 0 rgba(51,50,58,.25);
+    max-width: 100%; max-height: 100%; overflow-y: auto; text-align: center; display: flex; flex-direction: column; align-items: center; }
+  .sm-title { font-size: 18px; font-weight: 700; } .sm-sub { font-size: 14px; font-weight: 700; color: #8a857f; line-height: 1.5; margin: 4px 0 10px; }
+  #saveModalImg { width: 100%; max-width: 250px; border: 3px solid var(--ink); border-radius: 10px; }
+  .sm-close { margin-top: 14px; }
+
+  /* 종이 반짝 파티클 */
+  .spark { position: absolute; font-size: 22px; pointer-events: none; z-index: 4; animation: sparkPop 1s ease-out forwards; }
+  @keyframes sparkPop { 0% { transform: scale(0) rotate(0); opacity: 0; } 30% { transform: scale(1.2) rotate(18deg); opacity: 1; } 100% { transform: scale(.5) rotate(40deg); opacity: 0; } }
+</style>
+</head>
+<body>
+<div class="phone" id="phone">
+  <button class="mute-btn" id="muteBtn">🔊</button>
+
+  <!-- 시작 -->
+  <section class="screen active" id="startScreen">
+    <span class="kicker">눈 감고 그리기</span>
+    <h1>눈 감고<br><span class="hl">괴작</span> 그리기</h1>
+    <div class="doodle">🙈✏️</div>
+    <p class="desc">제시어 확인 → 눈 감고 그리기 →<br>눈 뜨면 괴물이 완성돼 있음 ㅋㅋ</p>
+    <button class="btn big red" id="startBtn">시작하기 →</button>
+    <p class="note">친구·연인에게 "너도 해봐" 하고<br>같은 제시어로 그려보게 하면 꿀잼 ^^</p>
+  </section>
+
+  <!-- 제시어 -->
+  <section class="screen" id="promptScreen">
+    <div class="p-label">오늘의 제시어</div>
+    <div class="p-word" id="promptWord">고양이</div>
+    <div class="p-guide">잘 기억했나요?<br><b>이제 눈을 감으세요 🙈</b></div>
+    <button class="btn big blue" id="beginDrawBtn">눈 감고 그리기 시작</button>
+    <p class="note">그리는 동안 화면은 캄캄해져요.<br>정말 눈 감고 그려도 되고요 ^^</p>
+  </section>
+
+  <!-- 그리기 -->
+  <section class="screen" id="drawScreen">
+    <div class="draw-top">제시어: <b id="drawWord">고양이</b> · 눈 감고 그리는 중…</div>
+    <div class="draw-area" id="drawArea">
+      <canvas id="canvas"></canvas>
+      <div class="blindfold" id="blindfold">
+        <div class="bf-eye">🙈</div>
+        <div class="bf-t">눈 감고 그리는 중…</div>
+        <div class="bf-w" id="bfWord">고양이</div>
+        <div class="bf-hint">화면을 손으로 슥슥 그리세요</div>
+      </div>
+    </div>
+    <div class="draw-actions">
+      <button class="btn yel" id="clearBtn">싹 지우기</button>
+      <button class="btn grn" id="revealBtn">👁 눈 뜨기!</button>
+    </div>
+  </section>
+
+  <!-- 결과 -->
+  <section class="screen" id="resultScreen">
+    <span class="kicker">🎉 결과 공개</span>
+    <div class="r-verdict" id="rVerdict">이건… 고양이인가요?</div>
+    <div class="r-frame"><img id="rImg" alt="내 그림" /></div>
+    <div class="r-was">제시어는 <b id="rWas">고양이</b> 였습니다</div>
+    <div class="r-grade" id="rGrade"></div>
+    <div class="r-bar"><i id="rBarFill"></i></div>
+    <div class="r-pct" id="rPct"></div>
+    <div class="r-comments" id="rComments"></div>
+    <div class="r-actions">
+      <button class="btn yel" id="saveBtn">그림 저장</button>
+      <button class="btn red" id="againBtn">다른 제시어로 또!</button>
+    </div>
+    <button class="btn blue share" id="shareBtn">친구에게 시키기 (링크 공유)</button>
+    <p class="save-hint" id="saveHint"></p>
+  </section>
+
+  <div class="toast" id="toast"></div>
+  <div class="save-modal" id="saveModal">
+    <div class="save-modal-inner">
+      <p class="sm-title">👆 이미지를 꾹 눌러 저장하세요</p>
+      <p class="sm-sub">아이폰은 아래 이미지를 길게 눌러<br>'사진에 저장'을 선택하세요</p>
+      <img id="saveModalImg" alt="결과 그림" />
+      <button class="btn sm-close" id="saveModalClose">닫기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ---------- 사운드 ---------- */
+const MUTE_KEY = "ccojik-blind-muted";
+let audioCtx = null, muted = localStorage.getItem(MUTE_KEY) === "1";
+function ac() { if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } } if (audioCtx.state === "suspended") audioCtx.resume(); return audioCtx; }
+function beep(f, d, t, v, w) { if (muted) return; const c = ac(); if (!c) return; const t0 = c.currentTime + (w || 0); const o = c.createOscillator(), g = c.createGain(); o.type = t || "square"; o.frequency.setValueAtTime(f, t0); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(v || 0.12, t0 + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d); o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + d + 0.02); }
+function sfxBlip() { beep(760, 0.06, "square", 0.11); }
+function sfxStart() { beep(500, 0.05, "square", 0.1); beep(720, 0.07, "square", 0.1, 0.05); }
+function sfxReveal() { [523, 659, 784, 1047, 1319].forEach((f, i) => beep(f, 0.12, "square", 0.13, i * 0.08)); }
+function toggleMute() { muted = !muted; localStorage.setItem(MUTE_KEY, muted ? "1" : "0"); $("muteBtn").textContent = muted ? "🔇" : "🔊"; if (!muted) sfxBlip(); }
+
+/* ---------- 데이터 ---------- */
+const PROMPTS = ["고양이", "강아지", "집", "자전거", "나무", "사람 얼굴", "자동차", "물고기", "꽃", "코끼리", "문어", "로봇", "우산", "기린", "오리", "선인장", "달팽이"];
+const WRONG = ["감자", "외계인", "지렁이", "걸레", "곰팡이", "젤리", "낙서", "괴생명체", "해파리", "구름", "도깨비", "무언가"];
+const FLAVOR = ["사실 저도 뭘 그렸는지 모르겠어요", "이게 바로 추상 예술이죠", "눈 뜨고 그려도 비슷할 것 같은데요?", "전시회 한번 여시죠", "가족들한테도 꼭 보여주세요 ㅋㅋ", "이 그림, 액자각인데요", "AI도 이건 못 알아봐요"];
+function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+
+/* ---------- 상태 ---------- */
+let promptWord = "", roundActive = false;
+let canvas, ctx, W = 0, H = 0, dpr = 1;
+let drawing = false, last = null, wasOut = false;
+let strokes = 0, offCount = 0, totalLen = 0, points = 0;
+let box = null, startT = 0;
+
+function show(id) { document.querySelectorAll(".screen").forEach(s => s.classList.remove("active")); $(id).classList.add("active"); }
+function toast(m) { const t = $("toast"); t.textContent = m; t.classList.add("show"); clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove("show"), 1600); }
+
+/* ---------- 라운드 시작 ---------- */
+function newPrompt() {
+  promptWord = pick(PROMPTS);
+  $("promptWord").textContent = promptWord;
+  $("drawWord").textContent = promptWord;
+  $("bfWord").textContent = promptWord;
+  show("promptScreen");
+}
+function beginDraw() {
+  sfxStart();
+  show("drawScreen");
+  requestAnimationFrame(() => { initCanvas(); resetMetrics(); $("blindfold").style.display = "flex"; roundActive = true; });
+}
+function resetMetrics() { strokes = 0; offCount = 0; totalLen = 0; points = 0; box = null; startT = performance.now(); }
+
+/* ---------- 캔버스 ---------- */
+function initCanvas() {
+  canvas = $("canvas");
+  const r = $("drawArea").getBoundingClientRect();
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = Math.round(r.width); H = Math.round(r.height);
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.lineJoin = "round"; ctx.lineCap = "round"; ctx.lineWidth = 4.5; ctx.strokeStyle = "#33323a";
+  clearCanvas();
+}
+function clearCanvas() { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = "#FFFDF6"; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore(); }
+function clampP(p) { return { x: Math.max(0, Math.min(W, p.x)), y: Math.max(0, Math.min(H, p.y)) }; }
+function posOf(e) { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+function drawSeg(a, b) { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+function track(c) { points++; if (last) totalLen += Math.hypot(c.x - last.x, c.y - last.y); if (!box) box = { x0: c.x, y0: c.y, x1: c.x, y1: c.y }; else { box.x0 = Math.min(box.x0, c.x); box.y0 = Math.min(box.y0, c.y); box.x1 = Math.max(box.x1, c.x); box.y1 = Math.max(box.y1, c.y); } }
+
+function onDown(e) {
+  if (!roundActive) return;
+  drawing = true; strokes++; wasOut = false;
+  last = clampP(posOf(e)); track(last);
+  e.preventDefault();
+}
+function onMove(e) {
+  if (!drawing) return;
+  const p = posOf(e);
+  const out = (p.x < 0 || p.y < 0 || p.x > W || p.y > H);
+  if (out && !wasOut) { offCount++; wasOut = true; if (!muted) beep(240, 0.05, "sawtooth", 0.08); }
+  if (!out) wasOut = false;
+  const c = clampP(p);
+  drawSeg(last, c); last = c; track(c);
+}
+function onUp() { drawing = false; last = null; }
+
+/* ---------- 눈 뜨기 → 판정 ---------- */
+function reveal() {
+  if (!roundActive) return;
+  roundActive = false; drawing = false;
+  const snap = canvas.toDataURL("image/png");
+  $("rImg").src = snap;
+  $("rWas").textContent = promptWord;
+  const m = { strokes, offCount, totalLen, points, time: performance.now() - startT,
+    coverage: box ? ((box.x1 - box.x0) * (box.y1 - box.y0)) / (W * H) : 0 };
+  const res = judge(m);
+  $("rVerdict").textContent = res.verdict;
+  $("rGrade").textContent = res.grade;
+  $("rPct").textContent = "닮음도 " + res.pct + "%";
+  const fill = $("rBarFill");
+  fill.style.width = "0%"; fill.style.background = res.pct >= 60 ? "var(--grn)" : res.pct >= 35 ? "var(--yel)" : "var(--red)";
+  $("rComments").innerHTML = res.comments.map(c => `<div class="r-cm">${c}</div>`).join("");
+  $("saveHint").textContent = "";
+  show("resultScreen");
+  $("resultScreen").scrollTop = 0;
+  sfxReveal(); sparkle();
+  requestAnimationFrame(() => setTimeout(() => { fill.style.width = res.pct + "%"; }, 200));
+}
+
+function judge(m) {
+  let pct = 34 + Math.random() * 55;                 // 기본 34~89
+  if (m.offCount >= 3) pct -= 16;
+  if (m.offCount >= 6) pct -= 10;
+  if (m.strokes <= 2) pct -= 10;
+  if (m.coverage < 0.04) pct -= 14;
+  if (m.coverage > 0.7) pct -= 8;
+  if (m.points < 20) pct -= 12;                      // 거의 안 그림
+  pct = Math.max(6, Math.min(97, Math.round(pct)));
+
+  const verdict = pct >= 85
+    ? `오… 진짜 ${promptWord} 같은데요?!`
+    : `이건… ${promptWord}인가요 ${pick(WRONG)}인가요?`;
+
+  const grade = pct >= 85 ? "🏆 천재 화가 등장"
+    : pct >= 65 ? "👀 알아볼 순 있어요"
+    : pct >= 45 ? "🎨 추상화의 대가"
+    : pct >= 25 ? "🤔 음… 이게 뭐죠?"
+    : "👾 미스터리 생명체 탄생";
+
+  // 조건 기반 멘트 후보에서 최대 2개 + 랜덤 멘트 1개
+  const cond = [];
+  if (m.offCount >= 3) cond.push(`✏️ 선이 화면 밖으로 <b style="color:var(--red)">${m.offCount}번</b> 탈출했어요`);
+  else if (m.offCount >= 1) cond.push(`✏️ 화면 밖으로 ${m.offCount}번 삐져나갔네요`);
+  if (m.strokes <= 2) cond.push(`🖊 단 ${m.strokes}획으로 끝낸 미니멀리스트`);
+  else if (m.strokes >= 16) cond.push(`🖊 붓질 ${m.strokes}번… 정성은 인정합니다`);
+  if (m.coverage < 0.04) cond.push("🐭 너무 소심해요, 화면이 텅 비었어요");
+  else if (m.coverage > 0.7) cond.push("🦖 화면을 꽉 채운 대작(?)");
+  if (m.time < 3000) cond.push("⚡ 3초컷 스피드런");
+  else if (m.time > 20000) cond.push("🐢 20초 넘게 고심한 역작");
+  if (m.points < 20) cond.push("🤨 이게… 다예요? 뭔가 더 있어야 할 것 같은데");
+
+  const shuffled = cond.sort(() => Math.random() - 0.5).slice(0, 2);
+  shuffled.push(pick(FLAVOR));
+  return { pct, verdict, grade, comments: shuffled };
+}
+
+function sparkle() {
+  const box = $("resultScreen");
+  for (let i = 0; i < 12; i++) {
+    const s = document.createElement("span");
+    s.className = "spark"; s.textContent = pick(["✨", "⭐", "💫"]);
+    s.style.left = (10 + Math.random() * 80) + "%";
+    s.style.top = (12 + Math.random() * 45) + "%";
+    s.style.animationDelay = (Math.random() * 0.4) + "s";
+    box.appendChild(s);
+    setTimeout(() => s.remove(), 1200);
+  }
+}
+
+/* ---------- 결과 카드 저장 (1080x1350) ---------- */
+function wrapText(c, text, x, y, maxW, lh) {
+  const words = [...text]; let line = "", yy = y;
+  for (let i = 0; i < words.length; i++) { const t = line + words[i]; if (c.measureText(t).width > maxW && line) { c.fillText(line, x, yy); yy += lh; line = words[i]; } else line = t; }
+  if (line) { c.fillText(line, x, yy); yy += lh; } return yy;
+}
+async function buildCard() {
+  const W2 = 1080, H2 = 1350, cx = W2 / 2;
+  const cv = document.createElement("canvas"); cv.width = W2; cv.height = H2;
+  const c = cv.getContext("2d");
+  try { await document.fonts.ready; } catch (e) {}
+  const FF = '"Gaegu", sans-serif';
+  c.fillStyle = "#FFFDF6"; c.fillRect(0, 0, W2, H2);
+  c.strokeStyle = "#33323a"; c.lineWidth = 10; c.strokeRect(24, 24, W2 - 48, H2 - 48);
+  c.textAlign = "center"; c.fillStyle = "#33323a";
+  c.font = "700 60px " + FF; c.fillText("눈 감고 그리기", cx, 120);
+  c.fillStyle = "#8a857f"; c.font = "700 40px " + FF; c.fillText("제시어 : " + promptWord, cx, 186);
+  // 그림
+  const img = $("rImg");
+  const s = 620, ix = cx - s / 2, iy = 230;
+  c.fillStyle = "#fff"; c.fillRect(ix, iy, s, s);
+  try { c.drawImage(img, ix, iy, s, s); } catch (e) {}
+  c.strokeStyle = "#33323a"; c.lineWidth = 8; c.strokeRect(ix, iy, s, s);
+  // 판정
+  c.fillStyle = "#EF5B5B"; c.font = "700 54px " + FF;
+  wrapText(c, $("rVerdict").textContent, cx, 940, 900, 66);
+  c.fillStyle = "#33323a"; c.font = "700 46px " + FF; c.fillText($("rGrade").textContent, cx, 1050);
+  c.fillStyle = "#5FB971"; c.font = "700 44px " + FF; c.fillText($("rPct").textContent, cx, 1112);
+  // 워터마크
+  c.fillStyle = "#4C86C6"; c.font = "700 46px " + FF; c.fillText("@ccojik.dh", cx, 1240);
+  c.fillStyle = "#8a857f"; c.font = "700 34px " + FF; c.fillText("너도 눈 감고 그려봐 ^^", cx, 1292);
+  return cv;
+}
+
+/* ---------- 저장/공유 ---------- */
+const isIOS = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+function supportsDownload() { return !isIOS && typeof document.createElement("a").download !== "undefined"; }
+let saveURL = null;
+function openSaveModal(u) { if (saveURL) URL.revokeObjectURL(saveURL); saveURL = u; $("saveModalImg").src = u; $("saveModal").classList.add("show"); }
+function closeSaveModal() { $("saveModal").classList.remove("show"); $("saveModalImg").removeAttribute("src"); if (saveURL) { URL.revokeObjectURL(saveURL); saveURL = null; } }
+async function saveCard() {
+  try {
+    const cv = await buildCard();
+    cv.toBlob(blob => {
+      if (!blob) { $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요 🙏"; return; }
+      const u = URL.createObjectURL(blob);
+      if (!supportsDownload()) { openSaveModal(u); $("saveHint").textContent = ""; return; }
+      const a = document.createElement("a"); a.href = u; a.download = "눈감고그리기_" + promptWord + ".png";
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 1000);
+      $("saveHint").textContent = "저장 완료! 📸";
+    }, "image/png");
+  } catch (e) { $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요 🙏"; }
+}
+async function shareLink() {
+  const url = location.href.split("?")[0].split("#")[0];
+  const text = "나 눈 감고 '" + promptWord + "' 그렸는데 괴물 나옴 ㅋㅋ 너도 해봐";
+  if (navigator.share) { try { await navigator.share({ title: "눈 감고 그리기", text, url }); } catch (e) {} return; }
+  const full = text + " " + url;
+  if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(full).then(() => toast("링크 복사됨! 친구한테 붙여넣기 ^^"), () => toast("복사 실패 — 주소창을 길게 눌러 복사하세요")); }
+  else toast("주소창 링크를 복사해 보내주세요");
+}
+
+/* ---------- 이벤트 ---------- */
+$("startBtn").addEventListener("click", () => { sfxBlip(); newPrompt(); });
+$("beginDrawBtn").addEventListener("click", beginDraw);
+$("clearBtn").addEventListener("click", () => { if (ctx) { clearCanvas(); resetMetrics(); sfxBlip(); } });
+$("revealBtn").addEventListener("click", reveal);
+$("againBtn").addEventListener("click", () => { sfxBlip(); newPrompt(); });
+$("saveBtn").addEventListener("click", saveCard);
+$("shareBtn").addEventListener("click", shareLink);
+$("saveModalClose").addEventListener("click", closeSaveModal);
+$("saveModal").addEventListener("click", e => { if (e.target === $("saveModal")) closeSaveModal(); });
+$("muteBtn").addEventListener("click", toggleMute);
+
+// 그리기 포인터 (캔버스에서 시작, 문서에서 이동/종료 → 화면 밖 이탈 감지)
+document.addEventListener("DOMContentLoaded", () => {});
+$("canvas").addEventListener("pointerdown", onDown);
+window.addEventListener("pointermove", onMove);
+window.addEventListener("pointerup", onUp);
+window.addEventListener("pointercancel", onUp);
+
+$("muteBtn").textContent = muted ? "🔇" : "🔊";
+</script>
+</body>
+</html>
