@@ -7,13 +7,17 @@
 <meta property="og:type" content="website" />
 <meta property="og:title" content="눈 감고 그리기 · 괴작 생성기" />
 <meta property="og:description" content="눈 감고 그리면 괴물이 완성된다. 친구·연인에게 시켜보세요 ^^" />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&display=swap" />
+<link rel="stylesheet" as="style" crossorigin
+  href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   :root { --ink: #33323a; --paper: #FFFDF6; --red: #EF5B5B; --blue: #4C86C6; --yel: #FFD24C; --grn: #5FB971; }
-  html, body { height: 100%; font-family: "Gaegu", system-ui, sans-serif; color: var(--ink);
-    background: #F0E6D2; -webkit-user-select: none; user-select: none; }
-  body { display: flex; align-items: center; justify-content: center; min-height: 100dvh; padding: 10px; }
+  html, body { height: 100%; font-family: "Pretendard Variable", Pretendard, -apple-system, system-ui, sans-serif; color: var(--ink);
+    -webkit-user-select: none; user-select: none; }
+  body { display: flex; align-items: center; justify-content: center; min-height: 100dvh; padding: 10px;
+    background-color: #EFE6D4;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='224' height='224'%3E%3Cg fill='none' stroke='%23786d5a' stroke-opacity='0.14' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M22 44 q14 -20 28 0 t28 0'/%3E%3Cpath d='M156 34 l0 26 M143 47 l26 0'/%3E%3Ccircle cx='58' cy='158' r='11'/%3E%3Cpath d='M120 150 q22 -26 44 0'/%3E%3Cpath d='M168 176 l9 -24 9 24'/%3E%3Cpath d='M30 96 q18 14 36 0'/%3E%3C/g%3E%3Cg fill='%23786d5a' fill-opacity='0.12'%3E%3Ccircle cx='30' cy='120' r='4'/%3E%3Ccircle cx='196' cy='100' r='4'/%3E%3Ccircle cx='96' cy='206' r='4'/%3E%3Ccircle cx='120' cy='60' r='4'/%3E%3C/g%3E%3Cg fill-opacity='0.18'%3E%3Ccircle cx='176' cy='140' r='5' fill='%23EF5B5B'/%3E%3Ccircle cx='72' cy='40' r='5' fill='%234C86C6'/%3E%3Ccircle cx='210' cy='196' r='5' fill='%23FFD24C'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: 224px 224px; }
 
   .phone { position: relative; width: min(430px, 96vw); aspect-ratio: 9/16; max-height: 97dvh;
     background:
@@ -35,7 +39,7 @@
 
   .kicker { font-weight: 700; font-size: 17px; color: #fff; background: var(--ink);
     padding: 5px 16px; border-radius: 14px 6px 13px 7px / 7px 13px 6px 14px; }
-  h1 { font-size: 46px; font-weight: 700; line-height: 1.15; margin-top: 14px; }
+  h1 { font-size: 40px; font-weight: 800; letter-spacing: -.6px; line-height: 1.2; margin-top: 14px; }
   h1 .hl { color: var(--red); }
   .desc { font-size: 19px; font-weight: 700; color: #6a6560; margin-top: 12px; line-height: 1.5; }
   .doodle { font-size: 76px; margin: 10px 0; animation: bob 2.6s ease-in-out infinite; }
@@ -53,7 +57,7 @@
 
   /* 제시어 화면 */
   .p-label { font-size: 18px; font-weight: 700; color: #8a857f; }
-  .p-word { font-size: 72px; font-weight: 700; color: var(--blue); margin: 6px 0 4px;
+  .p-word { font-size: 60px; font-weight: 800; letter-spacing: -.6px; color: var(--blue); margin: 6px 0 4px;
     animation: pop .4s cubic-bezier(.3,.8,.4,1) both; }
   @keyframes pop { 0% { transform: scale(.6); opacity: 0; } 60% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); } }
   .p-guide { font-size: 21px; font-weight: 700; margin-top: 14px; line-height: 1.5; }
@@ -356,7 +360,7 @@ async function buildCard() {
   const cv = document.createElement("canvas"); cv.width = W2; cv.height = H2;
   const c = cv.getContext("2d");
   try { await document.fonts.ready; } catch (e) {}
-  const FF = '"Gaegu", sans-serif';
+  const FF = '"Pretendard Variable", Pretendard, sans-serif';
   c.fillStyle = "#FFFDF6"; c.fillRect(0, 0, W2, H2);
   c.strokeStyle = "#33323a"; c.lineWidth = 10; c.strokeRect(24, 24, W2 - 48, H2 - 48);
   c.textAlign = "center"; c.fillStyle = "#33323a";
