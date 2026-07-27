@@ -3,197 +3,291 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<title>눈 감고 그리기 · 괴작 생성기</title>
+<title>무제 - 그림판</title>
 <meta property="og:type" content="website" />
-<meta property="og:title" content="눈 감고 그리기 · 괴작 생성기" />
+<meta property="og:title" content="눈 감고 그리기 · 그림판 괴작 생성기" />
 <meta property="og:description" content="눈 감고 그리면 괴물이 완성된다. 친구·연인에게 시켜보세요 ^^" />
 <link rel="stylesheet" as="style" crossorigin
   href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  :root { --ink: #33323a; --paper: #FFFDF6; --red: #EF5B5B; --blue: #4C86C6; --yel: #FFD24C; --grn: #5FB971; }
-  html, body { height: 100%; font-family: "Pretendard Variable", Pretendard, -apple-system, system-ui, sans-serif; color: var(--ink);
-    -webkit-user-select: none; user-select: none; }
-  body { display: flex; align-items: center; justify-content: center; min-height: 100dvh; padding: 10px;
-    background-color: #EFE6D4;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='224' height='224'%3E%3Cg fill='none' stroke='%23786d5a' stroke-opacity='0.14' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M22 44 q14 -20 28 0 t28 0'/%3E%3Cpath d='M156 34 l0 26 M143 47 l26 0'/%3E%3Ccircle cx='58' cy='158' r='11'/%3E%3Cpath d='M120 150 q22 -26 44 0'/%3E%3Cpath d='M168 176 l9 -24 9 24'/%3E%3Cpath d='M30 96 q18 14 36 0'/%3E%3C/g%3E%3Cg fill='%23786d5a' fill-opacity='0.12'%3E%3Ccircle cx='30' cy='120' r='4'/%3E%3Ccircle cx='196' cy='100' r='4'/%3E%3Ccircle cx='96' cy='206' r='4'/%3E%3Ccircle cx='120' cy='60' r='4'/%3E%3C/g%3E%3Cg fill-opacity='0.18'%3E%3Ccircle cx='176' cy='140' r='5' fill='%23EF5B5B'/%3E%3Ccircle cx='72' cy='40' r='5' fill='%234C86C6'/%3E%3Ccircle cx='210' cy='196' r='5' fill='%23FFD24C'/%3E%3C/g%3E%3C/svg%3E");
-    background-size: 224px 224px; }
+  :root { --face: #c0c0c0; --ink: #000; --navy1: #000082; --navy2: #1084d0; }
+  html, body { height: 100%; -webkit-user-select: none; user-select: none;
+    font-family: Tahoma, Verdana, "Pretendard Variable", Pretendard, sans-serif; color: var(--ink); }
+  body { min-height: 100dvh; padding: 8px 8px 44px; display: flex; align-items: center; justify-content: center;
+    background: #008080; }
 
-  .phone { position: relative; width: min(430px, 96vw); aspect-ratio: 9/16; max-height: 97dvh;
-    background:
-      linear-gradient(#fff, #fff) padding-box,
-      repeating-linear-gradient(0deg, transparent 0 27px, #d9ecff 27px 28px) padding-box,
-      var(--paper);
-    background-blend-mode: normal; background-color: var(--paper);
-    border: 4px solid var(--ink); border-radius: 22px; overflow: hidden;
-    box-shadow: 7px 9px 0 rgba(51,50,58,.2); }
-  /* 종이 질감 + 왼쪽 스프링 구멍 */
-  .phone::before { content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
-    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E") repeat; }
+  /* 3D 베벨 */
+  .raised { box-shadow: inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf; }
+  .sunken { box-shadow: inset -1px -1px 0 #fff, inset 1px 1px 0 #808080, inset -2px -2px 0 #dfdfdf, inset 2px 2px 0 #000; }
 
-  .screen { position: absolute; inset: 0; z-index: 1; display: none; flex-direction: column; align-items: center;
-    padding: 22px 20px; text-align: center; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  /* ===== 그림판 창 ===== */
+  .win { width: min(440px, 96vw); height: min(calc(100dvh - 56px), 800px); display: flex; flex-direction: column;
+    background: var(--face); border: 1px solid #000; box-shadow: inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf, 3px 3px 8px rgba(0,0,0,.4); padding: 3px; }
+  .titlebar { height: 22px; flex-shrink: 0; display: flex; align-items: center; gap: 5px; padding: 0 3px;
+    background: linear-gradient(90deg, var(--navy1), var(--navy2)); color: #fff; }
+  .titlebar .tb-ico { font-size: 13px; }
+  .titlebar .tb-name { font-size: 12px; font-weight: 700; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .tb-btns { display: flex; gap: 2px; }
+  .tb-btn { width: 17px; height: 15px; background: var(--face); border: none; cursor: pointer; font-size: 9px; line-height: 1;
+    display: flex; align-items: center; justify-content: center; color: #000;
+    box-shadow: inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf; }
+  .tb-btn:active { box-shadow: inset -1px -1px 0 #fff, inset 1px 1px 0 #000, inset -2px -2px 0 #dfdfdf, inset 2px 2px 0 #808080; }
+
+  .menubar { height: 20px; flex-shrink: 0; display: flex; align-items: center; gap: 0; padding: 1px 2px; font-size: 12px; }
+  .menubar .mi { padding: 2px 8px; cursor: default; }
+  .menubar .mi u { text-decoration: underline; }
+  .menubar .mi:hover { background: var(--navy2); color: #fff; }
+  .menubar .spacer { flex: 1; }
+  .mute-btn { font-size: 12px; padding: 1px 6px; margin-right: 2px; background: var(--face); border: none; cursor: pointer;
+    box-shadow: inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf; }
+  .mute-btn:active { box-shadow: inset -1px -1px 0 #fff, inset 1px 1px 0 #000, inset -2px -2px 0 #dfdfdf, inset 2px 2px 0 #808080; }
+
+  .win-main { flex: 1; display: flex; gap: 3px; min-height: 0; padding-top: 2px; }
+  /* 도구상자 */
+  .toolbox { width: 56px; flex-shrink: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; align-content: start;
+    padding: 2px; background: var(--face); }
+  .tool { height: 24px; background: var(--face); border: none; cursor: default; font-size: 13px; line-height: 1; color: #000;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf; }
+  .tool.sel { box-shadow: inset -1px -1px 0 #fff, inset 1px 1px 0 #000, inset -2px -2px 0 #dfdfdf, inset 2px 2px 0 #808080; background: #dfdfdf; }
+
+  .canvas-col { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  /* 흰 캔버스(무대) */
+  .stage { flex: 1; position: relative; background: #fff; min-height: 0;
+    box-shadow: inset -1px -1px 0 #fff, inset 1px 1px 0 #808080, inset -2px -2px 0 #dfdfdf, inset 2px 2px 0 #000; }
+  /* 색상 팔레트 */
+  .pal-wrap { flex-shrink: 0; display: flex; align-items: center; gap: 4px; padding: 3px; background: var(--face); }
+  .pal-cur { width: 28px; height: 28px; flex-shrink: 0; background: #000;
+    box-shadow: inset -1px -1px 0 #fff, inset 1px 1px 0 #808080, inset -2px -2px 0 #dfdfdf, inset 2px 2px 0 #000; }
+  #palette { display: grid; grid-template-columns: repeat(14, 1fr); grid-auto-rows: 14px; gap: 1px; flex: 1; }
+  .sw { width: 100%; height: 14px; border: 1px solid #808080; cursor: pointer; padding: 0; }
+  .sw.sel { outline: 2px solid #fff; outline-offset: -3px; border-color: #000; }
+
+  .statusbar { height: 20px; flex-shrink: 0; display: flex; gap: 3px; margin-top: 3px; font-size: 11px; }
+  .statusbar .sb { padding: 2px 6px; display: flex; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    box-shadow: inset -1px -1px 0 #fff, inset 1px 1px 0 #808080, inset -2px -2px 0 #dfdfdf, inset 2px 2px 0 #000; }
+  .statusbar .sb.grow { flex: 1; }
+
+  /* ===== 화면(무대 위 대화상자) ===== */
+  .screen { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; padding: 12px; overflow-y: auto; }
   .screen::-webkit-scrollbar { display: none; }
   .screen.active { display: flex; }
-  #startScreen, #promptScreen, #resultScreen { justify-content: safe center; }
 
-  .kicker { font-weight: 700; font-size: 17px; color: #fff; background: var(--ink);
-    padding: 5px 16px; border-radius: 14px 6px 13px 7px / 7px 13px 6px 14px; }
-  h1 { font-size: 40px; font-weight: 800; letter-spacing: -.6px; line-height: 1.2; margin-top: 14px; }
-  h1 .hl { color: var(--red); }
-  .desc { font-size: 19px; font-weight: 700; color: #6a6560; margin-top: 12px; line-height: 1.5; }
-  .doodle { font-size: 76px; margin: 10px 0; animation: bob 2.6s ease-in-out infinite; }
-  @keyframes bob { 0%,100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-10px) rotate(3deg); } }
+  .dlg { width: 100%; max-width: 320px; background: var(--face); padding: 2px;
+    box-shadow: inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf, 2px 2px 6px rgba(0,0,0,.3); }
+  .dlg-title { height: 20px; display: flex; align-items: center; gap: 5px; padding: 0 3px;
+    background: linear-gradient(90deg, var(--navy1), var(--navy2)); color: #fff; font-size: 12px; font-weight: 700; }
+  .dlg-title .x { margin-left: auto; width: 16px; height: 14px; font-size: 9px; background: var(--face); color: #000; border: none;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf; }
+  .dlg-body { padding: 16px 16px 14px; text-align: center; }
 
-  .btn { font-family: inherit; font-weight: 700; cursor: pointer; border: 3px solid var(--ink); color: var(--ink);
-    border-radius: 20px 9px 18px 10px / 10px 18px 9px 20px; box-shadow: 3px 4px 0 rgba(51,50,58,.25);
-    transition: transform .07s ease, box-shadow .07s ease; background: #fff; }
-  .btn:active { transform: translate(3px,4px); box-shadow: 0 0 0 rgba(51,50,58,.25); }
-  .btn.big { font-size: 26px; padding: 15px 34px; }
-  .btn.red { background: var(--red); color: #fff; } .btn.blue { background: var(--blue); color: #fff; }
-  .btn.yel { background: var(--yel); } .btn.grn { background: var(--grn); color: #fff; }
-  .note { font-size: 15px; font-weight: 700; color: #8a857f; margin-top: 16px; line-height: 1.5; }
-  #startScreen .btn.big { margin-top: 22px; }
+  .dlg-ico { font-size: 40px; margin-bottom: 6px; }
+  .dlg h1 { font-size: 21px; font-weight: 800; line-height: 1.3; }
+  .dlg h1 .hl { color: #aa0000; }
+  .dlg .desc { font-size: 14px; font-weight: 600; color: #333; margin-top: 10px; line-height: 1.55; }
+  .dlg .note { font-size: 12px; color: #555; margin-top: 12px; line-height: 1.5; }
 
-  /* 제시어 화면 */
-  .p-label { font-size: 18px; font-weight: 700; color: #8a857f; }
-  .p-word { font-size: 60px; font-weight: 800; letter-spacing: -.6px; color: var(--blue); margin: 6px 0 4px;
-    animation: pop .4s cubic-bezier(.3,.8,.4,1) both; }
-  @keyframes pop { 0% { transform: scale(.6); opacity: 0; } 60% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); } }
-  .p-guide { font-size: 21px; font-weight: 700; margin-top: 14px; line-height: 1.5; }
-  .p-guide b { color: var(--red); }
-  #promptScreen .btn.big { margin-top: 26px; }
+  .btn98 { font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; color: #000; background: var(--face);
+    padding: 6px 16px; min-width: 84px; border: 1px solid #000;
+    box-shadow: inset -1px -1px 0 #808080, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf; }
+  .btn98:active { box-shadow: inset -1px -1px 0 #fff, inset 1px 1px 0 #808080, inset -2px -2px 0 #dfdfdf, inset 2px 2px 0 #808080; padding: 7px 15px 5px 17px; }
+  .btn98:focus { outline: 1px dotted #000; outline-offset: -4px; }
+  .dlg-btns { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
 
-  /* 그리기 화면 */
-  #drawScreen { padding: 12px; justify-content: flex-start; }
-  .draw-top { font-size: 17px; font-weight: 700; color: #6a6560; margin-bottom: 8px; }
-  .draw-top b { color: var(--blue); font-size: 20px; }
-  .draw-area { position: relative; width: 100%; flex: 1; border: 3px dashed #c9c2b4; border-radius: 12px; overflow: hidden; background: var(--paper); }
+  /* 제시어 */
+  .p-label { font-size: 13px; font-weight: 600; color: #333; }
+  .p-word { font-size: 44px; font-weight: 800; color: #000082; margin: 4px 0 2px; letter-spacing: -1px;
+    animation: pop .35s cubic-bezier(.3,.8,.4,1) both; }
+  @keyframes pop { 0% { transform: scale(.7); opacity: 0; } 60% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); } }
+  .p-guide { font-size: 16px; font-weight: 700; margin-top: 12px; line-height: 1.5; }
+  .p-guide b { color: #aa0000; }
+
+  /* 그리기 무대 = 캔버스 전체 */
+  #drawScreen { padding: 0; align-items: stretch; }
+  .draw-area { position: relative; flex: 1; width: 100%; overflow: hidden; background: #fff; }
   canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
   .blindfold { position: absolute; inset: 0; z-index: 3; pointer-events: none;
-    background: radial-gradient(circle at 50% 40%, #3a3a4d, #26262f);
+    background: radial-gradient(circle at 50% 40%, #14141c, #05050a);
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #fff; }
-  .blindfold .bf-eye { font-size: 62px; animation: bfbob 1.6s ease-in-out infinite; }
+  .blindfold .bf-eye { font-size: 58px; animation: bfbob 1.6s ease-in-out infinite; }
   @keyframes bfbob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
-  .blindfold .bf-t { font-size: 24px; font-weight: 700; }
-  .blindfold .bf-w { font-size: 19px; font-weight: 700; color: var(--yel); }
-  .blindfold .bf-hint { font-size: 15px; font-weight: 700; color: #c9c6d6; margin-top: 4px; }
-  .draw-actions { display: flex; gap: 10px; width: 100%; margin-top: 10px; }
-  .draw-actions .btn { flex: 1; font-size: 20px; padding: 13px 8px; }
+  .blindfold .bf-t { font-size: 20px; font-weight: 700; }
+  .blindfold .bf-w { font-size: 18px; font-weight: 800; color: #ffe24c; }
+  .blindfold .bf-hint { font-size: 13px; font-weight: 600; color: #9a9aad; margin-top: 4px; }
+  .draw-actions { position: absolute; left: 0; right: 0; bottom: 0; z-index: 5; display: flex; gap: 6px; padding: 6px; background: rgba(192,192,192,.96); box-shadow: 0 -1px 0 #808080; }
+  .draw-actions .btn98 { flex: 1; min-width: 0; padding: 9px 6px; font-size: 14px; }
 
-  /* 결과 화면 */
-  .r-verdict { font-size: 30px; font-weight: 700; color: var(--red); line-height: 1.25; margin-bottom: 6px; }
-  .r-frame { width: 78%; max-width: 300px; aspect-ratio: 1/1; border: 4px solid var(--ink); border-radius: 8px;
-    background: var(--paper); box-shadow: 4px 5px 0 rgba(51,50,58,.2); overflow: hidden; margin: 4px auto;
-    animation: reveal .6s cubic-bezier(.3,.8,.4,1) both; }
-  @keyframes reveal { 0% { transform: scale(.3) rotate(-12deg); opacity: 0; } 60% { transform: scale(1.06) rotate(3deg); opacity: 1; } 100% { transform: scale(1) rotate(0); } }
-  .r-frame img { width: 100%; height: 100%; display: block; }
-  .r-was { font-size: 17px; font-weight: 700; color: #8a857f; margin-top: 8px; }
-  .r-was b { color: var(--blue); }
-  .r-grade { font-size: 26px; font-weight: 700; margin-top: 4px; }
-  .r-bar { width: 80%; max-width: 300px; height: 20px; border: 3px solid var(--ink); border-radius: 999px; background: #fff; margin: 8px auto 2px; overflow: hidden; }
-  .r-bar i { display: block; height: 100%; background: var(--grn); width: 0; transition: width .8s cubic-bezier(.3,.8,.4,1); }
-  .r-pct { font-size: 16px; font-weight: 700; color: #6a6560; }
-  .r-comments { width: 100%; margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
-  .r-cm { background: #fff; border: 3px solid var(--ink); border-radius: 16px 7px 14px 8px / 8px 14px 7px 16px;
-    box-shadow: 3px 3px 0 rgba(51,50,58,.16); font-size: 18px; font-weight: 700; padding: 10px 14px; line-height: 1.4; }
-  .r-actions { display: flex; gap: 10px; width: 100%; margin-top: 16px; }
-  .r-actions .btn { flex: 1; font-size: 19px; padding: 13px 8px; }
-  #resultScreen .btn.share { width: 100%; margin-top: 10px; font-size: 18px; padding: 13px 10px; }
-  .save-hint { font-size: 14px; font-weight: 700; color: #8a857f; margin-top: 10px; min-height: 18px; }
+  /* 결과 */
+  #resultScreen .dlg { max-width: 340px; }
+  .r-verdict { font-size: 19px; font-weight: 800; color: #aa0000; line-height: 1.3; margin-bottom: 8px; }
+  .r-frame { width: 190px; height: 190px; margin: 0 auto; background: #fff; overflow: hidden;
+    box-shadow: inset -1px -1px 0 #fff, inset 1px 1px 0 #808080, inset -2px -2px 0 #dfdfdf, inset 2px 2px 0 #000;
+    animation: reveal .55s cubic-bezier(.3,.8,.4,1) both; }
+  @keyframes reveal { 0% { transform: scale(.3) rotate(-10deg); opacity: 0; } 60% { transform: scale(1.05) rotate(2deg); opacity: 1; } 100% { transform: scale(1) rotate(0); } }
+  .r-frame img { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+  .r-was { font-size: 13px; font-weight: 600; color: #333; margin-top: 8px; }
+  .r-was b { color: #000082; }
+  .r-grade { font-size: 19px; font-weight: 800; margin-top: 4px; }
+  .r-bar { width: 210px; max-width: 100%; height: 18px; margin: 8px auto 2px; background: #fff;
+    box-shadow: inset -1px -1px 0 #fff, inset 1px 1px 0 #808080, inset -2px -2px 0 #dfdfdf, inset 2px 2px 0 #000; overflow: hidden; }
+  .r-bar i { display: block; height: 100%; background: #000082; width: 0; transition: width .8s cubic-bezier(.3,.8,.4,1); }
+  .r-pct { font-size: 13px; font-weight: 700; color: #333; }
+  .r-comments { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; text-align: left; }
+  .r-cm { background: #ffffe1; border: 1px solid #000; font-size: 13px; font-weight: 600; padding: 8px 10px; line-height: 1.4; }
+  .save-hint { font-size: 12px; font-weight: 600; color: #333; margin-top: 10px; min-height: 16px; }
 
-  /* 음소거 */
-  .mute-btn { position: absolute; top: 12px; right: 12px; z-index: 20; width: 40px; height: 40px;
-    border: 3px solid var(--ink); border-radius: 12px 7px 11px 8px / 8px 11px 7px 12px; background: #fff;
-    box-shadow: 2px 3px 0 rgba(51,50,58,.2); cursor: pointer; font-size: 18px; }
-
-  .toast { position: absolute; left: 50%; bottom: 24px; transform: translate(-50%, 20px); z-index: 25;
-    background: var(--ink); color: #fff; font-weight: 700; font-size: 16px; padding: 11px 22px; border-radius: 999px;
-    opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; }
+  /* 토스트/모달/작업표시줄 */
+  .toast { position: fixed; left: 50%; bottom: 54px; transform: translate(-50%, 16px); z-index: 60;
+    background: #ffffe1; color: #000; border: 1px solid #000; font-size: 13px; font-weight: 600; padding: 8px 16px;
+    box-shadow: 2px 2px 6px rgba(0,0,0,.4); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
-  .save-modal { position: absolute; inset: 0; z-index: 30; background: rgba(38,38,47,.62); backdrop-filter: blur(3px);
-    display: none; align-items: center; justify-content: center; padding: 22px; }
+  .save-modal { position: fixed; inset: 0; z-index: 70; background: rgba(0,0,0,.4);
+    display: none; align-items: center; justify-content: center; padding: 20px; }
   .save-modal.show { display: flex; }
-  .save-modal-inner { background: #fff; border: 3px solid var(--ink); border-radius: 20px; padding: 18px 16px; box-shadow: 5px 6px 0 rgba(51,50,58,.25);
-    max-width: 100%; max-height: 100%; overflow-y: auto; text-align: center; display: flex; flex-direction: column; align-items: center; }
-  .sm-title { font-size: 18px; font-weight: 700; } .sm-sub { font-size: 14px; font-weight: 700; color: #8a857f; line-height: 1.5; margin: 4px 0 10px; }
-  #saveModalImg { width: 100%; max-width: 250px; border: 3px solid var(--ink); border-radius: 10px; }
+  .save-modal-inner { background: var(--face); padding: 2px;
+    box-shadow: inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf, 3px 3px 8px rgba(0,0,0,.5);
+    max-width: 100%; max-height: 100%; overflow-y: auto; text-align: center; }
+  .sm-bar { height: 20px; display: flex; align-items: center; padding: 0 4px; font-size: 12px; font-weight: 700; color: #fff;
+    background: linear-gradient(90deg, var(--navy1), var(--navy2)); }
+  .sm-in { padding: 14px 16px; display: flex; flex-direction: column; align-items: center; }
+  .sm-title { font-size: 15px; font-weight: 700; } .sm-sub { font-size: 12px; font-weight: 600; color: #333; line-height: 1.5; margin: 4px 0 10px; }
+  #saveModalImg { width: 100%; max-width: 240px; border: 1px solid #000; }
   .sm-close { margin-top: 14px; }
 
-  /* 종이 반짝 파티클 */
-  .spark { position: absolute; font-size: 22px; pointer-events: none; z-index: 4; animation: sparkPop 1s ease-out forwards; }
-  @keyframes sparkPop { 0% { transform: scale(0) rotate(0); opacity: 0; } 30% { transform: scale(1.2) rotate(18deg); opacity: 1; } 100% { transform: scale(.5) rotate(40deg); opacity: 0; } }
+  .taskbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; height: 30px; display: flex; align-items: center; gap: 6px; padding: 2px 4px;
+    background: var(--face); box-shadow: inset 0 1px 0 #fff, inset 0 2px 0 #dfdfdf; }
+  .start-btn { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 800; padding: 3px 10px 3px 7px; background: var(--face); border: none; cursor: pointer;
+    box-shadow: inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf; }
+  .start-btn:active { box-shadow: inset -1px -1px 0 #fff, inset 1px 1px 0 #000, inset -2px -2px 0 #dfdfdf, inset 2px 2px 0 #808080; }
+  .tb-app { flex: 1; font-size: 12px; font-weight: 600; padding: 4px 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    box-shadow: inset -1px -1px 0 #fff, inset 1px 1px 0 #000, inset -2px -2px 0 #dfdfdf, inset 2px 2px 0 #808080; background: #dfdfdf; }
+  .tb-clock { font-size: 12px; font-weight: 600; padding: 4px 8px; white-space: nowrap;
+    box-shadow: inset -1px -1px 0 #fff, inset 1px 1px 0 #808080, inset -2px -2px 0 #dfdfdf, inset 2px 2px 0 #000; }
+
+  .spark { position: absolute; font-size: 20px; pointer-events: none; z-index: 6; animation: sparkPop 1s ease-out forwards; }
+  @keyframes sparkPop { 0% { transform: scale(0); opacity: 0; } 30% { transform: scale(1.2) rotate(18deg); opacity: 1; } 100% { transform: scale(.5) rotate(40deg); opacity: 0; } }
 </style>
 </head>
 <body>
-<div class="phone" id="phone">
-  <button class="mute-btn" id="muteBtn">🔊</button>
+<div class="win">
+  <div class="titlebar">
+    <span class="tb-ico">🎨</span>
+    <span class="tb-name">무제 - 그림판</span>
+    <span class="tb-btns"><button class="tb-btn">_</button><button class="tb-btn">☐</button><button class="tb-btn">✕</button></span>
+  </div>
+  <div class="menubar">
+    <span class="mi"><u>파</u>일</span><span class="mi"><u>편</u>집</span><span class="mi"><u>보</u>기</span>
+    <span class="mi">이미지</span><span class="mi">옵션</span><span class="mi">도움말</span>
+    <span class="spacer"></span>
+    <button class="mute-btn" id="muteBtn">🔊</button>
+  </div>
 
-  <!-- 시작 -->
-  <section class="screen active" id="startScreen">
-    <span class="kicker">눈 감고 그리기</span>
-    <h1>눈 감고<br><span class="hl">괴작</span> 그리기</h1>
-    <div class="doodle">🙈✏️</div>
-    <p class="desc">제시어 확인 → 눈 감고 그리기 →<br>눈 뜨면 괴물이 완성돼 있음 ㅋㅋ</p>
-    <button class="btn big red" id="startBtn">시작하기 →</button>
-    <p class="note">친구·연인에게 "너도 해봐" 하고<br>같은 제시어로 그려보게 하면 꿀잼 ^^</p>
-  </section>
+  <div class="win-main">
+    <div class="toolbox" id="toolbox" aria-hidden="true"></div>
+    <div class="canvas-col">
+      <div class="stage" id="stage">
 
-  <!-- 제시어 -->
-  <section class="screen" id="promptScreen">
-    <div class="p-label">오늘의 제시어</div>
-    <div class="p-word" id="promptWord">고양이</div>
-    <div class="p-guide">잘 기억했나요?<br><b>이제 눈을 감으세요 🙈</b></div>
-    <button class="btn big blue" id="beginDrawBtn">눈 감고 그리기 시작</button>
-    <p class="note">그리는 동안 화면은 캄캄해져요.<br>정말 눈 감고 그려도 되고요 ^^</p>
-  </section>
+        <!-- 시작 -->
+        <section class="screen active" id="startScreen">
+          <div class="dlg">
+            <div class="dlg-title"><span>눈 감고 그리기</span><button class="x">✕</button></div>
+            <div class="dlg-body">
+              <div class="dlg-ico">🙈✏️</div>
+              <h1>눈 감고 <span class="hl">괴작</span> 그리기</h1>
+              <p class="desc">제시어 확인 → 눈 감고 그리기 →<br>눈 뜨면 괴물이 완성돼 있음 ㅋㅋ</p>
+              <div class="dlg-btns"><button class="btn98" id="startBtn">시작하기</button></div>
+              <p class="note">친구·연인에게 같은 제시어로<br>그려보게 하면 꿀잼 ^^</p>
+            </div>
+          </div>
+        </section>
 
-  <!-- 그리기 -->
-  <section class="screen" id="drawScreen">
-    <div class="draw-top">제시어: <b id="drawWord">고양이</b> · 눈 감고 그리는 중…</div>
-    <div class="draw-area" id="drawArea">
-      <canvas id="canvas"></canvas>
-      <div class="blindfold" id="blindfold">
-        <div class="bf-eye">🙈</div>
-        <div class="bf-t">눈 감고 그리는 중…</div>
-        <div class="bf-w" id="bfWord">고양이</div>
-        <div class="bf-hint">화면을 손으로 슥슥 그리세요</div>
+        <!-- 제시어 -->
+        <section class="screen" id="promptScreen">
+          <div class="dlg">
+            <div class="dlg-title"><span>제시어</span><button class="x">✕</button></div>
+            <div class="dlg-body">
+              <div class="p-label">오늘의 제시어</div>
+              <div class="p-word" id="promptWord">고양이</div>
+              <div class="p-guide">잘 기억했나요?<br><b>이제 눈을 감으세요 🙈</b></div>
+              <div class="dlg-btns"><button class="btn98" id="beginDrawBtn">눈 감고 그리기 시작</button></div>
+              <p class="note">그리는 동안 화면은 캄캄해져요.<br>정말 눈 감고 그려도 됩니다 ^^</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 그리기 -->
+        <section class="screen" id="drawScreen">
+          <div class="draw-area" id="drawArea">
+            <canvas id="canvas"></canvas>
+            <div class="blindfold" id="blindfold">
+              <div class="bf-eye">🙈</div>
+              <div class="bf-t">눈 감고 그리는 중…</div>
+              <div class="bf-w" id="bfWord">고양이</div>
+              <div class="bf-hint">화면을 손으로 슥슥 그리세요</div>
+            </div>
+            <div class="draw-actions">
+              <button class="btn98" id="clearBtn">싹 지우기</button>
+              <button class="btn98" id="revealBtn">👁 눈 뜨기!</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 결과 -->
+        <section class="screen" id="resultScreen">
+          <div class="dlg">
+            <div class="dlg-title"><span>🎉 결과 공개</span><button class="x">✕</button></div>
+            <div class="dlg-body">
+              <div class="r-verdict" id="rVerdict">이건… 고양이인가요?</div>
+              <div class="r-frame"><img id="rImg" alt="내 그림" /></div>
+              <div class="r-was">제시어는 <b id="rWas">고양이</b> 였습니다</div>
+              <div class="r-grade" id="rGrade"></div>
+              <div class="r-bar"><i id="rBarFill"></i></div>
+              <div class="r-pct" id="rPct"></div>
+              <div class="r-comments" id="rComments"></div>
+              <div class="dlg-btns">
+                <button class="btn98" id="saveBtn">그림 저장</button>
+                <button class="btn98" id="againBtn">다른 제시어</button>
+              </div>
+              <div class="dlg-btns"><button class="btn98" id="shareBtn">친구에게 시키기 (링크)</button></div>
+              <p class="save-hint" id="saveHint"></p>
+            </div>
+          </div>
+        </section>
+
+      </div>
+      <div class="pal-wrap">
+        <div class="pal-cur" id="palCur"></div>
+        <div id="palette"></div>
       </div>
     </div>
-    <div class="draw-actions">
-      <button class="btn yel" id="clearBtn">싹 지우기</button>
-      <button class="btn grn" id="revealBtn">👁 눈 뜨기!</button>
-    </div>
-  </section>
+  </div>
 
-  <!-- 결과 -->
-  <section class="screen" id="resultScreen">
-    <span class="kicker">🎉 결과 공개</span>
-    <div class="r-verdict" id="rVerdict">이건… 고양이인가요?</div>
-    <div class="r-frame"><img id="rImg" alt="내 그림" /></div>
-    <div class="r-was">제시어는 <b id="rWas">고양이</b> 였습니다</div>
-    <div class="r-grade" id="rGrade"></div>
-    <div class="r-bar"><i id="rBarFill"></i></div>
-    <div class="r-pct" id="rPct"></div>
-    <div class="r-comments" id="rComments"></div>
-    <div class="r-actions">
-      <button class="btn yel" id="saveBtn">그림 저장</button>
-      <button class="btn red" id="againBtn">다른 제시어로 또!</button>
-    </div>
-    <button class="btn blue share" id="shareBtn">친구에게 시키기 (링크 공유)</button>
-    <p class="save-hint" id="saveHint"></p>
-  </section>
+  <div class="statusbar">
+    <div class="sb grow" id="statusText">도움말을 보려면 [도움말] 메뉴를 누르세요.</div>
+    <div class="sb" id="statusMetric"></div>
+  </div>
+</div>
 
-  <div class="toast" id="toast"></div>
-  <div class="save-modal" id="saveModal">
-    <div class="save-modal-inner">
+<div class="toast" id="toast"></div>
+<div class="save-modal" id="saveModal">
+  <div class="save-modal-inner">
+    <div class="sm-bar">그림 저장</div>
+    <div class="sm-in">
       <p class="sm-title">👆 이미지를 꾹 눌러 저장하세요</p>
       <p class="sm-sub">아이폰은 아래 이미지를 길게 눌러<br>'사진에 저장'을 선택하세요</p>
       <img id="saveModalImg" alt="결과 그림" />
-      <button class="btn sm-close" id="saveModalClose">닫기</button>
+      <button class="btn98 sm-close" id="saveModalClose">닫기</button>
     </div>
   </div>
+</div>
+
+<div class="taskbar">
+  <button class="start-btn" id="startTaskBtn">🪟 시작</button>
+  <div class="tb-app">🎨 무제 - 그림판</div>
+  <div class="tb-clock" id="clock">8:52 PM</div>
 </div>
 
 <script>
@@ -216,6 +310,28 @@ const WRONG = ["감자", "외계인", "지렁이", "걸레", "곰팡이", "젤�
 const FLAVOR = ["사실 저도 뭘 그렸는지 모르겠어요", "이게 바로 추상 예술이죠", "눈 뜨고 그려도 비슷할 것 같은데요?", "전시회 한번 여시죠", "가족들한테도 꼭 보여주세요 ㅋㅋ", "이 그림, 액자각인데요", "AI도 이건 못 알아봐요"];
 function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
 
+/* ---------- 팔레트(펜 색) ---------- */
+const PAL = ["#000000","#808080","#800000","#808000","#008000","#008080","#000080","#800080","#808040","#004040","#0080ff","#004080","#8000ff","#804000","#ffffff","#c0c0c0","#ff0000","#ffff00","#00ff00","#00ffff","#0000ff","#ff00ff","#ffff80","#00ff80","#80ffff","#8080ff","#ff0080","#ff8040"];
+let penColor = "#000000";
+function buildPalette() {
+  const p = $("palette");
+  PAL.forEach(c => {
+    const b = document.createElement("button"); b.className = "sw"; b.style.background = c;
+    b.addEventListener("click", () => {
+      penColor = c; $("palCur").style.background = c;
+      if (ctx) ctx.strokeStyle = c;
+      document.querySelectorAll(".sw").forEach(s => s.classList.remove("sel")); b.classList.add("sel");
+      sfxBlip();
+    });
+    p.appendChild(b);
+  });
+}
+const TOOLS = ["✂","▭","／","○","✎","＼","▨","A","∿","◇","▬","◯","▢","⬚","✳","▤"];
+function buildTools() {
+  const t = $("toolbox");
+  TOOLS.forEach((g, i) => { const b = document.createElement("div"); b.className = "tool" + (i === 4 ? " sel" : ""); b.textContent = g; t.appendChild(b); });
+}
+
 /* ---------- 상태 ---------- */
 let promptWord = "", roundActive = false;
 let canvas, ctx, W = 0, H = 0, dpr = 1;
@@ -225,18 +341,21 @@ let box = null, startT = 0;
 
 function show(id) { document.querySelectorAll(".screen").forEach(s => s.classList.remove("active")); $(id).classList.add("active"); }
 function toast(m) { const t = $("toast"); t.textContent = m; t.classList.add("show"); clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove("show"), 1600); }
+function status(m) { $("statusText").textContent = m; }
 
-/* ---------- 라운드 시작 ---------- */
+/* ---------- 라운드 ---------- */
 function newPrompt() {
   promptWord = pick(PROMPTS);
   $("promptWord").textContent = promptWord;
-  $("drawWord").textContent = promptWord;
   $("bfWord").textContent = promptWord;
+  $("statusMetric").textContent = "";
+  status("제시어를 확인하세요.");
   show("promptScreen");
 }
 function beginDraw() {
   sfxStart();
   show("drawScreen");
+  status("눈 감고 그리는 중…");
   requestAnimationFrame(() => { initCanvas(); resetMetrics(); $("blindfold").style.display = "flex"; roundActive = true; });
 }
 function resetMetrics() { strokes = 0; offCount = 0; totalLen = 0; points = 0; box = null; startT = performance.now(); }
@@ -250,10 +369,10 @@ function initCanvas() {
   canvas.width = W * dpr; canvas.height = H * dpr;
   ctx = canvas.getContext("2d");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.lineJoin = "round"; ctx.lineCap = "round"; ctx.lineWidth = 4.5; ctx.strokeStyle = "#33323a";
+  ctx.lineJoin = "round"; ctx.lineCap = "round"; ctx.lineWidth = 4.5; ctx.strokeStyle = penColor;
   clearCanvas();
 }
-function clearCanvas() { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = "#FFFDF6"; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore(); }
+function clearCanvas() { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore(); }
 function clampP(p) { return { x: Math.max(0, Math.min(W, p.x)), y: Math.max(0, Math.min(H, p.y)) }; }
 function posOf(e) { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
 function drawSeg(a, b) { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
@@ -261,7 +380,7 @@ function track(c) { points++; if (last) totalLen += Math.hypot(c.x - last.x, c.y
 
 function onDown(e) {
   if (!roundActive) return;
-  drawing = true; strokes++; wasOut = false;
+  drawing = true; strokes++; wasOut = false; ctx.strokeStyle = penColor;
   last = clampP(posOf(e)); track(last);
   e.preventDefault();
 }
@@ -290,9 +409,11 @@ function reveal() {
   $("rGrade").textContent = res.grade;
   $("rPct").textContent = "닮음도 " + res.pct + "%";
   const fill = $("rBarFill");
-  fill.style.width = "0%"; fill.style.background = res.pct >= 60 ? "var(--grn)" : res.pct >= 35 ? "var(--yel)" : "var(--red)";
+  fill.style.width = "0%"; fill.style.background = res.pct >= 60 ? "#008000" : res.pct >= 35 ? "#b8860b" : "#aa0000";
   $("rComments").innerHTML = res.comments.map(c => `<div class="r-cm">${c}</div>`).join("");
   $("saveHint").textContent = "";
+  $("statusMetric").textContent = "획 " + m.strokes + " · 밖 " + m.offCount;
+  status("완성! 결과가 공개되었습니다.");
   show("resultScreen");
   $("resultScreen").scrollTop = 0;
   sfxReveal(); sparkle();
@@ -300,28 +421,20 @@ function reveal() {
 }
 
 function judge(m) {
-  let pct = 34 + Math.random() * 55;                 // 기본 34~89
+  let pct = 34 + Math.random() * 55;
   if (m.offCount >= 3) pct -= 16;
   if (m.offCount >= 6) pct -= 10;
   if (m.strokes <= 2) pct -= 10;
   if (m.coverage < 0.04) pct -= 14;
   if (m.coverage > 0.7) pct -= 8;
-  if (m.points < 20) pct -= 12;                      // 거의 안 그림
+  if (m.points < 20) pct -= 12;
   pct = Math.max(6, Math.min(97, Math.round(pct)));
 
-  const verdict = pct >= 85
-    ? `오… 진짜 ${promptWord} 같은데요?!`
-    : `이건… ${promptWord}인가요 ${pick(WRONG)}인가요?`;
+  const verdict = pct >= 85 ? `오… 진짜 ${promptWord} 같은데요?!` : `이건… ${promptWord}인가요 ${pick(WRONG)}인가요?`;
+  const grade = pct >= 85 ? "🏆 천재 화가 등장" : pct >= 65 ? "👀 알아볼 순 있어요" : pct >= 45 ? "🎨 추상화의 대가" : pct >= 25 ? "🤔 음… 이게 뭐죠?" : "👾 미스터리 생명체 탄생";
 
-  const grade = pct >= 85 ? "🏆 천재 화가 등장"
-    : pct >= 65 ? "👀 알아볼 순 있어요"
-    : pct >= 45 ? "🎨 추상화의 대가"
-    : pct >= 25 ? "🤔 음… 이게 뭐죠?"
-    : "👾 미스터리 생명체 탄생";
-
-  // 조건 기반 멘트 후보에서 최대 2개 + 랜덤 멘트 1개
   const cond = [];
-  if (m.offCount >= 3) cond.push(`✏️ 선이 화면 밖으로 <b style="color:var(--red)">${m.offCount}번</b> 탈출했어요`);
+  if (m.offCount >= 3) cond.push(`✏️ 선이 화면 밖으로 <b style="color:#aa0000">${m.offCount}번</b> 탈출했어요`);
   else if (m.offCount >= 1) cond.push(`✏️ 화면 밖으로 ${m.offCount}번 삐져나갔네요`);
   if (m.strokes <= 2) cond.push(`🖊 단 ${m.strokes}획으로 끝낸 미니멀리스트`);
   else if (m.strokes >= 16) cond.push(`🖊 붓질 ${m.strokes}번… 정성은 인정합니다`);
@@ -337,19 +450,16 @@ function judge(m) {
 }
 
 function sparkle() {
-  const box = $("resultScreen");
+  const box2 = $("resultScreen");
   for (let i = 0; i < 12; i++) {
-    const s = document.createElement("span");
-    s.className = "spark"; s.textContent = pick(["✨", "⭐", "💫"]);
-    s.style.left = (10 + Math.random() * 80) + "%";
-    s.style.top = (12 + Math.random() * 45) + "%";
-    s.style.animationDelay = (Math.random() * 0.4) + "s";
-    box.appendChild(s);
+    const s = document.createElement("span"); s.className = "spark"; s.textContent = pick(["✨", "⭐", "💫"]);
+    s.style.left = (10 + Math.random() * 80) + "%"; s.style.top = (12 + Math.random() * 45) + "%";
+    s.style.animationDelay = (Math.random() * 0.4) + "s"; box2.appendChild(s);
     setTimeout(() => s.remove(), 1200);
   }
 }
 
-/* ---------- 결과 카드 저장 (1080x1350) ---------- */
+/* ---------- 결과 카드 저장 (1080x1350, 그림판 창 느낌) ---------- */
 function wrapText(c, text, x, y, maxW, lh) {
   const words = [...text]; let line = "", yy = y;
   for (let i = 0; i < words.length; i++) { const t = line + words[i]; if (c.measureText(t).width > maxW && line) { c.fillText(line, x, yy); yy += lh; line = words[i]; } else line = t; }
@@ -360,26 +470,26 @@ async function buildCard() {
   const cv = document.createElement("canvas"); cv.width = W2; cv.height = H2;
   const c = cv.getContext("2d");
   try { await document.fonts.ready; } catch (e) {}
-  const FF = '"Pretendard Variable", Pretendard, sans-serif';
-  c.fillStyle = "#FFFDF6"; c.fillRect(0, 0, W2, H2);
-  c.strokeStyle = "#33323a"; c.lineWidth = 10; c.strokeRect(24, 24, W2 - 48, H2 - 48);
-  c.textAlign = "center"; c.fillStyle = "#33323a";
-  c.font = "700 60px " + FF; c.fillText("눈 감고 그리기", cx, 120);
-  c.fillStyle = "#8a857f"; c.font = "700 40px " + FF; c.fillText("제시어 : " + promptWord, cx, 186);
+  const FF = 'Tahoma, "Pretendard Variable", Pretendard, sans-serif';
+  // 청록 데스크톱 + 그림판 창
+  c.fillStyle = "#008080"; c.fillRect(0, 0, W2, H2);
+  c.fillStyle = "#c0c0c0"; c.fillRect(60, 90, W2 - 120, H2 - 180);
+  c.fillStyle = "#000082"; c.fillRect(60, 90, W2 - 120, 70);
+  c.fillStyle = "#fff"; c.textAlign = "left"; c.font = "700 40px " + FF; c.fillText("🎨 무제 - 그림판", 84, 138);
+  c.textAlign = "center";
+  c.fillStyle = "#333"; c.font = "600 40px " + FF; c.fillText("제시어 : " + promptWord, cx, 232);
   // 그림
-  const img = $("rImg");
-  const s = 620, ix = cx - s / 2, iy = 230;
+  const img = $("rImg"); const s = 560, ix = cx - s / 2, iy = 268;
   c.fillStyle = "#fff"; c.fillRect(ix, iy, s, s);
-  try { c.drawImage(img, ix, iy, s, s); } catch (e) {}
-  c.strokeStyle = "#33323a"; c.lineWidth = 8; c.strokeRect(ix, iy, s, s);
+  try { c.imageSmoothingEnabled = false; c.drawImage(img, ix, iy, s, s); } catch (e) {}
+  c.strokeStyle = "#000"; c.lineWidth = 4; c.strokeRect(ix, iy, s, s);
   // 판정
-  c.fillStyle = "#EF5B5B"; c.font = "700 54px " + FF;
-  wrapText(c, $("rVerdict").textContent, cx, 940, 900, 66);
-  c.fillStyle = "#33323a"; c.font = "700 46px " + FF; c.fillText($("rGrade").textContent, cx, 1050);
-  c.fillStyle = "#5FB971"; c.font = "700 44px " + FF; c.fillText($("rPct").textContent, cx, 1112);
-  // 워터마크
-  c.fillStyle = "#4C86C6"; c.font = "700 46px " + FF; c.fillText("@ccojik.dh", cx, 1240);
-  c.fillStyle = "#8a857f"; c.font = "700 34px " + FF; c.fillText("너도 눈 감고 그려봐 ^^", cx, 1292);
+  c.fillStyle = "#aa0000"; c.font = "800 50px " + FF;
+  wrapText(c, $("rVerdict").textContent, cx, 918, 900, 62);
+  c.fillStyle = "#000"; c.font = "800 44px " + FF; c.fillText($("rGrade").textContent, cx, 1024);
+  c.fillStyle = "#000082"; c.font = "700 40px " + FF; c.fillText($("rPct").textContent, cx, 1086);
+  c.fillStyle = "#000082"; c.font = "800 44px " + FF; c.fillText("@ccojik.dh", cx, 1206);
+  c.fillStyle = "#333"; c.font = "600 32px " + FF; c.fillText("너도 눈 감고 그려봐 ^^", cx, 1256);
   return cv;
 }
 
@@ -411,8 +521,16 @@ async function shareLink() {
   else toast("주소창 링크를 복사해 보내주세요");
 }
 
+/* ---------- 시계 ---------- */
+function tickClock() {
+  const d = new Date(); let h = d.getHours(); const m = String(d.getMinutes()).padStart(2, "0");
+  const ap = h < 12 ? "AM" : "PM"; h = h % 12 || 12;
+  $("clock").textContent = h + ":" + m + " " + ap;
+}
+
 /* ---------- 이벤트 ---------- */
 $("startBtn").addEventListener("click", () => { sfxBlip(); newPrompt(); });
+$("startTaskBtn").addEventListener("click", () => { sfxBlip(); toast("시작 메뉴는… 나중에 ^^"); });
 $("beginDrawBtn").addEventListener("click", beginDraw);
 $("clearBtn").addEventListener("click", () => { if (ctx) { clearCanvas(); resetMetrics(); sfxBlip(); } });
 $("revealBtn").addEventListener("click", reveal);
@@ -423,14 +541,13 @@ $("saveModalClose").addEventListener("click", closeSaveModal);
 $("saveModal").addEventListener("click", e => { if (e.target === $("saveModal")) closeSaveModal(); });
 $("muteBtn").addEventListener("click", toggleMute);
 
-// 그리기 포인터 (캔버스에서 시작, 문서에서 이동/종료 → 화면 밖 이탈 감지)
-document.addEventListener("DOMContentLoaded", () => {});
 $("canvas").addEventListener("pointerdown", onDown);
 window.addEventListener("pointermove", onMove);
 window.addEventListener("pointerup", onUp);
 window.addEventListener("pointercancel", onUp);
 
 $("muteBtn").textContent = muted ? "🔇" : "🔊";
+buildPalette(); buildTools(); tickClock(); setInterval(tickClock, 10000);
 </script>
 </body>
 </html>
