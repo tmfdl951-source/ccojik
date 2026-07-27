@@ -97,6 +97,11 @@
     display: flex; align-items: center; justify-content: center;
     box-shadow: inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf; }
   .dlg-body { padding: 16px 16px 14px; text-align: center; }
+  /* 첫 화면 낙서: 대화상자는 아래로, 위쪽 캔버스에 낙서가 보이게 */
+  #startScreen { justify-content: flex-end; padding-bottom: 16px; }
+  #startScreen .dlg { position: relative; z-index: 1; }
+  .doodles { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+  .doodles svg { width: 100%; height: 100%; display: block; }
 
   .dlg-ico { font-size: 40px; margin-bottom: 6px; }
   .dlg h1 { font-size: 21px; font-weight: 800; line-height: 1.3; }
@@ -268,6 +273,40 @@
 
         <!-- 시작 -->
         <section class="screen active" id="startScreen">
+          <div class="doodles" aria-hidden="true">
+            <svg viewBox="0 0 300 400" preserveAspectRatio="xMidYMin slice">
+              <g stroke="#000" stroke-width="3" stroke-linecap="round">
+                <line x1="46" y1="18" x2="46" y2="6"/><line x1="46" y1="86" x2="46" y2="98"/>
+                <line x1="12" y1="52" x2="2" y2="52"/><line x1="80" y1="52" x2="92" y2="52"/>
+                <line x1="22" y1="28" x2="14" y2="20"/><line x1="70" y1="28" x2="78" y2="20"/>
+                <line x1="22" y1="76" x2="14" y2="84"/><line x1="70" y1="76" x2="78" y2="84"/>
+              </g>
+              <circle cx="46" cy="52" r="18" fill="#ffe24c" stroke="#000" stroke-width="3"/>
+              <path d="M205 66 q-16 0 -16 -15 q0 -14 16 -12 q3 -16 22 -9 q16 -8 20 11 q15 0 11 15 q0 10 -16 10 z" fill="#fff" stroke="#000" stroke-width="3"/>
+              <path d="M214 118 q-9 -12 -18 -3 q-8 8 18 26 q26 -18 18 -26 q-9 -9 -18 3 z" fill="#ef5b5b" stroke="#000" stroke-width="2.5"/>
+              <g stroke="#000" stroke-width="3" fill="none" stroke-linecap="round">
+                <circle cx="150" cy="105" r="16" fill="#fff"/>
+                <line x1="150" y1="121" x2="150" y2="166"/>
+                <line x1="150" y1="133" x2="128" y2="152"/><line x1="150" y1="133" x2="172" y2="152"/>
+                <line x1="150" y1="166" x2="132" y2="192"/><line x1="150" y1="166" x2="168" y2="192"/>
+                <path d="M143 110 q7 6 14 0"/>
+              </g>
+              <circle cx="144" cy="101" r="1.6" fill="#000"/><circle cx="156" cy="101" r="1.6" fill="#000"/>
+              <g stroke="#000" stroke-width="3">
+                <rect x="26" y="222" width="72" height="56" fill="#fff"/>
+                <path d="M20 222 L62 186 L104 222 Z" fill="#f2a24c"/>
+                <rect x="52" y="250" width="20" height="28" fill="#a0703a"/>
+                <rect x="34" y="232" width="16" height="16" fill="#bfe0f2"/>
+              </g>
+              <g stroke="#000" stroke-width="3">
+                <line x1="248" y1="280" x2="248" y2="224" stroke-linecap="round"/>
+                <circle cx="248" cy="196" r="10" fill="#ef5b5b"/><circle cx="232" cy="210" r="10" fill="#ef5b5b"/><circle cx="264" cy="210" r="10" fill="#ef5b5b"/><circle cx="248" cy="224" r="10" fill="#ef5b5b"/>
+                <circle cx="248" cy="210" r="10" fill="#ffe24c"/>
+              </g>
+              <text x="46" y="322" font-family="'Galmuri11', sans-serif" font-size="30" fill="#3060e0" transform="rotate(-6 46 322)">ㅋㅋㅋ</text>
+              <path d="M150 316 q10 -16 20 0 t20 0 t20 0" fill="none" stroke="#2fa02f" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+          </div>
           <div class="dlg">
             <div class="dlg-title"><span>눈 감고 그리기</span><button class="x">✕</button></div>
             <div class="dlg-body">
