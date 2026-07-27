@@ -182,14 +182,22 @@
   .tb-clock { font-size: 12px; font-weight: 600; padding: 4px 8px; white-space: nowrap;
     box-shadow: inset -1px -1px 0 #fff, inset 1px 1px 0 #808080, inset -2px -2px 0 #dfdfdf, inset 2px 2px 0 #000; }
 
-  .spark { position: absolute; font-size: 20px; pointer-events: none; z-index: 6; animation: sparkPop 1s ease-out forwards; }
-  @keyframes sparkPop { 0% { transform: scale(0); opacity: 0; } 30% { transform: scale(1.2) rotate(18deg); opacity: 1; } 100% { transform: scale(.5) rotate(40deg); opacity: 0; } }
+  .spark { position: absolute; width: 5px; height: 5px; pointer-events: none; z-index: 6; image-rendering: pixelated; animation: sparkPop 1s ease-out forwards; }
+  @keyframes sparkPop { 0% { transform: scale(0); opacity: 0; } 30% { transform: scale(1.8); opacity: 1; } 100% { transform: scale(.6); opacity: 0; } }
+  /* 픽셀 아이콘 */
+  .ico { width: 15px; height: 15px; display: inline-block; vertical-align: -3px; image-rendering: pixelated; }
+  .tb-ico .ico { width: 14px; height: 14px; vertical-align: -2px; }
+  .start-btn .ico, .tb-app .ico { width: 15px; height: 15px; vertical-align: -3px; margin-right: 3px; }
+  .mute-btn .ico { width: 14px; height: 14px; vertical-align: -2px; }
+  .ico-eyes { display: block; image-rendering: pixelated; height: auto; }
+  .dlg-ico .ico-eyes { width: 66px; margin: 4px auto 2px; color: #000082; }
+  .bf-eye .ico-eyes { width: 76px; color: #fff; }
 </style>
 </head>
 <body>
 <div class="win">
   <div class="titlebar">
-    <span class="tb-ico">🎨</span>
+    <span class="tb-ico"><svg class="ico" viewBox="0 0 16 16" shape-rendering="crispEdges"><rect x="1" y="4" width="9" height="8" fill="#d8c49a"/><rect x="2" y="5" width="2" height="2" fill="#e03030"/><rect x="5" y="5" width="2" height="2" fill="#3060e0"/><rect x="2" y="8" width="2" height="2" fill="#2fa02f"/><rect x="5" y="8" width="2" height="2" fill="#e6c020"/><rect x="11" y="2" width="2" height="9" fill="#a0703a"/><rect x="11" y="1" width="2" height="2" fill="#333"/></svg></span>
     <span class="tb-name">무제 - 그림판</span>
     <span class="tb-btns"><button class="tb-btn">_</button><button class="tb-btn">☐</button><button class="tb-btn">✕</button></span>
   </div>
@@ -197,7 +205,7 @@
     <span class="mi" id="miFile"><u>파</u>일</span><span class="mi"><u>편</u>집</span><span class="mi"><u>보</u>기</span>
     <span class="mi">이미지</span><span class="mi">옵션</span><span class="mi">도움말</span>
     <span class="spacer"></span>
-    <button class="mute-btn" id="muteBtn">🔊</button>
+    <button class="mute-btn" id="muteBtn"></button>
   </div>
   <div class="menu-drop" id="fileMenu">
     <button class="md-item" data-act="new">새로 만들기</button>
@@ -216,7 +224,7 @@
           <div class="dlg">
             <div class="dlg-title"><span>눈 감고 그리기</span><button class="x">✕</button></div>
             <div class="dlg-body">
-              <div class="dlg-ico">🙈✏️</div>
+              <div class="dlg-ico"><svg class="ico-eyes" viewBox="0 0 26 12" shape-rendering="crispEdges"><rect x="3" y="4" width="7" height="2" fill="currentColor"/><rect x="16" y="4" width="7" height="2" fill="currentColor"/><rect x="3" y="6" width="2" height="1" fill="currentColor"/><rect x="8" y="6" width="2" height="1" fill="currentColor"/><rect x="16" y="6" width="2" height="1" fill="currentColor"/><rect x="21" y="6" width="2" height="1" fill="currentColor"/></svg></div>
               <h1>눈 감고 <span class="hl">괴작</span> 그리기</h1>
               <p class="desc">제시어 확인 → 눈 감고 그리기 →<br>눈 뜨면 괴물이 완성돼 있음 ㅋㅋ</p>
               <div class="dlg-btns"><button class="btn98" id="startBtn">시작하기</button></div>
@@ -232,7 +240,7 @@
             <div class="dlg-body">
               <div class="p-label">오늘의 제시어</div>
               <div class="p-word" id="promptWord">고양이</div>
-              <div class="p-guide">잘 기억했나요?<br><b>이제 눈을 감으세요 🙈</b></div>
+              <div class="p-guide">잘 기억했나요?<br><b>이제 눈을 감으세요</b></div>
               <div class="dlg-btns"><button class="btn98" id="beginDrawBtn">눈 감고 그리기 시작</button></div>
               <p class="note">그리는 동안 화면은 캄캄해져요.<br>정말 눈 감고 그려도 됩니다 ^^</p>
             </div>
@@ -244,7 +252,7 @@
           <div class="draw-area" id="drawArea">
             <canvas id="canvas"></canvas>
             <div class="blindfold" id="blindfold">
-              <div class="bf-eye">🙈</div>
+              <div class="bf-eye"><svg class="ico-eyes" viewBox="0 0 26 12" shape-rendering="crispEdges"><rect x="3" y="4" width="7" height="2" fill="currentColor"/><rect x="16" y="4" width="7" height="2" fill="currentColor"/><rect x="3" y="6" width="2" height="1" fill="currentColor"/><rect x="8" y="6" width="2" height="1" fill="currentColor"/><rect x="16" y="6" width="2" height="1" fill="currentColor"/><rect x="21" y="6" width="2" height="1" fill="currentColor"/></svg></div>
               <div class="bf-t">눈 감고 그리는 중…</div>
               <div class="bf-w" id="bfWord">고양이</div>
               <div class="bf-hint">화면을 손으로 슥슥 그리세요</div>
@@ -259,7 +267,7 @@
         <!-- 결과 -->
         <section class="screen" id="resultScreen">
           <div class="dlg">
-            <div class="dlg-title"><span>🎉 결과 공개</span><button class="x">✕</button></div>
+            <div class="dlg-title"><span>결과 공개</span><button class="x">✕</button></div>
             <div class="dlg-body">
               <div class="r-verdict" id="rVerdict">이건… 고양이인가요?</div>
               <div class="r-frame"><img id="rImg" alt="내 그림" /></div>
@@ -298,7 +306,7 @@
   <div class="save-modal-inner">
     <div class="sm-bar">그림 저장</div>
     <div class="sm-in">
-      <p class="sm-title">👆 이미지를 꾹 눌러 저장하세요</p>
+      <p class="sm-title">이미지를 꾹 눌러 저장하세요</p>
       <p class="sm-sub">아이폰은 아래 이미지를 길게 눌러<br>'사진에 저장'을 선택하세요</p>
       <img id="saveModalImg" alt="결과 그림" />
       <button class="btn98 sm-close" id="saveModalClose">닫기</button>
@@ -307,8 +315,8 @@
 </div>
 
 <div class="taskbar">
-  <button class="start-btn" id="startTaskBtn">🪟 시작</button>
-  <div class="tb-app">🎨 무제 - 그림판</div>
+  <button class="start-btn" id="startTaskBtn"><svg class="ico" viewBox="0 0 16 16" shape-rendering="crispEdges"><rect x="2" y="2" width="5" height="5" fill="#e03030"/><rect x="9" y="2" width="5" height="5" fill="#2fa02f"/><rect x="2" y="9" width="5" height="5" fill="#3060e0"/><rect x="9" y="9" width="5" height="5" fill="#e6c020"/></svg>시작</button>
+  <div class="tb-app"><svg class="ico" viewBox="0 0 16 16" shape-rendering="crispEdges"><rect x="1" y="4" width="9" height="8" fill="#d8c49a"/><rect x="2" y="5" width="2" height="2" fill="#e03030"/><rect x="5" y="5" width="2" height="2" fill="#3060e0"/><rect x="2" y="8" width="2" height="2" fill="#2fa02f"/><rect x="5" y="8" width="2" height="2" fill="#e6c020"/><rect x="11" y="2" width="2" height="9" fill="#a0703a"/><rect x="11" y="1" width="2" height="2" fill="#333"/></svg>무제 - 그림판</div>
   <div class="tb-clock" id="clock">8:52 PM</div>
 </div>
 
@@ -324,7 +332,10 @@ function beep(f, d, t, v, w) { if (muted) return; const c = ac(); if (!c) return
 function sfxBlip() { beep(760, 0.06, "square", 0.11); }
 function sfxStart() { beep(500, 0.05, "square", 0.1); beep(720, 0.07, "square", 0.1, 0.05); }
 function sfxReveal() { [523, 659, 784, 1047, 1319].forEach((f, i) => beep(f, 0.12, "square", 0.13, i * 0.08)); }
-function toggleMute() { muted = !muted; localStorage.setItem(MUTE_KEY, muted ? "1" : "0"); $("muteBtn").textContent = muted ? "🔇" : "🔊"; if (!muted) sfxBlip(); }
+const ICO_SPEAKER = '<svg class="ico" viewBox="0 0 16 16" shape-rendering="crispEdges"><rect x="2" y="6" width="3" height="4" fill="#000"/><polygon points="5,6 9,3 9,13 5,10" fill="#000"/><rect x="11" y="6" width="1" height="4" fill="#000"/><rect x="13" y="4" width="1" height="8" fill="#000"/></svg>';
+const ICO_MUTE = '<svg class="ico" viewBox="0 0 16 16"><g shape-rendering="crispEdges"><rect x="2" y="6" width="3" height="4" fill="#000"/><polygon points="5,6 9,3 9,13 5,10" fill="#000"/></g><path d="M11 6 L15 10 M15 6 L11 10" stroke="#c00" stroke-width="1.6" fill="none"/></svg>';
+function setMuteIcon() { $("muteBtn").innerHTML = muted ? ICO_MUTE : ICO_SPEAKER; }
+function toggleMute() { muted = !muted; localStorage.setItem(MUTE_KEY, muted ? "1" : "0"); setMuteIcon(); if (!muted) sfxBlip(); }
 
 /* ---------- 데이터 ---------- */
 const PROMPTS = ["고양이", "강아지", "집", "자전거", "나무", "사람 얼굴", "자동차", "물고기", "꽃", "코끼리", "문어", "로봇", "우산", "기린", "오리", "선인장", "달팽이"];
@@ -454,18 +465,18 @@ function judge(m) {
   pct = Math.max(6, Math.min(97, Math.round(pct)));
 
   const verdict = pct >= 85 ? `오… 진짜 ${promptWord} 같은데요?!` : `이건… ${promptWord}인가요 ${pick(WRONG)}인가요?`;
-  const grade = pct >= 85 ? "🏆 천재 화가 등장" : pct >= 65 ? "👀 알아볼 순 있어요" : pct >= 45 ? "🎨 추상화의 대가" : pct >= 25 ? "🤔 음… 이게 뭐죠?" : "👾 미스터리 생명체 탄생";
+  const grade = pct >= 85 ? "천재 화가 등장!" : pct >= 65 ? "알아볼 순 있어요" : pct >= 45 ? "추상화의 대가" : pct >= 25 ? "음… 이게 뭐죠?" : "미스터리 생명체 탄생";
 
   const cond = [];
-  if (m.offCount >= 3) cond.push(`✏️ 선이 화면 밖으로 <b style="color:#aa0000">${m.offCount}번</b> 탈출했어요`);
-  else if (m.offCount >= 1) cond.push(`✏️ 화면 밖으로 ${m.offCount}번 삐져나갔네요`);
-  if (m.strokes <= 2) cond.push(`🖊 단 ${m.strokes}획으로 끝낸 미니멀리스트`);
-  else if (m.strokes >= 16) cond.push(`🖊 붓질 ${m.strokes}번… 정성은 인정합니다`);
-  if (m.coverage < 0.04) cond.push("🐭 너무 소심해요, 화면이 텅 비었어요");
-  else if (m.coverage > 0.7) cond.push("🦖 화면을 꽉 채운 대작(?)");
-  if (m.time < 3000) cond.push("⚡ 3초컷 스피드런");
-  else if (m.time > 20000) cond.push("🐢 20초 넘게 고심한 역작");
-  if (m.points < 20) cond.push("🤨 이게… 다예요? 뭔가 더 있어야 할 것 같은데");
+  if (m.offCount >= 3) cond.push(`» 선이 화면 밖으로 <b style="color:#aa0000">${m.offCount}번</b> 탈출했어요`);
+  else if (m.offCount >= 1) cond.push(`» 화면 밖으로 ${m.offCount}번 삐져나갔네요`);
+  if (m.strokes <= 2) cond.push(`» 단 ${m.strokes}획으로 끝낸 미니멀리스트`);
+  else if (m.strokes >= 16) cond.push(`» 붓질 ${m.strokes}번… 정성은 인정합니다`);
+  if (m.coverage < 0.04) cond.push("» 너무 소심해요, 화면이 텅 비었어요");
+  else if (m.coverage > 0.7) cond.push("» 화면을 꽉 채운 대작(?)");
+  if (m.time < 3000) cond.push("» 3초컷 스피드런");
+  else if (m.time > 20000) cond.push("» 20초 넘게 고심한 역작");
+  if (m.points < 20) cond.push("» 이게… 다예요? 뭔가 더 있어야 할 것 같은데");
 
   const shuffled = cond.sort(() => Math.random() - 0.5).slice(0, 2);
   shuffled.push(pick(FLAVOR));
@@ -474,9 +485,10 @@ function judge(m) {
 
 function sparkle() {
   const box2 = $("resultScreen");
-  for (let i = 0; i < 12; i++) {
-    const s = document.createElement("span"); s.className = "spark"; s.textContent = pick(["✨", "⭐", "💫"]);
-    s.style.left = (10 + Math.random() * 80) + "%"; s.style.top = (12 + Math.random() * 45) + "%";
+  const cols = ["#e6c020", "#e03030", "#3060e0", "#2fa02f", "#ffffff"];
+  for (let i = 0; i < 14; i++) {
+    const s = document.createElement("span"); s.className = "spark"; s.style.background = cols[i % cols.length];
+    s.style.left = (8 + Math.random() * 84) + "%"; s.style.top = (10 + Math.random() * 48) + "%";
     s.style.animationDelay = (Math.random() * 0.4) + "s"; box2.appendChild(s);
     setTimeout(() => s.remove(), 1200);
   }
@@ -498,7 +510,13 @@ async function buildCard() {
   c.fillStyle = "#008080"; c.fillRect(0, 0, W2, H2);
   c.fillStyle = "#c0c0c0"; c.fillRect(60, 90, W2 - 120, H2 - 180);
   c.fillStyle = "#000082"; c.fillRect(60, 90, W2 - 120, 70);
-  c.fillStyle = "#fff"; c.textAlign = "left"; c.font = "700 40px " + FF; c.fillText("🎨 무제 - 그림판", 84, 138);
+  // 타이틀바 팔레트 아이콘(픽셀)
+  c.fillStyle = "#d8c49a"; c.fillRect(82, 108, 34, 30);
+  c.fillStyle = "#e03030"; c.fillRect(88, 114, 8, 8);
+  c.fillStyle = "#3060e0"; c.fillRect(100, 114, 8, 8);
+  c.fillStyle = "#2fa02f"; c.fillRect(88, 124, 8, 8);
+  c.fillStyle = "#e6c020"; c.fillRect(100, 124, 8, 8);
+  c.fillStyle = "#fff"; c.textAlign = "left"; c.font = "700 40px " + FF; c.fillText("무제 - 그림판", 126, 138);
   c.textAlign = "center";
   c.fillStyle = "#333"; c.font = "600 40px " + FF; c.fillText("제시어 : " + promptWord, cx, 232);
   // 그림
@@ -531,7 +549,7 @@ async function saveCard() {
       if (!supportsDownload()) { openSaveModal(u); $("saveHint").textContent = ""; return; }
       const a = document.createElement("a"); a.href = u; a.download = "눈감고그리기_" + promptWord + ".png";
       document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 1000);
-      $("saveHint").textContent = "저장 완료! 📸";
+      $("saveHint").textContent = "저장 완료!";
     }, "image/png");
   } catch (e) { $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요 🙏"; }
 }
@@ -581,7 +599,7 @@ window.addEventListener("pointermove", onMove);
 window.addEventListener("pointerup", onUp);
 window.addEventListener("pointercancel", onUp);
 
-$("muteBtn").textContent = muted ? "🔇" : "🔊";
+setMuteIcon();
 buildPalette(); buildTools(); tickClock(); setInterval(tickClock, 10000);
 </script>
 </body>
