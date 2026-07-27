@@ -275,36 +275,61 @@
         <section class="screen active" id="startScreen">
           <div class="doodles" aria-hidden="true">
             <svg viewBox="0 0 300 400" preserveAspectRatio="xMidYMin slice">
-              <g stroke="#000" stroke-width="3" stroke-linecap="round">
-                <line x1="46" y1="18" x2="46" y2="6"/><line x1="46" y1="86" x2="46" y2="98"/>
-                <line x1="12" y1="52" x2="2" y2="52"/><line x1="80" y1="52" x2="92" y2="52"/>
-                <line x1="22" y1="28" x2="14" y2="20"/><line x1="70" y1="28" x2="78" y2="20"/>
-                <line x1="22" y1="76" x2="14" y2="84"/><line x1="70" y1="76" x2="78" y2="84"/>
+              <defs><filter id="wob" x="-6%" y="-6%" width="112%" height="112%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="1" seed="5" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.6" xChannelSelector="R" yChannelSelector="G"/></filter></defs>
+              <g filter="url(#wob)" stroke-linejoin="round">
+                <!-- 해(얼굴) -->
+                <g stroke="#000" stroke-width="3.5" stroke-linecap="round">
+                  <line x1="44" y1="14" x2="44" y2="2"/><line x1="44" y1="82" x2="44" y2="94"/>
+                  <line x1="10" y1="48" x2="-2" y2="48"/><line x1="78" y1="48" x2="90" y2="48"/>
+                  <line x1="20" y1="24" x2="12" y2="16"/><line x1="68" y1="24" x2="76" y2="16"/>
+                  <line x1="20" y1="72" x2="12" y2="80"/><line x1="68" y1="72" x2="76" y2="80"/>
+                </g>
+                <circle cx="44" cy="48" r="20" fill="#ffe24c" stroke="#000" stroke-width="3.5"/>
+                <circle cx="37" cy="44" r="2.2" fill="#000"/><circle cx="51" cy="44" r="2.2" fill="#000"/>
+                <path d="M35 54 q9 8 18 0" stroke="#000" stroke-width="2.5" fill="none"/>
+                <!-- 구름 -->
+                <path d="M196 62 q-16 0 -16 -15 q0 -14 16 -12 q3 -16 22 -9 q16 -8 20 11 q15 0 11 15 q0 10 -16 10 z" fill="#fff" stroke="#000" stroke-width="3.5"/>
+                <path d="M96 30 q-12 0 -12 -11 q0 -10 12 -9 q3 -12 17 -6 q12 -6 15 8 q11 0 8 11 q0 8 -12 8 z" fill="#fff" stroke="#000" stroke-width="3"/>
+                <!-- 새 -->
+                <g stroke="#000" stroke-width="2.5" fill="none" stroke-linecap="round">
+                  <path d="M150 92 q6 -7 12 0"/><path d="M162 92 q6 -7 12 0"/>
+                  <path d="M232 84 q5 -6 10 0"/><path d="M242 84 q5 -6 10 0"/>
+                </g>
+                <!-- 별 -->
+                <path d="M268 116 l4 9 10 1 -7 7 2 10 -9 -5 -9 5 2 -10 -7 -7 10 -1 z" fill="#ffe24c" stroke="#000" stroke-width="2"/>
+                <!-- 하트 -->
+                <path d="M196 150 q-8 -11 -16 -2 q-7 8 16 24 q23 -16 16 -24 q-8 -9 -16 2 z" fill="#ef5b5b" stroke="#000" stroke-width="2.5"/>
+                <!-- 졸라맨(손 흔들기) -->
+                <g stroke="#000" stroke-width="3.5" fill="none" stroke-linecap="round">
+                  <circle cx="150" cy="120" r="15" fill="#fff"/>
+                  <line x1="150" y1="135" x2="150" y2="176"/>
+                  <line x1="150" y1="146" x2="130" y2="130"/><line x1="150" y1="146" x2="170" y2="164"/>
+                  <line x1="150" y1="176" x2="134" y2="200"/><line x1="150" y1="176" x2="166" y2="200"/>
+                  <path d="M143 124 q7 6 14 0"/>
+                </g>
+                <circle cx="144" cy="117" r="1.6" fill="#000"/><circle cx="156" cy="117" r="1.6" fill="#000"/>
+                <!-- ㅋㅋ -->
+                <text x="86" y="112" font-family="'Galmuri11', sans-serif" font-size="22" fill="#3060e0" transform="rotate(-8 86 112)">ㅋㅋ</text>
+                <!-- 나무 -->
+                <rect x="20" y="200" width="14" height="62" fill="#a0703a" stroke="#000" stroke-width="3.5"/>
+                <circle cx="27" cy="184" r="26" fill="#2fa02f" stroke="#000" stroke-width="3.5"/>
+                <!-- 집 -->
+                <rect x="108" y="222" width="78" height="62" fill="#fff" stroke="#000" stroke-width="3.5"/>
+                <path d="M102 222 L147 184 L192 222 Z" fill="#f2a24c" stroke="#000" stroke-width="3.5"/>
+                <rect x="168" y="192" width="12" height="22" fill="#c0553a" stroke="#000" stroke-width="3"/>
+                <path d="M174 188 q-8 -6 0 -12 q8 -6 0 -12" stroke="#909090" stroke-width="3" fill="none" stroke-linecap="round"/>
+                <rect x="136" y="252" width="22" height="32" fill="#a0703a" stroke="#000" stroke-width="3.5"/>
+                <circle cx="153" cy="268" r="2" fill="#000"/>
+                <rect x="116" y="232" width="16" height="16" fill="#bfe0f2" stroke="#000" stroke-width="3"/>
+                <rect x="164" y="232" width="16" height="16" fill="#bfe0f2" stroke="#000" stroke-width="3"/>
+                <!-- 꽃 -->
+                <line x1="250" y1="286" x2="250" y2="224" stroke="#000" stroke-width="3" stroke-linecap="round"/>
+                <path d="M250 252 q14 -4 22 -16" fill="none" stroke="#000" stroke-width="3"/>
+                <circle cx="250" cy="208" r="9" fill="#ef5b5b" stroke="#000" stroke-width="3"/><circle cx="236" cy="220" r="9" fill="#ef5b5b" stroke="#000" stroke-width="3"/><circle cx="264" cy="220" r="9" fill="#ef5b5b" stroke="#000" stroke-width="3"/><circle cx="250" cy="232" r="9" fill="#ef5b5b" stroke="#000" stroke-width="3"/>
+                <circle cx="250" cy="220" r="9" fill="#ffe24c" stroke="#000" stroke-width="3"/>
+                <!-- 낙서선 -->
+                <path d="M70 300 q10 -16 20 0 t20 0 t20 0" fill="none" stroke="#2fa02f" stroke-width="3" stroke-linecap="round"/>
               </g>
-              <circle cx="46" cy="52" r="18" fill="#ffe24c" stroke="#000" stroke-width="3"/>
-              <path d="M205 66 q-16 0 -16 -15 q0 -14 16 -12 q3 -16 22 -9 q16 -8 20 11 q15 0 11 15 q0 10 -16 10 z" fill="#fff" stroke="#000" stroke-width="3"/>
-              <path d="M214 118 q-9 -12 -18 -3 q-8 8 18 26 q26 -18 18 -26 q-9 -9 -18 3 z" fill="#ef5b5b" stroke="#000" stroke-width="2.5"/>
-              <g stroke="#000" stroke-width="3" fill="none" stroke-linecap="round">
-                <circle cx="150" cy="105" r="16" fill="#fff"/>
-                <line x1="150" y1="121" x2="150" y2="166"/>
-                <line x1="150" y1="133" x2="128" y2="152"/><line x1="150" y1="133" x2="172" y2="152"/>
-                <line x1="150" y1="166" x2="132" y2="192"/><line x1="150" y1="166" x2="168" y2="192"/>
-                <path d="M143 110 q7 6 14 0"/>
-              </g>
-              <circle cx="144" cy="101" r="1.6" fill="#000"/><circle cx="156" cy="101" r="1.6" fill="#000"/>
-              <g stroke="#000" stroke-width="3">
-                <rect x="26" y="222" width="72" height="56" fill="#fff"/>
-                <path d="M20 222 L62 186 L104 222 Z" fill="#f2a24c"/>
-                <rect x="52" y="250" width="20" height="28" fill="#a0703a"/>
-                <rect x="34" y="232" width="16" height="16" fill="#bfe0f2"/>
-              </g>
-              <g stroke="#000" stroke-width="3">
-                <line x1="248" y1="280" x2="248" y2="224" stroke-linecap="round"/>
-                <circle cx="248" cy="196" r="10" fill="#ef5b5b"/><circle cx="232" cy="210" r="10" fill="#ef5b5b"/><circle cx="264" cy="210" r="10" fill="#ef5b5b"/><circle cx="248" cy="224" r="10" fill="#ef5b5b"/>
-                <circle cx="248" cy="210" r="10" fill="#ffe24c"/>
-              </g>
-              <text x="46" y="322" font-family="'Galmuri11', sans-serif" font-size="30" fill="#3060e0" transform="rotate(-6 46 322)">ㅋㅋㅋ</text>
-              <path d="M150 316 q10 -16 20 0 t20 0 t20 0" fill="none" stroke="#2fa02f" stroke-width="3" stroke-linecap="round"/>
             </svg>
           </div>
           <div class="dlg">
