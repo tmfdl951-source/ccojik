@@ -9,11 +9,12 @@
 <meta property="og:description" content="눈 감고 그리면 괴물이 완성된다. 친구·연인에게 시켜보세요 ^^" />
 <link rel="stylesheet" as="style" crossorigin
   href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri/dist/galmuri.css" />
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   :root { --face: #c0c0c0; --ink: #000; --navy1: #000082; --navy2: #1084d0; }
   html, body { height: 100%; -webkit-user-select: none; user-select: none;
-    font-family: Tahoma, Verdana, "Pretendard Variable", Pretendard, sans-serif; color: var(--ink); }
+    font-family: "Galmuri11", "Pretendard Variable", Pretendard, sans-serif; color: var(--ink); }
   body { min-height: 100dvh; padding: 8px 8px 44px; display: flex; align-items: center; justify-content: center;
     background: #008080; }
 
@@ -22,7 +23,7 @@
   .sunken { box-shadow: inset -1px -1px 0 #fff, inset 1px 1px 0 #808080, inset -2px -2px 0 #dfdfdf, inset 2px 2px 0 #000; }
 
   /* ===== 그림판 창 ===== */
-  .win { width: min(440px, 96vw); height: min(calc(100dvh - 56px), 800px); display: flex; flex-direction: column;
+  .win { position: relative; width: min(440px, 96vw); height: min(calc(100dvh - 56px), 800px); display: flex; flex-direction: column;
     background: var(--face); border: 1px solid #000; box-shadow: inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf, 3px 3px 8px rgba(0,0,0,.4); padding: 3px; }
   .titlebar { height: 22px; flex-shrink: 0; display: flex; align-items: center; gap: 5px; padding: 0 3px;
     background: linear-gradient(90deg, var(--navy1), var(--navy2)); color: #fff; }
@@ -42,6 +43,20 @@
   .mute-btn { font-size: 12px; padding: 1px 6px; margin-right: 2px; background: var(--face); border: none; cursor: pointer;
     box-shadow: inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf; }
   .mute-btn:active { box-shadow: inset -1px -1px 0 #fff, inset 1px 1px 0 #000, inset -2px -2px 0 #dfdfdf, inset 2px 2px 0 #808080; }
+  .mi.open { background: var(--face); box-shadow: inset -1px -1px 0 #fff, inset 1px 1px 0 #808080; color: #000; }
+  /* 파일 드롭다운 메뉴 */
+  .menu-drop { position: absolute; top: 44px; left: 5px; z-index: 45; min-width: 156px; background: var(--face); padding: 2px;
+    box-shadow: inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf, 2px 2px 5px rgba(0,0,0,.4); display: none; }
+  .menu-drop.show { display: block; }
+  .md-item { display: block; width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-family: inherit; font-size: 13px; padding: 6px 18px 6px 22px; color: #000; }
+  .md-item:hover { background: var(--navy2); color: #fff; }
+  .md-sep { height: 2px; margin: 2px 3px; box-shadow: inset 0 1px 0 #808080, inset 0 2px 0 #fff; }
+  /* 전경/배경 색 인디케이터(그림판 좌하단 느낌) */
+  .pal-colors { position: relative; width: 30px; height: 30px; flex-shrink: 0; }
+  .pc { position: absolute; width: 18px; height: 18px; border: 1px solid #000;
+    box-shadow: inset -1px -1px 0 #808080, inset 1px 1px 0 #fff; }
+  .pc.bg { right: 0; bottom: 0; background: #fff; }
+  .pc.fg { left: 0; top: 0; z-index: 1; background: #000; }
 
   .win-main { flex: 1; display: flex; gap: 3px; min-height: 0; padding-top: 2px; }
   /* 도구상자 */
@@ -179,10 +194,16 @@
     <span class="tb-btns"><button class="tb-btn">_</button><button class="tb-btn">☐</button><button class="tb-btn">✕</button></span>
   </div>
   <div class="menubar">
-    <span class="mi"><u>파</u>일</span><span class="mi"><u>편</u>집</span><span class="mi"><u>보</u>기</span>
+    <span class="mi" id="miFile"><u>파</u>일</span><span class="mi"><u>편</u>집</span><span class="mi"><u>보</u>기</span>
     <span class="mi">이미지</span><span class="mi">옵션</span><span class="mi">도움말</span>
     <span class="spacer"></span>
     <button class="mute-btn" id="muteBtn">🔊</button>
+  </div>
+  <div class="menu-drop" id="fileMenu">
+    <button class="md-item" data-act="new">새로 만들기</button>
+    <button class="md-item" data-act="save">저장</button>
+    <div class="md-sep"></div>
+    <button class="md-item" data-act="exit">끝내기</button>
   </div>
 
   <div class="win-main">
@@ -259,7 +280,7 @@
 
       </div>
       <div class="pal-wrap">
-        <div class="pal-cur" id="palCur"></div>
+        <div class="pal-colors"><span class="pc bg"></span><span class="pc fg" id="palFg"></span></div>
         <div id="palette"></div>
       </div>
     </div>
@@ -267,7 +288,8 @@
 
   <div class="statusbar">
     <div class="sb grow" id="statusText">도움말을 보려면 [도움말] 메뉴를 누르세요.</div>
-    <div class="sb" id="statusMetric"></div>
+    <div class="sb" id="statusTool">연필</div>
+    <div class="sb" id="statusCoord">0, 0</div>
   </div>
 </div>
 
@@ -318,7 +340,7 @@ function buildPalette() {
   PAL.forEach(c => {
     const b = document.createElement("button"); b.className = "sw"; b.style.background = c;
     b.addEventListener("click", () => {
-      penColor = c; $("palCur").style.background = c;
+      penColor = c; $("palFg").style.background = c;
       if (ctx) ctx.strokeStyle = c;
       document.querySelectorAll(".sw").forEach(s => s.classList.remove("sel")); b.classList.add("sel");
       sfxBlip();
@@ -348,7 +370,7 @@ function newPrompt() {
   promptWord = pick(PROMPTS);
   $("promptWord").textContent = promptWord;
   $("bfWord").textContent = promptWord;
-  $("statusMetric").textContent = "";
+  $("statusCoord").textContent = "0, 0";
   status("제시어를 확인하세요.");
   show("promptScreen");
 }
@@ -392,6 +414,7 @@ function onMove(e) {
   if (!out) wasOut = false;
   const c = clampP(p);
   drawSeg(last, c); last = c; track(c);
+  $("statusCoord").textContent = Math.round(c.x) + ", " + Math.round(c.y);
 }
 function onUp() { drawing = false; last = null; }
 
@@ -412,7 +435,7 @@ function reveal() {
   fill.style.width = "0%"; fill.style.background = res.pct >= 60 ? "#008000" : res.pct >= 35 ? "#b8860b" : "#aa0000";
   $("rComments").innerHTML = res.comments.map(c => `<div class="r-cm">${c}</div>`).join("");
   $("saveHint").textContent = "";
-  $("statusMetric").textContent = "획 " + m.strokes + " · 밖 " + m.offCount;
+  $("statusCoord").textContent = m.strokes + "획";
   status("완성! 결과가 공개되었습니다.");
   show("resultScreen");
   $("resultScreen").scrollTop = 0;
@@ -540,6 +563,18 @@ $("shareBtn").addEventListener("click", shareLink);
 $("saveModalClose").addEventListener("click", closeSaveModal);
 $("saveModal").addEventListener("click", e => { if (e.target === $("saveModal")) closeSaveModal(); });
 $("muteBtn").addEventListener("click", toggleMute);
+
+/* 파일 메뉴 드롭다운 */
+const fileMenu = $("fileMenu");
+$("miFile").addEventListener("click", e => { e.stopPropagation(); const open = fileMenu.classList.toggle("show"); $("miFile").classList.toggle("open", open); sfxBlip(); });
+document.addEventListener("click", () => { fileMenu.classList.remove("show"); $("miFile").classList.remove("open"); });
+fileMenu.querySelectorAll(".md-item").forEach(it => it.addEventListener("click", e => {
+  e.stopPropagation(); fileMenu.classList.remove("show"); $("miFile").classList.remove("open");
+  const a = it.dataset.act;
+  if (a === "new") { sfxBlip(); newPrompt(); }
+  else if (a === "save") { if ($("resultScreen").classList.contains("active")) saveCard(); else toast("결과 화면에서 저장할 수 있어요"); }
+  else if (a === "exit") { toast("정말 끝내시려고요…? ^^"); }
+}));
 
 $("canvas").addEventListener("pointerdown", onDown);
 window.addEventListener("pointermove", onMove);
