@@ -23,7 +23,7 @@
   .sunken { box-shadow: inset -1px -1px 0 #fff, inset 1px 1px 0 #808080, inset -2px -2px 0 #dfdfdf, inset 2px 2px 0 #000; }
 
   /* ===== 그림판 창 ===== */
-  .win { position: relative; width: min(440px, 96vw); height: min(calc(100dvh - 56px), 800px); display: flex; flex-direction: column;
+  .win { position: relative; z-index: 2; width: min(440px, 96vw); height: min(calc(100dvh - 56px), 800px); display: flex; flex-direction: column;
     background: var(--face); border: 1px solid #000; box-shadow: inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf, 3px 3px 8px rgba(0,0,0,.4); padding: 3px; }
   .titlebar { height: 22px; flex-shrink: 0; display: flex; align-items: center; gap: 5px; padding: 0 3px;
     background: linear-gradient(90deg, var(--navy1), var(--navy2)); color: #fff; }
@@ -189,9 +189,59 @@
   .tb-ico .ico { width: 14px; height: 14px; vertical-align: -2px; }
   .start-btn .ico, .tb-app .ico { width: 15px; height: 15px; vertical-align: -3px; margin-right: 3px; }
   .mute-btn .ico { width: 14px; height: 14px; vertical-align: -2px; }
+
+  /* ===== 윈도우98 스크롤바 ===== */
+  .screen::-webkit-scrollbar, .save-modal-inner::-webkit-scrollbar, .r-comments::-webkit-scrollbar { display: block; width: 16px; height: 16px; }
+  .screen::-webkit-scrollbar-track, .save-modal-inner::-webkit-scrollbar-track {
+    background-color: #c0c0c0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='2'%3E%3Crect width='1' height='1' fill='%23ffffff'/%3E%3Crect x='1' y='1' width='1' height='1' fill='%23ffffff'/%3E%3Crect x='1' width='1' height='1' fill='%23c0c0c0'/%3E%3Crect y='1' width='1' height='1' fill='%23c0c0c0'/%3E%3C/svg%3E");
+    background-size: 2px 2px; }
+  .screen::-webkit-scrollbar-thumb, .save-modal-inner::-webkit-scrollbar-thumb {
+    background: #c0c0c0; box-shadow: inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf; }
+  .screen::-webkit-scrollbar-button:single-button:vertical:decrement, .save-modal-inner::-webkit-scrollbar-button:single-button:vertical:decrement {
+    height: 16px; background: #c0c0c0 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'%3E%3Crect x='7' y='6' width='2' height='1'/%3E%3Crect x='6' y='7' width='4' height='1'/%3E%3Crect x='5' y='8' width='6' height='1'/%3E%3C/svg%3E") center no-repeat;
+    box-shadow: inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf; }
+  .screen::-webkit-scrollbar-button:single-button:vertical:increment, .save-modal-inner::-webkit-scrollbar-button:single-button:vertical:increment {
+    height: 16px; background: #c0c0c0 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'%3E%3Crect x='5' y='7' width='6' height='1'/%3E%3Crect x='6' y='8' width='4' height='1'/%3E%3Crect x='7' y='9' width='2' height='1'/%3E%3C/svg%3E") center no-repeat;
+    box-shadow: inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf; }
+
+  /* ===== 바탕화면 아이콘 ===== */
+  .desk-icons { position: fixed; top: 12px; left: 12px; z-index: 1; display: flex; flex-direction: column; gap: 16px; }
+  .desk-ico { background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; width: 70px; padding: 0; }
+  .desk-ico .di-img { width: 30px; height: 30px; image-rendering: pixelated; }
+  .desk-ico .di-lbl { font-size: 11px; color: #fff; text-shadow: 1px 1px 0 #000, -1px 0 0 #000; padding: 1px 3px; line-height: 1.3; text-align: center; }
+  .desk-ico:active .di-lbl { background: #000082; outline: 1px dotted #fff; }
+
+  /* ===== 시작 메뉴 ===== */
+  .start-btn.pressed { box-shadow: inset -1px -1px 0 #fff, inset 1px 1px 0 #000, inset -2px -2px 0 #dfdfdf, inset 2px 2px 0 #808080; }
+  .start-menu { position: fixed; left: 4px; bottom: 30px; z-index: 55; width: 210px; display: none; background: #c0c0c0; padding: 3px;
+    box-shadow: inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf, 3px 3px 8px rgba(0,0,0,.5); }
+  .start-menu.show { display: flex; }
+  .sm-side { width: 24px; flex-shrink: 0; background: linear-gradient(#000082, #1084d0); color: #fff; font-size: 14px; font-weight: 800;
+    writing-mode: vertical-rl; transform: rotate(180deg); text-align: left; padding: 8px 4px; letter-spacing: 1px; }
+  .sm-items { flex: 1; }
+  .sm-mi { display: block; width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-family: inherit; font-size: 14px; padding: 8px 12px; color: #000; }
+  .sm-mi:hover { background: #000082; color: #fff; }
+  .sm-sep2 { height: 2px; margin: 3px 4px; box-shadow: inset 0 1px 0 #808080, inset 0 2px 0 #fff; }
+
+  /* ===== 종료 화면 ===== */
+  .shutdown { position: fixed; inset: 0; z-index: 80; background: #000; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 30px; }
+  .shutdown.show { display: flex; }
+  .shutdown .sd-t { color: #e8a13c; font-size: 22px; font-weight: 800; text-align: center; line-height: 1.7; }
+  .shutdown .sd-h { color: #b8b8b8; font-size: 12px; text-align: center; }
+
+  /* 대화상자 흔들림(에러) */
+  .dlg.shake { animation: dlgShake .4s; }
+  @keyframes dlgShake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-6px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
 </style>
 </head>
 <body>
+<div class="desk-icons" aria-hidden="true">
+  <button class="desk-ico"><svg class="di-img" viewBox="0 0 24 24" shape-rendering="crispEdges"><rect x="3" y="3" width="18" height="13" fill="#c0c0c0" stroke="#000"/><rect x="5" y="5" width="14" height="9" fill="#2a7de1"/><rect x="8" y="16" width="8" height="3" fill="#c0c0c0" stroke="#000"/><rect x="6" y="20" width="12" height="2" fill="#909090" stroke="#000"/></svg><span class="di-lbl">내 컴퓨터</span></button>
+  <button class="desk-ico"><svg class="di-img" viewBox="0 0 24 24" shape-rendering="crispEdges"><rect x="3" y="7" width="18" height="12" fill="#f2c94c" stroke="#000"/><rect x="3" y="5" width="8" height="3" fill="#f2c94c" stroke="#000"/></svg><span class="di-lbl">내 문서</span></button>
+  <button class="desk-ico"><svg class="di-img" viewBox="0 0 24 24" shape-rendering="crispEdges"><rect x="6" y="6" width="12" height="3" fill="#b0b0b0" stroke="#000"/><rect x="7" y="9" width="10" height="11" fill="#c8c8c8" stroke="#000"/><rect x="10" y="11" width="1" height="7" fill="#808080"/><rect x="13" y="11" width="1" height="7" fill="#808080"/></svg><span class="di-lbl">휴지통</span></button>
+  <button class="desk-ico" id="deskPaint"><svg class="di-img" viewBox="0 0 24 24" shape-rendering="crispEdges"><rect x="2" y="6" width="14" height="12" fill="#d8c49a" stroke="#000"/><rect x="4" y="8" width="3" height="3" fill="#e03030"/><rect x="9" y="8" width="3" height="3" fill="#3060e0"/><rect x="4" y="13" width="3" height="3" fill="#2fa02f"/><rect x="9" y="13" width="3" height="3" fill="#e6c020"/><rect x="17" y="3" width="3" height="14" fill="#a0703a" stroke="#000"/></svg><span class="di-lbl">그림판</span></button>
+</div>
 <div class="win">
   <div class="titlebar">
     <span class="tb-ico"><svg class="ico" viewBox="0 0 16 16" shape-rendering="crispEdges"><rect x="1" y="4" width="9" height="8" fill="#d8c49a"/><rect x="2" y="5" width="2" height="2" fill="#e03030"/><rect x="5" y="5" width="2" height="2" fill="#3060e0"/><rect x="2" y="8" width="2" height="2" fill="#2fa02f"/><rect x="5" y="8" width="2" height="2" fill="#e6c020"/><rect x="11" y="2" width="2" height="9" fill="#a0703a"/><rect x="11" y="1" width="2" height="2" fill="#333"/></svg></span>
@@ -317,6 +367,24 @@
   <div class="tb-clock" id="clock">8:52 PM</div>
 </div>
 
+<div class="start-menu" id="startMenu">
+  <div class="sm-side">그림판 98</div>
+  <div class="sm-items">
+    <button class="sm-mi">프로그램</button>
+    <button class="sm-mi">문서</button>
+    <button class="sm-mi">설정</button>
+    <button class="sm-mi">찾기</button>
+    <button class="sm-mi">도움말</button>
+    <div class="sm-sep2"></div>
+    <button class="sm-mi" data-act="shutdown">Windows 종료...</button>
+  </div>
+</div>
+
+<div class="shutdown" id="shutdown">
+  <div class="sd-t">이제 컴퓨터를<br>안전하게 끌 수 있습니다.</div>
+  <div class="sd-h">(화면을 누르면 다시 켜집니다)</div>
+</div>
+
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
@@ -329,6 +397,7 @@ function beep(f, d, t, v, w) { if (muted) return; const c = ac(); if (!c) return
 function sfxBlip() { beep(760, 0.06, "square", 0.11); }
 function sfxStart() { beep(500, 0.05, "square", 0.1); beep(720, 0.07, "square", 0.1, 0.05); }
 function sfxReveal() { [523, 659, 784, 1047, 1319].forEach((f, i) => beep(f, 0.12, "square", 0.13, i * 0.08)); }
+function sfxDing() { beep(680, 0.13, "square", 0.12); beep(880, 0.16, "square", 0.1, 0.1); }
 const ICO_SPEAKER = '<svg class="ico" viewBox="0 0 16 16" shape-rendering="crispEdges"><rect x="2" y="6" width="3" height="4" fill="#000"/><polygon points="5,6 9,3 9,13 5,10" fill="#000"/><rect x="11" y="6" width="1" height="4" fill="#000"/><rect x="13" y="4" width="1" height="8" fill="#000"/></svg>';
 const ICO_MUTE = '<svg class="ico" viewBox="0 0 16 16"><g shape-rendering="crispEdges"><rect x="2" y="6" width="3" height="4" fill="#000"/><polygon points="5,6 9,3 9,13 5,10" fill="#000"/></g><path d="M11 6 L15 10 M15 6 L11 10" stroke="#c00" stroke-width="1.6" fill="none"/></svg>';
 function setMuteIcon() { $("muteBtn").innerHTML = muted ? ICO_MUTE : ICO_SPEAKER; }
@@ -568,7 +637,32 @@ function tickClock() {
 
 /* ---------- 이벤트 ---------- */
 $("startBtn").addEventListener("click", () => { sfxBlip(); newPrompt(); });
-$("startTaskBtn").addEventListener("click", () => { sfxBlip(); toast("시작 메뉴는… 나중에 ^^"); });
+/* 시작 메뉴 */
+$("startTaskBtn").addEventListener("click", e => {
+  e.stopPropagation();
+  const open = $("startMenu").classList.toggle("show");
+  $("startTaskBtn").classList.toggle("pressed", open); sfxBlip();
+});
+$("startMenu").addEventListener("click", e => e.stopPropagation());
+$("startMenu").querySelectorAll(".sm-mi").forEach(it => it.addEventListener("click", () => {
+  $("startMenu").classList.remove("show"); $("startTaskBtn").classList.remove("pressed");
+  if (it.dataset.act === "shutdown") { sfxDing(); $("shutdown").classList.add("show"); }
+  else { sfxBlip(); toast(it.textContent.trim() + " — 준비 중 ^^"); }
+}));
+$("shutdown").addEventListener("click", () => { $("shutdown").classList.remove("show"); show("startScreen"); });
+/* 바탕화면 아이콘 */
+document.querySelectorAll(".desk-ico").forEach(d => d.addEventListener("click", () => {
+  sfxBlip();
+  if (d.id === "deskPaint") toast("그림판은 이미 실행 중입니다 ^^");
+  else toast(d.querySelector(".di-lbl").textContent + " — 준비 중 ^^");
+}));
+/* 대화상자 ✕ (닫기) */
+document.querySelectorAll(".dlg-title .x").forEach(x => x.addEventListener("click", () => {
+  sfxDing();
+  if ($("startScreen").classList.contains("active")) { $("shutdown").classList.add("show"); }
+  else { show("startScreen"); status("도움말을 보려면 [도움말] 메뉴를 누르세요."); }
+}));
+document.addEventListener("click", () => { $("startMenu").classList.remove("show"); $("startTaskBtn").classList.remove("pressed"); });
 $("beginDrawBtn").addEventListener("click", beginDraw);
 $("clearBtn").addEventListener("click", () => { if (ctx) { clearCanvas(); resetMetrics(); sfxBlip(); } });
 $("revealBtn").addEventListener("click", reveal);
