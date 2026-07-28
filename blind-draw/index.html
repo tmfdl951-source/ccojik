@@ -62,7 +62,7 @@
   /* 도구상자 */
   .toolbox { width: 56px; flex-shrink: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; align-content: start;
     padding: 2px; background: var(--face); }
-  .tool { height: 24px; background: var(--face); border: none; cursor: default; font-size: 13px; line-height: 1; color: #000;
+  .tool { height: 24px; padding: 0; background: var(--face); border: none; cursor: pointer; font-size: 13px; line-height: 1; color: #000;
     display: flex; align-items: center; justify-content: center;
     box-shadow: inset -1px -1px 0 #000, inset 1px 1px 0 #fff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf; }
   .tool.sel { box-shadow: inset -1px -1px 0 #fff, inset 1px 1px 0 #000, inset -2px -2px 0 #dfdfdf, inset 2px 2px 0 #808080; background: #dfdfdf; }
@@ -489,16 +489,48 @@ function buildPalette() {
     p.appendChild(b);
   });
 }
-const TOOLS = ["✂","▭","／","○","✎","＼","▨","A","∿","◇","▬","◯","▢","⬚","✳","▤"];
+const TOOLS = [
+  { k:"select",   n:"선택",       u:false, ic:"<rect x='2' y='2' width='12' height='12' fill='none' stroke='#000' stroke-dasharray='2 1.5'/>" },
+  { k:"select2",  n:"영역 선택",  u:false, ic:"<rect x='2' y='3' width='12' height='10' fill='none' stroke='#000' stroke-dasharray='2 1.5'/>" },
+  { k:"eraser",   n:"지우개",     u:true,  ic:"<rect x='3' y='7' width='9' height='5' fill='#f7b0c0' stroke='#000'/><rect x='3' y='7' width='9' height='2' fill='#fff' stroke='#000'/>" },
+  { k:"fill",     n:"채우기",     u:true,  ic:"<path d='M4 8 L8 4 L12 8 L8 12 Z' fill='#c9c9c9' stroke='#000'/><rect x='12' y='9' width='2' height='5' fill='#3060e0'/>" },
+  { k:"pick",     n:"색 선택",    u:true,  ic:"<rect x='10' y='2' width='4' height='3' fill='#000'/><path d='M11 5 L4 12 L3 13' stroke='#000' stroke-width='2' fill='none'/>" },
+  { k:"zoom",     n:"돋보기",     u:false, ic:"<circle cx='7' cy='7' r='4' fill='none' stroke='#000' stroke-width='2'/><line x1='10' y1='10' x2='14' y2='14' stroke='#000' stroke-width='2'/>" },
+  { k:"pencil",   n:"연필",       u:true,  ic:"<line x1='3' y1='13' x2='11' y2='5' stroke='#000' stroke-width='2'/><rect x='10' y='3' width='3' height='3' fill='#e6c020' stroke='#000'/>" },
+  { k:"brush",    n:"붓",         u:true,  ic:"<line x1='3' y1='13' x2='8' y2='8' stroke='#000' stroke-width='2'/><rect x='7' y='4' width='5' height='5' fill='#a0703a' stroke='#000'/>" },
+  { k:"airbrush", n:"스프레이",   u:true,  ic:"<rect x='9' y='3' width='4' height='6' fill='#909090' stroke='#000'/><circle cx='4' cy='11' r='.7'/><circle cx='6' cy='13' r='.7'/><circle cx='3' cy='13' r='.7'/>" },
+  { k:"text",     n:"텍스트",     u:false, ic:"<text x='4' y='13' font-family='monospace' font-size='13' font-weight='bold' fill='#000'>A</text>" },
+  { k:"line",     n:"직선",       u:true,  ic:"<line x1='3' y1='13' x2='13' y2='3' stroke='#000' stroke-width='2'/>" },
+  { k:"curve",    n:"곡선",       u:true,  ic:"<path d='M3 12 q6 -13 11 -1' fill='none' stroke='#000' stroke-width='2'/>" },
+  { k:"rect",     n:"사각형",     u:true,  ic:"<rect x='3' y='4' width='10' height='8' fill='none' stroke='#000' stroke-width='2'/>" },
+  { k:"polygon",  n:"다각형",     u:false, ic:"<path d='M8 3 L13 7 L11 13 L5 13 L3 7 Z' fill='none' stroke='#000' stroke-width='1.6'/>" },
+  { k:"ellipse",  n:"타원",       u:true,  ic:"<ellipse cx='8' cy='8' rx='5.5' ry='4' fill='none' stroke='#000' stroke-width='2'/>" },
+  { k:"roundrect",n:"둥근 사각형",u:true,  ic:"<rect x='3' y='4' width='10' height='8' rx='3' fill='none' stroke='#000' stroke-width='2'/>" },
+];
 function buildTools() {
-  const t = $("toolbox");
-  TOOLS.forEach((g, i) => { const b = document.createElement("div"); b.className = "tool" + (i === 4 ? " sel" : ""); b.textContent = g; t.appendChild(b); });
+  const box = $("toolbox");
+  TOOLS.forEach(t => {
+    const b = document.createElement("button"); b.className = "tool" + (t.k === "pencil" ? " sel" : "");
+    b.dataset.k = t.k; b.title = t.n;
+    b.innerHTML = "<svg class='ico' viewBox='0 0 16 16' shape-rendering='crispEdges'>" + t.ic + "</svg>";
+    b.addEventListener("click", () => selectTool(t.k));
+    box.appendChild(b);
+  });
 }
+function selectTool(k) {
+  const t = TOOLS.find(x => x.k === k);
+  if (!t.u) { sfxBlip(); toast(t.n + " 도구는 준비 중이에요 ^^"); return; }
+  tool = k; sfxBlip();
+  document.querySelectorAll(".tool").forEach(b => b.classList.toggle("sel", b.dataset.k === k));
+  $("statusTool").textContent = t.n;
+}
+function isFreehand(t) { return t === "pencil" || t === "brush" || t === "eraser" || t === "airbrush" || t === "curve"; }
+function isShape(t) { return t === "line" || t === "rect" || t === "roundrect" || t === "ellipse"; }
 
 /* ---------- 상태 ---------- */
 let promptWord = "", roundActive = false;
 let canvas, ctx, W = 0, H = 0, dpr = 1;
-let drawing = false, last = null, wasOut = false;
+let drawing = false, last = null, wasOut = false, tool = "pencil", downPt = null;
 let strokes = 0, offCount = 0, totalLen = 0, points = 0;
 let box = null, startT = 0;
 
@@ -541,11 +573,54 @@ function posOf(e) { const r = canvas.getBoundingClientRect(); return { x: e.clie
 function drawSeg(a, b) { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
 function track(c) { points++; if (last) totalLen += Math.hypot(c.x - last.x, c.y - last.y); if (!box) box = { x0: c.x, y0: c.y, x1: c.x, y1: c.y }; else { box.x0 = Math.min(box.x0, c.x); box.y0 = Math.min(box.y0, c.y); box.x1 = Math.max(box.x1, c.x); box.y1 = Math.max(box.y1, c.y); } }
 
+function setStroke(t) {
+  ctx.lineWidth = t === "eraser" ? 18 : t === "brush" ? 12 : t === "curve" ? 5 : 3.5;
+  ctx.strokeStyle = t === "eraser" ? "#ffffff" : penColor;
+}
+function dot(p) { ctx.beginPath(); ctx.arc(p.x, p.y, ctx.lineWidth / 2, 0, 7); ctx.fillStyle = ctx.strokeStyle; ctx.fill(); }
+function spray(p) { ctx.fillStyle = penColor; for (let i = 0; i < 9; i++) { const a = Math.random() * 7, r = Math.random() * 11; ctx.fillRect(p.x + Math.cos(a) * r, p.y + Math.sin(a) * r, 1.6, 1.6); } }
+function roundRectPath(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+function drawShape(t, a, b) {
+  ctx.lineWidth = 3.5; ctx.strokeStyle = penColor;
+  const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y), w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
+  if (t === "line") { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+  else if (t === "rect") { ctx.strokeRect(x, y, w, h); }
+  else if (t === "roundrect") { roundRectPath(ctx, x, y, w, h, Math.min(14, w / 2, h / 2)); ctx.stroke(); }
+  else if (t === "ellipse") { ctx.beginPath(); ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, 7); ctx.stroke(); }
+}
+function hexToRgb(h) { h = h.replace("#", ""); if (h.length === 3) h = h.split("").map(x => x + x).join(""); const n = parseInt(h, 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }; }
+function floodFill(p, hex) {
+  const cw = canvas.width, ch = canvas.height, img = ctx.getImageData(0, 0, cw, ch), d = img.data;
+  const sx = Math.round(p.x * dpr), sy = Math.round(p.y * dpr);
+  if (sx < 0 || sy < 0 || sx >= cw || sy >= ch) return;
+  const si = (sy * cw + sx) * 4, tr = d[si], tg = d[si + 1], tb = d[si + 2], fc = hexToRgb(hex);
+  if (Math.abs(tr - fc.r) + Math.abs(tg - fc.g) + Math.abs(tb - fc.b) < 8) return;
+  const stack = [[sx, sy]]; let n = 0; const cap = cw * ch;
+  while (stack.length && n < cap) {
+    const s = stack.pop(), x = s[0], y = s[1];
+    if (x < 0 || y < 0 || x >= cw || y >= ch) continue;
+    const i = (y * cw + x) * 4;
+    if (Math.abs(d[i] - tr) + Math.abs(d[i + 1] - tg) + Math.abs(d[i + 2] - tb) > 48) continue;
+    d[i] = fc.r; d[i + 1] = fc.g; d[i + 2] = fc.b; d[i + 3] = 255; n++;
+    stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+  }
+  ctx.putImageData(img, 0, 0);
+}
+function pickColorAt(p) {
+  const px = Math.max(0, Math.round(p.x * dpr)), py = Math.max(0, Math.round(p.y * dpr));
+  const d = ctx.getImageData(px, py, 1, 1).data;
+  const hex = "#" + [d[0], d[1], d[2]].map(v => v.toString(16).padStart(2, "0")).join("");
+  penColor = hex; $("palFg").style.background = hex;
+  document.querySelectorAll(".sw").forEach(s => s.classList.remove("sel"));
+}
 function onDown(e) {
   if (!roundActive) return;
-  drawing = true; strokes++; wasOut = false; ctx.strokeStyle = penColor;
-  last = clampP(posOf(e)); track(last);
   e.preventDefault();
+  const p = clampP(posOf(e));
+  if (tool === "fill") { strokes++; floodFill(p, penColor); return; }
+  if (tool === "pick") { pickColorAt(p); toast("색을 골랐어요"); return; }
+  drawing = true; strokes++; wasOut = false; downPt = p; last = p; track(p);
+  if (isFreehand(tool)) { setStroke(tool); dot(p); }
 }
 function onMove(e) {
   if (!drawing) return;
@@ -554,10 +629,16 @@ function onMove(e) {
   if (out && !wasOut) { offCount++; wasOut = true; if (!muted) beep(240, 0.05, "sawtooth", 0.08); }
   if (!out) wasOut = false;
   const c = clampP(p);
-  drawSeg(last, c); last = c; track(c);
+  if (isFreehand(tool)) { if (tool === "airbrush") spray(c); else drawSeg(last, c); }
+  last = c; track(c);
   $("statusCoord").textContent = Math.round(c.x) + ", " + Math.round(c.y);
 }
-function onUp() { drawing = false; last = null; }
+function onUp() {
+  if (!drawing) return;
+  drawing = false;
+  if (isShape(tool) && downPt) drawShape(tool, downPt, last);
+  downPt = null; last = null;
+}
 
 /* ---------- 눈 뜨기 → 판정 ---------- */
 function reveal() {
