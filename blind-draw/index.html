@@ -388,7 +388,7 @@
               <div class="r-pct" id="rPct"></div>
               <div class="r-comments" id="rComments"></div>
               <div class="dlg-btns">
-                <button class="btn98" id="saveBtn">그림 저장</button>
+                <button class="btn98" id="saveBtn">그림만 저장</button>
                 <button class="btn98" id="againBtn">다른 제시어</button>
               </div>
               <div class="dlg-btns"><button class="btn98" id="shareBtn">친구에게 시키기 (링크)</button></div>
@@ -648,19 +648,19 @@ async function buildCard() {
   c.fillStyle = "#e6c020"; c.fillRect(100, 124, 8, 8);
   c.fillStyle = "#fff"; c.textAlign = "left"; c.font = "700 40px " + FF; c.fillText("무제 - 그림판", 126, 138);
   c.textAlign = "center";
-  c.fillStyle = "#333"; c.font = "600 40px " + FF; c.fillText("제시어 : " + promptWord, cx, 232);
+  // 퀴즈 캡션 (정답 노출 X)
+  c.fillStyle = "#000"; c.font = "800 74px " + FF; c.fillText("이거 뭐~게?", cx, 250);
   // 그림
-  const img = $("rImg"); const s = 560, ix = cx - s / 2, iy = 268;
+  const img = $("rImg"); const s = 600, ix = cx - s / 2, iy = 300;
   c.fillStyle = "#fff"; c.fillRect(ix, iy, s, s);
   try { c.imageSmoothingEnabled = false; c.drawImage(img, ix, iy, s, s); } catch (e) {}
   c.strokeStyle = "#000"; c.lineWidth = 4; c.strokeRect(ix, iy, s, s);
-  // 판정
-  c.fillStyle = "#aa0000"; c.font = "800 50px " + FF;
-  wrapText(c, $("rVerdict").textContent, cx, 918, 900, 62);
-  c.fillStyle = "#000"; c.font = "800 44px " + FF; c.fillText($("rGrade").textContent, cx, 1024);
-  c.fillStyle = "#000082"; c.font = "700 40px " + FF; c.fillText($("rPct").textContent, cx, 1086);
-  c.fillStyle = "#000082"; c.font = "800 44px " + FF; c.fillText("@ccojik.dh", cx, 1206);
-  c.fillStyle = "#333"; c.font = "600 32px " + FF; c.fillText("너도 눈 감고 그려봐 ^^", cx, 1256);
+  // 안내 (정답 미공개)
+  c.fillStyle = "#333"; c.font = "700 42px " + FF; c.fillText("눈 감고 그린 그림 — 뭘 그렸게?", cx, 992);
+  c.fillStyle = "#aa0000"; c.font = "700 38px " + FF; c.fillText("정답은 그린 사람만 알고 있음 ^^", cx, 1052);
+  // 워터마크
+  c.fillStyle = "#000082"; c.font = "800 46px " + FF; c.fillText("@ccojik.dh", cx, 1206);
+  c.fillStyle = "#333"; c.font = "600 32px " + FF; c.fillText("눈 감고 그리기 · 그림판 괴작 생성기", cx, 1256);
   return cv;
 }
 
@@ -677,15 +677,15 @@ async function saveCard() {
       if (!blob) { $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요 🙏"; return; }
       const u = URL.createObjectURL(blob);
       if (!supportsDownload()) { openSaveModal(u); $("saveHint").textContent = ""; return; }
-      const a = document.createElement("a"); a.href = u; a.download = "눈감고그리기_" + promptWord + ".png";
+      const a = document.createElement("a"); a.href = u; a.download = "눈감고그리기_퀴즈.png";
       document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 1000);
-      $("saveHint").textContent = "저장 완료!";
+      $("saveHint").textContent = "저장 완료! 친구한테 보내서 맞춰보게 하세요";
     }, "image/png");
   } catch (e) { $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요 🙏"; }
 }
 async function shareLink() {
   const url = location.href.split("?")[0].split("#")[0];
-  const text = "나 눈 감고 '" + promptWord + "' 그렸는데 괴물 나옴 ㅋㅋ 너도 해봐";
+  const text = "나 눈 감고 그렸는데 괴물 나옴 ㅋㅋ 뭘 그렸게? 너도 해봐";
   if (navigator.share) { try { await navigator.share({ title: "눈 감고 그리기", text, url }); } catch (e) {} return; }
   const full = text + " " + url;
   if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(full).then(() => toast("링크 복사됨! 친구한테 붙여넣기 ^^"), () => toast("복사 실패 — 주소창을 길게 눌러 복사하세요")); }
