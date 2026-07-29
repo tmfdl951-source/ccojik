@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>연예인 따라그리기</title>
+<meta property="og:type" content="website" />
+<meta property="og:title" content="연예인 따라그리기 챌린지" />
+<meta property="og:description" content="연예인 사진을 보고 옆에 따라 그려보세요! 친구랑 대결도 ^^" />
+<link rel="stylesheet" as="style" crossorigin
+  href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root { --bg:#F3F1FB; --ink:#2A2540; --ink-soft:#8A83A6; --accent:#6C5CE7; --accent-d:#5A48D6; --line:#E4E0F3;
+    --shadow: 0 10px 30px rgba(84,64,180,.14); --shadow-sm: 0 4px 14px rgba(84,64,180,.12); }
+  html, body { height: 100%; font-family: "Pretendard Variable", Pretendard, -apple-system, system-ui, sans-serif; color: var(--ink);
+    -webkit-user-select: none; user-select: none;
+    background: radial-gradient(circle at 20% 8%, #fff 0%, transparent 55%), radial-gradient(circle at 88% 96%, #E9E4FB 0%, transparent 50%), var(--bg); }
+  body { display: flex; align-items: center; justify-content: center; min-height: 100dvh; padding: 10px; }
+
+  .phone { position: relative; width: min(440px, 96vw); aspect-ratio: 9/16; max-height: 97dvh;
+    background: #fff; border-radius: 30px; box-shadow: var(--shadow); overflow: hidden; }
+
+  .screen { position: absolute; inset: 0; display: none; flex-direction: column; padding: 20px 18px;
+    overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .screen::-webkit-scrollbar { display: none; }
+  .screen.active { display: flex; }
+  #startScreen, #pickScreen { align-items: center; }
+  #startScreen { justify-content: safe center; text-align: center; }
+
+  .kicker { font-size: 12.5px; font-weight: 800; color: var(--accent); background: #EEEBFB; padding: 6px 15px; border-radius: 999px; letter-spacing: .3px; }
+  h1 { font-size: 30px; font-weight: 800; letter-spacing: -.8px; line-height: 1.28; margin-top: 16px; }
+  h1 .hl { color: var(--accent); }
+  .desc { font-size: 14.5px; font-weight: 600; color: var(--ink-soft); margin-top: 12px; line-height: 1.6; }
+  .hero { font-size: 74px; margin: 14px 0 2px; animation: bob 2.8s ease-in-out infinite; }
+  @keyframes bob { 0%,100%{transform:translateY(0) rotate(-3deg);} 50%{transform:translateY(-10px) rotate(3deg);} }
+
+  .btn { font-family: inherit; font-weight: 800; cursor: pointer; border: none; border-radius: 16px; transition: transform .12s ease, box-shadow .12s ease; }
+  .btn:active { transform: scale(.96); }
+  .btn.primary { background: linear-gradient(160deg, var(--accent), var(--accent-d)); color: #fff; box-shadow: var(--shadow-sm); }
+  .btn.ghost { background: #F1EEFB; color: var(--accent); }
+  .btn.soft { background: #fff; color: var(--ink); border: 1.5px solid var(--line); }
+  .btn.big { font-size: 18px; padding: 16px 40px; }
+  #startScreen .btn.big { margin-top: 24px; }
+  .note { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); margin-top: 16px; line-height: 1.55; }
+
+  /* 연예인 선택 */
+  #pickScreen h2 { font-size: 21px; font-weight: 800; margin: 6px 0 2px; align-self: flex-start; }
+  #pickScreen .p-sub { font-size: 13px; font-weight: 600; color: var(--ink-soft); align-self: flex-start; margin-bottom: 12px; }
+  .celeb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }
+  .celeb-card { background: #fff; border: 1.5px solid var(--line); border-radius: 18px; overflow: hidden; cursor: pointer;
+    box-shadow: var(--shadow-sm); transition: transform .12s ease; display: flex; flex-direction: column; }
+  .celeb-card:active { transform: scale(.97); }
+  .celeb-thumb { width: 100%; aspect-ratio: 1/1; object-fit: cover; background: #EDEAF8; display: block; }
+  .celeb-name { font-size: 14px; font-weight: 800; padding: 9px 10px; text-align: center; }
+  .pick-back { margin-top: 16px; }
+
+  /* 게임 */
+  #gameScreen { padding: 12px 12px 10px; }
+  .g-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .ref-box { flex: 1; border: 2px solid var(--line); border-radius: 14px; overflow: hidden; background: #EDEAF8; aspect-ratio: 1/1; max-height: 33vh; position: relative; }
+  .ref-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ref-tag { position: absolute; left: 6px; top: 6px; font-size: 11px; font-weight: 800; color: #fff; background: rgba(42,37,64,.72); padding: 3px 9px; border-radius: 999px; }
+  .g-info { width: 96px; flex-shrink: 0; text-align: center; }
+  .g-info .gi-name { font-size: 16px; font-weight: 800; line-height: 1.25; }
+  .g-info .gi-timer { font-size: 20px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; margin-top: 6px; }
+  .g-info .gi-hint { font-size: 10.5px; font-weight: 600; color: var(--ink-soft); margin-top: 4px; line-height: 1.35; }
+
+  .canvas-wrap { position: relative; flex: 1; border: 2px solid var(--line); border-radius: 14px; overflow: hidden; background: #fff; min-height: 0; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+  .cv-label { position: absolute; right: 8px; top: 6px; z-index: 2; font-size: 11px; font-weight: 800; color: var(--ink-soft); pointer-events: none; }
+
+  .tools { display: flex; flex-direction: column; gap: 7px; margin-top: 8px; }
+  .colors { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .sw { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1.5px var(--line); cursor: pointer; padding: 0; }
+  .sw.sel { box-shadow: 0 0 0 2.5px var(--accent); transform: scale(1.12); }
+  .tool-row { display: flex; gap: 6px; align-items: center; justify-content: center; }
+  .sizes { display: flex; gap: 5px; }
+  .size-btn { width: 30px; height: 30px; border-radius: 9px; background: #F1EEFB; border: 1.5px solid var(--line); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+  .size-btn.sel { background: var(--accent); border-color: var(--accent); }
+  .size-btn i { display: block; border-radius: 50%; background: var(--ink); }
+  .size-btn.sel i { background: #fff; }
+  .tbtn { flex: 1; padding: 9px 6px; border-radius: 11px; font-size: 13px; font-weight: 800; background: #F1EEFB; color: var(--ink); border: none; cursor: pointer; }
+  .tbtn.sel { background: var(--accent); color: #fff; }
+  .tbtn:active { transform: scale(.96); }
+  .done-btn { width: 100%; margin-top: 2px; padding: 14px; font-size: 17px; border-radius: 14px; }
+
+  /* 결과 */
+  #resultScreen { align-items: center; text-align: center; }
+  #resultScreen h2 { font-size: 22px; font-weight: 800; margin-top: 2px; }
+  #resultScreen .r-name { font-size: 14px; font-weight: 700; color: var(--ink-soft); margin-top: 2px; }
+  .compare { display: flex; gap: 10px; width: 100%; margin-top: 14px; }
+  .cmp { flex: 1; }
+  .cmp .cmp-lbl { font-size: 12px; font-weight: 800; color: var(--ink-soft); margin-bottom: 5px; }
+  .cmp .cmp-img { width: 100%; aspect-ratio: 1/1; border-radius: 14px; border: 2px solid var(--line); object-fit: cover; background: #EDEAF8; display: block; }
+  .r-time { font-size: 13px; font-weight: 700; color: var(--accent); margin-top: 12px; }
+  .r-actions { display: flex; gap: 10px; width: 100%; margin-top: 16px; }
+  .r-actions .btn { flex: 1; padding: 14px 8px; font-size: 15px; }
+  #resultScreen .again-row { display: flex; gap: 10px; width: 100%; margin-top: 10px; }
+  #resultScreen .again-row .btn { flex: 1; padding: 13px 8px; font-size: 14px; }
+  .save-hint { font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-top: 12px; min-height: 16px; }
+
+  .mute-btn { position: absolute; top: 12px; right: 12px; z-index: 20; width: 38px; height: 38px; border-radius: 12px; border: none;
+    background: #fff; box-shadow: var(--shadow-sm); cursor: pointer; font-size: 16px; }
+  .toast { position: absolute; left: 50%; bottom: 24px; transform: translate(-50%, 16px); z-index: 30;
+    background: var(--ink); color: #fff; font-weight: 700; font-size: 14px; padding: 11px 20px; border-radius: 999px;
+    opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  .save-modal { position: absolute; inset: 0; z-index: 40; background: rgba(42,37,64,.6); backdrop-filter: blur(3px);
+    display: none; align-items: center; justify-content: center; padding: 22px; }
+  .save-modal.show { display: flex; }
+  .save-modal-inner { background: #fff; border-radius: 22px; padding: 18px 16px; box-shadow: var(--shadow); max-width: 100%; max-height: 100%;
+    overflow-y: auto; text-align: center; display: flex; flex-direction: column; align-items: center; }
+  .sm-title { font-size: 15px; font-weight: 800; } .sm-sub { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); line-height: 1.5; margin: 4px 0 10px; }
+  #saveModalImg { width: 100%; max-width: 250px; border-radius: 14px; box-shadow: var(--shadow-sm); }
+</style>
+</head>
+<body>
+<div class="phone" id="phone">
+  <button class="mute-btn" id="muteBtn">🔊</button>
+
+  <!-- 시작 -->
+  <section class="screen active" id="startScreen">
+    <span class="kicker">따라그리기 챌린지</span>
+    <h1>연예인 보고<br><span class="hl">따라 그리기</span></h1>
+    <div class="hero">🧑‍🎨🖼️</div>
+    <p class="desc">사진을 보고 옆 캔버스에 똑같이 그려보세요.<br>결과는 나란히 비교 · 친구랑 대결도 ^^</p>
+    <button class="btn primary big" id="startBtn">시작하기</button>
+    <p class="note">사진은 직접 추가할 수 있어요.<br>(celebs 폴더에 넣고 목록만 수정)</p>
+  </section>
+
+  <!-- 연예인 선택 -->
+  <section class="screen" id="pickScreen">
+    <h2>누굴 그려볼까요?</h2>
+    <p class="p-sub">따라 그릴 연예인을 골라주세요</p>
+    <div class="celeb-grid" id="celebGrid"></div>
+    <button class="btn soft pick-back" id="pickBack">← 처음으로</button>
+  </section>
+
+  <!-- 게임 -->
+  <section class="screen" id="gameScreen">
+    <div class="g-top">
+      <div class="ref-box"><span class="ref-tag">실물 사진</span><img id="refImg" alt="연예인" /></div>
+      <div class="g-info">
+        <div class="gi-name" id="giName">연예인</div>
+        <div class="gi-timer" id="giTimer">0:00</div>
+        <div class="gi-hint">사진 보고<br>아래에 그리기</div>
+      </div>
+    </div>
+    <div class="canvas-wrap" id="canvasWrap">
+      <span class="cv-label">내 그림 ✏️</span>
+      <canvas id="canvas"></canvas>
+    </div>
+    <div class="tools">
+      <div class="colors" id="colors"></div>
+      <div class="tool-row">
+        <div class="sizes" id="sizes"></div>
+        <button class="tbtn" id="eraserBtn">지우개</button>
+        <button class="tbtn" id="undoBtn">되돌리기</button>
+        <button class="tbtn" id="clearBtn">전체지우기</button>
+      </div>
+      <button class="btn primary done-btn" id="doneBtn">완성! 비교하기</button>
+    </div>
+  </section>
+
+  <!-- 결과 -->
+  <section class="screen" id="resultScreen">
+    <span class="kicker">완성!</span>
+    <h2 id="resTitle">따라그리기 완성</h2>
+    <div class="r-name" id="resName">연예인</div>
+    <div class="compare">
+      <div class="cmp"><div class="cmp-lbl">실물</div><img class="cmp-img" id="resPhoto" alt="실물" /></div>
+      <div class="cmp"><div class="cmp-lbl">내 그림</div><img class="cmp-img" id="resDraw" alt="내 그림" /></div>
+    </div>
+    <div class="r-time" id="resTime"></div>
+    <div class="r-actions">
+      <button class="btn primary" id="saveBtn">결과 저장</button>
+      <button class="btn ghost" id="shareBtn">친구랑 대결</button>
+    </div>
+    <div class="again-row">
+      <button class="btn soft" id="againBtn">이 사람 다시</button>
+      <button class="btn soft" id="otherBtn">다른 연예인</button>
+    </div>
+    <p class="save-hint" id="saveHint"></p>
+  </section>
+
+  <div class="toast" id="toast"></div>
+  <div class="save-modal" id="saveModal">
+    <div class="save-modal-inner">
+      <p class="sm-title">👆 이미지를 꾹 눌러 저장하세요</p>
+      <p class="sm-sub">아이폰은 아래 이미지를 길게 눌러<br>'사진에 저장'을 선택하세요</p>
+      <img id="saveModalImg" alt="결과 카드" />
+      <button class="btn soft" id="saveModalClose" style="margin-top:14px;padding:11px 30px;">닫기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* =====================================================================
+   연예인 목록 — 여기만 수정하면 됩니다.
+   1) draw-celeb/celebs/ 폴더에 사진 파일을 넣으세요 (예: iu.jpg)
+   2) 아래 배열에 { name: "이름", img: "celebs/파일명.jpg" } 로 추가/수정
+   사진이 없으면 실루엣 자리표시자로 표시되며, 게임은 그대로 동작합니다.
+   ===================================================================== */
+const CELEBS = [
+  { name: "연예인 1", img: "celebs/1.jpg" },
+  { name: "연예인 2", img: "celebs/2.jpg" },
+  { name: "연예인 3", img: "celebs/3.jpg" },
+  { name: "연예인 4", img: "celebs/4.jpg" },
+  { name: "연예인 5", img: "celebs/5.jpg" },
+  { name: "연예인 6", img: "celebs/6.jpg" },
+];
+// 사진 없을 때 보여줄 실루엣(자리표시자)
+const PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Crect width='300' height='300' fill='%23EDEAF8'/%3E%3Ccircle cx='150' cy='120' r='52' fill='%23C9C0EC'/%3E%3Cpath d='M60 300 q90 -120 180 0 z' fill='%23C9C0EC'/%3E%3Ctext x='150' y='285' font-family='sans-serif' font-size='20' fill='%238A83A6' text-anchor='middle'%3E사진을 넣어주세요%3C/text%3E%3C/svg%3E";
+
+/* ---------- 사운드 ---------- */
+const MUTE_KEY = "ccojik-celeb-muted";
+let audioCtx = null, muted = localStorage.getItem(MUTE_KEY) === "1";
+function ac() { if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } } if (audioCtx.state === "suspended") audioCtx.resume(); return audioCtx; }
+function beep(f, d, t, v, w) { if (muted) return; const c = ac(); if (!c) return; const t0 = c.currentTime + (w || 0); const o = c.createOscillator(), g = c.createGain(); o.type = t || "sine"; o.frequency.setValueAtTime(f, t0); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(v || 0.1, t0 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d); o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + d + 0.02); }
+function sfxTap() { beep(600, 0.06, "sine", 0.09); }
+function sfxDone() { [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.12, "sine", 0.12, i * 0.08)); }
+function toggleMute() { muted = !muted; localStorage.setItem(MUTE_KEY, muted ? "1" : "0"); $("muteBtn").textContent = muted ? "🔇" : "🔊"; if (!muted) sfxTap(); }
+
+/* ---------- 상태 ---------- */
+const COLORS = ["#2A2540", "#ffffff", "#e74c3c", "#e67e22", "#f1c40f", "#2ecc71", "#3498db", "#9b59b6", "#e84393", "#8b5a2b"];
+const SIZES = [4, 9, 18];
+let current = null;               // 현재 선택된 연예인
+let penColor = "#2A2540", penSize = 4, erasing = false;
+let canvas, ctx, W = 0, H = 0, dpr = 1;
+let drawing = false, last = null;
+let history = [];
+let startT = 0, timerId = 0, elapsed = 0;
+
+function show(id) { document.querySelectorAll(".screen").forEach(s => s.classList.remove("active")); $(id).classList.add("active"); }
+function toast(m) { const t = $("toast"); t.textContent = m; t.classList.add("show"); clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove("show"), 1600); }
+
+/* ---------- 연예인 선택 ---------- */
+function buildGrid() {
+  const g = $("celebGrid"); g.innerHTML = "";
+  CELEBS.forEach((c, i) => {
+    const card = document.createElement("div"); card.className = "celeb-card";
+    card.innerHTML = `<img class="celeb-thumb" src="${c.img}" alt="" onerror="this.onerror=null;this.src='${PLACEHOLDER}'"><div class="celeb-name">${c.name}</div>`;
+    card.addEventListener("click", () => startGame(i));
+    g.appendChild(card);
+  });
+}
+
+/* ---------- 게임 시작 ---------- */
+function startGame(i) {
+  sfxTap();
+  current = CELEBS[i];
+  const img = $("refImg");
+  img.onerror = () => { img.onerror = null; img.src = PLACEHOLDER; };
+  img.src = current.img;
+  $("giName").textContent = current.name;
+  penColor = "#2A2540"; penSize = 4; erasing = false;
+  show("gameScreen");
+  requestAnimationFrame(() => { initCanvas(); history = []; buildColors(); buildSizes(); syncTools(); startTimer(); });
+}
+function initCanvas() {
+  canvas = $("canvas");
+  const r = $("canvasWrap").getBoundingClientRect();
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = Math.round(r.width); H = Math.round(r.height);
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.lineJoin = "round"; ctx.lineCap = "round";
+  clearCanvas();
+}
+function clearCanvas() { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore(); }
+
+/* ---------- 도구 ---------- */
+function buildColors() {
+  const box = $("colors"); box.innerHTML = "";
+  COLORS.forEach(c => {
+    const b = document.createElement("button"); b.className = "sw"; b.style.background = c; b.dataset.c = c;
+    b.addEventListener("click", () => { penColor = c; erasing = false; sfxTap(); syncTools(); });
+    box.appendChild(b);
+  });
+}
+function buildSizes() {
+  const box = $("sizes"); box.innerHTML = "";
+  SIZES.forEach(s => {
+    const b = document.createElement("button"); b.className = "size-btn"; b.dataset.s = s;
+    const dotd = Math.max(6, Math.round(s * 0.9)); b.innerHTML = `<i style="width:${dotd}px;height:${dotd}px"></i>`;
+    b.addEventListener("click", () => { penSize = s; sfxTap(); syncTools(); });
+    box.appendChild(b);
+  });
+}
+function syncTools() {
+  document.querySelectorAll("#colors .sw").forEach(b => b.classList.toggle("sel", !erasing && b.dataset.c === penColor));
+  document.querySelectorAll("#sizes .size-btn").forEach(b => b.classList.toggle("sel", +b.dataset.s === penSize));
+  $("eraserBtn").classList.toggle("sel", erasing);
+}
+
+/* ---------- 그리기 ---------- */
+function posOf(e) { const r = canvas.getBoundingClientRect(); return { x: (e.clientX - r.left), y: (e.clientY - r.top) }; }
+function clampP(p) { return { x: Math.max(0, Math.min(W, p.x)), y: Math.max(0, Math.min(H, p.y)) }; }
+function pushHistory() { history.push(ctx.getImageData(0, 0, canvas.width, canvas.height)); if (history.length > 18) history.shift(); }
+function stroke(a, b) {
+  ctx.lineWidth = penSize; ctx.strokeStyle = erasing ? "#ffffff" : penColor;
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+}
+function onDown(e) {
+  if (!canvas) return; e.preventDefault();
+  pushHistory();
+  drawing = true; last = clampP(posOf(e));
+  ctx.lineWidth = penSize; ctx.fillStyle = erasing ? "#ffffff" : penColor;
+  ctx.beginPath(); ctx.arc(last.x, last.y, penSize / 2, 0, 7); ctx.fill();
+}
+function onMove(e) { if (!drawing) return; const c = clampP(posOf(e)); stroke(last, c); last = c; }
+function onUp() { drawing = false; last = null; }
+function undo() { if (history.length) { ctx.putImageData(history.pop(), 0, 0); sfxTap(); } }
+
+/* ---------- 타이머 ---------- */
+function fmtTime(s) { const m = Math.floor(s / 60), ss = s % 60; return m + ":" + String(ss).padStart(2, "0"); }
+function startTimer() {
+  startT = Date.now(); elapsed = 0; $("giTimer").textContent = "0:00";
+  clearInterval(timerId);
+  timerId = setInterval(() => { elapsed = Math.floor((Date.now() - startT) / 1000); $("giTimer").textContent = fmtTime(elapsed); }, 500);
+}
+function stopTimer() { clearInterval(timerId); }
+
+/* ---------- 완성 → 결과 ---------- */
+function done() {
+  stopTimer(); sfxDone();
+  $("resName").textContent = current.name;
+  $("resPhoto").src = $("refImg").src;
+  $("resDraw").src = canvas.toDataURL("image/png");
+  $("resTime").textContent = "걸린 시간 " + fmtTime(elapsed);
+  $("saveHint").textContent = "";
+  show("resultScreen"); $("resultScreen").scrollTop = 0;
+}
+
+/* ---------- 결과 카드 (1080x1350) ---------- */
+function roundRect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+function coverDraw(c, img, x, y, w, h) {
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height; if (!iw || !ih) { c.fillStyle = "#EDEAF8"; c.fillRect(x, y, w, h); return; }
+  const sc = Math.max(w / iw, h / ih), sw = w / sc, sh = h / sc; const sx = (iw - sw) / 2, sy = (ih - sh) / 2;
+  c.save(); roundRect(c, x, y, w, h, 28); c.clip(); c.drawImage(img, sx, sy, sw, sh, x, y, w, h); c.restore();
+}
+function loadImg(src) { return new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; }); }
+async function buildCard() {
+  const W2 = 1080, H2 = 1350, cx = W2 / 2;
+  const cv = document.createElement("canvas"); cv.width = W2; cv.height = H2;
+  const c = cv.getContext("2d");
+  try { await document.fonts.ready; } catch (e) {}
+  const FF = '"Pretendard Variable", Pretendard, sans-serif';
+  c.fillStyle = "#F3F1FB"; c.fillRect(0, 0, W2, H2);
+  c.textAlign = "center";
+  c.fillStyle = "#6C5CE7"; c.font = "800 54px " + FF; c.fillText("연예인 따라그리기", cx, 130);
+  c.fillStyle = "#2A2540"; c.font = "800 46px " + FF; c.fillText(current.name, cx, 200);
+  const photo = await loadImg($("refImg").src), draw = await loadImg($("resDraw").src);
+  const bw = 440, gap = 40, bx1 = cx - bw - gap / 2, bx2 = cx + gap / 2, by = 260;
+  if (photo) coverDraw(c, photo, bx1, by, bw, bw); if (draw) coverDraw(c, draw, bx2, by, bw, bw);
+  c.strokeStyle = "#E4E0F3"; c.lineWidth = 4; roundRect(c, bx1, by, bw, bw, 28); c.stroke(); roundRect(c, bx2, by, bw, bw, 28); c.stroke();
+  c.fillStyle = "#8A83A6"; c.font = "800 34px " + FF; c.fillText("실물", bx1 + bw / 2, by + bw + 54); c.fillText("내 그림", bx2 + bw / 2, by + bw + 54);
+  c.fillStyle = "#6C5CE7"; c.font = "800 40px " + FF; c.fillText("걸린 시간 " + fmtTime(elapsed), cx, by + bw + 150);
+  c.fillStyle = "#6C5CE7"; c.font = "800 46px " + FF; c.fillText("@ccojik.dh", cx, 1250);
+  c.fillStyle = "#8A83A6"; c.font = "600 32px " + FF; c.fillText("너도 따라 그려봐 ^^", cx, 1300);
+  return cv;
+}
+
+/* ---------- 저장 / 공유 ---------- */
+const isIOS = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+function supportsDownload() { return !isIOS && typeof document.createElement("a").download !== "undefined"; }
+let saveURL = null;
+function openSaveModal(u) { if (saveURL) URL.revokeObjectURL(saveURL); saveURL = u; $("saveModalImg").src = u; $("saveModal").classList.add("show"); }
+function closeSaveModal() { $("saveModal").classList.remove("show"); $("saveModalImg").removeAttribute("src"); if (saveURL) { URL.revokeObjectURL(saveURL); saveURL = null; } }
+async function saveCard() {
+  try {
+    const cv = await buildCard();
+    cv.toBlob(blob => {
+      if (!blob) { $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요 🙏"; return; }
+      const u = URL.createObjectURL(blob);
+      if (!supportsDownload()) { openSaveModal(u); return; }
+      const a = document.createElement("a"); a.href = u; a.download = "따라그리기_" + current.name + ".png";
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 1000);
+      $("saveHint").textContent = "저장 완료!";
+    }, "image/png");
+  } catch (e) { $("saveHint").textContent = "저장에 문제가 생겼어요 (사진이 외부 URL이면 저장이 안 될 수 있어요). 화면을 캡처해 주세요 🙏"; }
+}
+async function shareLink() {
+  const url = location.href.split("?")[0].split("#")[0];
+  const text = "연예인 따라그리기 챌린지! 너도 " + current.name + " 그려봐 ^^";
+  if (navigator.share) { try { await navigator.share({ title: "연예인 따라그리기", text, url }); } catch (e) {} return; }
+  const full = text + " " + url;
+  if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(full).then(() => toast("링크 복사됨! 친구한테 붙여넣기 ^^"), () => toast("복사 실패 — 주소창을 길게 눌러 복사하세요")); }
+  else toast("주소창 링크를 복사해 보내주세요");
+}
+
+/* ---------- 이벤트 ---------- */
+$("startBtn").addEventListener("click", () => { sfxTap(); buildGrid(); show("pickScreen"); });
+$("pickBack").addEventListener("click", () => { sfxTap(); show("startScreen"); });
+$("eraserBtn").addEventListener("click", () => { erasing = !erasing; sfxTap(); syncTools(); });
+$("undoBtn").addEventListener("click", undo);
+$("clearBtn").addEventListener("click", () => { if (ctx) { pushHistory(); clearCanvas(); sfxTap(); } });
+$("doneBtn").addEventListener("click", done);
+$("saveBtn").addEventListener("click", saveCard);
+$("shareBtn").addEventListener("click", shareLink);
+$("againBtn").addEventListener("click", () => { const i = CELEBS.indexOf(current); startGame(i < 0 ? 0 : i); });
+$("otherBtn").addEventListener("click", () => { sfxTap(); buildGrid(); show("pickScreen"); });
+$("saveModalClose").addEventListener("click", closeSaveModal);
+$("saveModal").addEventListener("click", e => { if (e.target === $("saveModal")) closeSaveModal(); });
+$("muteBtn").addEventListener("click", toggleMute);
+
+$("canvas").addEventListener("pointerdown", onDown);
+window.addEventListener("pointermove", onMove);
+window.addEventListener("pointerup", onUp);
+window.addEventListener("pointercancel", onUp);
+
+$("muteBtn").textContent = muted ? "🔇" : "🔊";
+</script>
+</body>
+</html>
