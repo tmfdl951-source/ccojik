@@ -9,7 +9,7 @@
 <meta property="og:description" content="연예인 사진을 보고 옆에 따라 그려보세요! 친구랑 대결도 ^^" />
 <link rel="stylesheet" as="style" crossorigin
   href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700&display=swap" />
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   :root { --bg:#F3F1FB; --ink:#2A2540; --ink-soft:#8A83A6; --accent:#6C5CE7; --accent-d:#5A48D6; --line:#E4E0F3;
@@ -32,10 +32,8 @@
   /* 남자가 든 하얀 판 안: 제목 + 시작 버튼 */
   .hero-board { position: absolute; left: 17.5%; right: 15.5%; top: 23.5%; bottom: 47%;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3cqw; text-align: center; }
-  .hb-title { font-family: "Black Han Sans", sans-serif; font-size: 7.4cqw; line-height: 1.05; letter-spacing: -0.3px;
-    background: linear-gradient(#3aa6ff, #6C5CE7); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
-    text-shadow: 1.6px 1.6px 0 #111, -1.6px -1.6px 0 #111, 1.6px -1.6px 0 #111, -1.6px 1.6px 0 #111, 0 1.6px 0 #111, 0 -1.6px 0 #111, 1.6px 0 0 #111, -1.6px 0 0 #111, 2px 3px 0 rgba(0,0,0,.22); }
-  .hb-btn { font-family: "Black Han Sans", sans-serif; font-size: 4.6cqw; color: #fff; border: none; cursor: pointer;
+  .hb-title { font-family: "Nanum Gothic", sans-serif; font-weight: 400; color: #2A2540; font-size: 6.8cqw; line-height: 1.25; letter-spacing: -0.3px; }
+  .hb-btn { font-family: "Nanum Gothic", sans-serif; font-weight: 700; font-size: 4.8cqw; color: #fff; border: none; cursor: pointer;
     background: linear-gradient(160deg, var(--accent), var(--accent-d)); border-radius: 3cqw; padding: 2.6cqw 7cqw; box-shadow: var(--shadow-sm);
     transition: transform .12s ease; }
   .hb-btn:active { transform: scale(.95); }
@@ -49,7 +47,7 @@
   #gameScreen { padding: 0; }
   .g-head { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1.5px solid var(--line); background: #fff; z-index: 5; }
   .g-head .gh-back { background: #F1EEFB; color: var(--accent); border: none; font-family: inherit; font-weight: 800; font-size: 13px; padding: 8px 12px; border-radius: 10px; cursor: pointer; }
-  .g-head .gh-title { font-family: "Black Han Sans", sans-serif; font-size: 18px; flex: 1; letter-spacing: -.3px; }
+  .g-head .gh-title { font-family: "Nanum Gothic", sans-serif; font-weight: 700; font-size: 17px; flex: 1; letter-spacing: -.3px; }
   .g-head .gh-count { font-size: 12px; font-weight: 700; color: var(--ink-soft); }
 
   .sheet { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 14px 14px 18px; }
@@ -59,7 +57,7 @@
   .blk:last-child { margin-bottom: 8px; }
   .blk-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
   .blk-num { width: 26px; height: 26px; flex-shrink: 0; border-radius: 50%; background: var(--accent); color: #fff; font-size: 14px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
-  .blk-name { font-family: "Black Han Sans", sans-serif; font-size: 18px; flex: 1; letter-spacing: -.3px; }
+  .blk-name { font-family: "Nanum Gothic", sans-serif; font-weight: 700; font-size: 17px; flex: 1; letter-spacing: -.3px; }
   .blk-zoom { background: #F1EEFB; color: var(--accent); border: none; font-family: inherit; font-weight: 800; font-size: 12px; padding: 6px 11px; border-radius: 999px; cursor: pointer; }
   .blk-pair { display: flex; gap: 6px; align-items: stretch; }
   .pane { flex: 1; min-width: 0; display: flex; flex-direction: column; }
