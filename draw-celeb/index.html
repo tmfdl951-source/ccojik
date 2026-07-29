@@ -103,6 +103,20 @@
   #saveModalImg { width: 100%; max-width: 250px; border-radius: 14px; box-shadow: var(--shadow-sm); }
   .zoom-full { max-width: 94%; max-height: 82%; border-radius: 16px; box-shadow: var(--shadow); }
   .modal .btn { margin-top: 14px; padding: 11px 30px; }
+
+  /* ===== 웹(넓은 화면): 폰 프레임 제거하고 일반 사이트처럼 ===== */
+  @media (min-width: 700px) {
+    body { padding: 0; align-items: stretch; }
+    .phone { width: 100vw; max-width: 100%; height: 100dvh; max-height: none; aspect-ratio: auto;
+      border-radius: 0; box-shadow: none; margin: 0; }
+    /* 컨텐츠는 가운데 정렬 + 적당한 폭으로 (헤더/도구바는 꽉 차게) */
+    .sheet { max-width: 860px; margin-inline: auto; width: 100%; }
+    .g-head, .toolbar { padding-left: max(14px, calc((100vw - 900px) / 2)); padding-right: max(14px, calc((100vw - 900px) / 2)); }
+    .toolbar { align-items: center; }
+    .colors, .tool-row { max-width: 620px; width: 100%; margin-inline: auto; }
+    /* 시작화면 배경사진은 높이에 맞춰 가운데 (양옆 여백은 페이지 배경) */
+    .hero-wrap { max-height: 100dvh; }
+  }
 </style>
 </head>
 <body>
