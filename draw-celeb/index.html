@@ -9,6 +9,7 @@
 <meta property="og:description" content="연예인 사진을 보고 옆에 따라 그려보세요! 친구랑 대결도 ^^" />
 <link rel="stylesheet" as="style" crossorigin
   href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&display=swap" />
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   :root { --bg:#F3F1FB; --ink:#2A2540; --ink-soft:#8A83A6; --accent:#6C5CE7; --accent-d:#5A48D6; --line:#E4E0F3;
@@ -25,26 +26,28 @@
   .screen.active { display: flex; }
 
   /* ---- 시작 ---- */
-  #startScreen { align-items: center; justify-content: safe center; text-align: center; padding: 24px 20px; overflow-y: auto; }
-  .kicker { font-size: 12.5px; font-weight: 800; color: var(--accent); background: #EEEBFB; padding: 6px 15px; border-radius: 999px; letter-spacing: .3px; }
-  h1 { font-size: 30px; font-weight: 800; letter-spacing: -.8px; line-height: 1.28; margin-top: 16px; }
-  h1 .hl { color: var(--accent); }
-  .desc { font-size: 14.5px; font-weight: 600; color: var(--ink-soft); margin-top: 12px; line-height: 1.6; }
-  .hero { font-size: 74px; margin: 14px 0 2px; animation: bob 2.8s ease-in-out infinite; }
-  @keyframes bob { 0%,100%{transform:translateY(0) rotate(-3deg);} 50%{transform:translateY(-10px) rotate(3deg);} }
+  #startScreen { align-items: center; justify-content: center; padding: 0; overflow: hidden; }
+  .hero-wrap { position: relative; margin: auto; aspect-ratio: 1200 / 1800; height: 100%; max-height: 100%; max-width: 100%; container-type: inline-size; }
+  .hero-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  /* 남자가 든 하얀 판 안: 제목 + 시작 버튼 */
+  .hero-board { position: absolute; left: 17.5%; right: 15.5%; top: 23.5%; bottom: 47%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3cqw; text-align: center; }
+  .hb-title { font-family: "Do Hyeon", sans-serif; color: #2A2540; font-size: 7cqw; line-height: 1.18; letter-spacing: -0.5px; }
+  .hb-btn { font-family: "Do Hyeon", sans-serif; font-size: 4.6cqw; color: #fff; border: none; cursor: pointer;
+    background: linear-gradient(160deg, var(--accent), var(--accent-d)); border-radius: 3cqw; padding: 2.6cqw 7cqw; box-shadow: var(--shadow-sm);
+    transition: transform .12s ease; }
+  .hb-btn:active { transform: scale(.95); }
   .btn { font-family: inherit; font-weight: 800; cursor: pointer; border: none; border-radius: 16px; transition: transform .12s ease; }
   .btn:active { transform: scale(.96); }
   .btn.primary { background: linear-gradient(160deg, var(--accent), var(--accent-d)); color: #fff; box-shadow: var(--shadow-sm); }
   .btn.ghost { background: #F1EEFB; color: var(--accent); }
   .btn.soft { background: #fff; color: var(--ink); border: 1.5px solid var(--line); }
-  .btn.big { font-size: 18px; padding: 16px 40px; margin-top: 24px; }
-  .note { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); margin-top: 16px; line-height: 1.55; }
 
   /* ---- 게임(워크시트) ---- */
   #gameScreen { padding: 0; }
   .g-head { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1.5px solid var(--line); background: #fff; z-index: 5; }
   .g-head .gh-back { background: #F1EEFB; color: var(--accent); border: none; font-family: inherit; font-weight: 800; font-size: 13px; padding: 8px 12px; border-radius: 10px; cursor: pointer; }
-  .g-head .gh-title { font-size: 16px; font-weight: 800; flex: 1; }
+  .g-head .gh-title { font-family: "Do Hyeon", sans-serif; font-size: 18px; flex: 1; letter-spacing: -.3px; }
   .g-head .gh-count { font-size: 12px; font-weight: 700; color: var(--ink-soft); }
 
   .sheet { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 14px 14px 18px; }
@@ -54,7 +57,7 @@
   .blk:last-child { margin-bottom: 8px; }
   .blk-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
   .blk-num { width: 26px; height: 26px; flex-shrink: 0; border-radius: 50%; background: var(--accent); color: #fff; font-size: 14px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
-  .blk-name { font-size: 17px; font-weight: 800; flex: 1; }
+  .blk-name { font-family: "Do Hyeon", sans-serif; font-size: 18px; flex: 1; letter-spacing: -.3px; }
   .blk-zoom { background: #F1EEFB; color: var(--accent); border: none; font-family: inherit; font-weight: 800; font-size: 12px; padding: 6px 11px; border-radius: 999px; cursor: pointer; }
   .blk-pair { display: flex; gap: 6px; align-items: stretch; }
   .pane { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -84,8 +87,8 @@
   .tbtn.sel { background: var(--accent); color: #fff; }
   .tbtn:active { transform: scale(.96); }
 
-  .mute-btn { position: absolute; top: 12px; right: 12px; z-index: 20; width: 36px; height: 36px; border-radius: 11px; border: none;
-    background: #fff; box-shadow: var(--shadow-sm); cursor: pointer; font-size: 15px; }
+  .mute-btn { position: absolute; top: 12px; right: 12px; z-index: 20; border: none; border-radius: 999px;
+    background: rgba(255,255,255,.92); box-shadow: var(--shadow-sm); cursor: pointer; font-size: 12px; font-weight: 800; color: var(--accent); padding: 7px 13px; }
   .toast { position: absolute; left: 50%; bottom: 84px; transform: translate(-50%, 16px); z-index: 30;
     background: var(--ink); color: #fff; font-weight: 700; font-size: 14px; padding: 11px 20px; border-radius: 999px;
     opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
@@ -108,12 +111,13 @@
 
   <!-- 시작 -->
   <section class="screen active" id="startScreen">
-    <span class="kicker">따라그리기 챌린지</span>
-    <h1>연예인 보고<br><span class="hl">따라 그리기</span></h1>
-    <div class="hero">🧑‍🎨🖼️</div>
-    <p class="desc">위에서부터 사진을 보고 옆 칸에 그려보세요.<br>다 그리면 스크롤 내려서 다음 사람 ^^</p>
-    <button class="btn primary big" id="startBtn">시작하기</button>
-    <p class="note">그림은 각 칸의 '이 그림 저장'으로<br>따로 저장/공유할 수 있어요</p>
+    <div class="hero-wrap">
+      <img class="hero-img" src="bg.jpg" alt="" />
+      <div class="hero-board">
+        <div class="hb-title">연예인 따라<br>그리기</div>
+        <button class="hb-btn" id="startBtn">시작하기</button>
+      </div>
+    </div>
   </section>
 
   <!-- 게임(워크시트) -->
@@ -178,7 +182,7 @@ function ac() { if (!audioCtx) { try { audioCtx = new (window.AudioContext || wi
 function beep(f, d, t, v, w) { if (muted) return; const c = ac(); if (!c) return; const t0 = c.currentTime + (w || 0); const o = c.createOscillator(), g = c.createGain(); o.type = t || "sine"; o.frequency.setValueAtTime(f, t0); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(v || 0.1, t0 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d); o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + d + 0.02); }
 function sfxTap() { beep(600, 0.06, "sine", 0.09); }
 function sfxDone() { [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.12, "sine", 0.12, i * 0.08)); }
-function toggleMute() { muted = !muted; localStorage.setItem(MUTE_KEY, muted ? "1" : "0"); $("muteBtn").textContent = muted ? "🔇" : "🔊"; if (!muted) sfxTap(); }
+function toggleMute() { muted = !muted; localStorage.setItem(MUTE_KEY, muted ? "1" : "0"); $("muteBtn").textContent = muted ? "음소거" : "소리"; if (!muted) sfxTap(); }
 
 /* ---------- 상태 ---------- */
 const COLORS = ["#2A2540", "#ffffff", "#e74c3c", "#e67e22", "#f1c40f", "#2ecc71", "#3498db", "#9b59b6", "#e84393", "#8b5a2b"];
@@ -197,10 +201,10 @@ function buildSheet() {
     const blk = document.createElement("div"); blk.className = "blk";
     blk.innerHTML =
       '<div class="blk-head"><span class="blk-num">' + (i + 1) + '</span><span class="blk-name">' + celeb.name + '</span>' +
-      '<button class="blk-zoom">🔍 크게</button></div>' +
+      '<button class="blk-zoom">크게 보기</button></div>' +
       '<div class="blk-pair">' +
-        '<div class="pane ref"><div class="pane-lbl">실물 사진 👀</div><div class="pane-body"><img alt="' + celeb.name + '"></div></div>' +
-        '<div class="pane-arrow">✏️</div>' +
+        '<div class="pane ref"><div class="pane-lbl">실물 사진</div><div class="pane-body"><img alt="' + celeb.name + '"></div></div>' +
+        '<div class="pane-arrow">→</div>' +
         '<div class="pane draw"><div class="pane-lbl">내 그림</div><div class="pane-body"><canvas></canvas></div></div>' +
       '</div>' +
       '<button class="blk-save">이 그림 저장 / 공유</button>';
@@ -355,7 +359,7 @@ $("muteBtn").addEventListener("click", toggleMute);
 window.addEventListener("pointermove", onMove);
 window.addEventListener("pointerup", onUp);
 window.addEventListener("pointercancel", onUp);
-$("muteBtn").textContent = muted ? "🔇" : "🔊";
+$("muteBtn").textContent = muted ? "음소거" : "소리";
 </script>
 </body>
 </html>
