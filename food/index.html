@@ -87,7 +87,7 @@
   .ask-card { background: var(--ivory); border-radius: 24px; padding: 24px 20px; box-shadow: var(--shadow); text-align: center; width: 300px; }
   .ask-e { font-size: 52px; }
   .ask-t { font-size: 22px; font-weight: 400; margin: 6px 0 4px; }
-  .ask-d { font-size: 14px; color: var(--ink-soft); font-weight: 400; line-height: 1.5; }
+  .ask-d { font-size: 15px; color: #111; font-weight: 700; line-height: 1.5; }
   .ask-btns { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
   .ask-btns button { border: none; cursor: pointer; font-family: inherit; font-weight: 400; font-size: 15px; padding: 14px 10px; border-radius: 16px; }
   .ask-btns .yes { background: linear-gradient(160deg, var(--green), #5B9A54); color: #fff; }
@@ -170,10 +170,10 @@
   #wheelScreen h2 { font-size: 42px; color: #26347d; }
   .result-panel .rp-n { font-size: 46px; color: #cf3324; font-weight: 700; -webkit-text-stroke: 0;
     text-shadow: 2px 0 0 #fff, -2px 0 0 #fff, 0 2px 0 #fff, 0 -2px 0 #fff, 2px 2px 0 #fff, -2px -2px 0 #fff, 2px -2px 0 #fff, -2px 2px 0 #fff, 0 3px 4px rgba(0,0,0,.18); }
-  .ask-t { font-size: 40px; color: #cf3324; }
+  .ask-t { font-size: 40px; color: #111; }
   .rx-clinic { font-size: 34px; color: #26347d; }
   .rx-food .fn { font-size: 54px; color: #2f8a3a; }
-  .ask-e { font-family: "Nanum Myeongjo", serif; color: #cf3324; font-weight: 400; -webkit-text-stroke: 0; }
+  .ask-e { font-family: "Nanum Myeongjo", serif; color: #111; font-weight: 700; -webkit-text-stroke: 0; }
 
   /* 설명/작은 글씨: Gaegu 볼드로 또렷하게 */
   .kicker { font-family: "Nanum Myeongjo", serif; background: #fff; color: #26347d; border: 3px solid #111; font-weight: 400; font-size: 18px;
@@ -197,7 +197,7 @@
   .rp-btn { font-size: 20px; font-weight: 700; color: #111; } .rp-btn.rx { background: #FFD6CE; color: #111; } .rp-btn.re { background: #CFE6FF; color: #111; }
   .r-btn { font-size: 16px; white-space: nowrap; } .r-btn.share { background: #FFD6CE; color: #111; } .r-btn.save { background: #FFEFAF; color: #111; }
   .again-btn { background: #D6F0CC; font-size: 19px; color: #111; white-space: nowrap; }
-  .ask-btns button { font-size: 21px; } .ask-btns .yes { background: #D6F0CC; } .ask-btns .no { background: #FFD6CE; }
+  .ask-btns button { font-size: 21px; color: #111; } .ask-btns .yes { background: #D6F0CC; color: #111; } .ask-btns .no { background: #FFD6CE; color: #111; }
 
   /* 결과는 하늘 위 손글씨로 (흰 박스 제거) */
   .result-panel { background: transparent; box-shadow: none; border: none; padding: 4px 0 0; }
@@ -223,7 +223,7 @@
 
   /* ===== 그림판으로 직접 그린 듯 선 울렁이기 (SVG 왜곡 필터) ===== */
   .kicker, .mute-btn, .pointer, .cloud,
-  .ask-card, .toast, .save-modal-inner { filter: url(#hand); }
+  .toast, .save-modal-inner { filter: url(#hand); }
   /* 종이(크레용) 질감 배경 */
   .phone { background:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)' opacity='0.055'/%3E%3C/svg%3E") repeat,
