@@ -271,7 +271,7 @@
   .sky { display: none; }
   .phone { background: url("./bg.webp") center/cover no-repeat, #8fd06a; }
   /* 첫 화면 타이틀: 빨간 타원 블롭 + 두꺼운 흰 글씨 (살짝 기울임) */
-  #startScreen h1 { font-family: "Nanum Myeongjo", serif; font-weight: 800; font-size: 44px; line-height: 1.12;
+  #startScreen h1 { font-family: "Nanum Myeongjo", serif; font-weight: 800; font-size: clamp(28px, 8.4vw, 44px); line-height: 1.12; white-space: nowrap;
     color: #fff; letter-spacing: -0.5px; display: inline-block; align-self: center;
     background: #ec3b2c; padding: 26px 44px; border-radius: 50%; margin: 16px 0 8px;
     transform: rotate(-7deg); transform-origin: center;
