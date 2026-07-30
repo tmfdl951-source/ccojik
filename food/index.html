@@ -220,7 +220,7 @@
     text-shadow: 1px 0 0 #111, -1px 0 0 #111, 0 1px 0 #111, 0 -1px 0 #111, 1px 1px 0 #111, -1px -1px 0 #111, 1px -1px 0 #111, -1px 1px 0 #111; }
 
   /* ===== 그림판으로 직접 그린 듯 선 울렁이기 (SVG 왜곡 필터) ===== */
-  .cta, .spin-btn, .rp-btn, .r-btn, .again-btn, .ask-btns button,
+  .spin-btn, .rp-btn, .r-btn, .again-btn, .ask-btns button,
   .kicker, .mute-btn, .hub, .pointer, .cloud,
   .ask-card, .rx, .toast, .save-modal-inner { filter: url(#hand); }
   .wheel { filter: url(#handW); }
@@ -233,7 +233,7 @@
   .mode-btn { font-family: "Nanum Myeongjo", serif; font-weight: 400; color: #222; border: 3px solid #111;
     border-radius: 26px 10px 24px 11px / 11px 24px 10px 26px; box-shadow: 3px 4px 0 rgba(0,0,0,.24);
     cursor: pointer; margin-top: 12px; background: #CFE6FF; font-size: 18px; padding: 12px 20px;
-    filter: url(#hand); transition: transform .07s ease, box-shadow .07s ease; }
+    transition: transform .07s ease, box-shadow .07s ease; }
   .mode-btn:active { transform: translate(2px, 3px); box-shadow: 1px 1px 0 rgba(0,0,0,.24); }
   #setupScreen { align-items: center; text-align: center; justify-content: safe center; }
   #setupScreen h2.setup-h { font-family: "Nanum Myeongjo", serif; font-weight: 400; font-size: 40px; color: #26347d;
@@ -311,7 +311,7 @@
     <span class="kicker">결정장애 해결소</span>
     <h1>오늘 뭐 먹지?<br><span class="hl">고민 끝!</span></h1>
     <p class="desc">메뉴 못 정하는 당신을 위한 처방소.<br>룰렛 한 번이면 오늘 저녁 결정 완료 ^^</p>
-    <button class="cta" id="startBtn">룰렛 돌리러 가기</button>
+    <button class="cta" id="startBtn">오늘 메뉴 뽑기</button>
     <button class="mode-btn" id="makeModeBtn">친구용 답정너 룰렛 만들기</button>
     <p class="note">결정 못 하는 친구·연인에게<br>"너 이거 돌려봐" 하고 보내보세요 ~^^</p>
   </section>
