@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>이거 누구게? · 몽타주 만들기</title>
+<meta property="og:type" content="website" />
+<meta property="og:title" content="이거 누구게? · 몽타주 만들기" />
+<meta property="og:description" content="눈·코·입 조합해서 그 사람 몽타주 만들기! 친구한테 누구게 ^^" />
+<link rel="stylesheet" as="style" crossorigin
+  href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&display=swap" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root { --bg:#EEF3FB; --ink:#20293A; --ink-soft:#7C8699; --accent:#2E7DF1; --accent-d:#1E63D0; --line:#DCE4F1;
+    --shadow: 0 10px 30px rgba(40,70,140,.14); --shadow-sm: 0 4px 14px rgba(40,70,140,.12); }
+  html, body { height: 100%; font-family: "Pretendard Variable", Pretendard, -apple-system, system-ui, sans-serif; color: var(--ink);
+    -webkit-user-select: none; user-select: none;
+    background: radial-gradient(circle at 18% 8%, #fff 0%, transparent 55%), radial-gradient(circle at 88% 96%, #DEE9FB 0%, transparent 50%), var(--bg); }
+  body { display: flex; align-items: center; justify-content: center; min-height: 100dvh; padding: 10px; }
+
+  .phone { position: relative; width: min(440px, 96vw); aspect-ratio: 9/16; max-height: 97dvh;
+    background: #fff; border-radius: 30px; box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column; }
+
+  .screen { position: absolute; inset: 0; display: none; flex-direction: column; }
+  .screen.active { display: flex; }
+  #startScreen { align-items: center; justify-content: safe center; text-align: center; padding: 24px 20px; overflow-y: auto; }
+
+  .kicker { font-size: 12.5px; font-weight: 800; color: var(--accent); background: #E3EEFD; padding: 6px 15px; border-radius: 999px; }
+  h1 { font-family: "Do Hyeon", sans-serif; font-size: 34px; letter-spacing: -.5px; line-height: 1.25; margin-top: 16px; }
+  h1 .hl { color: var(--accent); }
+  .desc { font-size: 14.5px; font-weight: 600; color: var(--ink-soft); margin-top: 12px; line-height: 1.6; }
+  .start-face { width: 150px; margin: 12px auto 4px; }
+  .btn { font-family: inherit; font-weight: 800; cursor: pointer; border: none; border-radius: 16px; transition: transform .12s ease; }
+  .btn:active { transform: scale(.96); }
+  .btn.primary { background: linear-gradient(160deg, var(--accent), var(--accent-d)); color: #fff; box-shadow: var(--shadow-sm); }
+  .btn.ghost { background: #E3EEFD; color: var(--accent); }
+  .btn.soft { background: #fff; color: var(--ink); border: 1.5px solid var(--line); }
+  .btn.big { font-size: 18px; padding: 16px 40px; margin-top: 22px; }
+  .note { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); margin-top: 16px; line-height: 1.55; }
+
+  /* 만들기 화면 */
+  #buildScreen { padding: 0; }
+  .b-head { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1.5px solid var(--line); }
+  .b-head .bh-title { font-family: "Do Hyeon", sans-serif; font-size: 18px; flex: 1; }
+  .b-head .bh-btn { background: #E3EEFD; color: var(--accent); border: none; font-family: inherit; font-weight: 800; font-size: 13px; padding: 8px 12px; border-radius: 10px; cursor: pointer; }
+
+  .face-stage { flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 10px 10px 4px; }
+  .face-view { width: min(230px, 56vw, 32vh); background: #F6F9FF; border: 2px solid var(--line); border-radius: 20px; }
+  .face-view svg { display: block; width: 100%; height: auto; }
+
+  .controls { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 6px 12px 10px; }
+  .controls::-webkit-scrollbar { width: 0; }
+  .cat-tabs { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .cat-tab { font-family: inherit; font-weight: 800; font-size: 13px; padding: 8px 12px; border-radius: 999px; border: 1.5px solid var(--line);
+    background: #fff; color: var(--ink-soft); cursor: pointer; }
+  .cat-tab.sel { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .opt-row { display: flex; gap: 8px; overflow-x: auto; padding: 10px 2px 4px; -webkit-overflow-scrolling: touch; }
+  .opt-row::-webkit-scrollbar { height: 0; }
+  .opt { flex-shrink: 0; min-width: 62px; text-align: center; font-size: 12px; font-weight: 700; color: var(--ink-soft);
+    background: #F4F7FD; border: 2px solid var(--line); border-radius: 12px; padding: 7px 10px; cursor: pointer; white-space: nowrap; }
+  .opt.sel { border-color: var(--accent); color: var(--accent); background: #EAF2FE; }
+
+  .swatch-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+  .swatch-row .sr-lbl { font-size: 12.5px; font-weight: 800; color: var(--ink-soft); width: 54px; flex-shrink: 0; }
+  .sw { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1.5px var(--line); cursor: pointer; padding: 0; }
+  .sw.sel { box-shadow: 0 0 0 2.5px var(--accent); transform: scale(1.12); }
+
+  .b-foot { flex-shrink: 0; display: flex; gap: 8px; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); border-top: 1.5px solid var(--line); }
+  .b-foot .btn { flex: 1; padding: 13px 8px; font-size: 15px; }
+  .b-foot .rnd { flex: 0 0 52px; font-size: 20px; }
+
+  /* 결과 */
+  #resultScreen { align-items: center; text-align: center; padding: 22px 20px; overflow-y: auto; }
+  #resultScreen h2 { font-family: "Do Hyeon", sans-serif; font-size: 24px; margin-top: 4px; }
+  .r-face { width: 200px; margin: 12px auto 6px; border: 3px solid var(--ink); border-radius: 18px; overflow: hidden; background: #F6F9FF; box-shadow: var(--shadow-sm); }
+  .r-face svg { display: block; width: 100%; height: auto; }
+  .r-q { font-size: 15px; font-weight: 700; color: var(--ink-soft); line-height: 1.55; margin-top: 4px; }
+  .r-actions { display: flex; gap: 10px; width: 100%; margin-top: 16px; }
+  .r-actions .btn { flex: 1; padding: 14px 8px; font-size: 15px; }
+  #resultScreen .again-row { display: flex; gap: 10px; width: 100%; margin-top: 10px; }
+  #resultScreen .again-row .btn { flex: 1; padding: 13px 8px; font-size: 14px; }
+  .save-hint { font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-top: 12px; min-height: 16px; }
+
+  .mute-btn { position: absolute; top: 12px; right: 12px; z-index: 20; border: none; border-radius: 999px;
+    background: rgba(255,255,255,.92); box-shadow: var(--shadow-sm); cursor: pointer; font-size: 12px; font-weight: 800; color: var(--accent); padding: 7px 13px; }
+  .toast { position: absolute; left: 50%; bottom: 80px; transform: translate(-50%, 16px); z-index: 30;
+    background: var(--ink); color: #fff; font-weight: 700; font-size: 14px; padding: 11px 20px; border-radius: 999px;
+    opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .save-modal { position: absolute; inset: 0; z-index: 40; background: rgba(32,41,58,.6); backdrop-filter: blur(3px);
+    display: none; align-items: center; justify-content: center; padding: 22px; }
+  .save-modal.show { display: flex; }
+  .save-modal-inner { background: #fff; border-radius: 22px; padding: 18px 16px; box-shadow: var(--shadow); max-width: 100%; max-height: 100%;
+    overflow-y: auto; text-align: center; display: flex; flex-direction: column; align-items: center; }
+  .sm-title { font-size: 15px; font-weight: 800; } .sm-sub { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); line-height: 1.5; margin: 4px 0 10px; }
+  #saveModalImg { width: 100%; max-width: 250px; border-radius: 14px; box-shadow: var(--shadow-sm); }
+
+  /* 웹(넓은 화면)에서는 폰 프레임 제거 */
+  @media (min-width: 700px) {
+    body { padding: 0; align-items: stretch; }
+    .phone { width: 100vw; max-width: 100%; height: 100dvh; max-height: none; aspect-ratio: auto; border-radius: 0; box-shadow: none; }
+    .controls, .cat-tabs, .b-foot > *, #resultScreen > * { }
+    .face-view { width: min(300px, 34vh); }
+    .controls { max-width: 640px; margin-inline: auto; width: 100%; }
+    .b-head, .b-foot { padding-left: max(14px, calc((100vw - 660px)/2)); padding-right: max(14px, calc((100vw - 660px)/2)); }
+  }
+</style>
+</head>
+<body>
+<div class="phone" id="phone">
+  <button class="mute-btn" id="muteBtn">소리</button>
+
+  <!-- 시작 -->
+  <section class="screen active" id="startScreen">
+    <span class="kicker">몽타주 만들기</span>
+    <h1>이거 <span class="hl">누구게?</span><br>몽타주 만들기</h1>
+    <div class="start-face" id="startFace"></div>
+    <p class="desc">눈·코·입·머리를 조합해서<br>그 사람 몽타주를 만들어보세요.<br>친구한테 "누구게?" 하고 공유 ^^</p>
+    <button class="btn primary big" id="startBtn">만들기 시작</button>
+    <p class="note">누굴 만들지는 비밀! 완성하면<br>정답 없이 그림만 공유돼요</p>
+  </section>
+
+  <!-- 만들기 -->
+  <section class="screen" id="buildScreen">
+    <div class="b-head">
+      <button class="bh-btn" id="backBtn">← 처음</button>
+      <div class="bh-title">몽타주 만들기</div>
+    </div>
+    <div class="face-stage"><div class="face-view" id="faceView"></div></div>
+    <div class="controls">
+      <div class="cat-tabs" id="catTabs"></div>
+      <div class="opt-row" id="optRow"></div>
+      <div class="swatch-row"><span class="sr-lbl">피부색</span><div id="skinRow" style="display:flex;gap:8px;"></div></div>
+      <div class="swatch-row"><span class="sr-lbl">머리색</span><div id="hairRow" style="display:flex;gap:8px;flex-wrap:wrap;"></div></div>
+    </div>
+    <div class="b-foot">
+      <button class="btn ghost rnd" id="randomBtn">🎲</button>
+      <button class="btn primary" id="doneBtn">완성! 공유하기</button>
+    </div>
+  </section>
+
+  <!-- 결과 -->
+  <section class="screen" id="resultScreen">
+    <span class="kicker">완성!</span>
+    <h2>이거 누구게?</h2>
+    <div class="r-face" id="resFace"></div>
+    <p class="r-q">이 몽타주, 누구를 만든 걸까요?<br>정답은 만든 사람만 알고 있음 ^^</p>
+    <div class="r-actions">
+      <button class="btn primary" id="saveBtn">그림 저장</button>
+      <button class="btn ghost" id="shareBtn">친구한테 내기</button>
+    </div>
+    <div class="again-row">
+      <button class="btn soft" id="editBtn">더 다듬기</button>
+      <button class="btn soft" id="againBtn">새로 만들기</button>
+    </div>
+    <p class="save-hint" id="saveHint"></p>
+  </section>
+
+  <div class="toast" id="toast"></div>
+  <div class="save-modal" id="saveModal">
+    <div class="save-modal-inner">
+      <p class="sm-title">👆 이미지를 꾹 눌러 저장하세요</p>
+      <p class="sm-sub">아이폰은 아래 이미지를 길게 눌러<br>'사진에 저장'을 선택하세요</p>
+      <img id="saveModalImg" alt="몽타주" />
+      <button class="btn soft" id="saveModalClose" style="margin-top:14px;padding:11px 30px;">닫기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ---------- 사운드 ---------- */
+const MUTE_KEY = "ccojik-montage-muted";
+let audioCtx = null, muted = localStorage.getItem(MUTE_KEY) === "1";
+function ac() { if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } } if (audioCtx.state === "suspended") audioCtx.resume(); return audioCtx; }
+function beep(f, d, t, v, w) { if (muted) return; const c = ac(); if (!c) return; const t0 = c.currentTime + (w || 0); const o = c.createOscillator(), g = c.createGain(); o.type = t || "sine"; o.frequency.setValueAtTime(f, t0); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(v || 0.09, t0 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d); o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + d + 0.02); }
+function sfxTap() { beep(620, 0.05, "sine", 0.08); }
+function sfxDone() { [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.12, "sine", 0.11, i * 0.08)); }
+function toggleMute() { muted = !muted; localStorage.setItem(MUTE_KEY, muted ? "1" : "0"); $("muteBtn").textContent = muted ? "음소거" : "소리"; if (!muted) sfxTap(); }
+
+/* ---------- 파츠 라이브러리 (자체 제작 SVG) ---------- */
+const SKIN = ["#F5CBA0", "#E9B085", "#CE8E5E", "#F7DDC2", "#B87A50"];
+const HAIRCOL = ["#2A2A2A", "#4E3320", "#0E0E0E", "#8A6A3B", "#C0392B", "#6C5CE7", "#E67E22", "#9AA0A6"];
+const EARS_NECK = s => `<path d="M134 244 h32 v34 h-32 z" fill="${s}" stroke="#a9805a" stroke-width="2"/>
+  <ellipse cx="82" cy="190" rx="11" ry="15" fill="${s}" stroke="#a9805a" stroke-width="2.5"/>
+  <ellipse cx="218" cy="190" rx="11" ry="15" fill="${s}" stroke="#a9805a" stroke-width="2.5"/>`;
+const FACE = [
+  { n: "둥근", f: s => `<ellipse cx="150" cy="186" rx="70" ry="78" fill="${s}" stroke="#a9805a" stroke-width="2.5"/>` },
+  { n: "각진", f: s => `<rect x="84" y="114" width="132" height="144" rx="30" fill="${s}" stroke="#a9805a" stroke-width="2.5"/>` },
+  { n: "길쭉", f: s => `<ellipse cx="150" cy="190" rx="60" ry="90" fill="${s}" stroke="#a9805a" stroke-width="2.5"/>` },
+  { n: "넓적", f: s => `<ellipse cx="150" cy="190" rx="82" ry="70" fill="${s}" stroke="#a9805a" stroke-width="2.5"/>` },
+  { n: "계란", f: s => `<path d="M150 108 q66 0 66 82 q0 74 -66 74 q-66 0 -66 -74 q0 -82 66 -82z" fill="${s}" stroke="#a9805a" stroke-width="2.5"/>` },
+];
+const BROWS = [
+  { n: "일자", s: `<rect x="106" y="149" width="30" height="5" rx="2.5" fill="#3a2a1a"/><rect x="164" y="149" width="30" height="5" rx="2.5" fill="#3a2a1a"/>` },
+  { n: "아치", s: `<path d="M106 153 q15 -12 30 0" stroke="#3a2a1a" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M164 153 q15 -12 30 0" stroke="#3a2a1a" stroke-width="5" fill="none" stroke-linecap="round"/>` },
+  { n: "짙은", s: `<rect x="103" y="146" width="35" height="9" rx="3.5" fill="#1a1208"/><rect x="162" y="146" width="35" height="9" rx="3.5" fill="#1a1208"/>` },
+  { n: "화난", s: `<path d="M106 147 l30 8" stroke="#3a2a1a" stroke-width="6" stroke-linecap="round"/><path d="M194 147 l-30 8" stroke="#3a2a1a" stroke-width="6" stroke-linecap="round"/>` },
+  { n: "처진", s: `<path d="M106 148 l30 7" stroke="#3a2a1a" stroke-width="5" stroke-linecap="round" transform="rotate(6 121 151)"/><path d="M164 155 l30 -7" stroke="#3a2a1a" stroke-width="5" stroke-linecap="round" transform="rotate(-6 179 151)"/>` },
+];
+const EYES = [
+  { n: "기본", s: `<circle cx="121" cy="171" r="7" fill="#fff" stroke="#222" stroke-width="2"/><circle cx="121" cy="171" r="3.4" fill="#222"/><circle cx="179" cy="171" r="7" fill="#fff" stroke="#222" stroke-width="2"/><circle cx="179" cy="171" r="3.4" fill="#222"/>` },
+  { n: "큰눈", s: `<ellipse cx="121" cy="171" rx="10" ry="11" fill="#fff" stroke="#222" stroke-width="2"/><circle cx="122" cy="172" r="4.6" fill="#222"/><circle cx="120" cy="169" r="1.5" fill="#fff"/><ellipse cx="179" cy="171" rx="10" ry="11" fill="#fff" stroke="#222" stroke-width="2"/><circle cx="180" cy="172" r="4.6" fill="#222"/><circle cx="178" cy="169" r="1.5" fill="#fff"/>` },
+  { n: "작은눈", s: `<circle cx="121" cy="171" r="3.6" fill="#222"/><circle cx="179" cy="171" r="3.6" fill="#222"/>` },
+  { n: "찢어진", s: `<path d="M110 172 q11 -7 22 0 q-11 6 -22 0z" fill="#fff" stroke="#222" stroke-width="2"/><circle cx="121" cy="171" r="3" fill="#222"/><path d="M168 172 q11 -7 22 0 q-11 6 -22 0z" fill="#fff" stroke="#222" stroke-width="2"/><circle cx="179" cy="171" r="3" fill="#222"/>` },
+  { n: "졸린", s: `<path d="M112 171 q9 6 18 0" stroke="#222" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M170 171 q9 6 18 0" stroke="#222" stroke-width="3" fill="none" stroke-linecap="round"/>` },
+  { n: "동그란", s: `<circle cx="121" cy="171" r="9" fill="#fff" stroke="#222" stroke-width="2.5"/><circle cx="121" cy="171" r="4.4" fill="#222"/><circle cx="179" cy="171" r="9" fill="#fff" stroke="#222" stroke-width="2.5"/><circle cx="179" cy="171" r="4.4" fill="#222"/>` },
+];
+const NOSE = [
+  { n: "작은", s: `<path d="M150 182 v14 q-5 3 -8 1" stroke="#b58a63" stroke-width="3" fill="none" stroke-linecap="round"/>` },
+  { n: "동그란", s: `<circle cx="150" cy="197" r="6.5" fill="#e6ac7e"/>` },
+  { n: "넓은", s: `<path d="M150 183 v11" stroke="#b58a63" stroke-width="3" stroke-linecap="round"/><path d="M139 197 q11 8 22 0" stroke="#b58a63" stroke-width="3" fill="none" stroke-linecap="round"/>` },
+  { n: "뾰족", s: `<path d="M150 181 l8 18 h-16 z" fill="#e6ac7e" stroke="#b58a63" stroke-width="1.5" stroke-linejoin="round"/>` },
+];
+const MOUTH = [
+  { n: "미소", s: `<path d="M126 219 q24 22 48 0" stroke="#b03a3a" stroke-width="4" fill="none" stroke-linecap="round"/>` },
+  { n: "무표정", s: `<line x1="131" y1="225" x2="169" y2="225" stroke="#b03a3a" stroke-width="4" stroke-linecap="round"/>` },
+  { n: "벌림", s: `<ellipse cx="150" cy="227" rx="15" ry="12" fill="#7a2222"/>` },
+  { n: "삐죽", s: `<path d="M130 227 q10 -9 20 0 q10 9 20 0" stroke="#b03a3a" stroke-width="4" fill="none" stroke-linecap="round"/>` },
+  { n: "이빨", s: `<path d="M127 218 q23 22 46 0z" fill="#7a2222"/><path d="M132 219 h36 v6 h-36z" fill="#fff"/>` },
+  { n: "혀", s: `<path d="M129 219 q21 20 42 0z" fill="#7a2222"/><ellipse cx="150" cy="236" rx="9" ry="6" fill="#e06a6a"/>` },
+];
+const HAIR = [
+  { n: "짧은", back: () => ``, front: c => `<path d="M82 152 q6 -74 68 -76 q62 2 68 76 q-22 -38 -68 -38 q-46 0 -68 38z" fill="${c}"/>` },
+  { n: "반머리", back: () => ``, front: c => `<path d="M94 140 q10 -36 56 -36 q46 0 56 36 q-26 -20 -56 -20 q-30 0 -56 20z" fill="${c}"/>` },
+  { n: "투블럭", back: () => ``, front: c => `<path d="M92 150 q4 -64 58 -66 q54 2 58 66 q-6 -22 -20 -22 v-6 q-38 -20 -76 0 v6 q-14 0 -20 22z" fill="${c}"/>` },
+  { n: "장발", back: c => `<path d="M72 152 q-2 116 30 128 h96 q32 -12 30 -128 q0 -84 -78 -84 q-78 0 -78 84z" fill="${c}"/>`, front: c => `<path d="M80 152 q6 -76 70 -78 q64 2 70 78 q-24 -40 -70 -40 q-46 0 -70 40z" fill="${c}"/>` },
+  { n: "파마", back: () => ``, front: c => `<g fill="${c}"><circle cx="94" cy="122" r="20"/><circle cx="122" cy="106" r="22"/><circle cx="150" cy="100" r="23"/><circle cx="178" cy="106" r="22"/><circle cx="206" cy="122" r="20"/><path d="M80 154 q0 -34 70 -38 q70 4 70 38 z"/></g>` },
+  { n: "뾰족", back: () => ``, front: c => `<path d="M84 152 q6 -62 66 -66 q60 4 66 66 l-13 -32 -11 26 -13 -36 -13 36 -13 -26 -11 32 -13 -20z" fill="${c}"/>` },
+  { n: "가르마", back: () => ``, front: c => `<path d="M84 150 q6 -70 66 -72 q62 2 68 72 q-16 -30 -52 -34 q6 12 4 22 q-14 -18 -34 -16 q-30 4 -52 32z" fill="${c}"/>` },
+];
+const ACC = [
+  { n: "없음", s: `` },
+  { n: "안경", s: `<g fill="none" stroke="#222" stroke-width="3"><rect x="102" y="160" width="36" height="24" rx="9"/><rect x="162" y="160" width="36" height="24" rx="9"/><line x1="138" y1="171" x2="162" y2="171"/></g>` },
+  { n: "선글라스", s: `<g stroke="#222" stroke-width="3"><rect x="102" y="160" width="36" height="24" rx="9" fill="#232a33"/><rect x="162" y="160" width="36" height="24" rx="9" fill="#232a33"/><line x1="138" y1="171" x2="162" y2="171"/></g>` },
+  { n: "콧수염", s: `<path d="M132 209 q18 9 36 0 q-8 8 -18 6 q-10 2 -18 -6z" fill="#3a2a1a"/>` },
+  { n: "수염", s: `<path d="M112 212 q38 52 76 0 q-8 40 -38 44 q-30 -4 -38 -44z" fill="#3a2a1a" opacity="0.92"/>` },
+  { n: "점", s: `<circle cx="176" cy="214" r="3" fill="#5a3a1a"/>` },
+  { n: "홍조", s: `<ellipse cx="112" cy="204" rx="12" ry="7" fill="#f2a0a0" opacity="0.6"/><ellipse cx="188" cy="204" rx="12" ry="7" fill="#f2a0a0" opacity="0.6"/>` },
+];
+const CATS = [
+  { key: "face", label: "얼굴형", list: FACE },
+  { key: "hair", label: "머리", list: HAIR },
+  { key: "brows", label: "눈썹", list: BROWS },
+  { key: "eyes", label: "눈", list: EYES },
+  { key: "nose", label: "코", list: NOSE },
+  { key: "mouth", label: "입", list: MOUTH },
+  { key: "acc", label: "기타", list: ACC },
+];
+
+/* ---------- 상태 ---------- */
+let idx = { face: 0, hair: 0, brows: 0, eyes: 0, nose: 0, mouth: 0, acc: 0 };
+let skinIdx = 0, hairColIdx = 0, curCat = "face";
+
+function show(id) { document.querySelectorAll(".screen").forEach(s => s.classList.remove("active")); $(id).classList.add("active"); }
+function toast(m) { const t = $("toast"); t.textContent = m; t.classList.add("show"); clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove("show"), 1600); }
+
+/* ---------- 얼굴 SVG 만들기 ---------- */
+function buildSVG() {
+  const s = SKIN[skinIdx], c = HAIRCOL[hairColIdx];
+  const hair = HAIR[idx.hair];
+  return `<svg viewBox="0 0 300 360" xmlns="http://www.w3.org/2000/svg">
+    <rect width="300" height="360" fill="#F6F9FF"/>
+    ${hair.back(c)}
+    ${EARS_NECK(s)}
+    ${FACE[idx.face].f(s)}
+    ${BROWS[idx.brows].s}
+    ${EYES[idx.eyes].s}
+    ${NOSE[idx.nose].s}
+    ${MOUTH[idx.mouth].s}
+    ${hair.front(c)}
+    ${ACC[idx.acc].s}
+  </svg>`;
+}
+function renderFace() { const svg = buildSVG(); $("faceView").innerHTML = svg; }
+
+/* ---------- 컨트롤 UI ---------- */
+function buildCatTabs() {
+  const box = $("catTabs"); box.innerHTML = "";
+  CATS.forEach(cat => {
+    const b = document.createElement("button"); b.className = "cat-tab" + (cat.key === curCat ? " sel" : "");
+    b.textContent = cat.label; b.addEventListener("click", () => { curCat = cat.key; sfxTap(); buildCatTabs(); buildOptRow(); });
+    box.appendChild(b);
+  });
+}
+function buildOptRow() {
+  const cat = CATS.find(c => c.key === curCat), box = $("optRow"); box.innerHTML = "";
+  cat.list.forEach((opt, i) => {
+    const b = document.createElement("button"); b.className = "opt" + (idx[curCat] === i ? " sel" : "");
+    b.textContent = opt.n; b.addEventListener("click", () => { idx[curCat] = i; sfxTap(); buildOptRow(); renderFace(); });
+    box.appendChild(b);
+  });
+}
+function buildSwatches() {
+  const sk = $("skinRow"); sk.innerHTML = "";
+  SKIN.forEach((c, i) => { const b = document.createElement("button"); b.className = "sw" + (skinIdx === i ? " sel" : ""); b.style.background = c;
+    b.addEventListener("click", () => { skinIdx = i; sfxTap(); buildSwatches(); renderFace(); }); sk.appendChild(b); });
+  const hr = $("hairRow"); hr.innerHTML = "";
+  HAIRCOL.forEach((c, i) => { const b = document.createElement("button"); b.className = "sw" + (hairColIdx === i ? " sel" : ""); b.style.background = c;
+    b.addEventListener("click", () => { hairColIdx = i; sfxTap(); buildSwatches(); renderFace(); }); hr.appendChild(b); });
+}
+function randomize() {
+  CATS.forEach(cat => { idx[cat.key] = Math.floor(Math.random() * cat.list.length); });
+  idx.acc = Math.random() < 0.5 ? 0 : Math.floor(Math.random() * ACC.length);
+  skinIdx = Math.floor(Math.random() * SKIN.length);
+  hairColIdx = Math.floor(Math.random() * HAIRCOL.length);
+  buildOptRow(); buildSwatches(); renderFace();
+}
+
+/* ---------- 결과 카드 ---------- */
+function svgToImg(svg) { return new Promise(res => { const b = new Blob([svg], { type: "image/svg+xml" }); const u = URL.createObjectURL(b); const im = new Image(); im.onload = () => { res(im); URL.revokeObjectURL(u); }; im.onerror = () => res(null); im.src = u; }); }
+function roundRect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+async function buildCard() {
+  const W = 1080, H = 1350, cx = W / 2;
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const c = cv.getContext("2d");
+  try { await document.fonts.ready; } catch (e) {}
+  const FF = '"Do Hyeon", "Pretendard Variable", Pretendard, sans-serif';
+  c.fillStyle = "#EEF3FB"; c.fillRect(0, 0, W, H); c.textAlign = "center";
+  c.fillStyle = "#2E7DF1"; c.font = "800 72px " + FF; c.fillText("이거 누구게?", cx, 140);
+  // 몽타주 액자
+  const bw = 620, bh = 620 * 360 / 300, bx = cx - bw / 2, by = 210;
+  c.save(); c.shadowColor = "rgba(40,70,140,.22)"; c.shadowBlur = 40; c.shadowOffsetY = 18;
+  c.fillStyle = "#F6F9FF"; roundRect(c, bx, by, bw, bh, 30); c.fill(); c.restore();
+  const svg = buildSVG().replace('<svg ', '<svg width="' + bw + '" height="' + bh + '" ');
+  const im = await svgToImg(svg);
+  if (im) { c.save(); roundRect(c, bx, by, bw, bh, 30); c.clip(); c.drawImage(im, bx, by, bw, bh); c.restore(); }
+  c.strokeStyle = "#20293A"; c.lineWidth = 6; roundRect(c, bx, by, bw, bh, 30); c.stroke();
+  c.fillStyle = "#20293A"; c.font = "700 44px " + FF; c.fillText("이 몽타주, 누구를 만든 걸까?", cx, by + bh + 80);
+  c.fillStyle = "#7C8699"; c.font = "600 34px " + '"Pretendard Variable", Pretendard, sans-serif'; c.fillText("정답은 만든 사람만 알고 있음", cx, by + bh + 132);
+  c.fillStyle = "#2E7DF1"; c.font = "800 46px " + FF; c.fillText("@ccojik.dh", cx, 1258);
+  c.fillStyle = "#7C8699"; c.font = "600 32px " + '"Pretendard Variable", Pretendard, sans-serif'; c.fillText("너도 몽타주 만들어봐 ^^", cx, 1306);
+  return cv;
+}
+
+/* ---------- 저장/공유 ---------- */
+const isIOS = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+function supportsDownload() { return !isIOS && typeof document.createElement("a").download !== "undefined"; }
+let saveURL = null;
+function openSaveModal(u) { if (saveURL) URL.revokeObjectURL(saveURL); saveURL = u; $("saveModalImg").src = u; $("saveModal").classList.add("show"); }
+function closeSaveModal() { $("saveModal").classList.remove("show"); $("saveModalImg").removeAttribute("src"); if (saveURL) { URL.revokeObjectURL(saveURL); saveURL = null; } }
+async function saveCard() {
+  try {
+    const cv = await buildCard();
+    cv.toBlob(blob => {
+      if (!blob) { $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요 🙏"; return; }
+      const u = URL.createObjectURL(blob);
+      if (!supportsDownload()) { openSaveModal(u); return; }
+      const a = document.createElement("a"); a.href = u; a.download = "몽타주_누구게.png";
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 1000);
+      $("saveHint").textContent = "저장 완료!";
+    }, "image/png");
+  } catch (e) { $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요 🙏"; }
+}
+async function shareCard() {
+  const url = location.href.split("?")[0].split("#")[0];
+  const text = "내가 만든 몽타주, 이거 누구게?! 너도 만들어봐 ^^";
+  try {
+    if (navigator.canShare) {
+      const cv = await buildCard();
+      const blob = await new Promise(r => cv.toBlob(r, "image/png"));
+      if (blob) { const file = new File([blob], "몽타주_누구게.png", { type: "image/png" });
+        if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text, url }); return; } }
+    }
+  } catch (e) {}
+  if (navigator.share) { try { await navigator.share({ title: "이거 누구게? 몽타주", text, url }); return; } catch (e) {} }
+  if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text + " " + url).then(() => toast("링크 복사됨! 친구한테 붙여넣기 ^^"), () => toast("복사 실패")); }
+  else toast("주소창 링크를 복사해 보내주세요");
+}
+
+/* ---------- 이벤트 ---------- */
+$("startBtn").addEventListener("click", () => { sfxTap(); show("buildScreen"); buildCatTabs(); buildOptRow(); buildSwatches(); renderFace(); });
+$("backBtn").addEventListener("click", () => { sfxTap(); show("startScreen"); });
+$("randomBtn").addEventListener("click", () => { sfxTap(); randomize(); });
+$("doneBtn").addEventListener("click", () => { sfxDone(); $("resFace").innerHTML = buildSVG(); $("saveHint").textContent = ""; show("resultScreen"); $("resultScreen").scrollTop = 0; });
+$("editBtn").addEventListener("click", () => { sfxTap(); show("buildScreen"); });
+$("againBtn").addEventListener("click", () => { sfxTap(); randomize(); show("buildScreen"); });
+$("saveBtn").addEventListener("click", saveCard);
+$("shareBtn").addEventListener("click", shareCard);
+$("saveModalClose").addEventListener("click", closeSaveModal);
+$("saveModal").addEventListener("click", e => { if (e.target === $("saveModal")) closeSaveModal(); });
+$("muteBtn").addEventListener("click", toggleMute);
+
+$("muteBtn").textContent = muted ? "음소거" : "소리";
+// 시작 화면 미리보기 얼굴 (랜덤 하나)
+randomize(); $("startFace").innerHTML = buildSVG();
+</script>
+</body>
+</html>
