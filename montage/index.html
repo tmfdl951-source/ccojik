@@ -46,7 +46,7 @@
   .b-head .bh-btn { background: #E3EEFD; color: var(--accent); border: none; font-family: inherit; font-weight: 800; font-size: 13px; padding: 8px 12px; border-radius: 10px; cursor: pointer; }
 
   .face-stage { flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 8px 10px 2px; }
-  .face-view { width: min(210px, 52vw, 29vh); background: #F6F9FF; border: 2px solid var(--line); border-radius: 20px; }
+  .face-view { width: min(310px, 78vw, 42vh); background: #F6F9FF; border: 2px solid var(--line); border-radius: 20px; }
   .face-view svg { display: block; width: 100%; height: auto; }
 
   .controls { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 6px 12px 10px; }
@@ -77,7 +77,7 @@
   /* 결과 */
   #resultScreen { align-items: center; text-align: center; padding: 22px 20px; overflow-y: auto; }
   #resultScreen h2 { font-family: "Do Hyeon", sans-serif; font-size: 24px; margin-top: 4px; }
-  .r-face { width: 200px; margin: 12px auto 6px; border: 3px solid var(--ink); border-radius: 18px; overflow: hidden; background: #F6F9FF; box-shadow: var(--shadow-sm); }
+  .r-face { width: min(300px, 78vw); margin: 12px auto 6px; border: 3px solid var(--ink); border-radius: 18px; overflow: hidden; background: #F6F9FF; box-shadow: var(--shadow-sm); }
   .r-face svg { display: block; width: 100%; height: auto; }
   .r-q { font-size: 15px; font-weight: 700; color: var(--ink-soft); line-height: 1.55; margin-top: 4px; }
   .r-actions { display: flex; gap: 10px; width: 100%; margin-top: 16px; }
@@ -103,7 +103,7 @@
   @media (min-width: 700px) {
     body { padding: 0; align-items: stretch; }
     .phone { width: 100vw; max-width: 100%; height: 100dvh; max-height: none; aspect-ratio: auto; border-radius: 0; box-shadow: none; }
-    .face-view { width: min(280px, 32vh); }
+    .face-view { width: min(360px, 46vh); }
     .controls { max-width: 640px; margin-inline: auto; width: 100%; }
     .b-head, .b-foot { padding-left: max(14px, calc((100vw - 660px)/2)); padding-right: max(14px, calc((100vw - 660px)/2)); }
   }
@@ -242,26 +242,32 @@ const MOUTH = [
   { n: "벌림", s: `<ellipse cx="150" cy="227" rx="15" ry="12" fill="#7a2222"/>` },
   { n: "삐죽", s: `<path d="M130 227 q10 -9 20 0 q10 9 20 0" stroke="#b03a3a" stroke-width="4" fill="none" stroke-linecap="round"/>` },
   { n: "이빨", s: `<path d="M127 218 q23 22 46 0z" fill="#7a2222"/><path d="M132 219 h36 v6 h-36z" fill="#fff"/>` },
-  { n: "혀", s: `<path d="M129 219 q21 20 42 0z" fill="#7a2222"/><ellipse cx="150" cy="236" rx="9" ry="6" fill="#e06a6a"/>` },
+  { n: "혀", s: `<path d="M126 218 q24 18 48 0 q-6 9 -24 9 q-18 0 -24 -9z" fill="#7a2222"/><path d="M137 226 q13 -5 26 0 q4 21 -13 23 q-17 -2 -13 -23z" fill="#e0666e" stroke="#c04a52" stroke-width="1.4"/><path d="M150 228 v17" stroke="#c04a52" stroke-width="1.2"/>` },
   { n: "앙다문", s: `<path d="M132 224 q18 6 36 0" stroke="#b03a3a" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M132 224 q18 -3 36 0" stroke="#b03a3a" stroke-width="2" fill="none" opacity=".5"/>` },
-  { n: "메롱", s: `<path d="M130 220 q20 14 40 0z" fill="#7a2222"/><path d="M144 227 q6 15 12 0z" fill="#e06a6a"/>` },
+  { n: "메롱", s: `<path d="M126 218 q24 16 48 0 q-6 8 -24 8 q-18 0 -24 -8z" fill="#7a2222"/><path d="M148 224 q16 -2 24 8 q6 16 -10 20 q-18 2 -20 -12 q-2 -10 6 -16z" fill="#e0666e" stroke="#c04a52" stroke-width="1.4"/>` },
   { n: "하하", s: `<path d="M124 216 q26 30 52 0z" fill="#7a2222"/><path d="M129 217 h42 v6 h-42z" fill="#fff"/>` },
   { n: "립스틱", s: `<path d="M126 220 q24 20 48 0 q-24 8 -48 0z" fill="#d21f4a"/>` },
   { n: "비웃음", s: `<path d="M130 226 q22 -6 40 -14" stroke="#b03a3a" stroke-width="4" fill="none" stroke-linecap="round"/>` },
 ];
 const HAIR = [
-  { n: "짧은", back: () => ``, front: c => `<path d="M82 152 q6 -74 68 -76 q62 2 68 76 q-22 -38 -68 -38 q-46 0 -68 38z" fill="${c}"/>` },
-  { n: "반머리", back: () => ``, front: c => `<path d="M94 140 q10 -36 56 -36 q46 0 56 36 q-26 -20 -56 -20 q-30 0 -56 20z" fill="${c}"/>` },
-  { n: "투블럭", back: () => ``, front: c => `<path d="M92 150 q4 -64 58 -66 q54 2 58 66 q-6 -22 -20 -22 v-6 q-38 -20 -76 0 v6 q-14 0 -20 22z" fill="${c}"/>` },
-  { n: "장발", back: c => `<path d="M72 152 q-2 116 30 128 h96 q32 -12 30 -128 q0 -84 -78 -84 q-78 0 -78 84z" fill="${c}"/>`, front: c => `<path d="M80 152 q6 -76 70 -78 q64 2 70 78 q-24 -40 -70 -40 q-46 0 -70 40z" fill="${c}"/>` },
-  { n: "파마", back: () => ``, front: c => `<g fill="${c}"><circle cx="94" cy="122" r="20"/><circle cx="122" cy="106" r="22"/><circle cx="150" cy="100" r="23"/><circle cx="178" cy="106" r="22"/><circle cx="206" cy="122" r="20"/><path d="M80 154 q0 -34 70 -38 q70 4 70 38 z"/></g>` },
-  { n: "뾰족", back: () => ``, front: c => `<path d="M84 152 q6 -62 66 -66 q60 4 66 66 l-13 -32 -11 26 -13 -36 -13 36 -13 -26 -11 32 -13 -20z" fill="${c}"/>` },
-  { n: "가르마", back: () => ``, front: c => `<path d="M84 150 q6 -70 66 -72 q62 2 68 72 q-16 -30 -52 -34 q6 12 4 22 q-14 -18 -34 -16 q-30 4 -52 32z" fill="${c}"/>` },
-  { n: "올백", back: () => ``, front: c => `<path d="M86 148 q8 -56 64 -58 q56 2 64 58 q-6 -30 -30 -30 q-2 10 -8 14 q-24 -20 -52 -6 q-24 12 -30 22z" fill="${c}"/>` },
-  { n: "단발", back: c => `<path d="M78 152 q-2 68 24 94 h96 q26 -26 24 -94 q0 -80 -72 -80 q-72 0 -72 80z" fill="${c}"/>`, front: c => `<path d="M82 152 q6 -72 68 -74 q62 2 68 74 q-22 -36 -68 -36 q-46 0 -68 36z" fill="${c}"/>` },
-  { n: "포니", back: c => `<path d="M198 118 q42 12 30 74 q-6 26 -22 18 q12 -42 -12 -86z" fill="${c}"/>`, front: c => `<path d="M84 150 q6 -66 66 -68 q60 2 66 68 q-22 -36 -66 -36 q-46 0 -66 36z" fill="${c}"/>` },
-  { n: "모히칸", back: () => ``, front: c => `<path d="M138 106 q12 -32 24 0 v48 h-24z" fill="${c}"/><path d="M96 150 q6 -20 54 -22 q48 2 54 22 q-14 -8 -42 -8 v-14 h-24 v14 q-28 0 -42 8z" fill="${c}"/>` },
-  { n: "반삭", back: () => ``, front: c => `<path d="M88 150 q6 -50 62 -52 q56 2 62 52 q-18 -22 -62 -22 q-44 0 -62 22z" fill="${c}" opacity="0.85"/>` },
+  { n: "짧은", long: false, back: () => ``, front: c => `<path d="M78 156 q4 -80 72 -82 q68 2 72 82 q-6 -24 -18 -30 q-18 -22 -54 -22 q-36 0 -54 22 q-12 6 -18 30z" fill="${c}"/>` },
+  { n: "반머리", long: false, back: () => ``, front: c => `<path d="M92 142 q10 -38 58 -38 q48 0 58 38 q-28 -22 -58 -22 q-30 0 -58 22z" fill="${c}"/>` },
+  { n: "투블럭", long: false, back: () => ``, front: c => `<path d="M90 152 q4 -68 60 -70 q56 2 60 70 q-6 -24 -22 -24 v-8 q-38 -20 -76 0 v8 q-16 0 -22 24z" fill="${c}"/>` },
+  { n: "가르마", long: false, back: () => ``, front: c => `<path d="M80 154 q6 -76 70 -78 q64 2 70 78 q-8 -26 -30 -32 q-4 -14 -22 -16 q4 12 2 22 q-16 -16 -34 -12 q-32 6 -56 38z" fill="${c}"/>` },
+  { n: "올백", long: false, back: () => ``, front: c => `<path d="M84 150 q8 -58 66 -60 q58 2 66 60 q-6 -30 -30 -32 q-2 10 -8 14 q-26 -22 -56 -8 q-26 12 -32 26z" fill="${c}"/>` },
+  { n: "뾰족", long: false, back: () => ``, front: c => `<path d="M82 154 q6 -66 68 -70 q62 4 68 70 l-14 -34 -12 28 -14 -38 -14 38 -14 -28 -12 34 -16 -22z" fill="${c}"/>` },
+  { n: "모히칸", long: false, back: () => ``, front: c => `<path d="M138 100 q12 -34 24 0 v54 h-24z" fill="${c}"/><path d="M94 152 q6 -22 56 -24 q50 2 56 24 q-16 -10 -44 -10 v-16 h-24 v16 q-28 0 -44 10z" fill="${c}"/>` },
+  { n: "반삭", long: false, back: () => ``, front: c => `<path d="M86 152 q6 -52 64 -54 q58 2 64 54 q-20 -24 -64 -24 q-44 0 -64 24z" fill="${c}" opacity="0.82"/>` },
+  { n: "곱슬", long: false, back: () => ``, front: c => `<g fill="${c}"><circle cx="96" cy="128" r="16"/><circle cx="120" cy="112" r="18"/><circle cx="150" cy="107" r="19"/><circle cx="180" cy="112" r="18"/><circle cx="204" cy="128" r="16"/><path d="M84 150 q0 -30 66 -34 q66 4 66 34 z"/></g>` },
+  { n: "파마", long: false,
+    back: c => `<g fill="${c}"><circle cx="80" cy="172" r="17"/><circle cx="86" cy="198" r="16"/><circle cx="214" cy="198" r="16"/><circle cx="220" cy="172" r="17"/><ellipse cx="150" cy="150" rx="84" ry="76"/></g>`,
+    front: c => `<g fill="${c}"><circle cx="88" cy="150" r="18"/><circle cx="82" cy="124" r="18"/><circle cx="98" cy="102" r="20"/><circle cx="124" cy="88" r="21"/><circle cx="150" cy="83" r="22"/><circle cx="176" cy="88" r="21"/><circle cx="202" cy="102" r="20"/><circle cx="218" cy="124" r="18"/><circle cx="212" cy="150" r="18"/><path d="M86 152 q0 -52 64 -56 q64 4 64 56 z"/></g>` },
+  { n: "장발", long: true, back: c => `<path d="M72 152 q-4 122 30 130 h96 q34 -8 30 -130 q0 -86 -78 -86 q-78 0 -78 86z" fill="${c}"/>`, front: c => `<path d="M78 156 q6 -80 72 -82 q66 2 72 82 q-6 -26 -20 -32 q-18 -20 -52 -20 q-34 0 -52 20 q-14 6 -20 32z" fill="${c}"/>` },
+  { n: "단발", long: true, back: c => `<path d="M76 152 q-4 74 26 100 h96 q30 -26 26 -100 q0 -82 -74 -82 q-74 0 -74 82z" fill="${c}"/>`, front: c => `<path d="M80 154 q6 -76 70 -78 q64 2 70 78 q-22 -38 -70 -38 q-48 0 -70 38z" fill="${c}"/>` },
+  { n: "긴생머리", long: true, back: c => `<path d="M72 150 q-6 138 26 140 h104 q32 -2 26 -140 q0 -86 -78 -86 q-78 0 -78 86z" fill="${c}"/>`, front: c => `<path d="M80 154 q6 -78 70 -80 q64 2 70 80 q-8 -14 -20 -16 q-6 -18 -26 -22 q4 12 2 22 q-16 -16 -36 -12 q-26 6 -60 28z" fill="${c}"/>` },
+  { n: "웨이브", long: true, back: c => `<path d="M72 150 q-6 108 18 122 q-16 12 -6 26 q18 -6 24 -18 q10 8 26 8 h32 q16 0 26 -8 q6 12 24 18 q10 -14 -6 -26 q24 -14 18 -122 q0 -86 -78 -86 q-78 0 -78 86z" fill="${c}"/>`, front: c => `<path d="M78 156 q6 -80 72 -82 q66 2 72 82 q-24 -40 -72 -40 q-48 0 -72 40z" fill="${c}"/>` },
+  { n: "포니", long: true, back: c => `<path d="M196 116 q46 12 34 78 q-6 30 -24 20 q14 -46 -14 -92z" fill="${c}"/>`, front: c => `<path d="M82 152 q6 -70 68 -72 q62 2 68 72 q-22 -38 -68 -38 q-46 0 -68 38z" fill="${c}"/>` },
+  { n: "양갈래", long: true, back: c => `<g fill="${c}"><path d="M80 150 q-32 6 -36 50 q-2 22 16 24 q-4 -32 28 -54z"/><path d="M220 150 q32 6 36 50 q2 22 -16 24 q4 -32 -28 -54z"/></g>`, front: c => `<path d="M82 152 q6 -70 68 -72 q62 2 68 72 q-22 -38 -68 -38 q-46 0 -68 38z" fill="${c}"/>` },
 ];
 const ACC = [
   { n: "없음", s: `` },
@@ -279,9 +285,10 @@ const LENS = [
 ];
 const LINER = [
   { n: "없음", s: `` },
-  { n: "기본", s: `<path d="M112 166 q9 -3 18 0" stroke="#111" stroke-width="2.5" fill="none" stroke-linecap="round"/><path d="M170 166 q9 -3 18 0" stroke="#111" stroke-width="2.5" fill="none" stroke-linecap="round"/>` },
-  { n: "캣아이", s: `<path d="M112 167 q9 -4 18 -1 l5 -4" stroke="#111" stroke-width="2.5" fill="none" stroke-linecap="round"/><path d="M170 166 q9 -3 18 1 l5 4" stroke="#111" stroke-width="2.5" fill="none" stroke-linecap="round"/>` },
-  { n: "언더", s: `<path d="M113 179 q8 3 16 0" stroke="#111" stroke-width="2" fill="none" stroke-linecap="round" opacity=".8"/><path d="M171 179 q8 3 16 0" stroke="#111" stroke-width="2" fill="none" stroke-linecap="round" opacity=".8"/>` },
+  { n: "기본", s: `<path d="M113 169 Q121 162 130 167" stroke="#161616" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M170 167 Q179 162 187 169" stroke="#161616" stroke-width="2.4" fill="none" stroke-linecap="round"/>` },
+  { n: "또렷", s: `<path d="M112 169 Q121 160 131 166" stroke="#0c0c0c" stroke-width="3.4" fill="none" stroke-linecap="round"/><path d="M169 166 Q179 160 188 169" stroke="#0c0c0c" stroke-width="3.4" fill="none" stroke-linecap="round"/>` },
+  { n: "캣아이", s: `<path d="M129 167 Q121 161 113 168 l-6 -5" stroke="#0c0c0c" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M171 168 Q179 161 187 167 l6 -5" stroke="#0c0c0c" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>` },
+  { n: "언더", s: `<path d="M114 178 Q121 181 128 178" stroke="#333" stroke-width="1.8" fill="none" stroke-linecap="round" opacity=".85"/><path d="M172 178 Q179 181 186 178" stroke="#333" stroke-width="1.8" fill="none" stroke-linecap="round" opacity=".85"/>` },
 ];
 const BLUSH = [
   { n: "없음", s: `` }, { n: "핑크", s: cheeks("#f2a0a0", "0.55") }, { n: "진분홍", s: cheeks("#e86a8a", "0.5") },
@@ -296,7 +303,7 @@ const MOLE = [
 const LISTS = { face: FACE, hair: HAIR, brows: BROWS, eyes: EYES, nose: NOSE, mouth: MOUTH, acc: ACC, lens: LENS, liner: LINER, blush: BLUSH, mole: MOLE };
 const CATS = [
   { key: "face", label: "얼굴형", list: FACE },
-  { key: "hair", label: "머리", list: HAIR },
+  { key: "hair", label: "머리", split: "hair" },
   { key: "brows", label: "눈썹", list: BROWS },
   { key: "eyes", label: "눈", list: EYES },
   { key: "nose", label: "코", list: NOSE },
@@ -357,9 +364,26 @@ function makeSubRow(sub, showLabel) {
   });
   wrap.appendChild(row); return wrap;
 }
+function makeHairRow(label, items) {
+  const wrap = document.createElement("div"); wrap.className = "opt-sub";
+  const lbl = document.createElement("div"); lbl.className = "opt-sub-lbl"; lbl.textContent = label; wrap.appendChild(lbl);
+  const row = document.createElement("div"); row.className = "opt-row-inner";
+  items.forEach(it => {
+    const b = document.createElement("button"); b.className = "opt" + (idx.hair === it.gi ? " sel" : "");
+    b.textContent = it.n;
+    b.addEventListener("click", () => { idx.hair = it.gi; sfxTap(); buildOptRow(); renderFace(); });
+    row.appendChild(b);
+  });
+  wrap.appendChild(row); return wrap;
+}
 function buildOptRow() {
   const cat = CATS.find(c => c.key === curCat), box = $("optRow"); box.innerHTML = "";
-  if (cat.group) cat.group.forEach(sub => box.appendChild(makeSubRow(sub, true)));
+  if (cat.split === "hair") {
+    const shortI = [], longI = [];
+    HAIR.forEach((h, i) => { (h.long ? longI : shortI).push({ n: h.n, gi: i }); });
+    box.appendChild(makeHairRow("짧은 머리", shortI));
+    box.appendChild(makeHairRow("긴 머리", longI));
+  } else if (cat.group) cat.group.forEach(sub => box.appendChild(makeSubRow(sub, true)));
   else box.appendChild(makeSubRow(cat, false));
 }
 function buildSwatches() {
