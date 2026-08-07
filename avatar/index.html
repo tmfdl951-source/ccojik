@@ -3,66 +3,66 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<title>STOP! 랜덤 아바타 뽑기</title>
+<title>STOP! 랜덤 아바타 꾸미기</title>
 <meta property="og:type" content="website" />
-<meta property="og:title" content="STOP! 랜덤 아바타 뽑기" />
-<meta property="og:description" content="얼굴형·눈·코·입·머리·옷이 촤르륵! STOP 눌러서 나만의 병맛 캐릭터 조합 ^^" />
+<meta property="og:title" content="STOP! 랜덤 아바타 꾸미기" />
+<meta property="og:description" content="헤어·눈·옷·신발이 촤르륵! STOP 눌러서 나만의 인형 캐릭터 꾸미기 ^^" />
 <link rel="stylesheet" as="style" crossorigin
   href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&display=swap" />
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  :root { --bg:#FFF3E0; --card:#FFFDF8; --ink:#3A2E25; --ink-soft:#9A8B7C; --line:#EAD9C2;
-    --accent:#FF7A59; --accent-d:#F0603C; --stop:#FF4D6D; --stop-d:#E43155; --go:#38C97E;
-    --shadow:0 14px 36px rgba(180,120,70,.22); }
+  :root { --bg:#FDEEF5; --card:#FFFDFB; --ink:#4A2E3E; --ink-soft:#B08B9C; --line:#F3D9E6;
+    --accent:#FF6FA5; --accent-d:#EE4C8C; --stop:#FF4D6D; --stop-d:#E43155; --go:#38C97E;
+    --shadow:0 14px 36px rgba(200,110,150,.24); }
   html, body { height: 100%; font-family: "Pretendard Variable", Pretendard, -apple-system, system-ui, sans-serif; color: var(--ink);
     -webkit-user-select: none; user-select: none;
-    background: radial-gradient(circle at 25% 10%, #FFE7C4 0%, transparent 55%), radial-gradient(circle at 85% 92%, #FFD9C0 0%, transparent 55%), var(--bg); }
+    background: radial-gradient(circle at 25% 8%, #FFE1EE 0%, transparent 55%), radial-gradient(circle at 85% 94%, #FFDCEA 0%, transparent 55%), var(--bg); }
   body { display: flex; align-items: center; justify-content: center; min-height: 100dvh; padding: 10px; }
   .phone { position: relative; width: min(440px, 96vw); aspect-ratio: 9/16; max-height: 97dvh;
     background: var(--bg); border-radius: 30px; box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column; }
 
   .screen { position: absolute; inset: 0; display: none; flex-direction: column; }
   .screen.active { display: flex; }
-  #startScreen { align-items: center; justify-content: safe center; text-align: center; padding: 26px 22px; }
+  #startScreen { align-items: center; justify-content: safe center; text-align: center; padding: 22px 22px; }
 
-  h1 { font-family: "Do Hyeon", sans-serif; font-size: 34px; line-height: 1.22; margin-top: 14px; }
-  h1 .hl { color: var(--accent); }
-  .desc { font-size: 14.5px; font-weight: 600; color: var(--ink-soft); margin-top: 14px; line-height: 1.65; }
-  .demo-face { width: 150px; height: 168px; margin: 4px auto 0; }
+  h1 { font-family: "Do Hyeon", sans-serif; font-size: 32px; line-height: 1.22; margin-top: 10px; }
+  h1 .hl { color: var(--accent-d); }
+  .desc { font-size: 14.5px; font-weight: 600; color: var(--ink-soft); margin-top: 12px; line-height: 1.65; }
+  .demo-doll { height: min(260px, 34vh); margin: 0 auto; }
+  .demo-doll svg { height: 100%; width: auto; }
   .btn { font-family: inherit; font-weight: 800; cursor: pointer; border: none; border-radius: 16px; transition: transform .1s ease; }
   .btn:active { transform: scale(.96); }
-  .btn.primary { background: linear-gradient(160deg, var(--accent), var(--accent-d)); color: #fff; box-shadow: 0 6px 16px rgba(255,122,89,.35); }
-  .btn.big { font-size: 18px; padding: 16px 46px; margin-top: 22px; }
+  .btn.primary { background: linear-gradient(160deg, var(--accent), var(--accent-d)); color: #fff; box-shadow: 0 6px 16px rgba(255,111,165,.4); }
+  .btn.big { font-size: 18px; padding: 16px 46px; margin-top: 18px; }
 
-  /* 게임 */
-  .g-head { flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 12px 16px 6px; }
-  .gh-back { background: #F3E4D1; color: var(--ink-soft); border: none; font-family: inherit; font-weight: 800; font-size: 13px; padding: 8px 12px; border-radius: 10px; cursor: pointer; }
+  .g-head { flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 12px 16px 4px; }
+  .gh-back { background: #F6DEEB; color: var(--ink-soft); border: none; font-family: inherit; font-weight: 800; font-size: 13px; padding: 8px 12px; border-radius: 10px; cursor: pointer; }
   .gh-title { font-family: "Do Hyeon", sans-serif; font-size: 17px; flex: 1; text-align: center; }
   .gh-sp { width: 54px; }
 
-  .chips { flex-shrink: 0; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; padding: 4px 12px 8px; }
-  .chip { font-size: 12px; font-weight: 800; padding: 6px 11px; border-radius: 999px; background: #F3E4D1; color: var(--ink-soft);
+  .chips { flex-shrink: 0; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; padding: 2px 12px 6px; }
+  .chip { font-size: 12px; font-weight: 800; padding: 6px 11px; border-radius: 999px; background: #F6DEEB; color: var(--ink-soft);
     border: 2px solid transparent; cursor: pointer; transition: transform .1s; }
   .chip:active { transform: scale(.94); }
   .chip.done { background: #DFF5E6; color: #2C9E5C; }
-  .chip.cur { background: #FFE0D6; color: var(--accent-d); border-color: var(--accent); animation: pulse 1s ease-in-out infinite; }
+  .chip.cur { background: #FFDCEA; color: var(--accent-d); border-color: var(--accent); animation: pulse 1s ease-in-out infinite; }
   @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
   .chip .ck::before { content: "✓ "; }
 
   .stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; padding: 0 16px; }
-  .avatar-card { width: min(300px, 74vw, 40vh); aspect-ratio: 300/340; background: var(--card); border-radius: 24px; box-shadow: var(--shadow);
+  .avatar-card { aspect-ratio: 300/480; height: min(400px, 52vh); width: auto; max-width: 88vw; background: var(--card); border-radius: 22px; box-shadow: var(--shadow);
     overflow: hidden; position: relative; }
   .avatar-card.spin { box-shadow: 0 0 0 3px var(--accent), var(--shadow); }
   .avatar-card.pop { animation: pop .34s cubic-bezier(.3,1.4,.5,1); }
-  @keyframes pop { 0% { transform: scale(.92); } 60% { transform: scale(1.05); } 100% { transform: scale(1); } }
+  @keyframes pop { 0% { transform: scale(.93); } 60% { transform: scale(1.04); } 100% { transform: scale(1); } }
   .avatar-card svg { display: block; width: 100%; height: 100%; }
-  .cur-label { margin-top: 12px; font-family: "Do Hyeon", sans-serif; font-size: 20px; min-height: 26px; }
+  .cur-label { margin-top: 10px; font-family: "Do Hyeon", sans-serif; font-size: 19px; min-height: 24px; }
   .cur-label .k { color: var(--accent-d); }
-  .char-name { margin-top: 6px; font-size: 15px; font-weight: 800; color: var(--ink); min-height: 20px; }
+  .char-name { margin-top: 4px; font-size: 15px; font-weight: 800; color: var(--ink); min-height: 20px; }
 
-  .controls { flex-shrink: 0; padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); }
-  .stop-btn { width: 100%; padding: 20px; font-family: "Do Hyeon", sans-serif; font-size: 30px; letter-spacing: 2px; color: #fff;
+  .controls { flex-shrink: 0; padding: 8px 16px calc(12px + env(safe-area-inset-bottom)); }
+  .stop-btn { width: 100%; padding: 18px; font-family: "Do Hyeon", sans-serif; font-size: 28px; letter-spacing: 2px; color: #fff;
     border: none; border-radius: 20px; cursor: pointer; background: linear-gradient(160deg, var(--stop), var(--stop-d));
     box-shadow: 0 8px 20px rgba(255,77,109,.4); transition: transform .08s; }
   .stop-btn:active { transform: scale(.97); }
@@ -70,29 +70,29 @@
   .stop-btn.hide { display: none; }
   .result-actions { display: none; gap: 10px; }
   .result-actions.show { display: flex; flex-wrap: wrap; }
-  .result-actions .btn { flex: 1 1 30%; padding: 14px 6px; font-size: 15px; }
-  .btn.ghost { background: #F3E4D1; color: var(--accent-d); }
-  .btn.soft { background: #F3E4D1; color: var(--ink); }
+  .result-actions .btn { flex: 1 1 30%; padding: 13px 6px; font-size: 15px; }
+  .btn.ghost { background: #F6DEEB; color: var(--accent-d); }
+  .btn.soft { background: #F6DEEB; color: var(--ink); }
   .btn.go { background: linear-gradient(160deg, var(--go), #2CA866); color: #fff; }
-  .save-hint { text-align: center; font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-top: 8px; min-height: 15px; }
+  .save-hint { text-align: center; font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-top: 6px; min-height: 15px; }
 
   .mute-btn { position: absolute; top: 12px; right: 14px; z-index: 20; border: none; border-radius: 999px;
-    background: #F3E4D1; cursor: pointer; font-size: 12px; font-weight: 800; color: var(--accent-d); padding: 7px 12px; }
+    background: #F6DEEB; cursor: pointer; font-size: 12px; font-weight: 800; color: var(--accent-d); padding: 7px 12px; }
   .toast { position: absolute; left: 50%; bottom: 92px; transform: translate(-50%, 16px); z-index: 30;
-    background: #3A2E25; color: #fff; font-weight: 700; font-size: 14px; padding: 11px 20px; border-radius: 999px;
+    background: #4A2E3E; color: #fff; font-weight: 700; font-size: 14px; padding: 11px 20px; border-radius: 999px;
     opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
-  .save-modal { position: absolute; inset: 0; z-index: 40; background: rgba(58,46,37,.72); display: none; align-items: center; justify-content: center; padding: 22px; }
+  .save-modal { position: absolute; inset: 0; z-index: 40; background: rgba(74,46,62,.72); display: none; align-items: center; justify-content: center; padding: 22px; }
   .save-modal.show { display: flex; }
   .save-modal-inner { background: var(--card); border-radius: 22px; padding: 18px 16px; box-shadow: var(--shadow); max-width: 100%; max-height: 100%;
     overflow-y: auto; text-align: center; display: flex; flex-direction: column; align-items: center; }
   .sm-title { font-size: 15px; font-weight: 800; } .sm-sub { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); line-height: 1.5; margin: 4px 0 10px; }
-  #saveModalImg { width: 100%; max-width: 250px; border-radius: 14px; }
+  #saveModalImg { width: 100%; max-width: 220px; border-radius: 14px; }
 
   @media (min-width: 700px) {
     body { padding: 0; align-items: stretch; }
     .phone { width: 100vw; max-width: 100%; height: 100dvh; max-height: none; aspect-ratio: auto; border-radius: 0; }
-    .avatar-card { width: min(360px, 40vh); }
+    .avatar-card { height: min(460px, 56vh); }
     .g-head, .chips, .controls { max-width: 560px; margin-inline: auto; width: 100%; }
   }
 </style>
@@ -103,17 +103,17 @@
 
   <!-- 시작 -->
   <section class="screen active" id="startScreen">
-    <div class="demo-face" id="demoFace"></div>
-    <h1>STOP! <span class="hl">랜덤 아바타</span><br>뽑기</h1>
-    <p class="desc">얼굴형·눈·코·입·머리·옷이<br>촤르륵 지나갈 때 <b>STOP!</b><br>하나씩 멈춰서 나만의 캐릭터 완성.</p>
-    <button class="btn primary big" id="startBtn">뽑으러 가기</button>
+    <div class="demo-doll" id="demoDoll"></div>
+    <h1>STOP! <span class="hl">랜덤 아바타</span><br>꾸미기</h1>
+    <p class="desc">헤어·눈·입·옷·신발·소품이<br>촤르륵 지나갈 때 <b>STOP!</b><br>하나씩 멈춰서 나만의 캐릭터 꾸미기.</p>
+    <button class="btn primary big" id="startBtn">꾸미러 가기</button>
   </section>
 
   <!-- 게임 -->
   <section class="screen" id="gameScreen">
     <div class="g-head">
       <button class="gh-back" id="backBtn">← 처음</button>
-      <div class="gh-title">랜덤 아바타 뽑기</div>
+      <div class="gh-title">랜덤 아바타 꾸미기</div>
       <div class="gh-sp"></div>
     </div>
     <div class="chips" id="chips"></div>
@@ -155,134 +155,171 @@ const MUTE_KEY = "ccojik-avatar-muted";
 let audioCtx = null, muted = localStorage.getItem(MUTE_KEY) === "1";
 function ac() { if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } } if (audioCtx.state === "suspended") audioCtx.resume(); return audioCtx; }
 function beep(f, d, t, v, w) { if (muted) return; const c = ac(); if (!c) return; const t0 = c.currentTime + (w || 0); const o = c.createOscillator(), g = c.createGain(); o.type = t || "square"; o.frequency.setValueAtTime(f, t0); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(v || 0.06, t0 + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d); o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + d + 0.02); }
-function sfxTick() { beep(1200, 0.03, "square", 0.04); }
-function sfxLock() { beep(520, 0.08, "square", 0.09); beep(780, 0.1, "square", 0.08, 0.06); }
-function sfxDone() { [523, 659, 784, 1046].forEach((f, i) => beep(f, 0.14, "sine", 0.1, i * 0.1)); }
+function sfxTick() { beep(1300, 0.03, "square", 0.04); }
+function sfxLock() { beep(560, 0.08, "square", 0.09); beep(840, 0.1, "square", 0.08, 0.06); }
+function sfxDone() { [587, 740, 880, 1174].forEach((f, i) => beep(f, 0.14, "sine", 0.1, i * 0.1)); }
 function toggleMute() { muted = !muted; localStorage.setItem(MUTE_KEY, muted ? "1" : "0"); $("muteBtn").textContent = muted ? "음소거" : "소리"; if (!muted) sfxTick(); }
 
-/* ================= 파츠 라이브러리 ================= */
-const SKIN = ["#FDE0C8", "#F6C8A0", "#E8AE82", "#CE9060", "#9C6B44", "#F7D3B0"];
-const HAIRCOL = ["#2A2A2A", "#4A3323", "#6E4A2C", "#9C6B3B", "#D8A94B", "#E7C25A", "#E05A5A", "#5570E0", "#B45AD0", "#F07AB0", "#9A9A9A", "#F2E8D5", "#4FBF8F"];
-const CLOTHCOL = ["#E05A5A", "#5570E0", "#3CB371", "#E7A93C", "#9A5AD0", "#2C3E50", "#EC7FB0", "#26A69A", "#F26D6D", "#34495E"];
+/* ================= 파츠 라이브러리 (전신 치비 인형) ================= *
+ * viewBox 0 0 300 480 · 머리 cx150 cy118 r82 · 눈 (120/180,134) · 입 (150,162)
+ * 몸통 y212~300 · 다리 y300~418 · 발 y415                                   */
+const SKIN = ["#FCE3D0", "#FAD6BE", "#F3C6A6", "#E8B48C"];
+const HAIRCOL = ["#2A2320", "#4A3323", "#7A4E2C", "#A56A38", "#D8A94B", "#E7C25A", "#F0885C", "#EF5B7B", "#8B5AD8", "#5A8CE0", "#5CC0A0", "#9AA0A8", "#F3E6D6", "#FFFFFF"];
+const OUTCOL = ["#FF7AA8", "#5C8BE6", "#57C98A", "#F2B44C", "#A56AE0", "#3C4B63", "#F27EB0", "#2FB0A0", "#EF6D6D", "#7C6BE6", "#E88C3C", "#5AC0D8"];
 
-// 얼굴형: f(skin)
-const FACE = [
-  { n: "동그란", f: s => `<circle cx="150" cy="150" r="72" fill="${s}"/>` },
-  { n: "갸름한", f: s => `<ellipse cx="150" cy="152" rx="62" ry="78" fill="${s}"/>` },
-  { n: "각진",   f: s => `<rect x="82" y="82" width="136" height="144" rx="42" fill="${s}"/>` },
-  { n: "긴",     f: s => `<ellipse cx="150" cy="156" rx="57" ry="85" fill="${s}"/>` },
-  { n: "넓은",   f: s => `<ellipse cx="150" cy="150" rx="80" ry="66" fill="${s}"/>` },
-  { n: "역삼각", f: s => `<path d="M78 118 Q150 66 222 118 Q210 210 150 222 Q90 210 78 118 Z" fill="${s}"/>` },
-];
-function ears(s) { return `<ellipse cx="82" cy="158" rx="13" ry="19" fill="${s}"/><ellipse cx="218" cy="158" rx="13" ry="19" fill="${s}"/>`; }
-const BROWS = `<g stroke="#5a3a24" stroke-width="4" fill="none" stroke-linecap="round"><path d="M104 128 q18 -9 37 -3"/><path d="M159 125 q19 -6 37 3"/></g>`;
-
-// 눈 (양쪽) — 좌(123,148) 우(177,148)
+/* --- 얼굴 표정: 눈 --- */
+function eyeBase(cx, ir) {
+  return `<ellipse cx="${cx}" cy="134" rx="18" ry="23" fill="#fff" stroke="#5a4048" stroke-width="2.5"/>` +
+    `<ellipse cx="${cx + (cx < 150 ? 1 : -1)}" cy="136" rx="13" ry="17" fill="${ir}"/>` +
+    `<circle cx="${cx + (cx < 150 ? 1 : -1)}" cy="139" r="7" fill="#241018"/>` +
+    `<circle cx="${cx - 5}" cy="128" r="5.5" fill="#fff"/><circle cx="${cx + 5}" cy="143" r="2.6" fill="#fff"/>`;
+}
 const EYES = [
-  { n: "기본", s: `<g><ellipse cx="123" cy="149" rx="12" ry="14" fill="#fff" stroke="#33261c" stroke-width="2"/><circle cx="125" cy="151" r="6" fill="#241812"/><ellipse cx="177" cy="149" rx="12" ry="14" fill="#fff" stroke="#33261c" stroke-width="2"/><circle cx="175" cy="151" r="6" fill="#241812"/></g>` },
-  { n: "왕눈", s: `<g><ellipse cx="123" cy="149" rx="15" ry="18" fill="#fff" stroke="#33261c" stroke-width="2"/><circle cx="125" cy="152" r="8" fill="#241812"/><circle cx="122" cy="147" r="3" fill="#fff"/><ellipse cx="177" cy="149" rx="15" ry="18" fill="#fff" stroke="#33261c" stroke-width="2"/><circle cx="175" cy="152" r="8" fill="#241812"/><circle cx="172" cy="147" r="3" fill="#fff"/></g>` },
-  { n: "점눈", s: `<g fill="#241812"><circle cx="123" cy="150" r="6"/><circle cx="177" cy="150" r="6"/></g>` },
-  { n: "째림", s: `<g stroke="#241812" stroke-width="5" stroke-linecap="round"><path d="M112 152 l22 -6"/><path d="M166 146 l22 6"/></g>` },
-  { n: "반짝", s: `<g><ellipse cx="123" cy="149" rx="14" ry="17" fill="#fff" stroke="#33261c" stroke-width="2"/><circle cx="124" cy="151" r="8" fill="#3a2a55"/><circle cx="121" cy="147" r="3.5" fill="#fff"/><circle cx="127" cy="154" r="2" fill="#fff"/><ellipse cx="177" cy="149" rx="14" ry="17" fill="#fff" stroke="#33261c" stroke-width="2"/><circle cx="176" cy="151" r="8" fill="#3a2a55"/><circle cx="173" cy="147" r="3.5" fill="#fff"/><circle cx="179" cy="154" r="2" fill="#fff"/></g>` },
-  { n: "졸림", s: `<g stroke="#241812" stroke-width="4" fill="none" stroke-linecap="round"><path d="M111 149 q12 9 25 1"/><path d="M164 150 q12 9 25 -1"/></g>` },
-  { n: "웃음", s: `<g stroke="#241812" stroke-width="4.5" fill="none" stroke-linecap="round"><path d="M110 153 q13 -15 26 0"/><path d="M164 153 q13 -15 26 0"/></g>` },
-  { n: "하트", s: `<g fill="#ff5b7f"><path d="M123 145 c-6 -8 -18 -2 -12 7 c3 5 12 11 12 11 c0 0 9 -6 12 -11 c6 -9 -6 -15 -12 -7z"/><path d="M177 145 c-6 -8 -18 -2 -12 7 c3 5 12 11 12 11 c0 0 9 -6 12 -11 c6 -9 -6 -15 -12 -7z"/></g>` },
+  { n: "초롱초롱", s: `<g>${eyeBase(120, "#7a5a9a")}${eyeBase(180, "#7a5a9a")}</g>` },
+  { n: "파란눈", s: `<g>${eyeBase(120, "#4f86c6")}${eyeBase(180, "#4f86c6")}</g>` },
+  { n: "웃는눈", s: `<g fill="none" stroke="#3a1f2a" stroke-width="5.5" stroke-linecap="round"><path d="M102 138 q18 -20 36 0"/><path d="M162 138 q18 -20 36 0"/></g>` },
+  { n: "하트눈", s: `<g fill="#ff4d7d"><path d="M120 126 c-9 -11 -26 -3 -17 10 c4 7 17 15 17 15 c0 0 13 -8 17 -15 c9 -13 -8 -21 -17 -10z"/><path d="M180 126 c-9 -11 -26 -3 -17 10 c4 7 17 15 17 15 c0 0 13 -8 17 -15 c9 -13 -8 -21 -17 -10z"/></g>` },
+  { n: "별눈", s: `<g><ellipse cx="120" cy="134" rx="17" ry="21" fill="#fff" stroke="#5a4048" stroke-width="2.5"/><ellipse cx="180" cy="134" rx="17" ry="21" fill="#fff" stroke="#5a4048" stroke-width="2.5"/><g fill="#f5a623"><path d="M120 122 l4 11 l12 0 l-9 8 l3 12 l-10 -7 l-10 7 l3 -12 l-9 -8 l12 0z"/><path d="M180 122 l4 11 l12 0 l-9 8 l3 12 l-10 -7 l-10 7 l3 -12 l-9 -8 l12 0z"/></g></g>` },
+  { n: "졸린눈", s: `<g fill="none" stroke="#3a1f2a" stroke-width="4.5" stroke-linecap="round"><path d="M104 136 q16 9 34 2"/><path d="M162 138 q16 9 34 -2"/></g>` },
+  { n: "윙크", s: `<g>${eyeBase(120, "#7a5a9a")}<path d="M162 138 q18 -18 36 0" fill="none" stroke="#3a1f2a" stroke-width="5.5" stroke-linecap="round"/></g>` },
+  { n: "시크", s: `<g stroke="#3a1f2a" stroke-width="5.5" stroke-linecap="round"><line x1="102" y1="134" x2="138" y2="134"/><line x1="162" y1="134" x2="198" y2="134"/></g>` },
 ];
-// 코 (150,~170)
-const NOSE = [
-  { n: "기본", s: `<path d="M150 160 q-8 15 -3 19 q4 3 8 0" fill="none" stroke="#c98d6b" stroke-width="3" stroke-linecap="round"/>` },
-  { n: "동그란", s: `<ellipse cx="150" cy="176" rx="9" ry="7" fill="#e0a583"/>` },
-  { n: "뾰족", s: `<path d="M150 158 l-7 20 h14 z" fill="#e6ad8a"/>` },
-  { n: "넓은", s: `<ellipse cx="150" cy="175" rx="13" ry="6" fill="#db9c78"/>` },
-  { n: "버선", s: `<path d="M150 158 q-9 18 -1 22 q5 3 6 -2" fill="none" stroke="#c98d6b" stroke-width="3.5" stroke-linecap="round"/>` },
-];
-// 입 (150,~196)
+/* --- 입 (150,162) --- */
 const MOUTH = [
-  { n: "미소", s: `<path d="M131 193 q19 15 38 0" fill="none" stroke="#a0463c" stroke-width="4.5" stroke-linecap="round"/>` },
-  { n: "활짝", s: `<path d="M129 190 q21 26 42 0 z" fill="#b5322f"/><path d="M129 190 q21 6 42 0" fill="#fff"/>` },
-  { n: "무표정", s: `<line x1="134" y1="197" x2="166" y2="197" stroke="#a0463c" stroke-width="4.5" stroke-linecap="round"/>` },
-  { n: "삐침", s: `<path d="M132 202 q18 -13 36 0" fill="none" stroke="#a0463c" stroke-width="4.5" stroke-linecap="round"/>` },
-  { n: "오!", s: `<ellipse cx="150" cy="197" rx="9" ry="12" fill="#b5322f"/>` },
-  { n: "메롱", s: `<path d="M131 190 q19 14 38 0" fill="none" stroke="#a0463c" stroke-width="4.5" stroke-linecap="round"/><path d="M143 198 q7 16 14 0 z" fill="#e0666e" stroke="#c04a52" stroke-width="1.4"/>` },
-  { n: "씨익", s: `<path d="M130 192 q22 12 40 -2" fill="none" stroke="#a0463c" stroke-width="4.5" stroke-linecap="round"/>` },
+  { n: "미소", s: `<path d="M140 160 q10 9 20 0" fill="none" stroke="#c0504a" stroke-width="3.5" stroke-linecap="round"/>` },
+  { n: "헤벌쭉", s: `<path d="M137 158 q13 15 26 0 z" fill="#c0504a"/><path d="M137 158 q13 3 26 0" fill="#fff"/>` },
+  { n: "오물", s: `<ellipse cx="150" cy="162" rx="5" ry="6.5" fill="#c0504a"/>` },
+  { n: "씨익", s: `<path d="M137 159 q13 10 26 -3" fill="none" stroke="#c0504a" stroke-width="3.5" stroke-linecap="round"/>` },
+  { n: "메롱", s: `<path d="M139 159 q11 10 22 0" fill="none" stroke="#c0504a" stroke-width="3.5" stroke-linecap="round"/><path d="M147 165 q3 9 6 0 z" fill="#e0666e"/>` },
+  { n: "삐죽", s: `<path d="M141 165 q9 -7 18 0" fill="none" stroke="#c0504a" stroke-width="3.5" stroke-linecap="round"/>` },
 ];
-// 머리: back(c) / front(c)
+/* --- 헤어: back(c)/front(c) --- */
+const BANG = c => `<path d="M68 116 Q74 34 150 32 Q226 34 232 116 Q214 76 186 72 Q180 98 158 102 Q150 66 142 102 Q114 98 108 72 Q86 76 68 116 Z" fill="${c}"/>`;
+const BANG_FLAT = c => `<path d="M66 110 Q70 34 150 32 Q230 34 234 110 L232 82 Q150 70 68 82 Z" fill="${c}"/><path d="M66 110 Q66 60 88 46 L92 96 Z" fill="${c}"/><path d="M234 110 Q234 60 212 46 L208 96 Z" fill="${c}"/>`;
 const HAIR = [
-  { n: "대머리", back: null, front: null },
-  { n: "짧은", back: null, front: c => `<path d="M84 146 q2 -76 66 -76 q64 0 66 76 q-30 -36 -66 -36 q-36 0 -66 36z" fill="${c}"/>` },
-  { n: "단발", back: c => `<path d="M76 150 q-2 -84 74 -84 q76 0 74 84 q-2 44 -14 66 l-18 0 q14 -46 4 -74 q-46 22 -92 0 q-10 28 4 74 l-18 0 q-12 -22 -14 -66z" fill="${c}"/>`, front: c => `<path d="M82 138 q4 -70 68 -70 q64 0 68 70 q-30 -34 -68 -34 q-38 0 -68 34z" fill="${c}"/>` },
-  { n: "긴생머리", back: c => `<path d="M74 150 q-4 -86 76 -86 q80 0 76 86 q0 80 -16 138 l-28 0 q16 -70 8 -128 q-40 20 -80 0 q-8 58 8 128 l-28 0 q-16 -58 -16 -138z" fill="${c}"/>`, front: c => `<path d="M82 136 q6 -70 68 -70 q62 0 68 70 q-14 -20 -34 -26 q-6 20 -22 26 q-24 -4 -34 -20 q-8 22 -14 20z" fill="${c}"/>` },
-  { n: "파마", back: c => `<g fill="${c}"><circle cx="86" cy="120" r="20"/><circle cx="78" cy="160" r="19"/><circle cx="214" cy="120" r="20"/><circle cx="222" cy="160" r="19"/><ellipse cx="150" cy="120" rx="80" ry="66"/></g>`, front: c => `<g fill="${c}"><circle cx="98" cy="96" r="19"/><circle cx="130" cy="80" r="20"/><circle cx="170" cy="80" r="20"/><circle cx="202" cy="96" r="19"/><circle cx="88" cy="130" r="18"/><circle cx="212" cy="130" r="18"/><path d="M84 138 q0 -60 66 -64 q66 4 66 64 z"/></g>` },
-  { n: "투블럭", back: null, front: c => `<path d="M88 132 q0 -66 62 -66 q62 0 62 66 q-18 -18 -30 -14 q4 -30 -32 -30 q-36 0 -32 30 q-12 -4 -30 14z" fill="${c}"/>` },
-  { n: "뾰족", back: null, front: c => `<path d="M84 144 l10 -34 l14 22 l12 -40 l16 30 l14 -40 l14 40 l16 -30 l12 40 l14 -22 l10 34 q-30 -32 -76 -32 q-46 0 -76 32z" fill="${c}"/>` },
-  { n: "양갈래", back: c => `<g fill="${c}"><ellipse cx="72" cy="176" rx="18" ry="34"/><ellipse cx="228" cy="176" rx="18" ry="34"/></g>`, front: c => `<path d="M84 140 q2 -74 66 -74 q64 0 66 74 q-30 -34 -66 -34 q-36 0 -66 34z" fill="${c}"/>` },
-  { n: "모히칸", back: null, front: c => `<path d="M132 70 q18 -18 36 0 q6 30 -2 66 l-32 0 q-8 -36 -2 -66z" fill="${c}"/>` },
-  { n: "반삭", back: null, front: c => `<path d="M88 138 q0 -60 62 -60 q62 0 62 60 q-30 -26 -62 -26 q-32 0 -62 26z" fill="${c}" opacity="0.85"/>` },
-  { n: "올백", back: null, front: c => `<path d="M84 132 q10 -66 66 -66 q56 0 66 66 q-16 -12 -34 -12 q-16 0 -32 0 q-16 0 -32 0 q-18 0 -34 12z" fill="${c}"/>` },
+  { n: "긴생머리",
+    back: c => `<path d="M60 116 Q58 30 150 28 Q242 30 240 116 Q248 270 222 396 L198 396 Q214 250 208 150 Q150 196 92 150 Q86 250 102 396 L78 396 Q52 270 60 116 Z" fill="${c}"/>`,
+    front: BANG },
+  { n: "단발",
+    back: c => `<path d="M62 118 Q60 32 150 30 Q240 32 238 118 Q242 214 224 250 L204 250 Q218 202 212 150 Q150 194 88 150 Q82 202 96 250 L76 250 Q58 214 62 118 Z" fill="${c}"/>`,
+    front: BANG },
+  { n: "트윈테일",
+    back: c => `<g fill="${c}"><ellipse cx="50" cy="210" rx="26" ry="62"/><ellipse cx="250" cy="210" rx="26" ry="62"/><path d="M64 118 Q62 34 150 32 Q238 34 236 118 Q236 150 214 156 Q150 196 86 156 Q64 150 64 118 Z"/></g>`,
+    front: BANG },
+  { n: "포니테일",
+    back: c => `<path d="M206 116 q66 26 58 150 q-3 24 -24 20 q14 -122 -46 -150z" fill="${c}"/>`,
+    front: c => `${BANG(c)}<path d="M214 96 q20 6 22 26" fill="none" stroke="${c}" stroke-width="10" stroke-linecap="round"/>` },
+  { n: "곱슬파마",
+    back: c => `<g fill="${c}"><circle cx="66" cy="118" r="26"/><circle cx="60" cy="168" r="24"/><circle cx="234" cy="118" r="26"/><circle cx="240" cy="168" r="24"/><ellipse cx="150" cy="118" rx="92" ry="76"/></g>`,
+    front: c => `<g fill="${c}"><circle cx="96" cy="60" r="22"/><circle cx="132" cy="44" r="24"/><circle cx="168" cy="44" r="24"/><circle cx="204" cy="60" r="22"/><circle cx="78" cy="102" r="22"/><circle cx="222" cy="102" r="22"/><path d="M74 118 q0 -66 76 -70 q76 4 76 70 z"/></g>` },
+  { n: "짧은머리",
+    back: null,
+    front: c => `<path d="M64 114 Q68 32 150 30 Q232 32 236 114 Q214 74 150 70 Q86 74 64 114z" fill="${c}"/>` },
+  { n: "공주머리",
+    back: c => `<path d="M60 116 Q58 30 150 28 Q242 30 240 116 Q246 260 224 386 L200 386 Q214 250 208 150 Q150 196 92 150 Q86 250 100 386 L76 386 Q54 260 60 116 Z" fill="${c}"/>`,
+    front: c => `${BANG(c)}<path d="M96 52 q54 -30 108 0 q-54 -14 -108 0z" fill="${c}"/>` },
+  { n: "똥머리",
+    back: null,
+    front: c => `<circle cx="150" cy="40" r="26" fill="${c}"/><path d="M66 114 Q70 40 150 38 Q230 40 234 114 Q214 76 150 72 Q86 76 66 114z" fill="${c}"/>` },
+  { n: "칼단발",
+    back: c => `<path d="M64 116 Q62 34 150 32 Q238 34 236 116 Q238 210 226 244 L206 244 L206 150 Q150 192 94 150 L94 244 L74 244 Q62 210 64 116 Z" fill="${c}"/>`,
+    front: BANG_FLAT },
 ];
-// 옷 (color)
-const CLOTH = [
-  { n: "티셔츠", f: c => `<path d="M40 340 L40 322 Q40 262 108 254 Q150 250 192 254 Q260 262 260 322 L260 340 Z" fill="${c}"/><path d="M132 256 q18 15 36 0" fill="none" stroke="rgba(0,0,0,.18)" stroke-width="3"/>` },
-  { n: "정장", f: c => `<path d="M40 340 L40 322 Q40 262 108 254 Q150 250 192 254 Q260 262 260 322 L260 340 Z" fill="#2C3E50"/><path d="M150 256 L120 340 L150 340 L150 256 M150 256 L180 340 L150 340" fill="#3d5266"/><path d="M150 256 l-8 12 l8 40 l8 -40 z" fill="${c}"/>` },
-  { n: "후드", f: c => `<path d="M40 340 L40 322 Q40 262 108 254 Q150 250 192 254 Q260 262 260 322 L260 340 Z" fill="${c}"/><path d="M112 252 q38 30 76 0 q-6 22 -38 22 q-32 0 -38 -22z" fill="rgba(0,0,0,.16)"/><line x1="140" y1="272" x2="138" y2="304" stroke="rgba(255,255,255,.7)" stroke-width="4" stroke-linecap="round"/><line x1="160" y1="272" x2="162" y2="304" stroke="rgba(255,255,255,.7)" stroke-width="4" stroke-linecap="round"/>` },
-  { n: "줄무늬", f: c => `<path d="M40 340 L40 322 Q40 262 108 254 Q150 250 192 254 Q260 262 260 322 L260 340 Z" fill="${c}"/><g stroke="rgba(255,255,255,.8)" stroke-width="10"><line x1="40" y1="288" x2="260" y2="288"/><line x1="40" y1="312" x2="260" y2="312"/></g>` },
-  { n: "운동복", f: c => `<path d="M40 340 L40 322 Q40 262 108 254 Q150 250 192 254 Q260 262 260 322 L260 340 Z" fill="${c}"/><line x1="150" y1="258" x2="150" y2="340" stroke="rgba(0,0,0,.25)" stroke-width="4"/><path d="M128 256 l22 6 l22 -6" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="4"/>` },
-  { n: "멜빵", f: c => `<path d="M40 340 L40 322 Q40 262 108 254 Q150 250 192 254 Q260 262 260 322 L260 340 Z" fill="#4A6FA5"/><g fill="${c}"><rect x="120" y="256" width="12" height="84"/><rect x="168" y="256" width="12" height="84"/></g>` },
+/* --- 옷 (전신, color) : 몸통 y212~300, 하의/치마 --- */
+function sleeves(c) { return `<circle cx="112" cy="224" r="15" fill="${c}"/><circle cx="188" cy="224" r="15" fill="${c}"/>`; }
+const OUTFIT = [
+  { n: "원피스", f: c => sleeves(c) + `<path d="M116 216 Q150 206 184 216 Q194 244 190 266 L212 372 Q150 392 88 372 L110 266 Q106 244 116 216 Z" fill="${c}"/><path d="M126 216 Q150 230 174 216" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="3"/>` },
+  { n: "티셔츠+치마", f: c => sleeves(c) + `<path d="M112 216 Q150 206 188 216 L184 288 Q150 298 116 288 Z" fill="${c}"/><path d="M110 284 L92 356 Q150 372 208 356 L190 284 Q150 296 110 284 Z" fill="#4A2E3E"/>` },
+  { n: "후드+바지", f: c => sleeves(c) + `<path d="M110 216 Q150 206 190 216 L186 296 Q150 306 114 296 Z" fill="${c}"/><path d="M120 236 q30 24 60 0 q-6 26 -30 26 q-24 0 -30 -26z" fill="rgba(0,0,0,.14)"/><path d="M120 292 L114 414 L142 414 L150 320 L158 414 L186 414 L180 292 Q150 304 120 292z" fill="#3C4B63"/>` },
+  { n: "교복", f: c => sleeves("#3C4B63") + `<path d="M112 216 Q150 206 188 216 L184 292 Q150 302 116 292 Z" fill="#F5F5F5"/><path d="M132 214 L150 246 L168 214 Z" fill="#3C4B63"/><path d="M150 232 l-7 10 l7 30 l7 -30 z" fill="${c}"/><path d="M108 288 L92 352 Q150 368 208 352 L192 288 Q150 300 108 288 Z" fill="#3C4B63"/>` },
+  { n: "오버올", f: c => `<path d="M110 220 Q150 210 190 220 L186 250 Q150 260 114 250 Z" fill="#F5F5F5"/><path d="M116 250 L112 414 L142 414 L148 300 L152 300 L158 414 L188 414 L184 250 Q150 262 116 250 Z" fill="${c}"/><g fill="${c}"><rect x="124" y="216" width="12" height="42"/><rect x="164" y="216" width="12" height="42"/></g>` },
+  { n: "트레이닝", f: c => sleeves(c) + `<path d="M110 216 Q150 206 190 216 L186 296 Q150 306 114 296 Z" fill="${c}"/><line x1="150" y1="220" x2="150" y2="296" stroke="rgba(255,255,255,.7)" stroke-width="3"/><path d="M120 292 L116 414 L142 414 L150 320 L158 414 L184 414 L180 292 Q150 304 120 292z" fill="${c}"/><g stroke="#fff" stroke-width="3"><line x1="124" y1="300" x2="120" y2="410"/><line x1="176" y1="300" x2="180" y2="410"/></g>` },
 ];
-// 배경
+/* --- 신발 (발 y415, color) --- */
+const SHOES = [
+  { n: "운동화", f: c => `<g fill="${c}"><path d="M118 416 q-4 22 4 26 l30 0 l0 -26z"/><path d="M148 416 l0 26 l30 0 q8 -4 4 -26z"/></g><g fill="#fff"><rect x="116" y="438" width="40" height="6" rx="3"/><rect x="148" y="438" width="40" height="6" rx="3"/></g>` },
+  { n: "구두", f: c => `<g fill="${c}"><path d="M120 416 q-6 20 2 26 l30 0 l0 -26z"/><path d="M148 416 l0 26 l30 0 q8 -6 2 -26z"/></g>` },
+  { n: "부츠", f: c => `<g fill="${c}"><path d="M120 404 q-4 30 4 38 l30 0 l0 -38z"/><path d="M148 404 l0 38 l30 0 q8 -8 4 -38z"/></g>` },
+  { n: "메리제인", f: c => `<g fill="${c}"><path d="M120 418 q-4 18 2 24 l30 0 l0 -24z"/><path d="M148 418 l0 24 l30 0 q6 -6 2 -24z"/></g><g stroke="${c}" stroke-width="3"><path d="M122 422 q14 -6 28 0" fill="none"/><path d="M150 422 q14 -6 28 0" fill="none"/></g>` },
+  { n: "슬리퍼", f: c => `<g fill="${c}"><path d="M120 430 l32 0 l0 12 l-30 0 q-4 -4 -2 -12z"/><path d="M148 430 l32 0 q2 8 -2 12 l-30 0z"/></g>` },
+];
+/* --- 소품 (머리/얼굴, 고정색) --- */
+const ACC = [
+  { n: "없음", s: `` },
+  { n: "리본핀", s: `<g fill="#FF4D7D"><path d="M196 66 l-16 -9 l0 18z"/><path d="M196 66 l16 -9 l0 18z"/><circle cx="196" cy="66" r="6"/></g>` },
+  { n: "머리띠", s: `<path d="M72 92 Q150 54 228 92" fill="none" stroke="#FF6FA5" stroke-width="9" stroke-linecap="round"/><circle cx="150" cy="63" r="7" fill="#FF4D7D"/>` },
+  { n: "고양이귀", s: `<g fill="#4A2E3E"><path d="M96 52 l20 -34 l14 40z"/><path d="M204 52 l-20 -34 l-14 40z"/></g><g fill="#FF9EC0"><path d="M104 46 l10 -18 l7 22z"/><path d="M196 46 l-10 -18 l-7 22z"/></g>` },
+  { n: "안경", s: `<g fill="none" stroke="#3a2a2a" stroke-width="4"><circle cx="120" cy="134" r="23"/><circle cx="180" cy="134" r="23"/><line x1="143" y1="134" x2="157" y2="134"/></g>` },
+  { n: "왕관", s: `<path d="M116 54 l9 22 l25 -18 l25 18 l9 -22 l-7 34 l-54 0 z" fill="#FFD54A" stroke="#E0A93C" stroke-width="2"/><circle cx="150" cy="52" r="4" fill="#FF4D7D"/>` },
+  { n: "헤드폰", s: `<path d="M76 118 Q76 40 150 40 Q224 40 224 118" fill="none" stroke="#3a2a3a" stroke-width="8"/><rect x="64" y="112" width="20" height="36" rx="9" fill="#3a2a3a"/><rect x="216" y="112" width="20" height="36" rx="9" fill="#3a2a3a"/>` },
+];
+/* --- 배경 --- */
 const BG = [
-  { n: "크림", s: `<rect width="300" height="340" fill="#FFF3E0"/>` },
-  { n: "하늘", s: `<rect width="300" height="340" fill="#CDE9F7"/>` },
-  { n: "핑크", s: `<rect width="300" height="340" fill="#FCD9E4"/>` },
-  { n: "민트", s: `<rect width="300" height="340" fill="#CFF0E2"/>` },
-  { n: "노랑", s: `<rect width="300" height="340" fill="#FDE9A8"/>` },
-  { n: "라벤더", s: `<rect width="300" height="340" fill="#E4DAF7"/>` },
-  { n: "땡땡이", s: `<rect width="300" height="340" fill="#FFE4C4"/><g fill="#FFCE9A"><circle cx="40" cy="50" r="12"/><circle cx="120" cy="30" r="12"/><circle cx="220" cy="60" r="12"/><circle cx="270" cy="140" r="12"/><circle cx="30" cy="150" r="12"/><circle cx="60" cy="260" r="12"/><circle cx="250" cy="250" r="12"/><circle cx="160" cy="300" r="12"/></g>` },
-  { n: "집중선", s: `<rect width="300" height="340" fill="#FFF0D2"/><g fill="#FFD9A0" opacity="0.8"><path d="M150 150 L0 0 L60 0 Z"/><path d="M150 150 L120 0 L180 0 Z"/><path d="M150 150 L240 0 L300 0 Z"/><path d="M150 150 L300 60 L300 130 Z"/><path d="M150 150 L300 210 L300 280 Z"/><path d="M150 150 L240 340 L180 340 Z"/><path d="M150 150 L120 340 L60 340 Z"/><path d="M150 150 L0 280 L0 210 Z"/><path d="M150 150 L0 130 L0 60 Z"/></g>` },
+  { n: "핑크", s: `<rect width="300" height="480" fill="#FDEEF5"/>` },
+  { n: "하늘", s: `<rect width="300" height="480" fill="#D8ECF8"/>` },
+  { n: "민트", s: `<rect width="300" height="480" fill="#D6F1E6"/>` },
+  { n: "노랑", s: `<rect width="300" height="480" fill="#FCEEB0"/>` },
+  { n: "라벤더", s: `<rect width="300" height="480" fill="#E7DCF7"/>` },
+  { n: "복숭아", s: `<rect width="300" height="480" fill="#FFE0D0"/>` },
+  { n: "하트팝", s: `<rect width="300" height="480" fill="#FFE1EC"/><g fill="#FFC1D8"><path d="M40 60 c-6 -8 -18 -2 -12 6 c2 4 12 10 12 10 c0 0 10 -6 12 -10 c6 -8 -6 -14 -12 -6z"/><path d="M256 100 c-6 -8 -18 -2 -12 6 c2 4 12 10 12 10 c0 0 10 -6 12 -10 c6 -8 -6 -14 -12 -6z"/><path d="M46 300 c-6 -8 -18 -2 -12 6 c2 4 12 10 12 10 c0 0 10 -6 12 -10 c6 -8 -6 -14 -12 -6z"/><path d="M262 340 c-6 -8 -18 -2 -12 6 c2 4 12 10 12 10 c0 0 10 -6 12 -10 c6 -8 -6 -14 -12 -6z"/></g>` },
+  { n: "별밤", s: `<rect width="300" height="480" fill="#E4DAF7"/><g fill="#C9B8F0"><path d="M50 70 l4 10 l10 0 l-8 7 l3 11 l-9 -6 l-9 6 l3 -11 l-8 -7 l10 0z"/><path d="M250 120 l4 10 l10 0 l-8 7 l3 11 l-9 -6 l-9 6 l3 -11 l-8 -7 l10 0z"/><path d="M40 320 l4 10 l10 0 l-8 7 l3 11 l-9 -6 l-9 6 l3 -11 l-8 -7 l10 0z"/></g>` },
+  { n: "집중선", s: `<rect width="300" height="480" fill="#FFF0F5"/><g fill="#FFD3E4" opacity="0.85"><path d="M150 200 L0 0 L70 0 Z"/><path d="M150 200 L130 0 L200 0 Z"/><path d="M150 200 L300 0 L300 90 Z"/><path d="M150 200 L300 280 L300 380 Z"/><path d="M150 200 L220 480 L150 480 Z"/><path d="M150 200 L80 480 L10 480 Z"/><path d="M150 200 L0 340 L0 250 Z"/></g>` },
 ];
 
-const LISTS = { face: FACE, hair: HAIR, eyes: EYES, nose: NOSE, mouth: MOUTH, cloth: CLOTH, bg: BG };
+const LISTS = { bg: BG, hair: HAIR, eyes: EYES, mouth: MOUTH, outfit: OUTFIT, shoes: SHOES, acc: ACC };
 const REELS = [
   { key: "bg", label: "배경" },
-  { key: "face", label: "얼굴형" },
-  { key: "hair", label: "머리" },
+  { key: "hair", label: "헤어" },
   { key: "eyes", label: "눈" },
-  { key: "nose", label: "코" },
   { key: "mouth", label: "입" },
-  { key: "cloth", label: "옷" },
+  { key: "outfit", label: "옷" },
+  { key: "shoes", label: "신발" },
+  { key: "acc", label: "소품" },
 ];
 
 /* ================= 상태 ================= */
-let idx = { bg: 0, face: 0, hair: 0, eyes: 0, nose: 0, mouth: 0, cloth: 0 };
-let skinIdx = 0, hairColIdx = 0, clothColIdx = 0;
+let idx = { bg: 0, hair: 0, eyes: 0, mouth: 0, outfit: 0, shoes: 0, acc: 0 };
+let skinIdx = 0, hairColIdx = 0, outColIdx = 0, shoeColIdx = 0;
 let curReel = 0, spinning = false, settling = false, spinTimer = null, single = false;
 let charName = "";
 
+function body(s) {
+  return `<rect x="126" y="298" width="18" height="122" rx="9" fill="${s}"/>` +
+    `<rect x="156" y="298" width="18" height="122" rx="9" fill="${s}"/>` +
+    `<rect x="100" y="218" width="16" height="84" rx="8" fill="${s}"/>` +
+    `<rect x="184" y="218" width="16" height="84" rx="8" fill="${s}"/>` +
+    `<circle cx="108" cy="302" r="9" fill="${s}"/><circle cx="192" cy="302" r="9" fill="${s}"/>` +
+    `<path d="M114 216 Q150 204 186 216 L180 302 Q150 314 120 302 Z" fill="${s}"/>` +
+    `<rect x="140" y="188" width="20" height="24" fill="${s}"/>` +
+    `<ellipse cx="70" cy="126" rx="11" ry="14" fill="${s}"/><ellipse cx="230" cy="126" rx="11" ry="14" fill="${s}"/>` +
+    `<circle cx="150" cy="118" r="82" fill="${s}"/>`;
+}
+const BLUSH = `<ellipse cx="104" cy="152" rx="12" ry="7" fill="#ffa7c4" opacity=".6"/><ellipse cx="196" cy="152" rx="12" ry="7" fill="#ffa7c4" opacity=".6"/>`;
+
 function buildSVG(px) {
-  const dim = px ? `width="${px}" height="${Math.round(px * 340 / 300)}"` : "";
-  const s = SKIN[skinIdx], hc = HAIRCOL[hairColIdx], cc = CLOTHCOL[clothColIdx];
+  const dim = px ? `width="${px}" height="${Math.round(px * 480 / 300)}"` : "";
+  const s = SKIN[skinIdx], hc = HAIRCOL[hairColIdx], oc = OUTCOL[outColIdx], sc = OUTCOL[shoeColIdx];
   const h = HAIR[idx.hair];
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 340" ${dim}>` +
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 480" ${dim}>` +
     BG[idx.bg].s +
     (h.back ? h.back(hc) : "") +
-    `<rect x="136" y="196" width="28" height="60" fill="${s}"/>` +
-    CLOTH[idx.cloth].f(cc) +
-    ears(s) +
-    FACE[idx.face].f(s) +
-    BROWS +
+    body(s) +
+    OUTFIT[idx.outfit].f(oc) +
+    SHOES[idx.shoes].f(sc) +
+    BLUSH +
     EYES[idx.eyes].s +
-    NOSE[idx.nose].s +
     MOUTH[idx.mouth].s +
     (h.front ? h.front(hc) : "") +
+    ACC[idx.acc].s +
     `</svg>`;
 }
 function render() { $("avatarCard").innerHTML = buildSVG(); }
 
 function randReel(key) {
   idx[key] = rand(LISTS[key].length);
-  if (key === "face") skinIdx = rand(SKIN.length);
   if (key === "hair") hairColIdx = rand(HAIRCOL.length);
-  if (key === "cloth") clothColIdx = rand(CLOTHCOL.length);
+  if (key === "outfit") outColIdx = rand(OUTCOL.length);
+  if (key === "shoes") shoeColIdx = rand(OUTCOL.length);
 }
 
 /* ================= 릴 스핀 / STOP ================= */
@@ -290,7 +327,6 @@ function updateChips() {
   const box = $("chips"); box.innerHTML = "";
   REELS.forEach((r, i) => {
     const el = document.createElement("div");
-    const done = i < curReel && !single;
     el.className = "chip" + (i === curReel && (spinning || settling) ? " cur" : "") + (i < curReel ? " done" : "");
     el.innerHTML = (i < curReel ? '<span class="ck"></span>' : "") + r.label;
     if (i < curReel && !spinning && !settling) el.addEventListener("click", () => respinOne(i));
@@ -305,7 +341,7 @@ function startSpin() {
   updateChips();
   const key = REELS[curReel].key;
   clearInterval(spinTimer);
-  spinTimer = setInterval(() => { randReel(key); render(); sfxTick(); }, 68);
+  spinTimer = setInterval(() => { randReel(key); render(); sfxTick(); }, 70);
 }
 function stopSpin() {
   if (!spinning || settling) return;
@@ -329,7 +365,7 @@ function lockReel() {
   if (single) { single = false; curReel = REELS.length; updateChips(); finishAll(); return; }
   curReel++;
   updateChips();
-  if (curReel < REELS.length) { setTimeout(startSpin, 420); }
+  if (curReel < REELS.length) setTimeout(startSpin, 420);
   else finishAll();
 }
 function respinOne(i) {
@@ -341,8 +377,8 @@ function respinOne(i) {
   startSpin();
 }
 
-const NAME_A = ["우주최강", "월요병말기", "텐션미쳐버린", "퇴근만기다리는", "4차원", "프로야근러", "점심만사는", "무념무상", "김칫국원샷", "현실도피", "잠이보약", "출근거부"];
-const NAME_B = ["김뽀글", "이대충", "박텐션", "최멍때", "정칼퇴", "한현타", "오눈치", "강자아", "윤월급", "서퇴사", "조졸림", "나야근"];
+const NAME_A = ["우주최강", "월요병말기", "텐션미쳐버린", "퇴근만기다리는", "4차원", "프로꾸안꾸", "간식러버", "무념무상", "핑크핑크", "새침한", "잠이보약", "귀요미"];
+const NAME_B = ["김뽀글", "이대충", "박텐션", "최멍때", "정칼퇴", "한현타", "오눈치", "강자아", "윤반짝", "서공주", "조졸림", "나야옹"];
 function finishAll() {
   charName = NAME_A[rand(NAME_A.length)] + " " + NAME_B[rand(NAME_B.length)];
   $("curLabel").innerHTML = `<span class="k">완성!</span> 🎉`;
@@ -353,9 +389,10 @@ function finishAll() {
   sfxDone();
 }
 
+function newSkin() { skinIdx = rand(SKIN.length); }
 function beginGame() {
-  curReel = 0; single = false;
-  ["bg", "face", "hair", "eyes", "nose", "mouth", "cloth"].forEach(k => randReel(k));
+  curReel = 0; single = false; newSkin();
+  REELS.forEach(r => randReel(r.key));
   render();
   $("resultActions").classList.remove("show");
   $("stopBtn").classList.remove("hide"); $("stopBtn").disabled = false;
@@ -363,8 +400,8 @@ function beginGame() {
   startSpin();
 }
 function randomizeAll() {
-  clearInterval(spinTimer); spinning = false; settling = false; single = false;
-  ["bg", "face", "hair", "eyes", "nose", "mouth", "cloth"].forEach(k => randReel(k));
+  clearInterval(spinTimer); spinning = false; settling = false; single = false; newSkin();
+  REELS.forEach(r => randReel(r.key));
   curReel = REELS.length; render();
   $("avatarCard").classList.add("pop"); setTimeout(() => $("avatarCard").classList.remove("pop"), 340);
   finishAll();
@@ -379,22 +416,18 @@ async function buildCard() {
   const c = cv.getContext("2d");
   try { await document.fonts.ready; } catch (e) {}
   const FF = '"Do Hyeon", "Pretendard Variable", Pretendard, sans-serif';
-  c.fillStyle = "#FFF3E0"; c.fillRect(0, 0, W, H); c.textAlign = "center";
-  c.fillStyle = "#F0603C"; c.font = "58px " + FF; c.fillText("내가 뽑은 랜덤 아바타", cx, 130);
-  // 아바타
-  const svgStr = buildSVG(760);
-  const url = URL.createObjectURL(new Blob([svgStr], { type: "image/svg+xml" }));
+  c.fillStyle = "#FDEEF5"; c.fillRect(0, 0, W, H); c.textAlign = "center";
+  c.fillStyle = "#EE4C8C"; c.font = "58px " + FF; c.fillText("내가 꾸민 랜덤 아바타", cx, 120);
+  const aw = 620, ah = Math.round(620 * 480 / 300), ax = cx - aw / 2, ay = 160;
+  const url = URL.createObjectURL(new Blob([buildSVG(aw)], { type: "image/svg+xml" }));
   try {
     const im = await loadImg(url);
-    const aw = 760, ah = Math.round(760 * 340 / 300);
-    const ax = cx - aw / 2, ay = 190;
-    c.save(); c.shadowColor = "rgba(180,120,70,.28)"; c.shadowBlur = 40; c.shadowOffsetY = 18;
-    c.fillStyle = "#FFFDF8"; roundRect(c, ax, ay, aw, ah, 40); c.fill(); c.restore();
+    c.save(); c.shadowColor = "rgba(200,110,150,.28)"; c.shadowBlur = 40; c.shadowOffsetY = 18;
+    c.fillStyle = "#FFFDFB"; roundRect(c, ax, ay, aw, ah, 40); c.fill(); c.restore();
     c.save(); roundRect(c, ax, ay, aw, ah, 40); c.clip(); c.drawImage(im, ax, ay, aw, ah); c.restore();
   } catch (e) {} finally { URL.revokeObjectURL(url); }
-  c.fillStyle = "#3A2E25"; c.font = "56px " + FF; c.fillText("「 " + charName + " 」", cx, 1200);
-  c.fillStyle = "#F0603C"; c.font = "44px " + FF; c.fillText("@ccojik.dh", cx, 1270);
-  c.fillStyle = "#9A8B7C"; c.font = '600 30px "Pretendard Variable", Pretendard, sans-serif'; c.fillText("너도 STOP 눌러서 뽑아봐 ^^", cx, 1315);
+  c.fillStyle = "#4A2E3E"; c.font = "52px " + FF; c.fillText("「 " + charName + " 」", cx, ay + ah + 68);
+  c.fillStyle = "#EE4C8C"; c.font = "44px " + FF; c.fillText("@ccojik.dh", cx, ay + ah + 128);
   return cv;
 }
 
@@ -421,7 +454,7 @@ async function saveCard() {
 async function shareResult() {
   if (curReel < REELS.length) { toast("먼저 아바타를 완성해주세요"); return; }
   const url = location.href.split("?")[0].split("#")[0];
-  const text = "내가 뽑은 랜덤 아바타 「" + charName + "」 ㅋㅋ 너도 STOP 눌러서 해봐!";
+  const text = "내가 꾸민 랜덤 아바타 「" + charName + "」 ㅋㅋ 너도 STOP 눌러서 해봐!";
   try {
     if (navigator.canShare) {
       const cv = await buildCard();
@@ -430,7 +463,7 @@ async function shareResult() {
         if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text, url }); return; } }
     }
   } catch (e) {}
-  if (navigator.share) { try { await navigator.share({ title: "랜덤 아바타 뽑기", text, url }); return; } catch (e) {} }
+  if (navigator.share) { try { await navigator.share({ title: "랜덤 아바타 꾸미기", text, url }); return; } catch (e) {} }
   if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text + " " + url).then(() => toast("링크 복사됨!"), () => toast("복사 실패")); }
   else toast("주소창 링크를 복사해 보내주세요");
 }
@@ -440,11 +473,10 @@ let toastTimer = null;
 function toast(m) { const t = $("toast"); t.textContent = m; t.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 1600); }
 function show(id) { document.querySelectorAll(".screen").forEach(s => s.classList.remove("active")); $(id).classList.add("active"); }
 
-/* 시작화면 데모 얼굴 */
-function demoFace() {
-  idx = { bg: 0, face: 0, hair: 5, eyes: 4, nose: 0, mouth: 0, cloth: 0 };
-  skinIdx = 0; hairColIdx = 6; clothColIdx = 0;
-  $("demoFace").innerHTML = buildSVG();
+function demoDoll() {
+  idx = { bg: 6, hair: 0, eyes: 0, mouth: 1, outfit: 0, shoes: 0, acc: 2 };
+  skinIdx = 0; hairColIdx = 7; outColIdx = 0; shoeColIdx = 1;
+  $("demoDoll").innerHTML = buildSVG();
 }
 
 /* 이벤트 */
@@ -459,7 +491,7 @@ $("saveModalClose").addEventListener("click", closeSaveModal);
 $("saveModal").addEventListener("click", e => { if (e.target === $("saveModal")) closeSaveModal(); });
 $("muteBtn").addEventListener("click", toggleMute);
 $("muteBtn").textContent = muted ? "음소거" : "소리";
-demoFace();
+demoDoll();
 </script>
 </body>
 </html>
