@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>STOP! 랜덤 아바타 뽑기</title>
+<meta property="og:type" content="website" />
+<meta property="og:title" content="STOP! 랜덤 아바타 뽑기" />
+<meta property="og:description" content="얼굴형·눈·코·입·머리·옷이 촤르륵! STOP 눌러서 나만의 병맛 캐릭터 조합 ^^" />
+<link rel="stylesheet" as="style" crossorigin
+  href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&display=swap" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root { --bg:#FFF3E0; --card:#FFFDF8; --ink:#3A2E25; --ink-soft:#9A8B7C; --line:#EAD9C2;
+    --accent:#FF7A59; --accent-d:#F0603C; --stop:#FF4D6D; --stop-d:#E43155; --go:#38C97E;
+    --shadow:0 14px 36px rgba(180,120,70,.22); }
+  html, body { height: 100%; font-family: "Pretendard Variable", Pretendard, -apple-system, system-ui, sans-serif; color: var(--ink);
+    -webkit-user-select: none; user-select: none;
+    background: radial-gradient(circle at 25% 10%, #FFE7C4 0%, transparent 55%), radial-gradient(circle at 85% 92%, #FFD9C0 0%, transparent 55%), var(--bg); }
+  body { display: flex; align-items: center; justify-content: center; min-height: 100dvh; padding: 10px; }
+  .phone { position: relative; width: min(440px, 96vw); aspect-ratio: 9/16; max-height: 97dvh;
+    background: var(--bg); border-radius: 30px; box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column; }
+
+  .screen { position: absolute; inset: 0; display: none; flex-direction: column; }
+  .screen.active { display: flex; }
+  #startScreen { align-items: center; justify-content: safe center; text-align: center; padding: 26px 22px; }
+
+  h1 { font-family: "Do Hyeon", sans-serif; font-size: 34px; line-height: 1.22; margin-top: 14px; }
+  h1 .hl { color: var(--accent); }
+  .desc { font-size: 14.5px; font-weight: 600; color: var(--ink-soft); margin-top: 14px; line-height: 1.65; }
+  .demo-face { width: 150px; height: 168px; margin: 4px auto 0; }
+  .btn { font-family: inherit; font-weight: 800; cursor: pointer; border: none; border-radius: 16px; transition: transform .1s ease; }
+  .btn:active { transform: scale(.96); }
+  .btn.primary { background: linear-gradient(160deg, var(--accent), var(--accent-d)); color: #fff; box-shadow: 0 6px 16px rgba(255,122,89,.35); }
+  .btn.big { font-size: 18px; padding: 16px 46px; margin-top: 22px; }
+
+  /* 게임 */
+  .g-head { flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 12px 16px 6px; }
+  .gh-back { background: #F3E4D1; color: var(--ink-soft); border: none; font-family: inherit; font-weight: 800; font-size: 13px; padding: 8px 12px; border-radius: 10px; cursor: pointer; }
+  .gh-title { font-family: "Do Hyeon", sans-serif; font-size: 17px; flex: 1; text-align: center; }
+  .gh-sp { width: 54px; }
+
+  .chips { flex-shrink: 0; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; padding: 4px 12px 8px; }
+  .chip { font-size: 12px; font-weight: 800; padding: 6px 11px; border-radius: 999px; background: #F3E4D1; color: var(--ink-soft);
+    border: 2px solid transparent; cursor: pointer; transition: transform .1s; }
+  .chip:active { transform: scale(.94); }
+  .chip.done { background: #DFF5E6; color: #2C9E5C; }
+  .chip.cur { background: #FFE0D6; color: var(--accent-d); border-color: var(--accent); animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+  .chip .ck::before { content: "✓ "; }
+
+  .stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; padding: 0 16px; }
+  .avatar-card { width: min(300px, 74vw, 40vh); aspect-ratio: 300/340; background: var(--card); border-radius: 24px; box-shadow: var(--shadow);
+    overflow: hidden; position: relative; }
+  .avatar-card.spin { box-shadow: 0 0 0 3px var(--accent), var(--shadow); }
+  .avatar-card.pop { animation: pop .34s cubic-bezier(.3,1.4,.5,1); }
+  @keyframes pop { 0% { transform: scale(.92); } 60% { transform: scale(1.05); } 100% { transform: scale(1); } }
+  .avatar-card svg { display: block; width: 100%; height: 100%; }
+  .cur-label { margin-top: 12px; font-family: "Do Hyeon", sans-serif; font-size: 20px; min-height: 26px; }
+  .cur-label .k { color: var(--accent-d); }
+  .char-name { margin-top: 6px; font-size: 15px; font-weight: 800; color: var(--ink); min-height: 20px; }
+
+  .controls { flex-shrink: 0; padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); }
+  .stop-btn { width: 100%; padding: 20px; font-family: "Do Hyeon", sans-serif; font-size: 30px; letter-spacing: 2px; color: #fff;
+    border: none; border-radius: 20px; cursor: pointer; background: linear-gradient(160deg, var(--stop), var(--stop-d));
+    box-shadow: 0 8px 20px rgba(255,77,109,.4); transition: transform .08s; }
+  .stop-btn:active { transform: scale(.97); }
+  .stop-btn:disabled { filter: grayscale(.5) brightness(.9); opacity: .7; }
+  .stop-btn.hide { display: none; }
+  .result-actions { display: none; gap: 10px; }
+  .result-actions.show { display: flex; flex-wrap: wrap; }
+  .result-actions .btn { flex: 1 1 30%; padding: 14px 6px; font-size: 15px; }
+  .btn.ghost { background: #F3E4D1; color: var(--accent-d); }
+  .btn.soft { background: #F3E4D1; color: var(--ink); }
+  .btn.go { background: linear-gradient(160deg, var(--go), #2CA866); color: #fff; }
+  .save-hint { text-align: center; font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-top: 8px; min-height: 15px; }
+
+  .mute-btn { position: absolute; top: 12px; right: 14px; z-index: 20; border: none; border-radius: 999px;
+    background: #F3E4D1; cursor: pointer; font-size: 12px; font-weight: 800; color: var(--accent-d); padding: 7px 12px; }
+  .toast { position: absolute; left: 50%; bottom: 92px; transform: translate(-50%, 16px); z-index: 30;
+    background: #3A2E25; color: #fff; font-weight: 700; font-size: 14px; padding: 11px 20px; border-radius: 999px;
+    opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .save-modal { position: absolute; inset: 0; z-index: 40; background: rgba(58,46,37,.72); display: none; align-items: center; justify-content: center; padding: 22px; }
+  .save-modal.show { display: flex; }
+  .save-modal-inner { background: var(--card); border-radius: 22px; padding: 18px 16px; box-shadow: var(--shadow); max-width: 100%; max-height: 100%;
+    overflow-y: auto; text-align: center; display: flex; flex-direction: column; align-items: center; }
+  .sm-title { font-size: 15px; font-weight: 800; } .sm-sub { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); line-height: 1.5; margin: 4px 0 10px; }
+  #saveModalImg { width: 100%; max-width: 250px; border-radius: 14px; }
+
+  @media (min-width: 700px) {
+    body { padding: 0; align-items: stretch; }
+    .phone { width: 100vw; max-width: 100%; height: 100dvh; max-height: none; aspect-ratio: auto; border-radius: 0; }
+    .avatar-card { width: min(360px, 40vh); }
+    .g-head, .chips, .controls { max-width: 560px; margin-inline: auto; width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="phone">
+  <button class="mute-btn" id="muteBtn">소리</button>
+
+  <!-- 시작 -->
+  <section class="screen active" id="startScreen">
+    <div class="demo-face" id="demoFace"></div>
+    <h1>STOP! <span class="hl">랜덤 아바타</span><br>뽑기</h1>
+    <p class="desc">얼굴형·눈·코·입·머리·옷이<br>촤르륵 지나갈 때 <b>STOP!</b><br>하나씩 멈춰서 나만의 캐릭터 완성.</p>
+    <button class="btn primary big" id="startBtn">뽑으러 가기</button>
+  </section>
+
+  <!-- 게임 -->
+  <section class="screen" id="gameScreen">
+    <div class="g-head">
+      <button class="gh-back" id="backBtn">← 처음</button>
+      <div class="gh-title">랜덤 아바타 뽑기</div>
+      <div class="gh-sp"></div>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="stage">
+      <div class="avatar-card" id="avatarCard"></div>
+      <div class="cur-label" id="curLabel"></div>
+      <div class="char-name" id="charName"></div>
+    </div>
+    <div class="controls">
+      <button class="stop-btn" id="stopBtn">STOP!</button>
+      <div class="result-actions" id="resultActions">
+        <button class="btn ghost" id="saveBtn">저장</button>
+        <button class="btn ghost" id="shareBtn">자랑</button>
+        <button class="btn soft" id="restartBtn">전체 다시</button>
+        <button class="btn go" id="randomBtn" style="flex:1 1 100%;">🎲 한 번에 랜덤 완성</button>
+      </div>
+      <div class="save-hint" id="saveHint"></div>
+    </div>
+  </section>
+
+  <div class="toast" id="toast"></div>
+  <div class="save-modal" id="saveModal">
+    <div class="save-modal-inner">
+      <p class="sm-title">👆 이미지를 꾹 눌러 저장하세요</p>
+      <p class="sm-sub">아이폰은 아래 이미지를 길게 눌러<br>'사진에 저장'을 선택하세요</p>
+      <img id="saveModalImg" alt="아바타" />
+      <button class="btn soft" id="saveModalClose" style="margin-top:14px;padding:11px 30px;">닫기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const rand = n => Math.floor(Math.random() * n);
+
+/* ================= 사운드 ================= */
+const MUTE_KEY = "ccojik-avatar-muted";
+let audioCtx = null, muted = localStorage.getItem(MUTE_KEY) === "1";
+function ac() { if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } } if (audioCtx.state === "suspended") audioCtx.resume(); return audioCtx; }
+function beep(f, d, t, v, w) { if (muted) return; const c = ac(); if (!c) return; const t0 = c.currentTime + (w || 0); const o = c.createOscillator(), g = c.createGain(); o.type = t || "square"; o.frequency.setValueAtTime(f, t0); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(v || 0.06, t0 + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d); o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + d + 0.02); }
+function sfxTick() { beep(1200, 0.03, "square", 0.04); }
+function sfxLock() { beep(520, 0.08, "square", 0.09); beep(780, 0.1, "square", 0.08, 0.06); }
+function sfxDone() { [523, 659, 784, 1046].forEach((f, i) => beep(f, 0.14, "sine", 0.1, i * 0.1)); }
+function toggleMute() { muted = !muted; localStorage.setItem(MUTE_KEY, muted ? "1" : "0"); $("muteBtn").textContent = muted ? "음소거" : "소리"; if (!muted) sfxTick(); }
+
+/* ================= 파츠 라이브러리 ================= */
+const SKIN = ["#FDE0C8", "#F6C8A0", "#E8AE82", "#CE9060", "#9C6B44", "#F7D3B0"];
+const HAIRCOL = ["#2A2A2A", "#4A3323", "#6E4A2C", "#9C6B3B", "#D8A94B", "#E7C25A", "#E05A5A", "#5570E0", "#B45AD0", "#F07AB0", "#9A9A9A", "#F2E8D5", "#4FBF8F"];
+const CLOTHCOL = ["#E05A5A", "#5570E0", "#3CB371", "#E7A93C", "#9A5AD0", "#2C3E50", "#EC7FB0", "#26A69A", "#F26D6D", "#34495E"];
+
+// 얼굴형: f(skin)
+const FACE = [
+  { n: "동그란", f: s => `<circle cx="150" cy="150" r="72" fill="${s}"/>` },
+  { n: "갸름한", f: s => `<ellipse cx="150" cy="152" rx="62" ry="78" fill="${s}"/>` },
+  { n: "각진",   f: s => `<rect x="82" y="82" width="136" height="144" rx="42" fill="${s}"/>` },
+  { n: "긴",     f: s => `<ellipse cx="150" cy="156" rx="57" ry="85" fill="${s}"/>` },
+  { n: "넓은",   f: s => `<ellipse cx="150" cy="150" rx="80" ry="66" fill="${s}"/>` },
+  { n: "역삼각", f: s => `<path d="M78 118 Q150 66 222 118 Q210 210 150 222 Q90 210 78 118 Z" fill="${s}"/>` },
+];
+function ears(s) { return `<ellipse cx="82" cy="158" rx="13" ry="19" fill="${s}"/><ellipse cx="218" cy="158" rx="13" ry="19" fill="${s}"/>`; }
+const BROWS = `<g stroke="#5a3a24" stroke-width="4" fill="none" stroke-linecap="round"><path d="M104 128 q18 -9 37 -3"/><path d="M159 125 q19 -6 37 3"/></g>`;
+
+// 눈 (양쪽) — 좌(123,148) 우(177,148)
+const EYES = [
+  { n: "기본", s: `<g><ellipse cx="123" cy="149" rx="12" ry="14" fill="#fff" stroke="#33261c" stroke-width="2"/><circle cx="125" cy="151" r="6" fill="#241812"/><ellipse cx="177" cy="149" rx="12" ry="14" fill="#fff" stroke="#33261c" stroke-width="2"/><circle cx="175" cy="151" r="6" fill="#241812"/></g>` },
+  { n: "왕눈", s: `<g><ellipse cx="123" cy="149" rx="15" ry="18" fill="#fff" stroke="#33261c" stroke-width="2"/><circle cx="125" cy="152" r="8" fill="#241812"/><circle cx="122" cy="147" r="3" fill="#fff"/><ellipse cx="177" cy="149" rx="15" ry="18" fill="#fff" stroke="#33261c" stroke-width="2"/><circle cx="175" cy="152" r="8" fill="#241812"/><circle cx="172" cy="147" r="3" fill="#fff"/></g>` },
+  { n: "점눈", s: `<g fill="#241812"><circle cx="123" cy="150" r="6"/><circle cx="177" cy="150" r="6"/></g>` },
+  { n: "째림", s: `<g stroke="#241812" stroke-width="5" stroke-linecap="round"><path d="M112 152 l22 -6"/><path d="M166 146 l22 6"/></g>` },
+  { n: "반짝", s: `<g><ellipse cx="123" cy="149" rx="14" ry="17" fill="#fff" stroke="#33261c" stroke-width="2"/><circle cx="124" cy="151" r="8" fill="#3a2a55"/><circle cx="121" cy="147" r="3.5" fill="#fff"/><circle cx="127" cy="154" r="2" fill="#fff"/><ellipse cx="177" cy="149" rx="14" ry="17" fill="#fff" stroke="#33261c" stroke-width="2"/><circle cx="176" cy="151" r="8" fill="#3a2a55"/><circle cx="173" cy="147" r="3.5" fill="#fff"/><circle cx="179" cy="154" r="2" fill="#fff"/></g>` },
+  { n: "졸림", s: `<g stroke="#241812" stroke-width="4" fill="none" stroke-linecap="round"><path d="M111 149 q12 9 25 1"/><path d="M164 150 q12 9 25 -1"/></g>` },
+  { n: "웃음", s: `<g stroke="#241812" stroke-width="4.5" fill="none" stroke-linecap="round"><path d="M110 153 q13 -15 26 0"/><path d="M164 153 q13 -15 26 0"/></g>` },
+  { n: "하트", s: `<g fill="#ff5b7f"><path d="M123 145 c-6 -8 -18 -2 -12 7 c3 5 12 11 12 11 c0 0 9 -6 12 -11 c6 -9 -6 -15 -12 -7z"/><path d="M177 145 c-6 -8 -18 -2 -12 7 c3 5 12 11 12 11 c0 0 9 -6 12 -11 c6 -9 -6 -15 -12 -7z"/></g>` },
+];
+// 코 (150,~170)
+const NOSE = [
+  { n: "기본", s: `<path d="M150 160 q-8 15 -3 19 q4 3 8 0" fill="none" stroke="#c98d6b" stroke-width="3" stroke-linecap="round"/>` },
+  { n: "동그란", s: `<ellipse cx="150" cy="176" rx="9" ry="7" fill="#e0a583"/>` },
+  { n: "뾰족", s: `<path d="M150 158 l-7 20 h14 z" fill="#e6ad8a"/>` },
+  { n: "넓은", s: `<ellipse cx="150" cy="175" rx="13" ry="6" fill="#db9c78"/>` },
+  { n: "버선", s: `<path d="M150 158 q-9 18 -1 22 q5 3 6 -2" fill="none" stroke="#c98d6b" stroke-width="3.5" stroke-linecap="round"/>` },
+];
+// 입 (150,~196)
+const MOUTH = [
+  { n: "미소", s: `<path d="M131 193 q19 15 38 0" fill="none" stroke="#a0463c" stroke-width="4.5" stroke-linecap="round"/>` },
+  { n: "활짝", s: `<path d="M129 190 q21 26 42 0 z" fill="#b5322f"/><path d="M129 190 q21 6 42 0" fill="#fff"/>` },
+  { n: "무표정", s: `<line x1="134" y1="197" x2="166" y2="197" stroke="#a0463c" stroke-width="4.5" stroke-linecap="round"/>` },
+  { n: "삐침", s: `<path d="M132 202 q18 -13 36 0" fill="none" stroke="#a0463c" stroke-width="4.5" stroke-linecap="round"/>` },
+  { n: "오!", s: `<ellipse cx="150" cy="197" rx="9" ry="12" fill="#b5322f"/>` },
+  { n: "메롱", s: `<path d="M131 190 q19 14 38 0" fill="none" stroke="#a0463c" stroke-width="4.5" stroke-linecap="round"/><path d="M143 198 q7 16 14 0 z" fill="#e0666e" stroke="#c04a52" stroke-width="1.4"/>` },
+  { n: "씨익", s: `<path d="M130 192 q22 12 40 -2" fill="none" stroke="#a0463c" stroke-width="4.5" stroke-linecap="round"/>` },
+];
+// 머리: back(c) / front(c)
+const HAIR = [
+  { n: "대머리", back: null, front: null },
+  { n: "짧은", back: null, front: c => `<path d="M84 146 q2 -76 66 -76 q64 0 66 76 q-30 -36 -66 -36 q-36 0 -66 36z" fill="${c}"/>` },
+  { n: "단발", back: c => `<path d="M76 150 q-2 -84 74 -84 q76 0 74 84 q-2 44 -14 66 l-18 0 q14 -46 4 -74 q-46 22 -92 0 q-10 28 4 74 l-18 0 q-12 -22 -14 -66z" fill="${c}"/>`, front: c => `<path d="M82 138 q4 -70 68 -70 q64 0 68 70 q-30 -34 -68 -34 q-38 0 -68 34z" fill="${c}"/>` },
+  { n: "긴생머리", back: c => `<path d="M74 150 q-4 -86 76 -86 q80 0 76 86 q0 80 -16 138 l-28 0 q16 -70 8 -128 q-40 20 -80 0 q-8 58 8 128 l-28 0 q-16 -58 -16 -138z" fill="${c}"/>`, front: c => `<path d="M82 136 q6 -70 68 -70 q62 0 68 70 q-14 -20 -34 -26 q-6 20 -22 26 q-24 -4 -34 -20 q-8 22 -14 20z" fill="${c}"/>` },
+  { n: "파마", back: c => `<g fill="${c}"><circle cx="86" cy="120" r="20"/><circle cx="78" cy="160" r="19"/><circle cx="214" cy="120" r="20"/><circle cx="222" cy="160" r="19"/><ellipse cx="150" cy="120" rx="80" ry="66"/></g>`, front: c => `<g fill="${c}"><circle cx="98" cy="96" r="19"/><circle cx="130" cy="80" r="20"/><circle cx="170" cy="80" r="20"/><circle cx="202" cy="96" r="19"/><circle cx="88" cy="130" r="18"/><circle cx="212" cy="130" r="18"/><path d="M84 138 q0 -60 66 -64 q66 4 66 64 z"/></g>` },
+  { n: "투블럭", back: null, front: c => `<path d="M88 132 q0 -66 62 -66 q62 0 62 66 q-18 -18 -30 -14 q4 -30 -32 -30 q-36 0 -32 30 q-12 -4 -30 14z" fill="${c}"/>` },
+  { n: "뾰족", back: null, front: c => `<path d="M84 144 l10 -34 l14 22 l12 -40 l16 30 l14 -40 l14 40 l16 -30 l12 40 l14 -22 l10 34 q-30 -32 -76 -32 q-46 0 -76 32z" fill="${c}"/>` },
+  { n: "양갈래", back: c => `<g fill="${c}"><ellipse cx="72" cy="176" rx="18" ry="34"/><ellipse cx="228" cy="176" rx="18" ry="34"/></g>`, front: c => `<path d="M84 140 q2 -74 66 -74 q64 0 66 74 q-30 -34 -66 -34 q-36 0 -66 34z" fill="${c}"/>` },
+  { n: "모히칸", back: null, front: c => `<path d="M132 70 q18 -18 36 0 q6 30 -2 66 l-32 0 q-8 -36 -2 -66z" fill="${c}"/>` },
+  { n: "반삭", back: null, front: c => `<path d="M88 138 q0 -60 62 -60 q62 0 62 60 q-30 -26 -62 -26 q-32 0 -62 26z" fill="${c}" opacity="0.85"/>` },
+  { n: "올백", back: null, front: c => `<path d="M84 132 q10 -66 66 -66 q56 0 66 66 q-16 -12 -34 -12 q-16 0 -32 0 q-16 0 -32 0 q-18 0 -34 12z" fill="${c}"/>` },
+];
+// 옷 (color)
+const CLOTH = [
+  { n: "티셔츠", f: c => `<path d="M40 340 L40 322 Q40 262 108 254 Q150 250 192 254 Q260 262 260 322 L260 340 Z" fill="${c}"/><path d="M132 256 q18 15 36 0" fill="none" stroke="rgba(0,0,0,.18)" stroke-width="3"/>` },
+  { n: "정장", f: c => `<path d="M40 340 L40 322 Q40 262 108 254 Q150 250 192 254 Q260 262 260 322 L260 340 Z" fill="#2C3E50"/><path d="M150 256 L120 340 L150 340 L150 256 M150 256 L180 340 L150 340" fill="#3d5266"/><path d="M150 256 l-8 12 l8 40 l8 -40 z" fill="${c}"/>` },
+  { n: "후드", f: c => `<path d="M40 340 L40 322 Q40 262 108 254 Q150 250 192 254 Q260 262 260 322 L260 340 Z" fill="${c}"/><path d="M112 252 q38 30 76 0 q-6 22 -38 22 q-32 0 -38 -22z" fill="rgba(0,0,0,.16)"/><line x1="140" y1="272" x2="138" y2="304" stroke="rgba(255,255,255,.7)" stroke-width="4" stroke-linecap="round"/><line x1="160" y1="272" x2="162" y2="304" stroke="rgba(255,255,255,.7)" stroke-width="4" stroke-linecap="round"/>` },
+  { n: "줄무늬", f: c => `<path d="M40 340 L40 322 Q40 262 108 254 Q150 250 192 254 Q260 262 260 322 L260 340 Z" fill="${c}"/><g stroke="rgba(255,255,255,.8)" stroke-width="10"><line x1="40" y1="288" x2="260" y2="288"/><line x1="40" y1="312" x2="260" y2="312"/></g>` },
+  { n: "운동복", f: c => `<path d="M40 340 L40 322 Q40 262 108 254 Q150 250 192 254 Q260 262 260 322 L260 340 Z" fill="${c}"/><line x1="150" y1="258" x2="150" y2="340" stroke="rgba(0,0,0,.25)" stroke-width="4"/><path d="M128 256 l22 6 l22 -6" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="4"/>` },
+  { n: "멜빵", f: c => `<path d="M40 340 L40 322 Q40 262 108 254 Q150 250 192 254 Q260 262 260 322 L260 340 Z" fill="#4A6FA5"/><g fill="${c}"><rect x="120" y="256" width="12" height="84"/><rect x="168" y="256" width="12" height="84"/></g>` },
+];
+// 배경
+const BG = [
+  { n: "크림", s: `<rect width="300" height="340" fill="#FFF3E0"/>` },
+  { n: "하늘", s: `<rect width="300" height="340" fill="#CDE9F7"/>` },
+  { n: "핑크", s: `<rect width="300" height="340" fill="#FCD9E4"/>` },
+  { n: "민트", s: `<rect width="300" height="340" fill="#CFF0E2"/>` },
+  { n: "노랑", s: `<rect width="300" height="340" fill="#FDE9A8"/>` },
+  { n: "라벤더", s: `<rect width="300" height="340" fill="#E4DAF7"/>` },
+  { n: "땡땡이", s: `<rect width="300" height="340" fill="#FFE4C4"/><g fill="#FFCE9A"><circle cx="40" cy="50" r="12"/><circle cx="120" cy="30" r="12"/><circle cx="220" cy="60" r="12"/><circle cx="270" cy="140" r="12"/><circle cx="30" cy="150" r="12"/><circle cx="60" cy="260" r="12"/><circle cx="250" cy="250" r="12"/><circle cx="160" cy="300" r="12"/></g>` },
+  { n: "집중선", s: `<rect width="300" height="340" fill="#FFF0D2"/><g fill="#FFD9A0" opacity="0.8"><path d="M150 150 L0 0 L60 0 Z"/><path d="M150 150 L120 0 L180 0 Z"/><path d="M150 150 L240 0 L300 0 Z"/><path d="M150 150 L300 60 L300 130 Z"/><path d="M150 150 L300 210 L300 280 Z"/><path d="M150 150 L240 340 L180 340 Z"/><path d="M150 150 L120 340 L60 340 Z"/><path d="M150 150 L0 280 L0 210 Z"/><path d="M150 150 L0 130 L0 60 Z"/></g>` },
+];
+
+const LISTS = { face: FACE, hair: HAIR, eyes: EYES, nose: NOSE, mouth: MOUTH, cloth: CLOTH, bg: BG };
+const REELS = [
+  { key: "bg", label: "배경" },
+  { key: "face", label: "얼굴형" },
+  { key: "hair", label: "머리" },
+  { key: "eyes", label: "눈" },
+  { key: "nose", label: "코" },
+  { key: "mouth", label: "입" },
+  { key: "cloth", label: "옷" },
+];
+
+/* ================= 상태 ================= */
+let idx = { bg: 0, face: 0, hair: 0, eyes: 0, nose: 0, mouth: 0, cloth: 0 };
+let skinIdx = 0, hairColIdx = 0, clothColIdx = 0;
+let curReel = 0, spinning = false, settling = false, spinTimer = null, single = false;
+let charName = "";
+
+function buildSVG(px) {
+  const dim = px ? `width="${px}" height="${Math.round(px * 340 / 300)}"` : "";
+  const s = SKIN[skinIdx], hc = HAIRCOL[hairColIdx], cc = CLOTHCOL[clothColIdx];
+  const h = HAIR[idx.hair];
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 340" ${dim}>` +
+    BG[idx.bg].s +
+    (h.back ? h.back(hc) : "") +
+    `<rect x="136" y="196" width="28" height="60" fill="${s}"/>` +
+    CLOTH[idx.cloth].f(cc) +
+    ears(s) +
+    FACE[idx.face].f(s) +
+    BROWS +
+    EYES[idx.eyes].s +
+    NOSE[idx.nose].s +
+    MOUTH[idx.mouth].s +
+    (h.front ? h.front(hc) : "") +
+    `</svg>`;
+}
+function render() { $("avatarCard").innerHTML = buildSVG(); }
+
+function randReel(key) {
+  idx[key] = rand(LISTS[key].length);
+  if (key === "face") skinIdx = rand(SKIN.length);
+  if (key === "hair") hairColIdx = rand(HAIRCOL.length);
+  if (key === "cloth") clothColIdx = rand(CLOTHCOL.length);
+}
+
+/* ================= 릴 스핀 / STOP ================= */
+function updateChips() {
+  const box = $("chips"); box.innerHTML = "";
+  REELS.forEach((r, i) => {
+    const el = document.createElement("div");
+    const done = i < curReel && !single;
+    el.className = "chip" + (i === curReel && (spinning || settling) ? " cur" : "") + (i < curReel ? " done" : "");
+    el.innerHTML = (i < curReel ? '<span class="ck"></span>' : "") + r.label;
+    if (i < curReel && !spinning && !settling) el.addEventListener("click", () => respinOne(i));
+    box.appendChild(el);
+  });
+}
+function startSpin() {
+  if (curReel >= REELS.length) return;
+  spinning = true; settling = false;
+  $("avatarCard").classList.add("spin");
+  $("curLabel").innerHTML = `지금: <span class="k">${REELS[curReel].label}</span>`;
+  updateChips();
+  const key = REELS[curReel].key;
+  clearInterval(spinTimer);
+  spinTimer = setInterval(() => { randReel(key); render(); sfxTick(); }, 68);
+}
+function stopSpin() {
+  if (!spinning || settling) return;
+  settling = true; $("stopBtn").disabled = true;
+  clearInterval(spinTimer);
+  const key = REELS[curReel].key;
+  const delays = [90, 125, 170, 230, 320, 440];
+  let i = 0;
+  (function step() {
+    if (i < delays.length) { randReel(key); render(); sfxTick(); setTimeout(step, delays[i++]); }
+    else lockReel();
+  })();
+}
+function lockReel() {
+  spinning = false; settling = false;
+  $("stopBtn").disabled = false;
+  $("avatarCard").classList.remove("spin");
+  $("avatarCard").classList.add("pop");
+  setTimeout(() => $("avatarCard").classList.remove("pop"), 340);
+  sfxLock();
+  if (single) { single = false; curReel = REELS.length; updateChips(); finishAll(); return; }
+  curReel++;
+  updateChips();
+  if (curReel < REELS.length) { setTimeout(startSpin, 420); }
+  else finishAll();
+}
+function respinOne(i) {
+  if (spinning || settling || curReel < REELS.length) return;
+  single = true; curReel = i;
+  $("resultActions").classList.remove("show");
+  $("stopBtn").classList.remove("hide");
+  $("charName").textContent = "";
+  startSpin();
+}
+
+const NAME_A = ["우주최강", "월요병말기", "텐션미쳐버린", "퇴근만기다리는", "4차원", "프로야근러", "점심만사는", "무념무상", "김칫국원샷", "현실도피", "잠이보약", "출근거부"];
+const NAME_B = ["김뽀글", "이대충", "박텐션", "최멍때", "정칼퇴", "한현타", "오눈치", "강자아", "윤월급", "서퇴사", "조졸림", "나야근"];
+function finishAll() {
+  charName = NAME_A[rand(NAME_A.length)] + " " + NAME_B[rand(NAME_B.length)];
+  $("curLabel").innerHTML = `<span class="k">완성!</span> 🎉`;
+  $("charName").textContent = "이름하야  「 " + charName + " 」";
+  $("stopBtn").classList.add("hide");
+  $("resultActions").classList.add("show");
+  updateChips();
+  sfxDone();
+}
+
+function beginGame() {
+  curReel = 0; single = false;
+  ["bg", "face", "hair", "eyes", "nose", "mouth", "cloth"].forEach(k => randReel(k));
+  render();
+  $("resultActions").classList.remove("show");
+  $("stopBtn").classList.remove("hide"); $("stopBtn").disabled = false;
+  $("charName").textContent = ""; $("saveHint").textContent = "";
+  startSpin();
+}
+function randomizeAll() {
+  clearInterval(spinTimer); spinning = false; settling = false; single = false;
+  ["bg", "face", "hair", "eyes", "nose", "mouth", "cloth"].forEach(k => randReel(k));
+  curReel = REELS.length; render();
+  $("avatarCard").classList.add("pop"); setTimeout(() => $("avatarCard").classList.remove("pop"), 340);
+  finishAll();
+}
+
+/* ================= 결과 카드 ================= */
+function roundRect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+function loadImg(src) { return new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = src; }); }
+async function buildCard() {
+  const W = 1080, H = 1350, cx = W / 2;
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const c = cv.getContext("2d");
+  try { await document.fonts.ready; } catch (e) {}
+  const FF = '"Do Hyeon", "Pretendard Variable", Pretendard, sans-serif';
+  c.fillStyle = "#FFF3E0"; c.fillRect(0, 0, W, H); c.textAlign = "center";
+  c.fillStyle = "#F0603C"; c.font = "58px " + FF; c.fillText("내가 뽑은 랜덤 아바타", cx, 130);
+  // 아바타
+  const svgStr = buildSVG(760);
+  const url = URL.createObjectURL(new Blob([svgStr], { type: "image/svg+xml" }));
+  try {
+    const im = await loadImg(url);
+    const aw = 760, ah = Math.round(760 * 340 / 300);
+    const ax = cx - aw / 2, ay = 190;
+    c.save(); c.shadowColor = "rgba(180,120,70,.28)"; c.shadowBlur = 40; c.shadowOffsetY = 18;
+    c.fillStyle = "#FFFDF8"; roundRect(c, ax, ay, aw, ah, 40); c.fill(); c.restore();
+    c.save(); roundRect(c, ax, ay, aw, ah, 40); c.clip(); c.drawImage(im, ax, ay, aw, ah); c.restore();
+  } catch (e) {} finally { URL.revokeObjectURL(url); }
+  c.fillStyle = "#3A2E25"; c.font = "56px " + FF; c.fillText("「 " + charName + " 」", cx, 1200);
+  c.fillStyle = "#F0603C"; c.font = "44px " + FF; c.fillText("@ccojik.dh", cx, 1270);
+  c.fillStyle = "#9A8B7C"; c.font = '600 30px "Pretendard Variable", Pretendard, sans-serif'; c.fillText("너도 STOP 눌러서 뽑아봐 ^^", cx, 1315);
+  return cv;
+}
+
+/* ================= 저장/공유 ================= */
+const isIOS = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+function supportsDownload() { return !isIOS && typeof document.createElement("a").download !== "undefined"; }
+let saveURL = null;
+function openSaveModal(u) { if (saveURL) URL.revokeObjectURL(saveURL); saveURL = u; $("saveModalImg").src = u; $("saveModal").classList.add("show"); }
+function closeSaveModal() { $("saveModal").classList.remove("show"); $("saveModalImg").removeAttribute("src"); if (saveURL) { URL.revokeObjectURL(saveURL); saveURL = null; } }
+async function saveCard() {
+  if (curReel < REELS.length) { toast("먼저 아바타를 완성해주세요"); return; }
+  try {
+    const cv = await buildCard();
+    cv.toBlob(blob => {
+      if (!blob) { $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요 🙏"; return; }
+      const u = URL.createObjectURL(blob);
+      if (!supportsDownload()) { openSaveModal(u); return; }
+      const a = document.createElement("a"); a.href = u; a.download = "ccojik_avatar.png";
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 1000);
+      $("saveHint").textContent = "저장 완료! 📸";
+    }, "image/png");
+  } catch (e) { $("saveHint").textContent = "저장에 문제가 생겼어요. 화면을 캡처해 주세요 🙏"; }
+}
+async function shareResult() {
+  if (curReel < REELS.length) { toast("먼저 아바타를 완성해주세요"); return; }
+  const url = location.href.split("?")[0].split("#")[0];
+  const text = "내가 뽑은 랜덤 아바타 「" + charName + "」 ㅋㅋ 너도 STOP 눌러서 해봐!";
+  try {
+    if (navigator.canShare) {
+      const cv = await buildCard();
+      const blob = await new Promise(r => cv.toBlob(r, "image/png"));
+      if (blob) { const file = new File([blob], "avatar.png", { type: "image/png" });
+        if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text, url }); return; } }
+    }
+  } catch (e) {}
+  if (navigator.share) { try { await navigator.share({ title: "랜덤 아바타 뽑기", text, url }); return; } catch (e) {} }
+  if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text + " " + url).then(() => toast("링크 복사됨!"), () => toast("복사 실패")); }
+  else toast("주소창 링크를 복사해 보내주세요");
+}
+
+/* ================= 기타 ================= */
+let toastTimer = null;
+function toast(m) { const t = $("toast"); t.textContent = m; t.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 1600); }
+function show(id) { document.querySelectorAll(".screen").forEach(s => s.classList.remove("active")); $(id).classList.add("active"); }
+
+/* 시작화면 데모 얼굴 */
+function demoFace() {
+  idx = { bg: 0, face: 0, hair: 5, eyes: 4, nose: 0, mouth: 0, cloth: 0 };
+  skinIdx = 0; hairColIdx = 6; clothColIdx = 0;
+  $("demoFace").innerHTML = buildSVG();
+}
+
+/* 이벤트 */
+$("startBtn").addEventListener("click", () => { sfxTick(); show("gameScreen"); requestAnimationFrame(beginGame); });
+$("backBtn").addEventListener("click", () => { clearInterval(spinTimer); spinning = false; settling = false; sfxTick(); show("startScreen"); });
+$("stopBtn").addEventListener("click", stopSpin);
+$("restartBtn").addEventListener("click", () => { sfxTick(); beginGame(); });
+$("randomBtn").addEventListener("click", () => { sfxTick(); randomizeAll(); });
+$("saveBtn").addEventListener("click", saveCard);
+$("shareBtn").addEventListener("click", shareResult);
+$("saveModalClose").addEventListener("click", closeSaveModal);
+$("saveModal").addEventListener("click", e => { if (e.target === $("saveModal")) closeSaveModal(); });
+$("muteBtn").addEventListener("click", toggleMute);
+$("muteBtn").textContent = muted ? "음소거" : "소리";
+demoFace();
+</script>
+</body>
+</html>
