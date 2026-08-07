@@ -46,29 +46,32 @@
   .stage { position: relative; flex: 1; margin: 0 12px; border-radius: 16px; overflow: hidden; min-height: 0; box-shadow: 0 0 0 1px var(--line); }
   .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
   #fx { touch-action: none; }
-  #fx.flicker { animation: neonFlicker 2.6s infinite; }
-  @keyframes neonFlicker {
-    0%   { opacity:1; filter:brightness(1) saturate(1); }
-    3%   { opacity:.35; }
-    4%   { opacity:1; filter:brightness(1.7) saturate(1.3); }
-    6%   { opacity:.6; }
-    8%   { opacity:1; filter:brightness(1.2); }
-    38%  { opacity:1; filter:brightness(1); }
-    40%  { opacity:.2; }
-    41%  { opacity:1; filter:brightness(1.8) saturate(1.4); }
-    43%  { opacity:.55; }
+  #fx.flicker { animation: neonParty 2s infinite; }
+  @keyframes neonParty {
+    0%   { opacity:1; filter:brightness(1) saturate(1.2) hue-rotate(0deg) drop-shadow(0 0 6px rgba(255,255,255,.3)); }
+    4%   { opacity:.3; }
+    5%   { opacity:1; filter:brightness(2) saturate(1.7) hue-rotate(12deg) drop-shadow(0 0 22px rgba(255,255,255,.6)); }
+    7%   { opacity:.6; }
+    9%   { opacity:1; filter:brightness(1.3) saturate(1.4) hue-rotate(-8deg) drop-shadow(0 0 10px rgba(120,220,255,.45)); }
+    24%  { filter:brightness(1.2) saturate(1.6) hue-rotate(24deg) drop-shadow(0 0 16px rgba(120,220,255,.5)); }
+    38%  { opacity:1; filter:brightness(1) saturate(1.2) hue-rotate(0deg) drop-shadow(0 0 8px rgba(255,255,255,.3)); }
+    40%  { opacity:.18; }
+    41%  { opacity:1; filter:brightness(2.2) saturate(1.8) hue-rotate(-14deg) drop-shadow(0 0 24px rgba(255,120,220,.6)); }
+    43%  { opacity:.5; }
     45%  { opacity:1; }
-    68%  { opacity:1; filter:brightness(1.1); }
-    70%  { opacity:.4; filter:brightness(.85); }
-    71%  { opacity:1; filter:brightness(1.6) saturate(1.3); }
+    58%  { filter:brightness(1.25) saturate(1.6) hue-rotate(-24deg) drop-shadow(0 0 16px rgba(255,180,120,.5)); }
+    69%  { opacity:1; filter:brightness(1); }
+    70%  { opacity:.32; }
+    71%  { opacity:1; filter:brightness(2) saturate(1.7) hue-rotate(16deg) drop-shadow(0 0 22px rgba(150,255,170,.55)); }
     73%  { opacity:.7; }
     74%  { opacity:1; }
-    88%  { opacity:1; filter:brightness(1); }
-    89%  { opacity:.25; }
-    90%  { opacity:1; filter:brightness(1.5); }
-    92%  { opacity:.7; }
+    86%  { filter:brightness(1.15) saturate(1.5) hue-rotate(30deg) drop-shadow(0 0 14px rgba(200,150,255,.5)); }
+    88%  { opacity:1; }
+    89%  { opacity:.22; }
+    90%  { opacity:1; filter:brightness(2) saturate(1.7) hue-rotate(8deg) drop-shadow(0 0 20px rgba(255,255,255,.55)); }
+    92%  { opacity:.65; }
     93%  { opacity:1; }
-    100% { opacity:1; filter:brightness(1.15) saturate(1.1); }
+    100% { opacity:1; filter:brightness(1) saturate(1.2) hue-rotate(0deg) drop-shadow(0 0 6px rgba(255,255,255,.3)); }
   }
   .hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; pointer-events: none;
     font-family: "Nanum Pen Script", cursive; font-size: 26px; color: rgba(255,255,255,.5); text-shadow: 0 0 8px rgba(255,255,255,.4); }
