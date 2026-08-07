@@ -46,11 +46,40 @@
   .stage { position: relative; flex: 1; margin: 0 12px; border-radius: 16px; overflow: hidden; min-height: 0; box-shadow: 0 0 0 1px var(--line); }
   .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
   #fx { touch-action: none; }
-  #fx.flicker { animation: neonFlicker 3.6s infinite; }
-  @keyframes neonFlicker { 0%,19%,21%,55%,57%,100%{opacity:1} 20%,56%{opacity:.7} 18%{opacity:.88} 80%,82%{opacity:.85} }
+  #fx.flicker { animation: neonFlicker 2.6s infinite; }
+  @keyframes neonFlicker {
+    0%   { opacity:1; filter:brightness(1) saturate(1); }
+    3%   { opacity:.35; }
+    4%   { opacity:1; filter:brightness(1.7) saturate(1.3); }
+    6%   { opacity:.6; }
+    8%   { opacity:1; filter:brightness(1.2); }
+    38%  { opacity:1; filter:brightness(1); }
+    40%  { opacity:.2; }
+    41%  { opacity:1; filter:brightness(1.8) saturate(1.4); }
+    43%  { opacity:.55; }
+    45%  { opacity:1; }
+    68%  { opacity:1; filter:brightness(1.1); }
+    70%  { opacity:.4; filter:brightness(.85); }
+    71%  { opacity:1; filter:brightness(1.6) saturate(1.3); }
+    73%  { opacity:.7; }
+    74%  { opacity:1; }
+    88%  { opacity:1; filter:brightness(1); }
+    89%  { opacity:.25; }
+    90%  { opacity:1; filter:brightness(1.5); }
+    92%  { opacity:.7; }
+    93%  { opacity:1; }
+    100% { opacity:1; filter:brightness(1.15) saturate(1.1); }
+  }
   .hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; pointer-events: none;
     font-family: "Nanum Pen Script", cursive; font-size: 26px; color: rgba(255,255,255,.5); text-shadow: 0 0 8px rgba(255,255,255,.4); }
   .hint.hide { display: none; }
+
+  .wallrow { flex-shrink: 0; display: none; gap: 6px; overflow-x: auto; padding: 8px 12px 2px; scrollbar-width: none; }
+  .wallrow::-webkit-scrollbar { display: none; }
+  .wallrow.show { display: flex; }
+  .wchip { flex: 0 0 auto; background: var(--panel2); color: var(--ink); border: 2px solid transparent; border-radius: 10px;
+    font-family: inherit; font-weight: 700; font-size: 12px; padding: 8px 13px; cursor: pointer; white-space: nowrap; }
+  .wchip.on { border-color: #18e0ff; color: #18e0ff; box-shadow: 0 0 8px rgba(24,224,255,.4); }
 
   .palette { flex-shrink: 0; display: flex; gap: 8px; justify-content: center; padding: 10px 12px 4px; flex-wrap: wrap; }
   .sw { width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,.15); transition: transform .1s; }
@@ -108,8 +137,8 @@
   <section class="screen" id="editScreen">
     <div class="topbar">
       <div class="tt">Neon</div>
-      <button class="mini" id="wallBtn">벽: 벽돌</button>
-      <button class="mini" id="flickBtn">깜빡임</button>
+      <button class="mini" id="wallBtn">🖼️ 배경</button>
+      <button class="mini" id="flickBtn">✨ 깜빡임</button>
       <button class="mini" id="backBtn">처음</button>
     </div>
     <div class="stage" id="stage">
@@ -117,6 +146,7 @@
       <canvas id="fx"></canvas>
       <div class="hint" id="hint">여기에 손으로 그려보세요 ✍️</div>
     </div>
+    <div class="wallrow" id="wallrow"></div>
     <div class="palette" id="palette"></div>
     <div class="toolrow">
       <div class="seg" id="toolSeg">
@@ -166,9 +196,16 @@ const SIZES = [6, 11, 18];           // 브러시 굵기
 const TEXTSIZE = [30, 50, 78];       // 글자 크기(굵기 단계에 대응)
 const WALLS = [
   { k: "brick", label: "벽돌" },
-  { k: "dark", label: "콘크리트" },
-  { k: "night", label: "밤" },
+  { k: "dark", label: "어둠" },
+  { k: "city", label: "도시야경" },
+  { k: "sunset", label: "노을" },
+  { k: "cyber", label: "사이버" },
+  { k: "purple", label: "보라빛" },
+  { k: "stars", label: "별밤" },
+  { k: "holo", label: "홀로그램" },
+  { k: "night", label: "밤하늘" },
 ];
+function mulberry(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
 /* ================= 상태 ================= */
 let bgc, bgx, fx, fxx, W = 0, H = 0, dpr = 1;
@@ -197,7 +234,8 @@ function sizeCanvas() {
 /* --- 벽 배경 --- */
 function drawWall(ctx, s, kind) {
   const w = W * s, h = H * s;
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+  const linGrad = (stops) => { const g = ctx.createLinearGradient(0, 0, 0, h); stops.forEach(([o, c]) => g.addColorStop(o, c)); return g; };
   if (kind === "brick") {
     ctx.fillStyle = "#1a1412"; ctx.fillRect(0, 0, w, h);
     const bh = 26 * s, bw = 56 * s;
@@ -213,9 +251,38 @@ function drawWall(ctx, s, kind) {
   } else if (kind === "dark") {
     const g = ctx.createRadialGradient(w / 2, h * 0.38, 10, w / 2, h / 2, Math.max(w, h) * 0.9);
     g.addColorStop(0, "#262630"); g.addColorStop(1, "#0d0d12"); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-  } else {
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, "#0b1030"); g.addColorStop(1, "#05060f"); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  } else if (kind === "night") {
+    ctx.fillStyle = linGrad([[0, "#0b1030"], [1, "#05060f"]]); ctx.fillRect(0, 0, w, h);
+  } else if (kind === "city") {
+    ctx.fillStyle = linGrad([[0, "#1a1140"], [0.55, "#2a1a55"], [1, "#0a0a1e"]]); ctx.fillRect(0, 0, w, h);
+    const r = mulberry(7); const cols = ["#ff6ad5", "#18e0ff", "#ffd36b", "#9b6bff", "#6bffcf"];
+    for (let i = 0; i < 30; i++) { const x = r() * w, y = r() * h * 0.82, rad = (6 + r() * 24) * s; const col = cols[(r() * cols.length) | 0]; const rg = ctx.createRadialGradient(x, y, 0, x, y, rad); rg.addColorStop(0, col + "cc"); rg.addColorStop(1, col + "00"); ctx.fillStyle = rg; ctx.fillRect(x - rad, y - rad, rad * 2, rad * 2); }
+    let bx = 0; while (bx < w) { const bw = (30 + r() * 44) * s, bh = (60 + r() * 170) * s; ctx.fillStyle = "#06060f"; ctx.fillRect(bx, h - bh, bw, bh); ctx.fillStyle = "rgba(255,220,120,.22)"; for (let wy = h - bh + 10 * s; wy < h - 10 * s; wy += 16 * s) for (let wx = bx + 7 * s; wx < bx + bw - 7 * s; wx += 14 * s) if (r() > 0.5) ctx.fillRect(wx, wy, 5 * s, 7 * s); bx += bw + 4 * s; }
+  } else if (kind === "sunset") {
+    ctx.fillStyle = linGrad([[0, "#2b1a4d"], [0.42, "#7a2b6d"], [0.68, "#c84b6a"], [0.82, "#e07a4e"], [1, "#3a1530"]]); ctx.fillRect(0, 0, w, h);
+    const sg = ctx.createRadialGradient(w / 2, h * 0.74, 4, w / 2, h * 0.74, h * 0.55); sg.addColorStop(0, "#ffdf9acc"); sg.addColorStop(1, "#ffdf9a00"); ctx.fillStyle = sg; ctx.fillRect(0, 0, w, h);
+  } else if (kind === "cyber") {
+    ctx.fillStyle = linGrad([[0, "#12042a"], [0.55, "#2a0a4a"], [1, "#05010f"]]); ctx.fillRect(0, 0, w, h);
+    const hz = h * 0.6;
+    const sg = ctx.createLinearGradient(0, hz - 44 * s, 0, hz + 44 * s); sg.addColorStop(0, "#ff2d9500"); sg.addColorStop(0.5, "#ff2d95aa"); sg.addColorStop(1, "#ff2d9500"); ctx.fillStyle = sg; ctx.fillRect(0, hz - 44 * s, w, 88 * s);
+    ctx.strokeStyle = "rgba(24,224,255,.5)"; ctx.lineWidth = 1.5 * s;
+    for (let i = 1; i <= 10; i++) { const y = hz + (h - hz) * (i * i / 100); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+    for (let i = -10; i <= 10; i++) { ctx.beginPath(); ctx.moveTo(w / 2 + i * (w / 40), hz); ctx.lineTo(w / 2 + i * (w / 9), h); ctx.stroke(); }
+  } else if (kind === "purple") {
+    const g = ctx.createRadialGradient(w / 2, h * 0.4, 10, w / 2, h * 0.5, Math.max(w, h));
+    g.addColorStop(0, "#4a1d7a"); g.addColorStop(0.6, "#240f45"); g.addColorStop(1, "#0a0518"); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  } else if (kind === "stars") {
+    ctx.fillStyle = linGrad([[0, "#0e0a2a"], [1, "#050510"]]); ctx.fillRect(0, 0, w, h);
+    const r = mulberry(21);
+    for (let i = 0; i < 100; i++) { const x = r() * w, y = r() * h, rad = (0.6 + r() * 1.9) * s; ctx.globalAlpha = 0.4 + r() * 0.6; ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(x, y, rad, 0, 7); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    for (let i = 0; i < 7; i++) { const x = r() * w, y = r() * h * 0.7; const rg = ctx.createRadialGradient(x, y, 0, x, y, 11 * s); rg.addColorStop(0, "#bcd8ffcc"); rg.addColorStop(1, "#bcd8ff00"); ctx.fillStyle = rg; ctx.fillRect(x - 11 * s, y - 11 * s, 22 * s, 22 * s); }
+  } else if (kind === "holo") {
+    ctx.fillStyle = "#0a0a14"; ctx.fillRect(0, 0, w, h);
+    const g = ctx.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0, "#3a1560"); g.addColorStop(0.3, "#123a66"); g.addColorStop(0.55, "#12664f"); g.addColorStop(0.8, "#6a2a66"); g.addColorStop(1, "#201040");
+    ctx.globalAlpha = 0.75; ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); ctx.globalAlpha = 1;
+    ctx.fillStyle = "rgba(0,0,0,.32)"; ctx.fillRect(0, 0, w, h);
   }
 }
 
@@ -230,19 +297,24 @@ function tracePath(ctx, pts, s, lw, blur) {
 function drawStroke(ctx, st, s) {
   ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.lineJoin = ctx.lineCap = "round";
   ctx.strokeStyle = st.color; ctx.shadowColor = st.color;
-  tracePath(ctx, st.points, s, st.width * s, 22 * s);
-  tracePath(ctx, st.points, s, st.width * 0.7 * s, 12 * s);
-  ctx.strokeStyle = "rgba(255,255,255,.92)";
-  tracePath(ctx, st.points, s, Math.max(2, st.width * 0.34) * s, 6 * s);
+  // 넓은 후광 → 중간 광 → 진한 튜브 → 흰빛 코어
+  ctx.globalAlpha = 0.5; tracePath(ctx, st.points, s, st.width * 1.2 * s, 50 * s);
+  ctx.globalAlpha = 0.75; tracePath(ctx, st.points, s, st.width * s, 28 * s);
+  ctx.globalAlpha = 1; tracePath(ctx, st.points, s, st.width * 0.72 * s, 13 * s);
+  tracePath(ctx, st.points, s, st.width * 0.5 * s, 7 * s);
+  ctx.strokeStyle = "rgba(255,255,255,.96)"; ctx.shadowColor = st.color;
+  tracePath(ctx, st.points, s, Math.max(1.8, st.width * 0.26) * s, 4 * s);
   ctx.restore();
 }
 function drawText(ctx, it, s) {
   ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   ctx.font = (it.size * s) + 'px "Pacifico","Nanum Pen Script",cursive';
   ctx.shadowColor = it.color; ctx.fillStyle = it.color;
-  ctx.shadowBlur = 24 * s; ctx.fillText(it.text, it.x * s, it.y * s);
-  ctx.shadowBlur = 13 * s; ctx.fillText(it.text, it.x * s, it.y * s);
-  ctx.shadowBlur = 6 * s; ctx.fillStyle = "rgba(255,255,255,.92)"; ctx.fillText(it.text, it.x * s, it.y * s);
+  ctx.globalAlpha = 0.5; ctx.shadowBlur = 48 * s; ctx.fillText(it.text, it.x * s, it.y * s);
+  ctx.globalAlpha = 0.8; ctx.shadowBlur = 26 * s; ctx.fillText(it.text, it.x * s, it.y * s);
+  ctx.globalAlpha = 1; ctx.shadowBlur = 13 * s; ctx.fillText(it.text, it.x * s, it.y * s);
+  ctx.shadowBlur = 6 * s; ctx.fillText(it.text, it.x * s, it.y * s);
+  ctx.shadowBlur = 4 * s; ctx.fillStyle = "rgba(255,255,255,.96)"; ctx.fillText(it.text, it.x * s, it.y * s);
   ctx.restore();
 }
 function renderTo(ctx, s) {
@@ -346,13 +418,23 @@ function setTool(t) {
   if (t === "text") setTimeout(() => $("textInput").focus(), 50);
 }
 function setSize(i) { sizeIdx = i; $("sizeSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.size === i)); }
-function cycleWall() { wallIdx = (wallIdx + 1) % WALLS.length; $("wallBtn").textContent = "벽: " + WALLS[wallIdx].label; drawWall(bgx, dpr, WALLS[wallIdx].k); }
+function buildWalls() {
+  const box = $("wallrow"); box.innerHTML = "";
+  WALLS.forEach((wl, i) => {
+    const el = document.createElement("div");
+    el.className = "wchip" + (i === wallIdx ? " on" : "");
+    el.textContent = wl.label;
+    el.addEventListener("click", () => { wallIdx = i; if (bgx) drawWall(bgx, dpr, wl.k); buildWalls(); });
+    box.appendChild(el);
+  });
+}
+function toggleWallRow() { const on = $("wallrow").classList.toggle("show"); $("wallBtn").classList.toggle("on", on); }
 function toggleFlicker() { flicker = !flicker; fx.classList.toggle("flicker", flicker); $("flickBtn").classList.toggle("on", flicker); }
 
 /* ================= 이벤트 ================= */
 $("startBtn").addEventListener("click", () => { show("editScreen"); requestAnimationFrame(() => { initCanvas(); }); });
 $("backBtn").addEventListener("click", () => show("startScreen"));
-$("wallBtn").addEventListener("click", cycleWall);
+$("wallBtn").addEventListener("click", toggleWallRow);
 $("flickBtn").addEventListener("click", toggleFlicker);
 $("toolSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setTool(b.dataset.tool); });
 $("sizeSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setSize(+b.dataset.size); });
@@ -371,6 +453,7 @@ let resizeTm = null;
 window.addEventListener("resize", () => { if (!$("editScreen").classList.contains("active")) return; clearTimeout(resizeTm); resizeTm = setTimeout(sizeCanvas, 200); });
 
 buildPalette();
+buildWalls();
 </script>
 </body>
 </html>
