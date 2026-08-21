@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>꼬직 · 특징만 보고 그리기</title>
+<meta property="og:type" content="website" />
+<meta property="og:title" content="꼬직 · 특징만 보고 그리기" />
+<meta property="og:description" content="특징 힌트만 보고 정답을 상상해서 그려보기" />
+<!-- 웹폰트: 임팩트체(Black Han Sans)·둥근굵은체(Jua)·본문(Pretendard) -->
+<link rel="stylesheet" as="style" crossorigin
+  href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Jua&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ===== (1) 시작 ===== -->
+  <section class="screen start active" id="startScreen">
+    <div class="titlebar">
+      <div class="logo">꼬직</div>
+      <div class="round-badge">관찰 시리즈</div>
+    </div>
+    <div class="start-center">
+      <h1 class="game-title stroke">특징만 보고<br>그리기</h1>
+      <p class="start-sub">힌트만 보고 정답을 상상해서 그려라!<br>정답은 제출한 뒤에야 공개된다. 원본 그림은 없다.</p>
+      <button class="btn green big" id="pickBtn">문제 뽑기</button>
+    </div>
+  </section>
+
+  <!-- ===== (2) 힌트 + 그리기 ===== -->
+  <section class="screen draw" id="drawScreen">
+    <div class="titlebar">
+      <div class="logo">꼬직</div>
+      <div class="round-badge">이걸 그려보세요</div>
+    </div>
+
+    <div class="draw-main">
+      <!-- 힌트 열 (전광판 스타일) -->
+      <aside class="hint-col panel">
+        <div class="panel-title">특징 힌트 <span class="hint-counter" id="hintCounter">1 / 4</span></div>
+        <div class="hint-list" id="hintList"><!-- JS 주입 --></div>
+        <button class="btn blue more-btn" id="moreHintBtn">힌트 더보기</button>
+      </aside>
+
+      <!-- 그리기 열 -->
+      <div class="canvas-col">
+        <div class="canvas-wrap panel" id="canvasWrap">
+          <canvas id="canvas"></canvas>
+          <div class="scan-overlay" id="scanOverlay">
+            <div class="scan-box"><div class="scan-text" id="scanText">판독 중...</div></div>
+          </div>
+        </div>
+
+        <!-- 그리기 도구 (플래시게임 팔레트) -->
+        <div class="palette-bar panel">
+          <div class="swatches" id="swatches"><!-- JS 주입 --></div>
+          <div class="pal-divider"></div>
+          <div class="brushes" id="brushes">
+            <button class="brush" data-size="0" title="얇게"><span class="dot d1"></span></button>
+            <button class="brush on" data-size="1" title="보통"><span class="dot d2"></span></button>
+            <button class="brush" data-size="2" title="굵게"><span class="dot d3"></span></button>
+          </div>
+          <button class="tool eraser" id="eraserBtn">지우개</button>
+        </div>
+
+        <div class="draw-controls">
+          <div class="tools">
+            <button class="tool" id="undoBtn">되돌리기</button>
+            <button class="tool" id="clearBtn">전체 지우기</button>
+          </div>
+          <button class="btn red submit-btn" id="submitBtn" disabled>제출 ㄱㄱ</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== (3) 정답 공개 ===== -->
+  <section class="screen result" id="resultScreen">
+    <div class="titlebar">
+      <div class="logo">꼬직</div>
+      <div class="round-badge">정답 공개</div>
+    </div>
+
+    <div class="result-main">
+      <div class="answer-col panel">
+        <div class="answer-tag">정답</div>
+        <div class="answer-name stroke" id="answerName">도라에몽</div>
+
+        <div class="match-block">
+          <div class="match-top">
+            <span class="match-label">일치율</span>
+            <span class="match-val" id="matchVal">0%</span>
+          </div>
+          <div class="match-track"><div class="match-fill" id="matchFill"></div></div>
+          <span class="match-note">실제 인식 아님 · 재미용 수치</span>
+        </div>
+
+        <p class="result-comment" id="resultComment"></p>
+
+        <div class="result-btns">
+          <button class="btn green" id="againBtn">다시 뽑기</button>
+          <button class="btn yellow" id="saveBtn">내 그림 저장</button>
+        </div>
+      </div>
+
+      <div class="drawing-col panel">
+        <div class="drawing-cap">내가 그린 것</div>
+        <img id="drawingImg" alt="내가 그린 그림" />
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
