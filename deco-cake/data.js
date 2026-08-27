@@ -105,6 +105,61 @@ window.ORDERS = [
     { type: "topping", topping: "sprinkle", count: 5, mode: "min", where: "border", label: "테두리에 스프링클 많이" },
     { type: "topping", topping: "heart", count: 1, mode: "min", where: "center", label: "가운데 하트" },
   ]},
+  { customer: "야근한 김대리", base: "vanilla", require: [
+    { type: "icing", color: "yellow", label: "노랑 아이싱으로 덮기" },
+    { type: "topping", topping: "chocochip", count: 4, mode: "min", label: "초코칩 4개 이상" },
+    { type: "writing", need: true, label: "'힘내' 라고 글씨" },
+  ]},
+  { customer: "SNS 인플루언서", base: "strawberry", require: [
+    { type: "icing", color: "pink", label: "딸기핑크 아이싱" },
+    { type: "topping", topping: "macaron", count: 3, mode: "min", label: "마카롱 3개 이상" },
+    { type: "topping", topping: "heart", count: 1, mode: "min", where: "center", label: "가운데에 하트" },
+    { type: "topping", topping: "ribbon", count: 1, mode: "min", label: "리본 장식" },
+  ]},
+  { customer: "무뚝뚝한 아저씨", base: "choco", require: [
+    { type: "icing", color: "choco", label: "초코 아이싱" },
+    { type: "topping", topping: "cherry", count: 3, mode: "exact", label: "체리 정확히 3개" },
+    { type: "forbid", topping: "sprinkle", label: "화려한 스프링클 금지" },
+  ]},
+  { customer: "쌍둥이 엄마", base: "vanilla", require: [
+    { type: "icing", color: "mint", label: "민트 아이싱" },
+    { type: "candle", count: 2, label: "초 정확히 2개" },
+    { type: "topping", topping: "starcandy", count: 4, mode: "min", label: "별사탕 4개 이상" },
+    { type: "writing", need: true, label: "축하 글씨" },
+  ]},
+  { customer: "새침한 손님", base: "black", require: [
+    { type: "icing", color: "white", label: "흰생크림으로 덮기" },
+    { type: "topping", topping: "blueberry", count: 4, mode: "min", label: "블루베리 4개 이상" },
+    { type: "topping", topping: "heart", count: 1, mode: "min", where: "center", label: "가운데 하트" },
+  ]},
+  { customer: "달달한 거 좋아", base: "carrot", require: [
+    { type: "icing", color: "pink", label: "딸기핑크 아이싱" },
+    { type: "topping", topping: "heartjelly", count: 4, mode: "min", label: "하트젤리 4개 이상" },
+    { type: "topping", topping: "candy", count: 4, mode: "min", label: "캔디 4개 이상" },
+  ]},
+  { customer: "생일 주인공", base: "choco", require: [
+    { type: "icing", color: "choco", label: "초코 아이싱 전체" },
+    { type: "candle", count: 4, label: "초 정확히 4개" },
+    { type: "topping", topping: "strawberry", count: 3, mode: "min", where: "border", label: "테두리에 딸기 3개+" },
+    { type: "writing", need: true, label: "축하 글씨" },
+  ]},
+  { customer: "심플 이즈 베스트", base: "greentea", require: [
+    { type: "icing", color: "white", label: "흰생크림 깔끔하게" },
+    { type: "topping", topping: "blueberry", count: 3, mode: "exact", where: "center", label: "가운데 블루베리 딱 3개" },
+    { type: "forbid", topping: "sprinkle", label: "스프링클 금지" },
+  ]},
+  { customer: "리본 좋아 공주님", base: "strawberry", require: [
+    { type: "icing", color: "pink", label: "딸기핑크 아이싱" },
+    { type: "topping", topping: "ribbon", count: 2, mode: "min", label: "리본 2개 이상" },
+    { type: "topping", topping: "heart", count: 1, mode: "min", where: "center", label: "가운데에 하트" },
+    { type: "topping", topping: "starcandy", count: 3, mode: "min", label: "별사탕 3개 이상" },
+  ]},
+  { customer: "초코 덕후", base: "choco", require: [
+    { type: "icing", color: "choco", label: "초코 아이싱 진하게" },
+    { type: "topping", topping: "chocochip", count: 6, mode: "min", label: "초코칩 잔뜩(6개+)" },
+    { type: "forbid", topping: "sprinkle", label: "스프링클 금지" },
+    { type: "writing", need: false, label: "글씨 없이" },
+  ]},
 ];
 
 /* 손님 외형 (성격별로 구분) — 얼굴/머리/눈썹/옷을 파라미터화. app.js drawCustomer가 사용.
@@ -119,6 +174,16 @@ window.CUSTOMER_LOOKS = {
   "조카 생일 이모":    { face: "round",  skin: "#FBD7B8", hair: "curly",    hairColor: "#B05A2E", cloth: "#FF7AA8" },
   "미니멀 손님":       { face: "square", skin: "#F3D3B0", hair: "bun",      hairColor: "#4A3A30", cloth: "#7A8894" },
   "욕심쟁이 손님":     { face: "round",  skin: "#F0C79E", hair: "spiky",    hairColor: "#1F2A44", cloth: "#E5453C" },
+  "야근한 김대리":     { face: "square", skin: "#E7B688", hair: "short",    hairColor: "#22201E", cloth: "#4A6A9A" },
+  "SNS 인플루언서":    { face: "round",  skin: "#FBE0C8", hair: "long",     hairColor: "#C98A3B", cloth: "#FF7AA8" },
+  "무뚝뚝한 아저씨":   { face: "square", skin: "#DFB088", hair: "bald",     hairColor: "#2B2622", cloth: "#556070" },
+  "쌍둥이 엄마":       { face: "round",  skin: "#FAD6BE", hair: "bob",      hairColor: "#5A3E28", cloth: "#3FB57A" },
+  "새침한 손님":       { face: "round",  skin: "#F3D3B0", hair: "ponytail", hairColor: "#3A2E26", cloth: "#8E5AD0" },
+  "달달한 거 좋아":    { face: "round",  skin: "#FBD7B8", hair: "curly",    hairColor: "#8A5A2E", cloth: "#FF9EB6" },
+  "생일 주인공":       { face: "round",  skin: "#FBE0C8", hair: "spiky",    hairColor: "#B0402E", cloth: "#FFC24D" },
+  "심플 이즈 베스트":  { face: "square", skin: "#EAC49A", hair: "bun",      hairColor: "#2B2622", cloth: "#5AC0D8" },
+  "리본 좋아 공주님":  { face: "round",  skin: "#FDE3CE", hair: "long",     hairColor: "#3A2E26", cloth: "#FF6FAE" },
+  "초코 덕후":         { face: "square", skin: "#D9A472", hair: "short",    hairColor: "#3A2416", cloth: "#7A4A2E" },
 };
 
 window.STAR_COMMENTS = {
