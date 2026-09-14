@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>꼬직 · 삐연시</title>
+<meta property="og:type" content="website" />
+<meta property="og:title" content="꼬직 · 삐연시" />
+<meta property="og:description" content="서커스단 삐에로 셋에게 구애받는 오토메 연애 시뮬레이션" />
+<!-- 웹폰트: 타이틀/본문/이름표(Gowun Batang 400·700) · UI 보조(Gowun Dodum) -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&display=swap" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ===== (1) 상단 호감도 HUD (CHAR_ORDER 로 자동 생성) ===== -->
+  <header class="hud" id="hud"></header>
+
+  <!-- ===== (2) 무대 ===== -->
+  <div class="stage" id="stage">
+
+    <!-- 배경: 두 장을 겹쳐 크로스페이드 -->
+    <div class="bg" id="bgA"></div>
+    <div class="bg" id="bgB"></div>
+
+    <!-- 캐릭터 CG (여러 명 배치 가능. 말하는 쪽만 밝게) -->
+    <div class="char-layer" id="charLayer"></div>
+
+    <!-- 비네트는 CG 위에 얹혀 가장자리를 눌러준다 -->
+    <div class="vignette"></div>
+
+    <!-- 메신저 -->
+    <section class="chat-view off" id="chatView">
+      <div class="chat-bar">
+        <div class="chat-avatar" id="chatAvatar"></div>
+        <div class="chat-meta">
+          <div class="chat-title" id="chatTitle"></div>
+          <div class="chat-status">대화 중</div>
+        </div>
+      </div>
+      <div class="chat-scroll" id="chatScroll"></div>
+    </section>
+
+    <!-- 선택지 (화면 중앙 오버레이) -->
+    <div class="choice-layer" id="choiceLayer" hidden>
+      <div class="choice-caption">마음을 정하세요</div>
+      <div class="choices" id="choices"></div>
+    </div>
+
+  </div>
+
+  <!-- ===== (3) 다이얼로그 박스 ===== -->
+  <div class="dialogue-wrap" id="dialogueWrap">
+    <div class="dialogue" id="dialogue">
+      <div class="nametag off" id="nametag"><span id="nametagText"></span></div>
+      <p class="line" id="line"></p>
+      <span class="next-mark" id="nextMark"></span>
+    </div>
+    <div class="tap-hint" id="tapHint">화면을 누르면 계속</div>
+  </div>
+
+  <!-- ===== (4) 타이틀 — 표지 CG 위에 로고를 얹는다 ===== -->
+  <section class="screen active" id="titleScreen">
+    <div class="title-cover" id="titleCover"></div>
+    <div class="title-veil"></div>
+    <div class="title-inner">
+      <h1 class="game-title">삐연시</h1>
+      <div class="title-rule"></div>
+      <p class="title-sub">서커스 천막에 들어선 첫날,<br>빨간 코 셋이 나를 동시에 바라봤다.</p>
+      <button class="btn" type="button" id="startBtn">게임 시작</button>
+      <p class="title-foot">엔딩 6종 · 선택으로 마음이 갈린다</p>
+      <div class="wordmark">꼬직</div>
+    </div>
+  </section>
+
+  <!-- ===== (5) 엔딩 ===== -->
+  <section class="screen" id="endScreen">
+    <div class="end-inner">
+      <div class="end-art" id="endArt"></div>
+      <div class="end-kicker" id="endKicker"></div>
+      <h2 class="end-title" id="endTitle"></h2>
+      <div class="title-rule"></div>
+      <p class="end-text" id="endText"></p>
+      <div class="end-score" id="endScore"></div>
+      <div class="end-btns">
+        <button class="btn" type="button" id="againBtn">처음으로</button>
+        <button class="btn ghost" type="button" id="listBtn">엔딩 목록</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== (6) 엔딩 목록 ===== -->
+  <section class="screen" id="listScreen">
+    <div class="end-inner">
+      <div class="end-kicker">Collection</div>
+      <h2 class="end-title">엔딩 목록</h2>
+      <div class="title-rule"></div>
+      <ul class="ending-list" id="endingList"></ul>
+      <button class="btn" type="button" id="listCloseBtn">닫기</button>
+    </div>
+  </section>
+
+</div>
+
+<script src="characters.js"></script>
+<script src="story.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
