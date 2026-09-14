@@ -665,8 +665,8 @@ body { display: flex; align-items: center; justify-content: center; min-height: 
   z-index: 2;
   height: 100%;
   justify-content: flex-end;
-  gap: 9px;
-  padding: 26px 24px 24px;
+  gap: 8px;
+  padding: 22px 22px 22px;
 }
 @keyframes screenIn {
   from { opacity: 0; transform: translateY(10px); }
@@ -677,7 +677,7 @@ body { display: flex; align-items: center; justify-content: center; min-height: 
 .wordmark {
   font-family: var(--font-ui);
   font-weight: 700;
-  font-size: clamp(15px, 3.6cqw, 25px);
+  font-size: clamp(18px, 4.3cqw, 30px);
   letter-spacing: .42em;
   text-indent: .42em;
   color: var(--gold-l);
@@ -713,7 +713,7 @@ body { display: flex; align-items: center; justify-content: center; min-height: 
 .game-title {
   font-family: var(--font-title);
   font-weight: 700;
-  font-size: clamp(64px, 19cqw, 140px);
+  font-size: clamp(70px, 20cqw, 150px);
   line-height: 1.1;
   letter-spacing: .06em;
   color: #FFFFFF;
@@ -725,7 +725,7 @@ body { display: flex; align-items: center; justify-content: center; min-height: 
 }
 .title-sub {
   font-weight: 700;
-  font-size: clamp(17px, 3.9cqw, 28px);
+  font-size: clamp(20px, 4.8cqw, 34px);
   line-height: 1.95;
   color: #FFFFFF;
   word-break: keep-all;
@@ -735,7 +735,7 @@ body { display: flex; align-items: center; justify-content: center; min-height: 
 .title-foot {
   font-family: var(--font-ui);
   font-weight: 700;
-  font-size: clamp(14px, 3.1cqw, 22px);
+  font-size: clamp(16px, 3.8cqw, 26px);
   letter-spacing: .14em;
   color: #FFFFFF;
   text-shadow: var(--ink-outline), 0 2px 8px rgba(9, 2, 6, .95);
@@ -746,7 +746,7 @@ body { display: flex; align-items: center; justify-content: center; min-height: 
 .btn {
   font-family: var(--font-body);
   font-weight: 700;
-  font-size: clamp(19px, 4.4cqw, 32px);
+  font-size: clamp(22px, 5.2cqw, 38px);
   letter-spacing: .14em;
   text-indent: .14em;
   color: var(--ink);
