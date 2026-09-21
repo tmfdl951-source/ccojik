@@ -71,7 +71,7 @@
   /* 바탕 사진. 사진 안에서 혀가 차지하는 자리를 0~1 비율로 적어 둔다.
      (540x360 원본 기준 — 사진을 바꾸면 이 네 값만 다시 잡으면 된다) */
   const PHOTO = { src: "tongue.jpg", w: 540, h: 360,
-                  x0: 0.425, x1: 0.585, y0: 0.470, y1: 0.815 };
+                  x0: 0.422, x1: 0.583, y0: 0.478, y1: 0.811 };
   const photo = new Image();
   let photoOK = false;
 
@@ -94,7 +94,16 @@
     try { d = g.getImageData(0, 0, c.width, c.height); }
     catch (_) { return c; }                 // file:// 로 열면 픽셀을 못 읽는다. 사진 그대로 쓴다.
     const px = d.data, W2 = c.width, H2 = c.height;
-    const isBg = i => px[i] > 228 && px[i + 1] > 228 && px[i + 2] > 228;
+    /* 네 모서리에서 배경색을 잰다 */
+    const at = (x, y) => { const i = (y * W2 + x) * 4; return [px[i], px[i + 1], px[i + 2]]; };
+    const corners = [at(0, 0), at(W2 - 1, 0), at(0, H2 - 1), at(W2 - 1, H2 - 1)];
+    const bg = [0, 1, 2].map(k => corners.reduce((s, c2) => s + c2[k], 0) / 4);
+    /* 그 색과 거의 같을 때만 배경. 기준을 넓게 잡으면 은색 숟가락처럼
+       밝은 물체가 바깥과 이어진 채 같이 파먹힌다. */
+    const TOL = 14;
+    const isBg = i => Math.abs(px[i] - bg[0]) <= TOL
+                   && Math.abs(px[i + 1] - bg[1]) <= TOL
+                   && Math.abs(px[i + 2] - bg[2]) <= TOL;
     const seen = new Uint8Array(W2 * H2);
     const stack = [];
     for (let x = 0; x < W2; x++) { stack.push(x, (H2 - 1) * W2 + x); }
@@ -125,8 +134,12 @@
       const sp = cutWhite(im);
       /* 배경을 거의 못 지웠다면(사진이 흰 배경이 아니거나 픽셀을 못 읽은 경우)
          흰 사각형이 혀를 덮는다. 그럴 때는 곱하기로 얹어 밝은 곳이 비치게 한다. */
+      /* 거의 안 지웠으면(흰 배경이 아니거나 픽셀을 못 읽음) 곱하기로 얹고,
+         거의 다 지웠으면(남는 게 없음) 사진을 버리고 픽셀 도구로 간다. */
+      const cut = sp.__cut;
+      if (cut > 0.985) return;                  // 도구가 통째로 사라진 경우
       toolArt[t.key] = { cv: sp, w: im.naturalWidth, h: im.naturalHeight, a: t.art,
-                         mul: !(sp.__cut > 0.15) };
+                         mul: !(cut > 0.15) };
       drawArt();
     };
     im.onerror = () => {};                  // 없으면 아래 픽셀 그림으로 그린다
@@ -281,9 +294,12 @@
       if (art) {
         // 머리 폭을 혀 폭에 맞춰 사진을 키운다. 머리 끝이 지금 깊이에 놓이게.
         const headW = (art.a.headR - art.a.headL) * art.w;
-        const k = (G.tw * 1.06) / headW;
+        const k = (G.tw * 1.00) / headW;      // 머리 폭 = 혀 폭
         const dw = art.w * k, dh = art.h * k;
-        const dx = G.cx - dw / 2, dy = y - art.a.tip * dh;
+        /* 머리 끝을 그대로 깊이에 놓으면 날이 혀 위에 떠 보인다.
+           머리 높이의 절반만큼 올려 날 가운데가 그 깊이에 닿게 한다. */
+        const headH = (art.a.headR - art.a.headL) * art.w * k * 0.5;
+        const dx = G.cx - dw / 2, dy = y - art.a.tip * dh - headH * 0.5;
         // 손잡이가 화면 아래까지 안 닿으면 이어 그려 준다
         const end = dy + dh;
         if (end < h) {
