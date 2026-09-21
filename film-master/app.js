@@ -49,6 +49,11 @@
   };
 
   let mouse = { x: CW / 2, y: CH / 2, down: false, px: CW / 2, py: CH / 2 };
+  /* 마우스 hover 가 없는 기기 = 터치. 안내 문구와 조작 방식을 여기에 맞춘다. */
+  const TOUCH = (() => {
+    try { return matchMedia('(hover: none)').matches || 'ontouchstart' in window; }
+    catch (_) { return false; }   // 여기서 죽으면 게임이 통째로 안 뜬다
+  })();
   let raf = null;
 
   /* ============================================================
@@ -225,6 +230,7 @@
     banner('STEP 1', '먼지를 털어내세요');
     $('hint').innerHTML = '액정 위 먼지를 <b>문질러</b> 지우세요';
     $('actionBtn').hidden = true;
+    const tl = $('tilt'); if (tl) tl.hidden = true;
   }
 
   function goAlign() {
@@ -232,10 +238,12 @@
     startTimer(state.stage.film.time);     // 부착도 제한시간 안에 — 넘기면 그 상태로 붙는다
     banner('STEP 2', '필름을 맞추세요');
     $('hint').innerHTML = state.stage.gimmick.guide
-      ? '마우스로 위치 · <b>휠로 각도</b> · 부착은 단 한 번'
+      ? (TOUCH ? '끌어서 위치 · <b>각도 버튼</b>이나 두 손가락 · 부착은 단 한 번'
+               : '마우스로 위치 · <b>휠로 각도</b> · 부착은 단 한 번')
       : '<b>가이드 없음</b> · 감으로 맞추세요 · 부착은 단 한 번';
     const b = $('actionBtn');
     b.hidden = false; b.textContent = '부착!'; b.classList.add('pulse');
+    const tl = $('tilt'); if (tl) tl.hidden = false;
   }
 
   function attach() {
@@ -245,6 +253,7 @@
     state.shakeT = performance.now();
     $('actionBtn').hidden = true;
     $('actionBtn').classList.remove('pulse');
+    const tl = $('tilt'); if (tl) tl.hidden = true;
 
     // 필름 아래 기포 생성. 먼지 위에 생긴 기포는 '걸려서' 안 빠진다.
     const st = state.stage, s = screenRect();
@@ -958,8 +967,9 @@
     if (!state.bubbles.length) judge();          // 다 밀어냈으면 즉시 판정
   }
 
-  cv.addEventListener('mousemove', e => {
-    const p = toCanvas(e);
+  /* 포인터 좌표를 게임에 반영한다. dragging 은 '누르고 있는 중'.
+     PC 는 누르지 않아도 필름이 따라오므로 align 에서는 항상 반영한다. */
+  function applyPointer(p, dragging) {
     mouse.px = mouse.x; mouse.py = mouse.y;
     mouse.x = p.x; mouse.y = p.y;
 
@@ -969,33 +979,100 @@
       // 흔들리는 차 안에서는 필름이 손을 그대로 따라오지 않는다
       state.film.x = mouse.x + state.fx.shake.x * 1.6 + state.fx.knock.x + state.fx.sway;
       state.film.y = mouse.y + state.fx.shake.y * 1.6 + state.fx.knock.y;
-    } else if (state.phase === 'dust' && mouse.down) {
+    } else if (state.phase === 'dust' && dragging) {
       rubDust();
-    } else if (state.phase === 'bubble' && mouse.down) {
+    } else if (state.phase === 'bubble' && dragging) {
       pushBubbles();
     }
-  });
+  }
 
-  cv.addEventListener('mousedown', e => {
+  function tilt(d) {
+    if (state.phase !== 'align' || blocked()) return;
+    state.film.angle = Math.max(-MAX_TILT, Math.min(MAX_TILT, state.film.angle + d));
+  }
+
+  /* 두 손가락 회전용 — 눌려 있는 포인터를 전부 들고 있는다 */
+  const pts = new Map();
+  let rot = null;                           // { a: 두 손가락 각도, f: 그때의 필름 각도 }
+  const isTouch = e => e.pointerType !== 'mouse';
+  const spanAngle = () => {
+    const [p, q] = [...pts.values()];
+    return Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI;
+  };
+
+  cv.addEventListener('pointerdown', e => {
+    e.preventDefault();                     // 터치가 스크롤로 새는 것을 막는다
+    try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pts.size === 2) {                   // 두 손가락 = 각도 조절. 위치 조작은 멈춘다
+      rot = state.phase === 'align' ? { a: spanAngle(), f: state.film.angle } : null;
+      return;
+    }
+
     mouse.down = true;
     cv.classList.add('grabbing');
     const p = toCanvas(e);
     mouse.px = mouse.x = p.x; mouse.py = mouse.y = p.y;
     if (blocked()) { state.fx.caught++; return; }
     if (state.phase === 'dust') rubDust();
-    else if (state.phase === 'align') attach();   // 클릭해도 부착된다
-  });
+    else if (state.phase === 'align') {
+      // 터치는 여기서 붙이면 위치를 맞출 수 없다. 손가락 아래로 필름만 옮기고,
+      // 부착은 '부착!' 버튼으로 받는다. 마우스는 지금까지대로 클릭 = 부착.
+      if (isTouch(e)) applyPointer(p, true);
+      else attach();
+    }
+  }, { passive: false });
 
-  addEventListener('mouseup', () => { mouse.down = false; cv.classList.remove('grabbing'); });
+  cv.addEventListener('pointermove', e => {
+    e.preventDefault();
+    if (pts.has(e.pointerId)) pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-  cv.addEventListener('wheel', e => {
+    if (pts.size === 2) {                   // 두 손가락을 벌려 돌리면 각도가 바뀐다
+      if (rot && state.phase === 'align' && !blocked()) {
+        let d = spanAngle() - rot.a;
+        while (d > 180) d -= 360;
+        while (d < -180) d += 360;
+        state.film.angle = Math.max(-MAX_TILT, Math.min(MAX_TILT, rot.f + d));
+      }
+      return;
+    }
+
+    // 터치는 hover 가 없다. 손가락을 대고 있을 때만 조작으로 친다.
+    if (isTouch(e) && !mouse.down) return;
+    applyPointer(toCanvas(e), mouse.down);
+  }, { passive: false });
+
+  function endPointer(e) {
+    pts.delete(e.pointerId);
+    if (pts.size < 2) rot = null;
+    if (pts.size === 0) { mouse.down = false; cv.classList.remove('grabbing'); }
+  }
+  cv.addEventListener('pointerup', endPointer);
+  cv.addEventListener('pointercancel', endPointer);
+  // 두 손가락 중 하나만 떼었을 때 남은 손가락의 드래그를 끊지 않게, 전부 떼었을 때만 푼다
+  addEventListener('pointerup', () => { if (pts.size === 0) { mouse.down = false; cv.classList.remove('grabbing'); } });
+
+  cv.addEventListener('wheel', e => {       // PC 각도 조절
     if (state.phase !== 'align' || blocked()) return;
     e.preventDefault();
-    const dir = e.deltaY > 0 ? 1 : -1;
-    state.film.angle = Math.max(-MAX_TILT, Math.min(MAX_TILT, state.film.angle + dir * WHEEL_STEP));
+    tilt((e.deltaY > 0 ? 1 : -1) * WHEEL_STEP);
   }, { passive: false });
 
   $('actionBtn').addEventListener('click', e => { e.stopPropagation(); if (!blocked()) attach(); });
+
+  /* 터치용 각도 버튼 — 휠이 없는 기기의 대체 조작. 누르고 있으면 계속 돈다. */
+  [['tiltL', -1], ['tiltR', 1]].forEach(([id, dir]) => {
+    const b = $(id); if (!b) return;
+    let t = 0;
+    const stop = () => { clearInterval(t); t = 0; };
+    b.addEventListener('pointerdown', e => {
+      e.preventDefault(); e.stopPropagation();
+      tilt(dir * WHEEL_STEP);
+      stop(); t = setInterval(() => tilt(dir * WHEEL_STEP), 90);
+    }, { passive: false });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(k => b.addEventListener(k, stop));
+  });
 
   /* ============================================================
      결과 화면

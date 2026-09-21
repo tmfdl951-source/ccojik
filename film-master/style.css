@@ -48,7 +48,11 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
   font-synthesis: none;
 }
-body { display: flex; align-items: center; justify-content: center; min-height: 100dvh; }
+body {
+  display: flex; align-items: center; justify-content: center; min-height: 100dvh;
+  overflow: hidden;                /* 모바일에서 페이지가 통째로 밀리지 않게 */
+  overscroll-behavior: none;       /* 당겨서 새로고침 차단 */
+}
 
 /* 캔버스·이미지는 보간 없이 도트 그대로 */
 img, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
@@ -130,6 +134,7 @@ img, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 }
 #cv {
   max-width: 100%; max-height: 100%;
+  touch-action: none;              /* 기본 스크롤·줌을 끄고 조작을 전부 받는다 */
   border: 4px solid var(--ink);
   background: var(--navy);
   box-shadow: 6px 6px 0 rgba(0,0,0,.55);
@@ -168,10 +173,20 @@ img, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 .controls {
   flex-shrink: 0;
   display: flex; align-items: center; justify-content: center; gap: 20px;
+  flex-wrap: wrap;                 /* 좁으면 안내문과 버튼이 위아래로 나뉜다 */
   padding: 0 16px 14px;
   min-height: 72px;
 }
+.ctl-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: 12px; flex-wrap: wrap;
+}
+/* 휠이 없는 기기의 각도 조절. 두 손가락 회전과 같은 일을 한다. */
+.tilt { display: flex; gap: 8px; }
+.tilt[hidden] { display: none; }
+.tilt-btn { font-size: 18px; padding: 10px 14px; min-width: 92px; }
 .hint {
+  min-width: 0;                    /* flex 안에서 넘치지 않고 줄바꿈되게 */
   font-family: var(--f-body); font-weight: 700; font-size: 22px; line-height: 1.7; color: var(--navy);
   background: var(--paper); border: 3px solid var(--ink);
   padding: 9px 16px;
@@ -194,6 +209,8 @@ img, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
   transition: none;                       /* 부드러운 전환 금지 — 도트는 딱딱 끊긴다 */
 }
 .btn[hidden] { display: none; }
+/* 더블탭 확대 지연(300ms) 없이 바로 눌리게 */
+.btn, .stage-card, .detail-toggle { touch-action: manipulation; }
 .btn:hover { filter: brightness(1.12); }
 .btn:active { transform: translate(3px, 3px); box-shadow: var(--bevel), 2px 2px 0 var(--green-d); }
 .btn.big { font-size: 33px; padding: 18px 38px; box-shadow: var(--bevel), 6px 6px 0 var(--green-d); }
@@ -242,6 +259,10 @@ img, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
   max-height: 100%; overflow-y: auto;
 }
 .start-panel > * { flex-shrink: 0; }
+.game-title span {
+  display: block;
+  white-space: nowrap;             /* 줄 안에서 또 접혀 한 글자만 넘어가는 것을 막는다 */
+}
 .game-title {
   font-family: var(--f-title);
   font-weight: 700;
@@ -368,9 +389,53 @@ img, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
   .hint { font-size: 16px; }
 }
 
-/* 좁은 화면에서는 1열로 떨어뜨린다 */
+/* 좁은 화면(모바일) — 폭 때문에 깨지는 것들 */
 @media (max-width: 620px) {
   .stage-pick { grid-template-columns: 1fr; max-width: 340px; }
+
+  /* 상단 바: '남은 시간' 라벨을 접고 숫자만 남겨 스테이지명 자리를 확보한다.
+     안 그러면 스테이지명이 말줄임으로 잘려 거의 안 보인다. */
+  .titlebar { padding: 6px 10px; gap: 8px; }
+  .stage-name { font-size: 15px; letter-spacing: 1px; text-shadow: 1px 1px 0 var(--ink); }
+  .stage-sub { font-size: 12px; }
+  .timer { padding: 4px 8px; gap: 6px; }
+  .timer-label { display: none; }
+  .timer-num { font-size: 22px; min-width: 72px; text-shadow: 1px 1px 0 rgba(0,0,0,.6); }
+
+  /* 제목: 폭에 맞춰 줄이되 2줄은 유지. 자간은 em 으로 따라 줄인다.
+     이 크기에서 2px 외곽선은 자간을 다 먹으므로 1px 외곽선으로 바꾼다. */
+  .game-title {
+    font-size: clamp(20px, 7.2vw, 34px);
+    letter-spacing: .2em;
+    line-height: 1.7;
+    text-shadow: var(--dot-outline), 3px 3px 0 rgba(0,0,0,.35);
+  }
+  .start-panel { padding: 22px 20px 24px; gap: 14px; }
+  .lead { font-size: 15px; line-height: 1.9; }
+
+  /* 캔버스에 세로를 최대한 내준다 */
+  .bench { padding: 6px; }
+  .controls { gap: 10px; padding: 0 10px 10px; min-height: 0; }
+  .hint { font-size: 14px; padding: 7px 10px; line-height: 1.6; }
+  .btn.big { font-size: 22px; padding: 13px 22px; }
+  .tilt-btn { font-size: 15px; padding: 11px 12px; min-width: 84px; }
+
+  /* 손가락으로 누르기 좋은 최소 크기 */
+  .btn, .detail-toggle { min-height: 44px; }
+
+  /* 단계 배너가 좁은 화면을 넘지 않게 */
+  .step-text { font-size: 28px; letter-spacing: .18em; }
+  .step-no { font-size: 14px; letter-spacing: 4px; }
+}
+
+/* 세로로 든 휴대폰: 가로 게임이라 화면이 많이 작아진다. 한 줄로 알려 준다. */
+.rotate-tip { display: none; }
+@media (max-width: 620px) and (orientation: portrait) {
+  .rotate-tip {
+    display: block;
+    font-family: var(--f-small); font-size: 13px; line-height: 1.6;
+    color: var(--navy); letter-spacing: .5px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

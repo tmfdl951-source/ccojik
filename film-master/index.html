@@ -2,7 +2,8 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport"
+  content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>꼬직 · 보호필름 한 번에 붙이기</title>
 <meta property="og:type" content="website" />
 <meta property="og:title" content="꼬직 · 보호필름 한 번에 붙이기" />
@@ -43,7 +44,16 @@
   <!-- ===== 하단 조작 ===== -->
   <footer class="controls">
     <div class="hint" id="hint">액정 위 먼지를 문질러 지우세요</div>
-    <button class="btn red big" type="button" id="actionBtn" hidden>부착!</button>
+    <div class="ctl-row">
+      <!-- 휠이 없는 터치 기기용 각도 조절. 두 손가락으로 돌려도 된다. -->
+      <div class="tilt" id="tilt" hidden>
+        <button class="btn blue tilt-btn" type="button" id="tiltL">각도 -</button>
+        <button class="btn blue tilt-btn" type="button" id="tiltR">각도 +</button>
+      </div>
+      <button class="btn red big" type="button" id="actionBtn" hidden>부착!</button>
+    </div>
+    <!-- 세로로 든 휴대폰에서만 보인다 (CSS 로 제어) -->
+    <p class="rotate-tip">가로로 돌리면 더 크게 보입니다</p>
   </footer>
 
   <!-- 구석에 숨긴 서명 — 헤더 로고 대신 이것만 남긴다 -->
@@ -52,7 +62,7 @@
   <!-- ===== 시작 화면 ===== -->
   <section class="screen active" id="startScreen">
     <div class="panel start-panel">
-      <h1 class="game-title">보호필름<br>한 번에 붙이기</h1>
+      <h1 class="game-title"><span>보호필름</span><span>한 번에 붙이기</span></h1>
       <p class="lead">먼지 털고 · 정확히 얹고 · 기포 밀어내기<br><b>부착은 단 한 번.</b> 되돌리기 없습니다.</p>
       <div class="stage-pick" id="stagePick"></div>
       <button class="btn green big" type="button" id="startBtn">시작</button>
