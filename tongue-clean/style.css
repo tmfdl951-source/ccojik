@@ -1,0 +1,228 @@
+/* ===== 꼬직 · 혀 닦기 =====
+ * 톤: 밝은 배경 + 굵은 검정 테두리 + 픽셀 폰트. 요소 최소, 여백 넉넉.
+ * 세로 치수는 전부 화면 높이(vh)에 비례 — 어떤 화면에서도 스크롤 없이 한 화면.
+ * 금지: 이모지 / 둥근 pill / 흐린 그림자 */
+:root {
+  --ink:   #16161D;
+  --paper: #FFFDF7;
+  --line:  #16161D;
+  --pink:  #FF6E8A;
+  --pink-d:#C43D57;
+  --red:   #E92B3F;
+  --mint:  #35D0A5;
+  --sky:   #6FC9F2;
+  --gray:  #8E8E9A;
+
+  --f-title: "Galmuri11", "Malgun Gothic", "맑은 고딕", sans-serif;
+  --f-body:  "Galmuri11", "Malgun Gothic", "맑은 고딕", sans-serif;
+  --f-num:   "Press Start 2P", "Galmuri11", monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%;
+  background: #E9E6DC;
+  color: var(--ink);
+  font-family: var(--f-body);
+  -webkit-user-select: none; user-select: none;
+  -webkit-font-smoothing: none;          /* 도트가 뭉개지지 않게 */
+  font-synthesis: none;
+  overflow: hidden;                      /* 페이지가 통째로 밀리지 않게 */
+  overscroll-behavior: none;             /* 당겨서 새로고침 차단 */
+}
+canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
+
+body { display: flex; align-items: center; justify-content: center; }
+
+.app {
+  position: relative;
+  width: min(560px, 100vw);
+  height: 100dvh;
+  background: var(--paper);
+  border-left: 4px solid var(--line);
+  border-right: 4px solid var(--line);
+  overflow: hidden;
+}
+
+/* 구석 서명 — 발견하는 사람만 보인다 */
+.sig {
+  position: absolute; right: 7px; bottom: 5px; z-index: 5;
+  font-family: var(--f-body); font-size: 9px; line-height: 1;
+  color: rgba(22,22,29,.22); letter-spacing: 1px; pointer-events: none;
+}
+
+/* ============================================================
+   화면 — 전부 세로 flex, 한 화면에 딱
+   ============================================================ */
+.screen {
+  position: absolute; inset: 0;
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  gap: clamp(10px, 2.2vh, 24px);
+  padding: clamp(14px, 3vh, 30px) clamp(16px, 5vw, 34px);
+  text-align: center;
+}
+.screen.active { display: flex; }
+
+.title {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: clamp(30px, min(11vw, 6.4vh), 62px);
+  line-height: 1.35;
+  letter-spacing: .14em;                 /* 외곽선이 자간을 먹으므로 em 으로 함께 줄인다 */
+  text-shadow: 3px 3px 0 var(--pink);
+}
+.sub-title {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: clamp(22px, min(7vw, 4.4vh), 38px);
+  line-height: 1.35; letter-spacing: .12em;
+}
+
+.art {
+  width: clamp(130px, min(46vw, 26vh), 240px);
+  height: auto; display: block;
+}
+
+.lead {
+  font-family: var(--f-body); font-weight: 700;
+  font-size: clamp(13px, min(4.2vw, 2.3vh), 21px);
+  line-height: 1.6; letter-spacing: .02em; color: var(--ink);
+}
+.lead.small { font-size: clamp(12px, min(3.6vw, 2vh), 17px); color: var(--gray); }
+.lead b, .howto b { color: var(--pink-d); }
+.warn { color: var(--red) !important; }
+
+/* 조작 안내 */
+.howto {
+  list-style: none; display: flex; flex-direction: column;
+  gap: clamp(7px, 1.5vh, 14px); width: 100%; max-width: 420px; text-align: left;
+}
+.howto li {
+  font-family: var(--f-body); font-weight: 700;
+  font-size: clamp(13px, min(4vw, 2.2vh), 19px); line-height: 1.5;
+  background: #FFF3F5; border: 3px solid var(--line);
+  padding: clamp(7px, 1.4vh, 12px) clamp(10px, 3vw, 15px);
+}
+
+/* 도구 고르기 — 칩 3개 */
+.tools { display: flex; gap: clamp(6px, 2vw, 12px); flex-wrap: wrap; justify-content: center; }
+.tool {
+  font-family: var(--f-body); font-weight: 700;
+  font-size: clamp(12px, min(3.5vw, 1.9vh), 17px); line-height: 1.4;
+  background: #fff; color: var(--ink);
+  border: 3px solid var(--line); border-radius: 0;
+  padding: clamp(7px, 1.4vh, 11px) clamp(9px, 2.6vw, 15px);
+  cursor: pointer; touch-action: manipulation;
+  box-shadow: 3px 3px 0 rgba(22,22,29,.25);
+}
+.tool .t-sub { display: block; font-size: .72em; color: var(--gray); margin-top: 3px; letter-spacing: 0; }
+.tool.on { background: var(--pink); color: #fff; box-shadow: 3px 3px 0 var(--pink-d); }
+.tool.on .t-sub { color: rgba(255,255,255,.85); }
+
+/* 버튼 — 굵은 검정 바 */
+.btn {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: clamp(16px, min(5.2vw, 2.9vh), 26px); line-height: 1.45;
+  letter-spacing: .1em; color: var(--paper);
+  background: var(--ink); border: 3px solid var(--line); border-radius: 0;
+  padding: clamp(9px, 1.8vh, 15px) clamp(24px, 8vw, 46px);
+  cursor: pointer; touch-action: manipulation;
+  box-shadow: 4px 4px 0 rgba(22,22,29,.3);
+}
+.btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 rgba(22,22,29,.3); }
+
+/* ============================================================
+   플레이 화면
+   ============================================================ */
+.screen.play { justify-content: flex-start; gap: clamp(7px, 1.4vh, 13px); }
+
+.hud {
+  width: 100%; display: flex; align-items: flex-end; gap: clamp(8px, 2.5vw, 16px);
+  flex-shrink: 0;
+}
+.gauge-box { flex: 1; min-width: 0; text-align: left; }
+.gauge-label {
+  font-family: var(--f-body); font-weight: 700;
+  font-size: clamp(11px, min(3.4vw, 1.9vh), 16px); line-height: 1.3;
+  color: var(--red); letter-spacing: .06em; margin-bottom: 3px;
+}
+.gauge {
+  position: relative; width: 100%;
+  height: clamp(16px, 2.8vh, 26px);
+  background: #fff; border: 3px solid var(--line); overflow: hidden;
+}
+/* 위험구간 — 오른쪽 30% */
+.gauge-danger { position: absolute; right: 0; top: 0; bottom: 0; width: 30%; background: #FFD9DE; }
+.gauge-fill {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
+  background: var(--mint);
+}
+.gauge-fill.hot { background: var(--red); }
+.gauge.flash { animation: gflash .12s steps(1) 4; }
+@keyframes gflash { 50% { background: var(--red); } }
+
+.stat { flex-shrink: 0; text-align: right; }
+.stat-label {
+  display: block; font-family: var(--f-body); font-weight: 700;
+  font-size: clamp(9px, min(2.8vw, 1.6vh), 13px); color: var(--gray); line-height: 1.3;
+}
+.stat-num {
+  display: block; font-family: var(--f-num);
+  font-size: clamp(14px, min(4.4vw, 2.5vh), 22px); line-height: 1.4; color: var(--ink);
+}
+
+/* 게임판 — 남는 세로를 전부 가져간다 */
+.stage {
+  flex: 1 1 auto; min-height: 0; width: 100%;
+  position: relative;
+  border: 3px solid var(--line); background: #FFF6F0;
+}
+#cv {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  touch-action: none;                    /* 기본 스크롤·줌을 끄고 조작을 받는다 */
+  cursor: pointer;
+}
+
+.btn.hold {
+  flex-shrink: 0; width: 100%;
+  touch-action: none;                    /* 누르고 있는 동안 화면이 밀리지 않게 */
+  font-size: clamp(15px, min(4.6vw, 2.6vh), 23px);
+  padding: clamp(10px, 2vh, 16px) 10px;
+  background: var(--pink); border-color: var(--line); color: #fff;
+  box-shadow: 4px 4px 0 var(--pink-d);
+}
+.btn.hold:active { box-shadow: 2px 2px 0 var(--pink-d); }
+.btn.hold.on { background: var(--red); box-shadow: 2px 2px 0 #8E1220; transform: translate(2px, 2px); }
+
+/* ============================================================
+   결과
+   ============================================================ */
+.score-big {
+  font-family: var(--f-num);
+  font-size: clamp(42px, min(16vw, 9vh), 86px); line-height: 1.1;
+  color: var(--pink-d); text-shadow: 4px 4px 0 rgba(22,22,29,.16);
+}
+.score-cap {
+  font-family: var(--f-body); font-weight: 700;
+  font-size: clamp(14px, min(4.4vw, 2.4vh), 20px); color: var(--gray); margin-top: -4px;
+}
+.remark {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: clamp(16px, min(5.4vw, 3vh), 28px); line-height: 1.5; letter-spacing: .04em;
+  max-width: 460px;
+}
+.best {
+  font-family: var(--f-body); font-weight: 700;
+  font-size: clamp(12px, min(3.6vw, 2vh), 17px); color: var(--gray);
+}
+.best span { font-family: var(--f-num); color: var(--ink); }
+
+/* 아주 낮은 화면(가로로 든 휴대폰) — 그림부터 접는다. 버튼은 반드시 남긴다. */
+@media (max-height: 430px) {
+  .art { display: none; }
+  .screen { gap: clamp(6px, 1.4vh, 12px); }
+  .howto li { padding: 5px 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::after, *::before { animation: none !important; transition-duration: .01ms !important; }
+}

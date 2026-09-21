@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport"
+  content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>꼬직 · 혀 닦기</title>
+<meta property="og:type" content="website" />
+<meta property="og:title" content="꼬직 · 혀 닦기" />
+<meta property="og:description" content="구역질 나기 전에 깊게 닦으세요. 언제 뺄지가 전부입니다." />
+<!-- 한글 픽셀(Galmuri) + 영문숫자 픽셀(Press Start 2P) -->
+<link rel="stylesheet" as="style" crossorigin
+  href="https://cdn.jsdelivr.net/gh/quiple/galmuri/dist/galmuri.css" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ===== (1) 시작 ===== -->
+  <section class="screen active" id="startScreen">
+    <h1 class="title">혀 닦기</h1>
+    <canvas class="art" id="artCv" width="240" height="240"></canvas>
+    <p class="lead">구역질 나기 전에 깊게 닦으세요</p>
+
+    <div class="tools" id="tools"><!-- JS --></div>
+
+    <button class="btn" type="button" id="toGuideBtn">시작하기</button>
+  </section>
+
+  <!-- ===== (2) 조작 안내 ===== -->
+  <section class="screen" id="guideScreen">
+    <h2 class="sub-title">조작</h2>
+    <ul class="howto">
+      <li><b>누르고 있으면</b> 더 깊이 들어갑니다</li>
+      <li><b>떼면</b> 빼면서 그 깊이만큼 점수</li>
+      <li>깊을수록 <b class="warn">구역질 게이지</b>가 빨리 찹니다</li>
+      <li>꽉 차면 <b class="warn">우웩</b>. 그 판은 0점</li>
+    </ul>
+    <p class="lead small">한 판에 <b id="strokeInfo">세 번</b> 닦습니다</p>
+    <button class="btn" type="button" id="startBtn">시작하기</button>
+  </section>
+
+  <!-- ===== (3) 플레이 ===== -->
+  <section class="screen play" id="playScreen">
+    <div class="hud">
+      <div class="gauge-box">
+        <div class="gauge-label">구역질</div>
+        <div class="gauge"><div class="gauge-danger"></div><div class="gauge-fill" id="gaugeFill"></div></div>
+      </div>
+      <div class="stat">
+        <span class="stat-label">점수</span><span class="stat-num" id="scoreNum">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">남은 횟수</span><span class="stat-num" id="leftNum">3</span>
+      </div>
+    </div>
+
+    <div class="stage" id="stage"><canvas id="cv"></canvas></div>
+
+    <button class="btn hold" type="button" id="holdBtn">누르고 있기</button>
+  </section>
+
+  <!-- ===== (4) 결과 ===== -->
+  <section class="screen" id="resultScreen">
+    <div class="score-big" id="finalScore">0</div>
+    <div class="score-cap">점</div>
+    <p class="remark" id="remark"></p>
+    <p class="best">최고 <span id="bestNum">0</span>점</p>
+    <button class="btn" type="button" id="againBtn">다시 하기</button>
+  </section>
+
+  <div class="sig">ccojik</div>
+</div>
+
+<script src="app.js"></script>
+<script>window.SITE_ANALYTICS_PROJECT='ccojik-tongue-clean';</script>
+<script src="../analytics.js"></script>
+</body>
+</html>
