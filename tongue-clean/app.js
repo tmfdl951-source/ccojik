@@ -33,7 +33,7 @@
        headL~headR = 머리 좌우 비율, tip = 머리 끝의 세로 비율.
        사진을 바꾸면 이 세 값만 다시 잡으면 된다. */
     { key: "cleaner", name: "텅클리너", sub: "무난",       gag: 1.00, score: 1.00,
-      art: { src: "cleaner.png", headL: 0.426, headR: 0.582, tip: 0.021 } },
+      art: { src: "cleaner.png", headL: 0.40, headR: 0.60, tip: 0.02 } },
     { key: "brush",   name: "칫솔",     sub: "좀 더 아슬", gag: 1.22, score: 1.42,
       art: { src: "brush.jpg",   headL: 0.41, headR: 0.59, tip: 0.02 } },
     { key: "spoon",   name: "숟가락",   sub: "왜요",       gag: 1.55, score: 2.05,
