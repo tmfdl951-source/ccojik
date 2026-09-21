@@ -33,7 +33,7 @@
        headL~headR = 머리 좌우 비율, tip = 머리 끝의 세로 비율.
        사진을 바꾸면 이 세 값만 다시 잡으면 된다. */
     { key: "cleaner", name: "텅클리너", sub: "무난",       gag: 1.00, score: 1.00,
-      art: { src: "cleaner.jpg", headL: 0.40, headR: 0.60, tip: 0.02 } },
+      art: { src: "cleaner.png", headL: 0.40, headR: 0.60, tip: 0.02 } },
     { key: "brush",   name: "칫솔",     sub: "좀 더 아슬", gag: 1.22, score: 1.42,
       art: { src: "brush.jpg",   headL: 0.41, headR: 0.59, tip: 0.02 } },
     { key: "spoon",   name: "숟가락",   sub: "왜요",       gag: 1.55, score: 2.05,
@@ -94,6 +94,13 @@
     try { d = g.getImageData(0, 0, c.width, c.height); }
     catch (_) { return c; }                 // file:// 로 열면 픽셀을 못 읽는다. 사진 그대로 쓴다.
     const px = d.data, W2 = c.width, H2 = c.height;
+
+    /* 이미 누끼가 된 그림(PNG)은 그대로 쓴다. 여기서 배경 지우기를 돌리면
+       '안쪽 되살리기'가 가운데 뚫린 곳까지 메워 혀가 안 비친다. */
+    let clear = 0;
+    for (let p = 3; p < px.length; p += 4) if (px[p] < 250) clear++;
+    if (clear > px.length / 4 * 0.05) { c.__cut = clear / (px.length / 4); c.__already = true; return c; }
+
     /* 네 모서리에서 배경색을 잰다 */
     const at = (x, y) => { const i = (y * W2 + x) * 4; return [px[i], px[i + 1], px[i + 2]]; };
     const corners = [at(0, 0), at(W2 - 1, 0), at(0, H2 - 1), at(W2 - 1, H2 - 1)];
@@ -364,11 +371,13 @@
         g.strokeStyle = "#16161D"; g.lineWidth = 4; g.strokeRect(G.cx - hw, y - 14, hw * 2, 18);
       }
 
-      // 깊이 수치
-      g.fillStyle = "#16161D";
+      // 깊이 수치 — 혀 위든 도구 위든 읽히게 흰 글자 + 검정 외곽
+      const dt2 = Math.round(depth * 100) + "%";
       g.font = "700 " + Math.max(11, Math.round(h * 0.036)) + "px Galmuri11, monospace";
       g.textAlign = "center"; g.textBaseline = "bottom";
-      g.fillText(Math.round(depth * 100) + "%", G.cx, y - 20);
+      g.lineJoin = "round";
+      g.strokeStyle = "#000"; g.lineWidth = 4; g.strokeText(dt2, G.cx, y - 20);
+      g.fillStyle = "#FFFFFF"; g.fillText(dt2, G.cx, y - 20);
     }
 
     // 우웩 연출
@@ -467,6 +476,8 @@
     const f = $("gaugeFill");
     f.style.width = (S.gag * 100).toFixed(1) + "%";
     f.classList.toggle("hot", S.gag >= TUNE.dangerAt);
+    const p = $("gaugePct");
+    if (p) p.textContent = Math.round(S.gag * 100) + "%";
   }
   function syncHud() {
     $("scoreNum").textContent = S.score;
