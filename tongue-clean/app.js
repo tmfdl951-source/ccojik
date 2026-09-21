@@ -33,7 +33,7 @@
        headL~headR = 머리 좌우 비율, tip = 머리 끝의 세로 비율.
        사진을 바꾸면 이 세 값만 다시 잡으면 된다. */
     { key: "cleaner", name: "텅클리너", sub: "무난",       gag: 1.00, score: 1.00,
-      art: { src: "cleaner.png", headL: 0.40, headR: 0.60, tip: 0.02 } },
+      art: { src: "cleaner.png", headL: 0.426, headR: 0.582, tip: 0.021 } },
     { key: "brush",   name: "칫솔",     sub: "좀 더 아슬", gag: 1.22, score: 1.42,
       art: { src: "brush.jpg",   headL: 0.41, headR: 0.59, tip: 0.02 } },
     { key: "spoon",   name: "숟가락",   sub: "왜요",       gag: 1.55, score: 2.05,
@@ -371,13 +371,20 @@
         g.strokeStyle = "#16161D"; g.lineWidth = 4; g.strokeRect(G.cx - hw, y - 14, hw * 2, 18);
       }
 
-      // 깊이 수치 — 혀 위든 도구 위든 읽히게 흰 글자 + 검정 외곽
+      // 깊이 수치 — 검은 클리너 위에 겹치지 않게 옆으로 빼고, 흰 글자로 또렷하게
       const dt2 = Math.round(depth * 100) + "%";
-      g.font = "700 " + Math.max(11, Math.round(h * 0.036)) + "px Galmuri11, monospace";
-      g.textAlign = "center"; g.textBaseline = "bottom";
+      const fz = Math.max(13, Math.round(h * 0.046));
+      g.font = "700 " + fz + "px Galmuri11, monospace";
+      g.textBaseline = "middle";
+      const pad2 = Math.round(fz * 0.7);
+      let tx = G.cx + G.tw / 2 + pad2;
+      if (tx + fz * 2.4 > w - 4) { tx = G.cx - G.tw / 2 - pad2; g.textAlign = "right"; }
+      else g.textAlign = "left";
       g.lineJoin = "round";
-      g.strokeStyle = "#000"; g.lineWidth = 4; g.strokeText(dt2, G.cx, y - 20);
-      g.fillStyle = "#FFFFFF"; g.fillText(dt2, G.cx, y - 20);
+      /* 외곽선은 획 두께에 비례해서 얇게 — 두꺼우면 글자를 먹어 검게 보인다 */
+      g.strokeStyle = "#000"; g.lineWidth = Math.max(2, fz * 0.14);
+      g.strokeText(dt2, tx, y);
+      g.fillStyle = "#FFFFFF"; g.fillText(dt2, tx, y);
     }
 
     // 우웩 연출
