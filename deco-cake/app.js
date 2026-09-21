@@ -172,6 +172,35 @@ function sizeCake() {
   const gm = cakeGeom(W, H); cakeCX = gm.cx; cakeCY = gm.cy; cakeR = gm.r; creamR = Math.max(16, cakeR * 0.13); topScale = cakeR / 90;
   drawCakeBase(ctx, W, H, dpr, curBase.sponge);
 }
+/* 캔버스 크기를 다시 잡으면 내용이 지워진다. 지금 그림을 떠 두었다가
+   새 크기에 맞춰 도로 얹는다. 케이크 중심·반지름 기준으로 옮겨야 안 찌그러진다. */
+function refitCake() {
+  if (!cakeCanvas || !ctx) return;
+  const wrap = $("cakeWrap").getBoundingClientRect();
+  if (wrap.width < 20 || wrap.height < 20) return;
+  if (Math.round(wrap.width) === W && Math.round(wrap.height) === H) return;
+
+  const old = { cx: cakeCX, cy: cakeCY, r: cakeR };
+  const snap = document.createElement("canvas");          // 지우기 전에 떠 둔다
+  snap.width = cakeCanvas.width; snap.height = cakeCanvas.height;
+  snap.getContext("2d").drawImage(cakeCanvas, 0, 0);
+  const snapDpr = dpr;
+
+  sizeCake();                                             // 여기서 캔버스가 비워진다
+
+  const k = cakeR / old.r;
+  // 떠 둔 그림을 케이크 중심이 맞도록 같은 배율로 올린다
+  const sw = snap.width / snapDpr, sh = snap.height / snapDpr;
+  ctx.drawImage(snap, 0, 0, snap.width, snap.height,
+    cakeCX - old.cx * k, cakeCY - old.cy * k, sw * k, sh * k);
+
+  // 채점이 쓰는 좌표도 같이 옮긴다. 안 옮기면 그림과 점수가 따로 논다.
+  const map = p => { p.x = cakeCX + (p.x - old.cx) * k; p.y = cakeCY + (p.y - old.cy) * k; };
+  creamStrokes.forEach(s => { s.points.forEach(map); if (s.r) s.r *= k; });
+  writeStrokes.forEach(s => s.points.forEach(map));
+  toppings.forEach(map);
+}
+
 function resetDeco() { creamStrokes = []; toppings = []; writeStrokes = []; curStroke = null; drawing = false; decoLocked = false; }
 function posOf(e) { const r = cakeCanvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
 /* 크림: 짜여 나온 도톰한 느낌 + 팁 모양(기본/별/물결). 케이크 밖에도 발림(클리핑 없음) */
@@ -188,7 +217,10 @@ function creamBlob(x, y, color) { creamShape(x, y, color); }
 function writeShadow(hex) { const n = parseInt(hex.slice(1), 16), lum = (((n >> 16) & 255) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11) / 255; return lum > 0.58 ? "rgba(70,40,20,.9)" : "rgba(255,255,255,.9)"; }
 
 function onDown(e) {
-  if (!running || decoLocked) return; e.preventDefault(); const p = posOf(e);
+  if (!running || decoLocked) return; e.preventDefault();
+  // 손가락이 캔버스를 벗어나도 이 획이 계속 이어지게 붙잡아 둔다
+  try { cakeCanvas.setPointerCapture(e.pointerId); } catch (_) {}
+  const p = posOf(e);
   if (mode === "topping") {                                        // 크기·방향 살짝 랜덤
     const rot = (Math.random() - 0.5) * 0.5, sc = topScale * (0.88 + Math.random() * 0.26);
     ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(rot); drawTopping(ctx, curTopping, 0, 0, sc, Math.floor(p.x + p.y)); ctx.restore();
@@ -558,6 +590,23 @@ $("startBtn").addEventListener("click", () => { showScreen("decoScreen"); reques
 $("finishBtn").addEventListener("click", () => { if (running) { running = false; finish(); } });
 $("againBtn").addEventListener("click", () => { chooseOrder(); showScreen("startScreen"); requestAnimationFrame(sizeStartCake); });
 $("saveBtn").addEventListener("click", () => { const rc = $("resultCake"); const a = document.createElement("a"); a.href = rc.toDataURL("image/png"); a.download = "ccojik_cake.png"; document.body.appendChild(a); a.click(); a.remove(); });
+
+/* 기기 회전·주소창 접힘으로 크기가 바뀌면, 보고 있는 화면의 캔버스를 다시 맞춘다 */
+let refitT = 0;
+function refitAll() {
+  clearTimeout(refitT);
+  refitT = setTimeout(() => {
+    if ($("decoScreen").classList.contains("active")) refitCake();
+    else if ($("startScreen").classList.contains("active")) sizeStartCake();
+    if (fxCanvas) {
+      const r = $("app").getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 2);
+      fxCanvas.width = r.width * d; fxCanvas.height = r.height * d;
+      fxCanvas.getContext("2d").setTransform(d, 0, 0, d, 0, 0);
+    }
+  }, 150);
+}
+window.addEventListener("resize", refitAll);
+window.addEventListener("orientationchange", refitAll);
 
 document.addEventListener("pointerdown", e => { if (e.target && e.target.id === "cakeCanvas") onDown(e); });
 window.addEventListener("pointermove", onMove);
