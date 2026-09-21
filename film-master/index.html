@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>꼬직 · 보호필름 한 번에 붙이기</title>
+<meta property="og:type" content="website" />
+<meta property="og:title" content="꼬직 · 보호필름 한 번에 붙이기" />
+<meta property="og:description" content="먼지 털고, 한 번에 붙이고, 기포 밀어내기. 한 번뿐입니다." />
+<!-- 웹폰트: 한글 픽셀(Galmuri 14/11/9 + Mono) · 영문숫자 픽셀(Press Start 2P) -->
+<link rel="stylesheet" as="style" crossorigin
+  href="https://cdn.jsdelivr.net/gh/quiple/galmuri/dist/galmuri.css" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ===== 상단 바 ===== -->
+  <header class="titlebar">
+    <div class="stage-info">
+      <div class="stage-name" id="stageName">보호필름 한 번에 붙이기</div>
+      <div class="stage-sub" id="stageSub">관찰 시리즈</div>
+    </div>
+    <div class="timer" id="timer">
+      <span class="timer-label">남은 시간</span>
+      <span class="timer-num" id="timerNum">0.0</span>
+    </div>
+  </header>
+
+  <!-- ===== 작업대 ===== -->
+  <main class="bench">
+    <canvas id="cv" width="1120" height="680"></canvas>
+
+    <!-- 단계 안내 배너 -->
+    <div class="step-banner" id="stepBanner" hidden>
+      <div class="step-no" id="stepNo">STEP 1</div>
+      <div class="step-text" id="stepText">먼지를 털어내세요</div>
+    </div>
+  </main>
+
+  <!-- ===== 하단 조작 ===== -->
+  <footer class="controls">
+    <div class="hint" id="hint">액정 위 먼지를 문질러 지우세요</div>
+    <button class="btn red big" type="button" id="actionBtn" hidden>부착!</button>
+  </footer>
+
+  <!-- 구석에 숨긴 서명 — 헤더 로고 대신 이것만 남긴다 -->
+  <div class="sig" id="sig">ccojik</div>
+
+  <!-- ===== 시작 화면 ===== -->
+  <section class="screen active" id="startScreen">
+    <div class="panel start-panel">
+      <h1 class="game-title">보호필름<br>한 번에 붙이기</h1>
+      <p class="lead">먼지 털고 · 정확히 얹고 · 기포 밀어내기<br><b>부착은 단 한 번.</b> 되돌리기 없습니다.</p>
+      <div class="stage-pick" id="stagePick"></div>
+      <button class="btn green big" type="button" id="startBtn">시작</button>
+    </div>
+  </section>
+
+  <!-- ===== 결과 화면 (단순 구성: 결과물 · 밈등급 · 한줄평 · 점수 · 버튼) ===== -->
+  <section class="screen" id="resultScreen">
+    <div class="panel result-panel">
+      <canvas id="zoomCv" width="420" height="520"></canvas>
+      <div class="result-title" id="resultTitle">무난하게 성공</div>
+      <p class="remark" id="remark"></p>
+      <div class="score-line">
+        <span id="resultScore">0</span>점
+        <span class="score-grade" id="resultGrade">A</span>
+      </div>
+      <div class="result-btns">
+        <button class="btn yellow" type="button" id="retryBtn">다시 하기</button>
+        <button class="btn blue" type="button" id="nextBtn">다음 기기</button>
+      </div>
+      <button class="detail-toggle" type="button" id="detailBtn">자세히 보기</button>
+      <ul class="tally" id="tally" hidden></ul>
+    </div>
+  </section></div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
