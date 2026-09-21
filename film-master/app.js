@@ -11,7 +11,10 @@
   /* draw* 함수들이 이 ctx 를 직접 쓴다. 결과 화면에서 확대 캔버스로 잠시 바꿔 끼우려고 let 이다. */
   let ctx = cv.getContext('2d');
   ctx.imageSmoothingEnabled = false;      // 도트가 흐려지지 않게 보간을 끈다
-  const CW = cv.width, CH = cv.height;
+  const CW = 1120;          // 장면 가로 — 고정. 테마 가구가 이 폭에 그려져 있다
+  let   CH = 680;           // 장면 세로 — 바닥/천장이 CH 기준이라 늘려도 안전하다
+  /* 화면에 실제로 담는 가로 구간. 모바일에서 여기를 좁히면 그만큼 확대된다. */
+  let   VX = 0, VW = CW;
 
   /* ---- 조작 감각 상수 (튜닝은 여기서) ---- */
   const PICKER_R   = 30;    // 먼지 픽커 반경
@@ -138,10 +141,57 @@
      ============================================================ */
   function toCanvas(e) {
     const r = cv.getBoundingClientRect();
+    // 캔버스가 담고 있는 것은 장면의 VX..VX+VW 구간이다. 확대해도 좌표가 어긋나지 않게 맞춘다.
     return {
-      x: (e.clientX - r.left) * CW / r.width,
+      x: VX + (e.clientX - r.left) * VW / r.width,
       y: (e.clientY - r.top) * CH / r.height,
     };
+  }
+
+  /* ============================================================
+     보는 구간 정하기 (모바일 확대)
+     ============================================================ */
+  /* 세로로 든 휴대폰에서는 가로 장면이 폭에 갇혀 아주 작게 뜬다.
+     장면을 줄이는 대신, 폰 주변만 잘라 담아 같은 폭에 더 크게 보이게 한다.
+     좌우로 잘려 나가는 것은 배경 장식뿐이다. */
+  function fitView(keep) {
+    const box = cv.parentElement && cv.parentElement.getBoundingClientRect
+      ? cv.parentElement.getBoundingClientRect() : null;
+    const bw = box && box.width  > 40 ? box.width  - 12 : 0;   // .bench 안쪽 여백
+    const bh = box && box.height > 40 ? box.height - 12 : 0;
+    const dev = (state.stage || STAGES[0]).device;
+    const gim = (state.stage || STAGES[0]).gimmick;
+
+    let vx = 0, vw = CW, ch = 680;
+
+    // 담을 칸이 장면보다 세로로 길 때만(= 모바일 세로) 잘라서 확대한다
+    if (bw > 0 && bh > 0 && bh / bw > 680 / CW) {
+      // 폰이 들어가고, 감시 스테이지는 사수까지 들어갈 만큼만 남긴다
+      // 감시 스테이지는 사수가 폰에 가리지 않을 만큼 더 넓게 본다
+      vw = Math.min(CW, Math.max(400, dev.w + (gim.watcher ? 280 : 120)));
+      vx = Math.round((CW - vw) / 2);              // 폰은 늘 장면 한가운데에 있다
+      // 남는 세로는 장면을 늘려 채운다. 바닥·천장이 CH 기준이라 가운데만 늘어난다.
+      ch = Math.round(Math.max(680, Math.min(952, vw * bh / bw)));
+    }
+
+    if (vx === VX && vw === VW && ch === CH) return false;
+
+    const prevY = state.dev ? state.dev.y : null;
+    VX = vx; VW = vw; CH = ch;
+    cv.width = vw; cv.height = ch;
+    ctx.imageSmoothingEnabled = false;             // 크기를 바꾸면 컨텍스트가 초기화된다
+
+    // 장면 세로가 바뀌면 폰이 위아래로 움직인다. 그 위에 얹힌 것들을 같이 옮긴다.
+    if (keep && state.dev) {
+      state.dev.y = (CH - state.dev.h) / 2;
+      const dy = state.dev.y - prevY;
+      if (dy) {
+        state.dusts.forEach(d => { d.y += dy; });
+        state.bubbles.forEach(b => { b.y += dy; });
+        state.film.y += dy;
+      }
+    }
+    return true;
   }
   /* 액정(필름이 덮어야 할 영역) */
   function screenRect() {
@@ -165,6 +215,7 @@
     const st = STAGES[i];
     state.stageIdx = i;
     state.stage = st;
+    fitView(false);           // 기기 크기에 맞춰 볼 구간부터 정한다
 
     state.dev = {
       w: st.device.w, h: st.device.h,
@@ -640,18 +691,32 @@
 
     // 정렬 수치 — 폰 왼쪽 여백에 큼직하게.
     // 폰 아래(s.y + s.h + 16)에 두면 글자를 키웠을 때 화면 밖으로 나간다.
-    const px = 26, py = CH / 2 - 52, pw = 232, ph = 104;
+    const label = good ? '정렬 좋음' : '어긋남';
+    const val = Math.round(err) + 'px / ' + f.angle.toFixed(1) + '°';
     ctx.save();
     ctx.fillStyle = 'rgba(15,15,27,.88)';
-    ctx.fillRect(px, py, pw, ph);
-    ctx.strokeStyle = good ? '#00E436' : '#FFCC00'; ctx.lineWidth = 4;
-    ctx.strokeRect(px, py, pw, ph);
-    ctx.fillStyle = good ? '#00E436' : '#FFCC00';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = 'bold 26px Galmuri11, monospace';
-    ctx.fillText(good ? '정렬 좋음' : '어긋남', px + pw / 2, py + 34);
-    ctx.font = 'bold 22px Galmuri11, monospace';
-    ctx.fillText(Math.round(err) + 'px / ' + f.angle.toFixed(1) + '°', px + pw / 2, py + 72);
+    if (VW < 900) {
+      // 좁게 볼 때 — 폰 옆에 자리가 없으므로 폰 아래 가로 띠로
+      const bw2 = Math.min(VW - 16, 300), bx = VX + (VW - bw2) / 2;
+      const by = Math.min(CH - 56, s.y + s.h + 12), bh2 = 44;
+      ctx.fillRect(bx, by, bw2, bh2);
+      ctx.strokeStyle = good ? '#00E436' : '#FFCC00'; ctx.lineWidth = 4;
+      ctx.strokeRect(bx, by, bw2, bh2);
+      ctx.fillStyle = good ? '#00E436' : '#FFCC00';
+      ctx.font = 'bold 20px Galmuri11, monospace';
+      ctx.fillText(label + '  ' + val, bx + bw2 / 2, by + bh2 / 2 + 1);
+    } else {
+      const px = VX + 26, py = CH / 2 - 52, pw = 232, ph = 104;
+      ctx.fillRect(px, py, pw, ph);
+      ctx.strokeStyle = good ? '#00E436' : '#FFCC00'; ctx.lineWidth = 4;
+      ctx.strokeRect(px, py, pw, ph);
+      ctx.fillStyle = good ? '#00E436' : '#FFCC00';
+      ctx.font = 'bold 26px Galmuri11, monospace';
+      ctx.fillText(label, px + pw / 2, py + 34);
+      ctx.font = 'bold 22px Galmuri11, monospace';
+      ctx.fillText(val, px + pw / 2, py + 72);
+    }
     ctx.restore();
   }
 
@@ -779,7 +844,8 @@
   function drawWatcher() {
     if (!gim().watcher) return;
     const w = state.fx.watch;
-    const x = CW - 150, y = 120;
+    // 좁게 볼 때는 사수를 화면 가장자리에 더 붙여야 폰에 안 가린다 (PC 는 그대로 150)
+    const x = VX + VW - (VW < 900 ? 90 : 150), y = 120;
     // 고개가 스르륵 돌아간다: 0=딴 곳, 1=이쪽
     w.turn = (w.turn === undefined ? 0 : w.turn) + ((w.looking ? 1 : 0) - w.turn) * .16;
     const tn = w.turn;
@@ -817,7 +883,8 @@
     ctx.restore();
 
     // 감시 게이지 — 고개가 얼마나 돌아왔는지
-    const gx = CW - 300, gy = 40, gw = 260, gh = 24;   // 사수 머리(y70~) 위에 딱 맞춘다
+    const gw = Math.min(260, VW - 300);
+    const gx = VX + VW - 40 - gw, gy = 40, gh = 24;    // 사수 머리(y70~) 위에 딱 맞춘다
     ctx.save();
     ctx.fillStyle = 'rgba(10,16,32,.9)'; ctx.fillRect(gx, gy, gw, gh);
     ctx.strokeStyle = '#0F0F1B'; ctx.lineWidth = 3; ctx.strokeRect(gx, gy, gw, gh);
@@ -840,17 +907,17 @@
     ctx.save();
     // 화면 테두리
     ctx.strokeStyle = 'rgba(255,0,77,.92)'; ctx.lineWidth = 12;
-    ctx.strokeRect(6, 6, CW - 12, CH - 12);
-    // 최상단 경고 바 — 폭을 화면 전체로 잡아 폰과 겹칠 일이 없다
+    ctx.strokeRect(VX + 6, 6, VW - 12, CH - 12);
+    // 최상단 경고 바 — 보이는 폭 전체로 잡아 폰과 겹칠 일이 없다
     const bh = 64;
     ctx.fillStyle = '#FF004D';
-    ctx.fillRect(0, 0, CW, bh);
+    ctx.fillRect(VX, 0, VW, bh);
     ctx.fillStyle = '#0F0F1B';
-    ctx.fillRect(0, bh, CW, 5);                       // 아래 굵은 도트 경계선
+    ctx.fillRect(VX, bh, VW, 5);                      // 아래 굵은 도트 경계선
     ctx.fillStyle = '#FFF6E0';
-    ctx.font = 'bold 33px Galmuri11, monospace';
+    ctx.font = 'bold ' + (VW < 900 ? 24 : 33) + 'px Galmuri11, monospace';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('사수가 보고 있습니다  손 멈춰', CW / 2, bh / 2 + 1);
+    ctx.fillText('사수가 보고 있습니다  손 멈춰', VX + VW / 2, bh / 2 + 1);
     ctx.restore();
   }
 
@@ -868,6 +935,8 @@
   }
 
   function render() {
+    // 장면의 VX 지점이 캔버스 왼쪽 끝에 오게 민다. PC 는 VX=0 이라 그대로다.
+    ctx.setTransform(1, 0, 0, 1, -VX, 0);
     ctx.save();
     // 부착 순간 흔들림 + 스테이지 흔들림 + 툭 친 충격을 모두 합친다
     let ox = state.fx.shake.x, oy = state.fx.shake.y;
@@ -1168,9 +1237,17 @@
     });
   });
 
+  /* 화면이 돌아가거나 크기가 바뀌면 볼 구간을 다시 잡는다 */
+  let fitT = 0;
+  const refit = () => { clearTimeout(fitT); fitT = setTimeout(() => fitView(true), 120); };
+  addEventListener('resize', refit);
+  addEventListener('orientationchange', refit);
+
   /* 부팅 */
   setupStage(0);
   buildStagePick();
+  // 웹폰트가 늦게 오면 상단바 높이가 바뀐다. 그때 볼 구간을 한 번 더 잡는다.
+  setTimeout(() => fitView(true), 400);
   $('timer').classList.add('idle');
   tick();
 })();
