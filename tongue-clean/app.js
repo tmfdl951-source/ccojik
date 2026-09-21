@@ -181,8 +181,11 @@
       const cut = sp.__cut;
       if (cut > 0.985) return;                  // 도구가 통째로 사라진 경우
       const mul = !(cut > 0.15);
+      /* 이미 누끼된 PNG 는 그 파일이 곧 완성된 그림이다.
+         테두리를 덧그리면 검은 클리너가 두꺼워지고 가운데 구멍이 메워진다. */
+      const already = !!sp.__already;
       toolArt[t.key] = { cv: sp, w: im.naturalWidth, h: im.naturalHeight, a: t.art,
-                         mul, edge: mul ? null : silhouette(sp) };
+                         mul, already, edge: (mul || already) ? null : silhouette(sp) };
       drawArt();
     };
     im.onerror = () => {};                  // 없으면 아래 픽셀 그림으로 그린다
@@ -331,8 +334,8 @@
 
     if (showTool) {
       const y = G.tipY + (G.backY - G.tipY) * depth;
-      const hw = G.tw / 2 + 6;
       const art = toolArt[S.tool.key];
+      let headTop = y;                        // 숫자를 얹을 기준 — 헤드 윗변
 
       if (art) {
         // 머리 폭을 혀 폭에 맞춰 사진을 키운다. 머리 끝이 지금 깊이에 놓이게.
@@ -343,9 +346,11 @@
            머리 높이의 절반만큼 올려 날 가운데가 그 깊이에 닿게 한다. */
         const headH = (art.a.headR - art.a.headL) * art.w * k * 0.5;
         const dx = G.cx - dw / 2, dy = y - art.a.tip * dh - headH * 0.5;
+        headTop = y - headH * 0.5;            // 헤드 윗변
         // 손잡이가 화면 아래까지 안 닿으면 이어 그려 준다
+        // (누끼된 PNG 는 그 파일만 그린다 — 덧그리지 않는다)
         const end = dy + dh;
-        if (end < h) {
+        if (!art.already && end < h) {
           g.fillStyle = "#2A2A33";
           g.fillRect(G.cx - Math.max(5, dw * 0.03), end - 2, Math.max(10, dw * 0.06), h - end + 4);
         }
@@ -363,28 +368,20 @@
           }
           g.drawImage(art.cv, dx, dy, dw, dh);
         }
-      } else {
-        // 사진을 못 불러왔을 때 — 원래 픽셀 도구
-        g.fillStyle = "#6FC9F2"; g.fillRect(G.cx - 9, y, 18, h - y);
-        g.strokeStyle = "#16161D"; g.lineWidth = 4; g.strokeRect(G.cx - 9, y, 18, h - y);
-        g.fillStyle = "#BFE9FF"; g.fillRect(G.cx - hw, y - 14, hw * 2, 18);
-        g.strokeStyle = "#16161D"; g.lineWidth = 4; g.strokeRect(G.cx - hw, y - 14, hw * 2, 18);
       }
 
-      // 깊이 수치 — 검은 클리너 위에 겹치지 않게 옆으로 빼고, 흰 글자로 또렷하게
+      /* 깊이 수치 — 클리너 헤드의 가로 한가운데, 헤드 바로 위.
+         오프셋이 고정이라 클리너가 오르내리면 같이 따라온다. */
       const dt2 = Math.round(depth * 100) + "%";
       const fz = Math.max(13, Math.round(h * 0.046));
       g.font = "700 " + fz + "px Galmuri11, monospace";
-      g.textBaseline = "middle";
-      const pad2 = Math.round(fz * 0.7);
-      let tx = G.cx + G.tw / 2 + pad2;
-      if (tx + fz * 2.4 > w - 4) { tx = G.cx - G.tw / 2 - pad2; g.textAlign = "right"; }
-      else g.textAlign = "left";
+      g.textAlign = "center"; g.textBaseline = "bottom";
+      const ty = Math.max(fz, headTop - Math.round(fz * 0.5));   // 화면 위로 안 나가게
       g.lineJoin = "round";
       /* 외곽선은 획 두께에 비례해서 얇게 — 두꺼우면 글자를 먹어 검게 보인다 */
       g.strokeStyle = "#000"; g.lineWidth = Math.max(2, fz * 0.14);
-      g.strokeText(dt2, tx, y);
-      g.fillStyle = "#FFFFFF"; g.fillText(dt2, tx, y);
+      g.strokeText(dt2, G.cx, ty);
+      g.fillStyle = "#FFFFFF"; g.fillText(dt2, G.cx, ty);
     }
 
     // 우웩 연출
