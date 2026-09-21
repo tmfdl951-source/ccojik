@@ -120,9 +120,44 @@
       if (y > 0) stack.push(p - W2);
       if (y < H2 - 1) stack.push(p + W2);
     }
+    /* 흰 손잡이(칫솔)나 은색 면(숟가락)은 바깥 배경과 색이 같아, 색만 보면
+       바깥에서 물체 안쪽까지 지우기가 번져 들어간다.
+       그래서 지운 뒤에, 남은 픽셀 사이에 끼어 있는 자리는 도로 살린다.
+       좌우 모두 물체가 있고 위아래로도 물체가 있으면 그건 물체 안쪽이다. */
+    const rowL = new Int32Array(H2).fill(-1), rowR = new Int32Array(H2).fill(-1);
+    const colT = new Int32Array(W2).fill(-1), colB = new Int32Array(W2).fill(-1);
+    for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) {
+      if (seen[y * W2 + x]) continue;                  // 지워진 자리
+      if (rowL[y] < 0) rowL[y] = x;
+      rowR[y] = x;
+      if (colT[x] < 0) colT[x] = y;
+      colB[x] = y;
+    }
+    for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) {
+      const p = y * W2 + x;
+      if (!seen[p]) continue;
+      if (x > rowL[y] && x < rowR[y] && rowL[y] >= 0 &&
+          y > colT[x] && y < colB[x] && colT[x] >= 0) {
+        seen[p] = 0; px[p * 4 + 3] = 255;              // 물체 안쪽 — 되살린다
+      }
+    }
+
     g.putImageData(d, 0, 0);
     let cut = 0; for (let p = 0; p < seen.length; p++) cut += seen[p];
     c.__cut = cut / seen.length;        // 실제로 얼마나 지웠는지
+    return c;
+  }
+
+  /* 흰 칫솔·은색 숟가락은 밝은 혀 위에서 흐릿해 보인다.
+     같은 모양을 검게 칠한 판을 만들어 뒤에 여러 번 깔아 테두리를 두른다. */
+  function silhouette(src) {
+    const c = document.createElement("canvas");
+    c.width = src.width; c.height = src.height;
+    const g = c.getContext("2d");
+    g.drawImage(src, 0, 0);
+    g.globalCompositeOperation = "source-in";
+    g.fillStyle = "#16161D";
+    g.fillRect(0, 0, c.width, c.height);
     return c;
   }
 
@@ -138,8 +173,9 @@
          거의 다 지웠으면(남는 게 없음) 사진을 버리고 픽셀 도구로 간다. */
       const cut = sp.__cut;
       if (cut > 0.985) return;                  // 도구가 통째로 사라진 경우
+      const mul = !(cut > 0.15);
       toolArt[t.key] = { cv: sp, w: im.naturalWidth, h: im.naturalHeight, a: t.art,
-                         mul: !(cut > 0.15) };
+                         mul, edge: mul ? null : silhouette(sp) };
       drawArt();
     };
     im.onerror = () => {};                  // 없으면 아래 픽셀 그림으로 그린다
@@ -306,9 +342,20 @@
           g.fillStyle = "#2A2A33";
           g.fillRect(G.cx - Math.max(5, dw * 0.03), end - 2, Math.max(10, dw * 0.06), h - end + 4);
         }
-        if (art.mul) { g.save(); g.globalCompositeOperation = "multiply"; }
-        g.drawImage(art.cv, dx, dy, dw, dh);
-        if (art.mul) g.restore();
+        if (art.mul) {
+          g.save(); g.globalCompositeOperation = "multiply";
+          g.drawImage(art.cv, dx, dy, dw, dh);
+          g.restore();
+        } else {
+          if (art.edge) {                       // 검은 테두리 — 밝은 도구도 또렷하게
+            const r = Math.max(2, Math.round(dw * 0.016));
+            for (let i = 0; i < 8; i++) {
+              const ang = i * Math.PI / 4;
+              g.drawImage(art.edge, dx + Math.cos(ang) * r, dy + Math.sin(ang) * r, dw, dh);
+            }
+          }
+          g.drawImage(art.cv, dx, dy, dw, dh);
+        }
       } else {
         // 사진을 못 불러왔을 때 — 원래 픽셀 도구
         g.fillStyle = "#6FC9F2"; g.fillRect(G.cx - 9, y, 18, h - y);
