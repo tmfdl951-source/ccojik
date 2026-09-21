@@ -29,9 +29,15 @@
     /* gag(위험)보다 score(보상)를 더 벌려야 도구 선택에 의미가 생긴다.
        둘을 같은 비율로 올리면 서로 상쇄돼 최고점이 똑같아진다.
        최적 플레이 기준 최고점: 170 / 196 / 217 점 */
-    { key: "cleaner", name: "텅클리너", sub: "무난",       gag: 1.00, score: 1.00 },
-    { key: "brush",   name: "칫솔",     sub: "좀 더 아슬", gag: 1.22, score: 1.42 },
-    { key: "spoon",   name: "숟가락",   sub: "왜요",       gag: 1.55, score: 2.05 },
+    /* art: 사진 파일과, 사진 안에서 '머리'(혀에 닿는 부분)가 어디인지.
+       headL~headR = 머리 좌우 비율, tip = 머리 끝의 세로 비율.
+       사진을 바꾸면 이 세 값만 다시 잡으면 된다. */
+    { key: "cleaner", name: "텅클리너", sub: "무난",       gag: 1.00, score: 1.00,
+      art: { src: "cleaner.jpg", headL: 0.40, headR: 0.60, tip: 0.02 } },
+    { key: "brush",   name: "칫솔",     sub: "좀 더 아슬", gag: 1.22, score: 1.42,
+      art: { src: "brush.jpg",   headL: 0.41, headR: 0.59, tip: 0.02 } },
+    { key: "spoon",   name: "숟가락",   sub: "왜요",       gag: 1.55, score: 2.05,
+      art: { src: "spoon.jpg",   headL: 0.32, headR: 0.68, tip: 0.05 } },
   ];
 
   /* 한줄평 — 추가하려면 배열에 문장만 더 넣으면 된다 */
@@ -75,6 +81,57 @@
   const artCtx = artCv.getContext("2d");
   ctx.imageSmoothingEnabled = false;
   artCtx.imageSmoothingEnabled = false;
+
+  /* ---- 도구 사진: 흰 배경 지우기 ----
+     가장자리에서 시작해 흰색이 이어지는 만큼만 지운다. 이렇게 하면 숟가락의
+     안쪽 흰 하이라이트처럼 '물체 안의 밝은 부분'은 구멍이 나지 않는다. */
+  function cutWhite(img) {
+    const c = document.createElement("canvas");
+    c.width = img.naturalWidth || img.width; c.height = img.naturalHeight || img.height;
+    const g = c.getContext("2d");
+    g.drawImage(img, 0, 0);
+    let d;
+    try { d = g.getImageData(0, 0, c.width, c.height); }
+    catch (_) { return c; }                 // file:// 로 열면 픽셀을 못 읽는다. 사진 그대로 쓴다.
+    const px = d.data, W2 = c.width, H2 = c.height;
+    const isBg = i => px[i] > 228 && px[i + 1] > 228 && px[i + 2] > 228;
+    const seen = new Uint8Array(W2 * H2);
+    const stack = [];
+    for (let x = 0; x < W2; x++) { stack.push(x, (H2 - 1) * W2 + x); }
+    for (let y = 0; y < H2; y++) { stack.push(y * W2, y * W2 + W2 - 1); }
+    while (stack.length) {
+      const p = stack.pop();
+      if (seen[p]) continue;
+      const i = p * 4;
+      if (!isBg(i)) continue;
+      seen[p] = 1; px[i + 3] = 0;
+      const x = p % W2, y = (p - x) / W2;
+      if (x > 0) stack.push(p - 1);
+      if (x < W2 - 1) stack.push(p + 1);
+      if (y > 0) stack.push(p - W2);
+      if (y < H2 - 1) stack.push(p + W2);
+    }
+    g.putImageData(d, 0, 0);
+    let cut = 0; for (let p = 0; p < seen.length; p++) cut += seen[p];
+    c.__cut = cut / seen.length;        // 실제로 얼마나 지웠는지
+    return c;
+  }
+
+  /* 도구별 스프라이트를 미리 만들어 둔다 */
+  const toolArt = {};
+  TOOLS.forEach(t => {
+    const im = new Image();
+    im.onload = () => {
+      const sp = cutWhite(im);
+      /* 배경을 거의 못 지웠다면(사진이 흰 배경이 아니거나 픽셀을 못 읽은 경우)
+         흰 사각형이 혀를 덮는다. 그럴 때는 곱하기로 얹어 밝은 곳이 비치게 한다. */
+      toolArt[t.key] = { cv: sp, w: im.naturalWidth, h: im.naturalHeight, a: t.art,
+                         mul: !(sp.__cut > 0.15) };
+      drawArt();
+    };
+    im.onerror = () => {};                  // 없으면 아래 픽셀 그림으로 그린다
+    im.src = t.art.src;
+  });
 
   /* 사진은 캔버스 준비가 끝난 뒤에 건다 — onload 가 먼저 돌면 artCtx 가 아직 없다 */
   photo.onload = () => { photoOK = true; drawArt(); };
@@ -219,12 +276,30 @@
     if (showTool) {
       const y = G.tipY + (G.backY - G.tipY) * depth;
       const hw = G.tw / 2 + 6;
-      // 손잡이 — 화면 아래로 빠진다
-      g.fillStyle = "#6FC9F2"; g.fillRect(G.cx - 9, y, 18, h - y);
-      g.strokeStyle = "#16161D"; g.lineWidth = 4; g.strokeRect(G.cx - 9, y, 18, h - y);
-      // 긁는 날
-      g.fillStyle = "#BFE9FF"; g.fillRect(G.cx - hw, y - 14, hw * 2, 18);
-      g.strokeStyle = "#16161D"; g.lineWidth = 4; g.strokeRect(G.cx - hw, y - 14, hw * 2, 18);
+      const art = toolArt[S.tool.key];
+
+      if (art) {
+        // 머리 폭을 혀 폭에 맞춰 사진을 키운다. 머리 끝이 지금 깊이에 놓이게.
+        const headW = (art.a.headR - art.a.headL) * art.w;
+        const k = (G.tw * 1.06) / headW;
+        const dw = art.w * k, dh = art.h * k;
+        const dx = G.cx - dw / 2, dy = y - art.a.tip * dh;
+        // 손잡이가 화면 아래까지 안 닿으면 이어 그려 준다
+        const end = dy + dh;
+        if (end < h) {
+          g.fillStyle = "#2A2A33";
+          g.fillRect(G.cx - Math.max(5, dw * 0.03), end - 2, Math.max(10, dw * 0.06), h - end + 4);
+        }
+        if (art.mul) { g.save(); g.globalCompositeOperation = "multiply"; }
+        g.drawImage(art.cv, dx, dy, dw, dh);
+        if (art.mul) g.restore();
+      } else {
+        // 사진을 못 불러왔을 때 — 원래 픽셀 도구
+        g.fillStyle = "#6FC9F2"; g.fillRect(G.cx - 9, y, 18, h - y);
+        g.strokeStyle = "#16161D"; g.lineWidth = 4; g.strokeRect(G.cx - 9, y, 18, h - y);
+        g.fillStyle = "#BFE9FF"; g.fillRect(G.cx - hw, y - 14, hw * 2, 18);
+        g.strokeStyle = "#16161D"; g.lineWidth = 4; g.strokeRect(G.cx - hw, y - 14, hw * 2, 18);
+      }
 
       // 깊이 수치
       g.fillStyle = "#16161D";
@@ -385,7 +460,7 @@
       b.type = "button";
       b.className = "tool" + (t.key === S.tool.key ? " on" : "");
       b.innerHTML = t.name + '<span class="t-sub">' + t.sub + "</span>";
-      b.addEventListener("click", () => { S.tool = t; buildTools(); });
+      b.addEventListener("click", () => { S.tool = t; buildTools(); drawArt(); });
       box.appendChild(b);
     });
   }
