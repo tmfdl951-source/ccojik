@@ -242,7 +242,7 @@ img, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 .screen {
   position: absolute; inset: 0; z-index: 20;
   display: none; align-items: center; justify-content: center;
-  padding: 22px;
+  padding: clamp(8px, 1.6vh, 22px) clamp(10px, 2vw, 22px);
   background: rgba(10, 12, 26, .88);
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -254,10 +254,14 @@ img, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 
 /* ---- 시작 ---- */
 .start-panel {
-  display: flex; flex-direction: column; align-items: center; gap: 18px;
-  padding: 34px 40px 36px; text-align: center; max-width: 1040px;
+  display: flex; flex-direction: column; align-items: center;
+  /* 세로 치수는 전부 화면 높이에 비례. 화면이 낮으면 알아서 줄어든다 */
+  gap: clamp(6px, 1.4vh, 18px);
+  padding: clamp(14px, 2.4vh, 34px) clamp(16px, 3vw, 40px) clamp(15px, 2.6vh, 36px);
+  text-align: center; max-width: 1040px;
   width: 100%;
-  max-height: 100%; overflow-y: auto;
+  max-height: 100%;
+  overflow: hidden;              /* 스크롤 대신 요소가 작아진다 */
 }
 .start-panel > * { flex-shrink: 0; }
 .game-title span {
@@ -267,14 +271,16 @@ img, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 .game-title {
   font-family: var(--f-title);
   font-weight: 700;
-  font-size: clamp(40px, 5.2vw, 77px);   /* 11의 배수대로 크게 */
-  line-height: 1.85;                     /* 받침이 겹치지 않게 행간 넉넉히 */
-  letter-spacing: 12px;   /* 외곽선이 좌우 2px씩 먹으므로 실질 간격은 8px */
+  /* 폭과 높이 중 모자란 쪽에 맞춘다 — 세로가 낮아도 두 줄이 화면을 안 넘게 */
+  font-size: clamp(22px, min(5.2vw, 5.6vh), 66px);
+  line-height: 1.5;
+  letter-spacing: .22em;  /* 외곽선이 좌우 2px씩 먹는다. em 이라 글자와 같이 줄어든다 */
   color: var(--mustard);
   text-shadow: var(--dot-outline-2), 5px 5px 0 rgba(0,0,0,.35);
 }
 .lead {
-  font-family: var(--f-body); font-weight: 700; font-size: 22px; line-height: 2; color: var(--navy);
+  font-family: var(--f-body); font-weight: 700; color: var(--navy);
+  font-size: clamp(11px, min(1.7vw, 2.1vh), 22px); line-height: 1.6;
   letter-spacing: .5px;
 }
 .lead b { color: var(--red); }
@@ -284,23 +290,32 @@ img, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
   display: grid;
   grid-template-columns: repeat(2, 1fr);   /* 1행 STAGE1·2 / 2행 STAGE3·4 */
   grid-auto-rows: 1fr;                     /* 두 행 높이를 같게 */
-  gap: 12px;
+  gap: clamp(5px, 1.2vh, 12px);
   width: 100%; max-width: 664px; margin: 0 auto;
 }
 .stage-card {
-  font-family: var(--f-body); font-weight: 700; font-size: 18px; line-height: 1.9; color: var(--navy);
+  font-family: var(--f-body); font-weight: 700; color: var(--navy);
+  font-size: clamp(11px, min(1.5vw, 1.9vh), 18px); line-height: 1.5;
   background: var(--cream); border: 3px solid var(--ink); border-radius: 0;
-  padding: 11px 14px; cursor: pointer; text-align: left;
+  padding: clamp(5px, 1vh, 11px) clamp(7px, .9vw, 14px); cursor: pointer; text-align: left;
   min-width: 0; width: 100%;               /* 칸 폭에 맞춘다 */
   height: 100%;                            /* 텍스트 양이 달라도 높이 통일 */
   box-shadow: var(--bevel), 4px 4px 0 rgba(0,0,0,.4);
   letter-spacing: .5px;
 }
+/* 시작 화면 버튼만. 게임 중 '부착!' 버튼은 지금 크기 그대로 둔다 */
+.start-panel .btn.big {
+  font-size: clamp(16px, min(2.6vw, 3vh), 33px);
+  line-height: 1.5;
+  padding: clamp(7px, 1.2vh, 18px) clamp(18px, 3vw, 38px);
+}
 .stage-card:hover { background: var(--paper); }
 .stage-card:active { transform: translate(2px, 2px); box-shadow: var(--bevel), 2px 2px 0 rgba(0,0,0,.4); }
 .stage-card.on { background: var(--mustard); box-shadow: var(--bevel), 4px 4px 0 var(--mustard-d); }
-.stage-card .sc-no { font-family: var(--f-num); font-size: 16px; color: var(--red); display: block; margin-bottom: 7px; }
-.stage-card .sc-dev { font-family: var(--f-small); font-size: 18px; line-height: 1.7; color: rgba(29,43,83,.8); display: block; }
+.stage-card .sc-no { font-family: var(--f-num); font-size: clamp(9px, min(1.3vw, 1.5vh), 16px); line-height: 1.3;
+  color: var(--red); display: block; margin-bottom: clamp(2px, .6vh, 7px); }
+.stage-card .sc-dev { font-family: var(--f-small); font-size: clamp(10px, min(1.4vw, 1.7vh), 18px); line-height: 1.4;
+  color: rgba(29,43,83,.8); display: block; }
 
 /* ============================================================
    결과 화면 — 구성은 그대로, 스킨만 픽셀
@@ -385,14 +400,15 @@ img, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
   .result-panel { padding: 18px 16px 22px; gap: 12px; }
   #zoomCv { max-height: 32vh; }
   .result-btns .btn { font-size: 16px; padding: 10px 14px; }
-  .game-title { font-size: 33px; letter-spacing: 9px; }
-  .stage-card { font-size: 14px; }
   .hint { font-size: 16px; }
 }
 
 /* 좁은 화면(모바일) — 폭 때문에 깨지는 것들 */
 @media (max-width: 620px) {
-  .stage-pick { grid-template-columns: 1fr; max-width: 340px; }
+  /* 1열로 떨어뜨리면 카드가 4줄이 되어 시작 버튼이 화면 밖으로 밀린다.
+     좁아도 2열을 지키고 글자를 줄여 맞춘다. */
+  .stage-pick { max-width: 100%; gap: clamp(4px, 1vh, 9px); }
+  .stage-card { padding: clamp(4px, .9vh, 9px) clamp(5px, 1.6vw, 10px); letter-spacing: 0; }
 
   /* 상단 바: '남은 시간' 라벨을 접고 숫자만 남겨 스테이지명 자리를 확보한다.
      안 그러면 스테이지명이 말줄임으로 잘려 거의 안 보인다. */
@@ -406,13 +422,14 @@ img, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
   /* 제목: 폭에 맞춰 줄이되 2줄은 유지. 자간은 em 으로 따라 줄인다.
      이 크기에서 2px 외곽선은 자간을 다 먹으므로 1px 외곽선으로 바꾼다. */
   .game-title {
-    font-size: clamp(20px, 7.2vw, 34px);
+    /* 폭뿐 아니라 높이도 본다 — 낮은 화면에서 두 줄이 화면을 안 넘게 */
+    font-size: clamp(17px, min(7.2vw, 4.6vh), 34px);
     letter-spacing: .2em;
-    line-height: 1.7;
+    line-height: 1.5;
     text-shadow: var(--dot-outline), 3px 3px 0 rgba(0,0,0,.35);
   }
-  .start-panel { padding: 22px 20px 24px; gap: 14px; }
-  .lead { font-size: 15px; line-height: 1.9; }
+  .start-panel { padding: clamp(10px, 2vh, 22px) 14px clamp(11px, 2.2vh, 24px); gap: clamp(5px, 1.2vh, 14px); }
+  .lead { font-size: clamp(10px, min(3.4vw, 1.8vh), 15px); line-height: 1.55; }
 
   /* 게임판이 세로를 거의 다 가져가게 상·하단을 콤팩트하게 만든다 */
   .bench { padding: 4px; }
@@ -424,8 +441,8 @@ img, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
   .btn.big { font-size: 20px; padding: 10px 20px; }
   .tilt-btn { font-size: 15px; padding: 10px 12px; min-width: 80px; }
 
-  /* 손가락으로 누르기 좋은 최소 크기 */
-  .btn, .detail-toggle { min-height: 44px; }
+  /* 손가락으로 누르기 좋은 최소 크기 — 시작 화면은 높이가 빠듯하니 제외 */
+  .controls .btn, .result-btns .btn, .detail-toggle { min-height: 44px; }
 
   /* 단계 배너가 좁은 화면을 넘지 않게 */
   .step-text { font-size: 28px; letter-spacing: .18em; }
@@ -445,4 +462,11 @@ img, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::after, *::before { animation: none !important; transition-duration: .01ms !important; }
+}
+
+/* 아주 낮은 화면(가로로 든 휴대폰 등) — 도저히 다 안 들어가면
+   설명 문구부터 접는다. 제목·카드 4개·시작 버튼은 반드시 남긴다. */
+@media (max-height: 430px) {
+  .start-panel .lead { display: none; }
+  .start-panel { gap: clamp(4px, 1vh, 10px); }
 }
