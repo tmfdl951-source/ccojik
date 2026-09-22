@@ -70,8 +70,8 @@
 
   /* 바탕 사진. 사진 안에서 혀가 차지하는 자리를 0~1 비율로 적어 둔다.
      (540x360 원본 기준 — 사진을 바꾸면 이 네 값만 다시 잡으면 된다) */
-  const PHOTO = { src: "tongue.jpg", w: 540, h: 360,
-                  x0: 0.422, x1: 0.583, y0: 0.478, y1: 0.811 };
+  const PHOTO = { src: "tongue.png", w: 1206, h: 1305,
+                  x0: 0.298, x1: 0.700, y0: 0.400, y1: 0.888 };
   const photo = new Image();
   let photoOK = false;
 
@@ -212,17 +212,29 @@
       g.quadraticCurveTo(G.cx - hw, G.bot, G.cx - hw, G.bot - r);
       g.closePath(); g.clip();
     } else { tonguePath(g, G); g.clip(); }
-    g.fillStyle = usePhoto ? "rgba(214,206,170,.85)" : "#CFC7A6";
-    for (let i = 0; i < 90; i++) {
-      const rx = ((i * 73) % 100) / 100, ry = ((i * 37) % 100) / 100;
-      const x = G.cx - G.tw / 2 + rx * G.tw;
-      const y = G.top + ry * (G.bot - G.top);
-      if (y > cleanY) continue;                     // 이미 닦인 구간
-      g.fillRect(Math.round(x), Math.round(y), 4, 4);
+    /* 안 닦인 쪽(혀 안쪽)을 뿌옇게 덮는다. cleanY 아래는 덮지 않으므로
+       닦아 내려갈수록 사진 그대로가 드러난다. */
+    const L = G.cx - G.tw / 2 - 4, BW = G.tw + 8, TOP = G.top - 6;
+    if (cleanY > TOP) {
+      const fade = Math.min(30, (cleanY - TOP) * 0.45);   // 경계를 흐리게
+      g.fillStyle = "rgba(238,234,214,.82)";
+      g.fillRect(L, TOP, BW, (cleanY - fade) - TOP);
+      const gr = g.createLinearGradient(0, cleanY - fade, 0, cleanY);
+      gr.addColorStop(0, "rgba(238,234,214,.82)");
+      gr.addColorStop(1, "rgba(238,234,214,0)");
+      g.fillStyle = gr;
+      g.fillRect(L, cleanY - fade, BW, fade);
+
+      /* 오돌토돌한 알갱이 — 뿌연 층 위에 얹어 설태처럼 보이게 */
+      g.fillStyle = "rgba(206,200,172,.55)";
+      for (let i = 0; i < 120; i++) {
+        const rx = ((i * 73) % 100) / 100, ry = ((i * 37) % 100) / 100;
+        const x = G.cx - G.tw / 2 + rx * G.tw;
+        const y = G.top + ry * (G.bot - G.top);
+        if (y > cleanY - fade) continue;            // 이미 닦였거나 경계 구간
+        g.fillRect(Math.round(x), Math.round(y), 5, 5);
+      }
     }
-    // 닦인 자리 — 밝게
-    g.fillStyle = "rgba(255,255,255,.34)";
-    g.fillRect(G.cx - G.tw / 2 - 4, cleanY, G.tw + 8, G.bot - cleanY + 6);
     g.restore();
 
     // 깊이 눈금 — 오른쪽
