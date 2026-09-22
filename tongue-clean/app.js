@@ -155,19 +155,6 @@
     return c;
   }
 
-  /* 흰 칫솔·은색 숟가락은 밝은 혀 위에서 흐릿해 보인다.
-     같은 모양을 검게 칠한 판을 만들어 뒤에 여러 번 깔아 테두리를 두른다. */
-  function silhouette(src) {
-    const c = document.createElement("canvas");
-    c.width = src.width; c.height = src.height;
-    const g = c.getContext("2d");
-    g.drawImage(src, 0, 0);
-    g.globalCompositeOperation = "source-in";
-    g.fillStyle = "#16161D";
-    g.fillRect(0, 0, c.width, c.height);
-    return c;
-  }
-
   /* 도구별 스프라이트를 미리 만들어 둔다 */
   const toolArt = {};
   TOOLS.forEach(t => {
@@ -184,8 +171,7 @@
       /* 이미 누끼된 PNG 는 그 파일이 곧 완성된 그림이다.
          테두리를 덧그리면 검은 클리너가 두꺼워지고 가운데 구멍이 메워진다. */
       const already = !!sp.__already;
-      toolArt[t.key] = { cv: sp, w: im.naturalWidth, h: im.naturalHeight, a: t.art,
-                         mul, already, edge: (mul || already) ? null : silhouette(sp) };
+      toolArt[t.key] = { cv: sp, w: im.naturalWidth, h: im.naturalHeight, a: t.art, mul, already };
       drawArt();
     };
     im.onerror = () => {};                  // 없으면 아래 픽셀 그림으로 그린다
@@ -359,14 +345,7 @@
           g.drawImage(art.cv, dx, dy, dw, dh);
           g.restore();
         } else {
-          if (art.edge) {                       // 검은 테두리 — 밝은 도구도 또렷하게
-            const r = Math.max(2, Math.round(dw * 0.016));
-            for (let i = 0; i < 8; i++) {
-              const ang = i * Math.PI / 4;
-              g.drawImage(art.edge, dx + Math.cos(ang) * r, dy + Math.sin(ang) * r, dw, dh);
-            }
-          }
-          g.drawImage(art.cv, dx, dy, dw, dh);
+          g.drawImage(art.cv, dx, dy, dw, dh);   // 원본 그대로. 덧그리는 것 없음.
         }
       }
 
