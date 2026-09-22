@@ -74,7 +74,7 @@
                   x0: 0.294, x1: 0.704, y0: 0.400, y1: 0.890 };
   /* 혀의 좌우 폭 — 안쪽(0)에서 혀끝(1)까지 열한 군데를 사진에서 재서
      가장 넓은 곳 대비 비율로 적어 둔 것. 뿌연 층을 이 모양대로 자른다. */
-  const SHAPE = [1, 1, 1, 1, 1, 1, .982, .939, .834, .638, .067];
+  const SHAPE = [.88, .93, .97, 1, 1, 1, 1, .957, .850, .650, .109];
   const photo = new Image();
   let photoOK = false;
 
@@ -170,6 +170,61 @@
     g.closePath();
   }
 
+  /* 같은 자리에 늘 같은 얼룩이 나오도록 하는 값 (0~1) */
+  function noise(i, s) {
+    const x = Math.sin(i * 127.1 + s * 311.7) * 43758.5453;
+    return x - Math.floor(x);
+  }
+
+  /* 설태 — 혀 모양으로 잘라 둔 상태에서 부른다.
+     직선으로 자르면 테이프를 붙인 것처럼 보인다. 좌우로 갈수록 옅어지게 깔고,
+     아래 경계는 물결지게 세 겹 겹쳐 너덜너덜하게, 그 위에 얼룩을 흩는다. */
+  function drawCoat(g, G, cleanY) {
+    const top = G.top - 4;
+    if (cleanY <= top + 3) return;
+    const hw = G.tw / 2, L = G.cx - hw, R = G.cx + hw;
+
+    // 좌우 가장자리로 갈수록 옅어지는 밑바탕 — 혀 옆선이 딱 잘려 보이지 않게
+    const wash = g.createLinearGradient(L, 0, R, 0);
+    wash.addColorStop(0,   "rgba(247,244,231,0)");
+    wash.addColorStop(.17, "rgba(247,244,231,.52)");
+    wash.addColorStop(.5,  "rgba(247,244,231,.60)");
+    wash.addColorStop(.83, "rgba(247,244,231,.52)");
+    wash.addColorStop(1,   "rgba(247,244,231,0)");
+
+    // 아래 경계 — 물결 세 겹을 조금씩 어긋나게 포개 너덜너덜하게
+    for (let k = 0; k < 3; k++) {
+      const amp = 6 + k * 5, ph = k * 2.1, lift = k * 9;
+      g.beginPath();
+      g.moveTo(L, top); g.lineTo(R, top);
+      for (let x = R; x >= L; x -= 6) {
+        const t = (x - L) / (R - L);
+        g.lineTo(x, cleanY - lift
+          + Math.sin(t * 7.3 + ph) * amp
+          + Math.sin(t * 17.1 + ph * 2) * amp * .4);
+      }
+      g.closePath();
+      g.globalAlpha = k ? .3 : .62;
+      g.fillStyle = wash;
+      g.fill();
+    }
+    g.globalAlpha = 1;
+
+    // 얼룩 — 둥근 반점을 흩어 고르지 않게
+    for (let i = 0; i < 46; i++) {
+      const x = L + noise(i, 1) * (R - L);
+      const y = top + noise(i, 2) * (G.bot - top);
+      if (y > cleanY - 8) continue;                 // 닦인 쪽엔 없다
+      const r = 4 + noise(i, 3) * 11;
+      const al = (.1 + noise(i, 4) * .2).toFixed(3);
+      const bl = g.createRadialGradient(x, y, 0, x, y, r);
+      bl.addColorStop(0, "rgba(224,218,188," + al + ")");
+      bl.addColorStop(1, "rgba(224,218,188,0)");
+      g.fillStyle = bl;
+      g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+  }
+
   function geom(w, h) {
     const tw = Math.min(w * 0.56, h * 0.42);
     const pad = h * 0.07;
@@ -223,28 +278,11 @@
     // 혀 모양 그대로 잘라 낸다 — 뿌연 층이 혀 밖으로 나가지 않게
     if (usePhoto) { tonguePathPhoto(g, G); g.clip(); }
     else { tonguePath(g, G); g.clip(); }
-    /* 안 닦인 쪽(혀 안쪽)을 뿌옇게 덮는다. cleanY 아래는 덮지 않으므로
-       닦아 내려갈수록 사진 그대로가 드러난다. */
-    const L = G.cx - G.tw / 2 - 4, BW = G.tw + 8, TOP = G.top - 6;
-    if (cleanY > TOP) {
-      const fade = Math.min(30, (cleanY - TOP) * 0.45);   // 경계를 흐리게
-      g.fillStyle = "rgba(238,234,214,.82)";
-      g.fillRect(L, TOP, BW, (cleanY - fade) - TOP);
-      const gr = g.createLinearGradient(0, cleanY - fade, 0, cleanY);
-      gr.addColorStop(0, "rgba(238,234,214,.82)");
-      gr.addColorStop(1, "rgba(238,234,214,0)");
-      g.fillStyle = gr;
-      g.fillRect(L, cleanY - fade, BW, fade);
-
-      /* 오돌토돌한 알갱이 — 뿌연 층 위에 얹어 설태처럼 보이게 */
-      g.fillStyle = "rgba(206,200,172,.55)";
-      for (let i = 0; i < 120; i++) {
-        const rx = ((i * 73) % 100) / 100, ry = ((i * 37) % 100) / 100;
-        const x = G.cx - G.tw / 2 + rx * G.tw;
-        const y = G.top + ry * (G.bot - G.top);
-        if (y > cleanY - fade) continue;            // 이미 닦였거나 경계 구간
-        g.fillRect(Math.round(x), Math.round(y), 5, 5);
-      }
+    /* 안 닦인 쪽을 설태로 덮는다. 닦아 내려갈수록 사진 그대로가 드러난다. */
+    if (usePhoto) drawCoat(g, G, cleanY);
+    else {
+      g.fillStyle = "#CFC7A6";
+      g.fillRect(G.cx - G.tw / 2, G.top, G.tw, Math.max(0, cleanY - G.top));
     }
     g.restore();
 
