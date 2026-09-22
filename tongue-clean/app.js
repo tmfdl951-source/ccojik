@@ -32,11 +32,11 @@
     /* art: 사진 파일과, 사진 안에서 '머리'(혀에 닿는 부분)가 어디인지.
        headL~headR = 머리 좌우 비율, tip = 머리 끝의 세로 비율.
        사진을 바꾸면 이 세 값만 다시 잡으면 된다. */
-    { key: "cleaner", name: "텅클리너", sub: "무난",       gag: 1.00, score: 1.00,
+    { key: "cleaner", name: "텅클리너", sub: "무난",        gag: 1.00, score: 1.00,
       art: { src: "cleaner.png", headL: 0.40, headR: 0.60, tip: 0.02 } },
-    { key: "brush",   name: "칫솔",     sub: "좀 더 아슬", gag: 1.22, score: 1.42,
+    { key: "brush",   name: "칫솔",     sub: "위험한 만큼", gag: 1.22, score: 1.42,
       art: { src: "brush.png",   headL: 0.41, headR: 0.59, tip: 0.02 } },
-    { key: "spoon",   name: "숟가락",   sub: "왜요",       gag: 1.55, score: 2.05,
+    { key: "spoon",   name: "숟가락",   sub: "왜요",        gag: 1.55, score: 2.05,
       art: { src: "spoon.png",   headL: 0.32, headR: 0.68, tip: 0.05 } },
   ];
 
@@ -82,8 +82,9 @@
   const ctx = cv.getContext("2d");
   const artCv = $("artCv");
   const artCtx = artCv.getContext("2d");
-  ctx.imageSmoothingEnabled = false;
-  artCtx.imageSmoothingEnabled = false;
+  /* 사진을 쓰므로 축소할 때 부드럽게 */
+  ctx.imageSmoothingEnabled = true;
+  artCtx.imageSmoothingEnabled = true;
 
   /* 도구 이미지 — 셋 다 배경이 투명한 PNG 라 불러온 그대로 쓴다.
      배경을 지우거나 테두리를 두르는 처리는 하지 않는다. */
@@ -125,7 +126,7 @@
     W = Math.round(r.width); H = Math.round(r.height);
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.imageSmoothingEnabled = false;
+    ctx.imageSmoothingEnabled = true;
   }
   addEventListener("resize", () => { if (S.screen === "play") fitCanvas(); });
   addEventListener("orientationchange", () => { if (S.screen === "play") fitCanvas(); });
@@ -326,7 +327,7 @@
          오프셋이 고정이라 클리너가 오르내리면 같이 따라온다. */
       const dt2 = Math.round(depth * 100) + "%";
       const fz = Math.max(13, Math.round(h * 0.046));
-      g.font = "700 " + fz + "px Galmuri11, monospace";
+      g.font = "800 " + fz + "px 'Malgun Gothic', sans-serif";
       g.textAlign = "center"; g.textBaseline = "bottom";
       const ty = Math.max(fz, headTop - Math.round(fz * 0.5));   // 화면 위로 안 나가게
       g.lineJoin = "round";
@@ -341,7 +342,7 @@
       g.fillStyle = "rgba(233,43,63," + (0.22 + Math.sin(S.gagT * 40) * 0.12) + ")";
       g.fillRect(0, 0, w, h);
       g.fillStyle = "#fff";
-      g.font = "700 " + Math.round(Math.min(w * 0.22, h * 0.16)) + "px Galmuri11, monospace";
+      g.font = "800 " + Math.round(Math.min(w * 0.22, h * 0.16)) + "px 'Malgun Gothic', sans-serif";
       g.textAlign = "center"; g.textBaseline = "middle";
       const jx = (Math.random() - 0.5) * 10, jy = (Math.random() - 0.5) * 10;
       g.strokeStyle = "#16161D"; g.lineWidth = 8;
