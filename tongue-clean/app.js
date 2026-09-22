@@ -35,9 +35,9 @@
     { key: "cleaner", name: "텅클리너", sub: "무난",       gag: 1.00, score: 1.00,
       art: { src: "cleaner.png", headL: 0.40, headR: 0.60, tip: 0.02 } },
     { key: "brush",   name: "칫솔",     sub: "좀 더 아슬", gag: 1.22, score: 1.42,
-      art: { src: "brush.jpg",   headL: 0.41, headR: 0.59, tip: 0.02 } },
+      art: { src: "brush.png",   headL: 0.41, headR: 0.59, tip: 0.02 } },
     { key: "spoon",   name: "숟가락",   sub: "왜요",       gag: 1.55, score: 2.05,
-      art: { src: "spoon.jpg",   headL: 0.32, headR: 0.68, tip: 0.05 } },
+      art: { src: "spoon.png",   headL: 0.32, headR: 0.68, tip: 0.05 } },
   ];
 
   /* 한줄평 — 추가하려면 배열에 문장만 더 넣으면 된다 */
@@ -82,99 +82,16 @@
   ctx.imageSmoothingEnabled = false;
   artCtx.imageSmoothingEnabled = false;
 
-  /* ---- 도구 사진: 흰 배경 지우기 ----
-     가장자리에서 시작해 흰색이 이어지는 만큼만 지운다. 이렇게 하면 숟가락의
-     안쪽 흰 하이라이트처럼 '물체 안의 밝은 부분'은 구멍이 나지 않는다. */
-  function cutWhite(img) {
-    const c = document.createElement("canvas");
-    c.width = img.naturalWidth || img.width; c.height = img.naturalHeight || img.height;
-    const g = c.getContext("2d");
-    g.drawImage(img, 0, 0);
-    let d;
-    try { d = g.getImageData(0, 0, c.width, c.height); }
-    catch (_) { return c; }                 // file:// 로 열면 픽셀을 못 읽는다. 사진 그대로 쓴다.
-    const px = d.data, W2 = c.width, H2 = c.height;
-
-    /* 이미 누끼가 된 그림(PNG)은 그대로 쓴다. 여기서 배경 지우기를 돌리면
-       '안쪽 되살리기'가 가운데 뚫린 곳까지 메워 혀가 안 비친다. */
-    let clear = 0;
-    for (let p = 3; p < px.length; p += 4) if (px[p] < 250) clear++;
-    if (clear > px.length / 4 * 0.05) { c.__cut = clear / (px.length / 4); c.__already = true; return c; }
-
-    /* 네 모서리에서 배경색을 잰다 */
-    const at = (x, y) => { const i = (y * W2 + x) * 4; return [px[i], px[i + 1], px[i + 2]]; };
-    const corners = [at(0, 0), at(W2 - 1, 0), at(0, H2 - 1), at(W2 - 1, H2 - 1)];
-    const bg = [0, 1, 2].map(k => corners.reduce((s, c2) => s + c2[k], 0) / 4);
-    /* 그 색과 거의 같을 때만 배경. 기준을 넓게 잡으면 은색 숟가락처럼
-       밝은 물체가 바깥과 이어진 채 같이 파먹힌다. */
-    const TOL = 14;
-    const isBg = i => Math.abs(px[i] - bg[0]) <= TOL
-                   && Math.abs(px[i + 1] - bg[1]) <= TOL
-                   && Math.abs(px[i + 2] - bg[2]) <= TOL;
-    const seen = new Uint8Array(W2 * H2);
-    const stack = [];
-    for (let x = 0; x < W2; x++) { stack.push(x, (H2 - 1) * W2 + x); }
-    for (let y = 0; y < H2; y++) { stack.push(y * W2, y * W2 + W2 - 1); }
-    while (stack.length) {
-      const p = stack.pop();
-      if (seen[p]) continue;
-      const i = p * 4;
-      if (!isBg(i)) continue;
-      seen[p] = 1; px[i + 3] = 0;
-      const x = p % W2, y = (p - x) / W2;
-      if (x > 0) stack.push(p - 1);
-      if (x < W2 - 1) stack.push(p + 1);
-      if (y > 0) stack.push(p - W2);
-      if (y < H2 - 1) stack.push(p + W2);
-    }
-    /* 흰 손잡이(칫솔)나 은색 면(숟가락)은 바깥 배경과 색이 같아, 색만 보면
-       바깥에서 물체 안쪽까지 지우기가 번져 들어간다.
-       그래서 지운 뒤에, 남은 픽셀 사이에 끼어 있는 자리는 도로 살린다.
-       좌우 모두 물체가 있고 위아래로도 물체가 있으면 그건 물체 안쪽이다. */
-    const rowL = new Int32Array(H2).fill(-1), rowR = new Int32Array(H2).fill(-1);
-    const colT = new Int32Array(W2).fill(-1), colB = new Int32Array(W2).fill(-1);
-    for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) {
-      if (seen[y * W2 + x]) continue;                  // 지워진 자리
-      if (rowL[y] < 0) rowL[y] = x;
-      rowR[y] = x;
-      if (colT[x] < 0) colT[x] = y;
-      colB[x] = y;
-    }
-    for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) {
-      const p = y * W2 + x;
-      if (!seen[p]) continue;
-      if (x > rowL[y] && x < rowR[y] && rowL[y] >= 0 &&
-          y > colT[x] && y < colB[x] && colT[x] >= 0) {
-        seen[p] = 0; px[p * 4 + 3] = 255;              // 물체 안쪽 — 되살린다
-      }
-    }
-
-    g.putImageData(d, 0, 0);
-    let cut = 0; for (let p = 0; p < seen.length; p++) cut += seen[p];
-    c.__cut = cut / seen.length;        // 실제로 얼마나 지웠는지
-    return c;
-  }
-
-  /* 도구별 스프라이트를 미리 만들어 둔다 */
+  /* 도구 이미지 — 셋 다 배경이 투명한 PNG 라 불러온 그대로 쓴다.
+     배경을 지우거나 테두리를 두르는 처리는 하지 않는다. */
   const toolArt = {};
   TOOLS.forEach(t => {
     const im = new Image();
     im.onload = () => {
-      const sp = cutWhite(im);
-      /* 배경을 거의 못 지웠다면(사진이 흰 배경이 아니거나 픽셀을 못 읽은 경우)
-         흰 사각형이 혀를 덮는다. 그럴 때는 곱하기로 얹어 밝은 곳이 비치게 한다. */
-      /* 거의 안 지웠으면(흰 배경이 아니거나 픽셀을 못 읽음) 곱하기로 얹고,
-         거의 다 지웠으면(남는 게 없음) 사진을 버리고 픽셀 도구로 간다. */
-      const cut = sp.__cut;
-      if (cut > 0.985) return;                  // 도구가 통째로 사라진 경우
-      const mul = !(cut > 0.15);
-      /* 이미 누끼된 PNG 는 그 파일이 곧 완성된 그림이다.
-         테두리를 덧그리면 검은 클리너가 두꺼워지고 가운데 구멍이 메워진다. */
-      const already = !!sp.__already;
-      toolArt[t.key] = { cv: sp, w: im.naturalWidth, h: im.naturalHeight, a: t.art, mul, already };
+      toolArt[t.key] = { img: im, w: im.naturalWidth, h: im.naturalHeight, a: t.art };
       drawArt();
     };
-    im.onerror = () => {};                  // 없으면 아래 픽셀 그림으로 그린다
+    im.onerror = () => {};
     im.src = t.art.src;
   });
 
@@ -333,20 +250,15 @@
         const headH = (art.a.headR - art.a.headL) * art.w * k * 0.5;
         const dx = G.cx - dw / 2, dy = y - art.a.tip * dh - headH * 0.5;
         headTop = y - headH * 0.5;            // 헤드 윗변
-        // 손잡이가 화면 아래까지 안 닿으면 이어 그려 준다
-        // (누끼된 PNG 는 그 파일만 그린다 — 덧그리지 않는다)
+        /* 손잡이가 화면 아래까지 안 닿으면 이어 그려 준다.
+           숟가락은 사진 손잡이가 화면 중간에서 끝나 이게 없으면 공중에 뜬다.
+           이미지에 손대는 것이 아니라, 화면 밖으로 이어 주는 장식이다. */
         const end = dy + dh;
-        if (!art.already && end < h) {
+        if (end < h) {
           g.fillStyle = "#2A2A33";
           g.fillRect(G.cx - Math.max(5, dw * 0.03), end - 2, Math.max(10, dw * 0.06), h - end + 4);
         }
-        if (art.mul) {
-          g.save(); g.globalCompositeOperation = "multiply";
-          g.drawImage(art.cv, dx, dy, dw, dh);
-          g.restore();
-        } else {
-          g.drawImage(art.cv, dx, dy, dw, dh);   // 원본 그대로. 덧그리는 것 없음.
-        }
+        g.drawImage(art.img, dx, dy, dw, dh);   // 원본 그대로. 덧그리는 것 없음.
       }
 
       /* 깊이 수치 — 클리너 헤드의 가로 한가운데, 헤드 바로 위.
