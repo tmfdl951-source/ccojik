@@ -70,8 +70,11 @@
 
   /* 바탕 사진. 사진 안에서 혀가 차지하는 자리를 0~1 비율로 적어 둔다.
      (540x360 원본 기준 — 사진을 바꾸면 이 네 값만 다시 잡으면 된다) */
-  const PHOTO = { src: "tongue.png", w: 1206, h: 1305,
-                  x0: 0.298, x1: 0.700, y0: 0.400, y1: 0.888 };
+  const PHOTO = { src: "tongue.png", w: 480, h: 519,
+                  x0: 0.294, x1: 0.704, y0: 0.400, y1: 0.890 };
+  /* 혀의 좌우 폭 — 안쪽(0)에서 혀끝(1)까지 열한 군데를 사진에서 재서
+     가장 넓은 곳 대비 비율로 적어 둔 것. 뿌연 층을 이 모양대로 자른다. */
+  const SHAPE = [1, 1, 1, 1, 1, 1, .982, .939, .834, .638, .067];
   const photo = new Image();
   let photoOK = false;
 
@@ -151,6 +154,22 @@
              backY: b.dy + PHOTO.y0 * b.dh + 6 };  // 깊이 1 (제일 안쪽)
   }
 
+  /* 잰 윤곽대로 혀 테두리를 그린다. 위에서 아래로 왼쪽 변을 따라 내려간 뒤
+     오른쪽 변을 따라 올라온다. */
+  function tonguePathPhoto(g, G) {
+    const n = SHAPE.length - 1, hw = G.tw / 2;
+    g.beginPath();
+    for (let i = 0; i <= n; i++) {
+      const y = G.top + (G.bot - G.top) * (i / n), x = G.cx - hw * SHAPE[i];
+      i ? g.lineTo(x, y) : g.moveTo(x, y);
+    }
+    for (let i = n; i >= 0; i--) {
+      const y = G.top + (G.bot - G.top) * (i / n);
+      g.lineTo(G.cx + hw * SHAPE[i], y);
+    }
+    g.closePath();
+  }
+
   function geom(w, h) {
     const tw = Math.min(w * 0.56, h * 0.42);
     const pad = h * 0.07;
@@ -201,17 +220,9 @@
     // 설태 — 도트. 닦인 구간(아래쪽)에서는 지워진다.
     const cleanY = G.tipY + (G.backY - G.tipY) * reach;
     g.save();
-    if (usePhoto) {
-      // 혀 자리에만 칠해지게 막아 둔다
-      g.beginPath();
-      const hw = G.tw / 2, r = hw * 0.55;
-      g.moveTo(G.cx - hw, G.top);
-      g.lineTo(G.cx + hw, G.top);
-      g.lineTo(G.cx + hw, G.bot - r);
-      g.quadraticCurveTo(G.cx + hw, G.bot, G.cx, G.bot);
-      g.quadraticCurveTo(G.cx - hw, G.bot, G.cx - hw, G.bot - r);
-      g.closePath(); g.clip();
-    } else { tonguePath(g, G); g.clip(); }
+    // 혀 모양 그대로 잘라 낸다 — 뿌연 층이 혀 밖으로 나가지 않게
+    if (usePhoto) { tonguePathPhoto(g, G); g.clip(); }
+    else { tonguePath(g, G); g.clip(); }
     /* 안 닦인 쪽(혀 안쪽)을 뿌옇게 덮는다. cleanY 아래는 덮지 않으므로
        닦아 내려갈수록 사진 그대로가 드러난다. */
     const L = G.cx - G.tw / 2 - 4, BW = G.tw + 8, TOP = G.top - 6;
