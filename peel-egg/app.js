@@ -53,17 +53,14 @@
     chipSpin:  7,          // 도는 속도 (라디안/초)
     maxChips:  90,         // 동시에 떨어지는 조각 수 상한 (성능)
 
-    /* 채점 */
-    peelScore:   1000,     // 껍질을 다 벗기면 받는 점수
-    dmgPenalty:  1400,     // 흰자를 다 뜯으면 깎이는 점수
-    timeBonus:   12,       // 다 깐 뒤 남은 1초당
+    /* 채점 — 0~100점.
+       점수 = 100 x (껍질 제거율 ^ wPeel) x (흰자 보존율 ^ wKeep)
+       둘을 곱하므로 껍질을 안 벗기거나 흰자를 다 뜯으면 0점으로 수렴하고,
+       다 벗기고 하나도 안 뜯으면 정확히 100점이 된다.
+       중요도를 올리려면 그쪽 지수를 키운다 (예: wKeep 2 -> 흰자 손상이 두 배로 아프다). */
+    wPeel: 1,              // 껍질 제거율의 중요도
+    wKeep: 1,              // 흰자 보존율의 중요도
     doneAt: 0.98,          // 이만큼 벗기면 저절로 끝난다
-
-    /* 손상도 구간 — 결과 사진과 한줄평이 여기서 함께 갈린다.
-       dmgFine 아래 완벽 / dmgMid 아래 양호 / dmgBad 아래 손상 / 그 위 파괴 */
-    dmgFine: 0.03,         // 이 아래면 거의 안 뜯긴 것
-    dmgMid: 0.10,          // 이 위면 우둘투둘한 사진
-    dmgBad: 0.30,          // 이 위면 너덜너덜한 사진
 
     /* 사진이 화면에서 차지하는 크기 — 어색하면 여기를 만진다 */
     eggFill: 0.88,         // 게임판 높이의 몇 배로 그릴지
@@ -78,6 +75,15 @@
     damaged: { scale: 0.865, dx: -0.006, dy: -0.016 },
   };
 
+  /* 등급 — 점수로 갈린다. 경계값·이름·쓸 사진을 한자리에서 본다.
+     위에서부터 내려오며 처음 맞는 칸을 쓴다. 한줄평은 key 로 data.js 에서 찾는다. */
+  const GRADES = [
+    { min: 90, key: "perfect", label: "완벽", img: "peeled"  },
+    { min: 70, key: "good",    label: "양호", img: "peeled"  },
+    { min: 40, key: "damaged", label: "손상", img: "damaged" },
+    { min:  0, key: "ruined",  label: "참사", img: "ruined"  },
+  ];
+
   /* 결과 화면 — 사진 가장자리의 빈 여백을 걷어내고 계란만 꽉 차게 키운다.
      zoom 은 계란이 자리 높이를 채우는 배율, shift 는 계란이 사진 한가운데가
      아니라 조금 아래에 있어서 올려 주는 값(%). 알파를 실측해 낸 숫자다. */
@@ -87,12 +93,8 @@
     ruined:  { zoom: 1.53, shift: -2.6 },
   };
 
-  /* 한줄평 — 문장은 data.js 에 있다. 손상도로 구간을 고르고 그 안에서 무작위. */
-  function remarkFor(dmgPct) {
-    const key = dmgPct < TUNE.dmgFine ? "perfect"
-              : dmgPct < TUNE.dmgMid  ? "fine"
-              : dmgPct < TUNE.dmgBad  ? "damaged"
-              : "ruined";
+  /* 한줄평 — 문장은 data.js 에 있다. 등급에 맞는 배열에서 무작위로 하나. */
+  function remarkFor(key) {
     const pool = (window.PEEL_EGG_REMARKS || {})[key];
     /* data.js 를 못 불러와도 게임은 굴러가야 한다 — 한 줄만 비워 둔다 */
     return pool && pool.length ? pool[Math.floor(Math.random() * pool.length)] : "";
@@ -134,7 +136,8 @@
     drag: null,
     best: 0,
   };
-  try { S.best = +(localStorage.getItem("ccojik_peelegg_best") || 0) || 0; } catch (_) {}
+  /* 눈금이 0~100 으로 바뀌었다. 예전 기록(수백~천점)이 섞이지 않게 키를 새로 쓴다. */
+  try { S.best = +(localStorage.getItem("ccojik_peelegg_best100") || 0) || 0; } catch (_) {}
 
   const cv = $("cv"), ctx = cv.getContext("2d");
   /* 계란 세 층 — 아래부터 위로. 지우기는 이 캔버스들에만 한다. */
@@ -477,7 +480,7 @@
     erase(whiteCv, R, tears, Math.max(cw, ch) * TUNE.tearBlob);
 
     paintHud();
-    if (S.peeled / S.total >= TUNE.doneAt) finish(false);
+    if (S.peeled / S.total >= TUNE.doneAt) finish();
   }
 
   /* ============================================================
@@ -490,7 +493,7 @@
     t.classList.toggle("hot", S.left <= TUNE.hotAt);
     $("timeNum").textContent = Math.max(0, Math.ceil(S.left));
     $("timeFill").style.width = clamp(S.left / TUNE.time, 0, 1) * 100 + "%";
-    if (S.left <= 0) finish(true);
+    if (S.left <= 0) finish();
   }
 
   function paintHud() {
@@ -515,42 +518,39 @@
     $("timeFill").style.width = "100%";
   }
 
-  function finish(timedOut) {
+  function finish() {
     if (S.mode !== "play") return;
     S.mode = "over";
     S.drag = null;
 
     const peelPct = S.peeled / S.total, dmgPct = S.torn / S.total;
-    const cleared = peelPct >= TUNE.doneAt;
-    const bonus = cleared && !timedOut ? Math.round(Math.max(0, S.left) * TUNE.timeBonus) : 0;
-    const score = Math.max(0, Math.round(peelPct * TUNE.peelScore - dmgPct * TUNE.dmgPenalty + bonus));
+    const keepPct = 1 - dmgPct;                     // 흰자 보존율
+    const score = clamp(Math.round(
+      100 * Math.pow(peelPct, TUNE.wPeel) * Math.pow(keepPct, TUNE.wKeep)), 0, 100);
+    const grade = GRADES.find(g => score >= g.min) || GRADES[GRADES.length - 1];
 
     $("finalScore").textContent = score;
+    $("gradeLabel").textContent = grade.label;
+    $("gradeLabel").className = "grade g-" + grade.key;
     /* 무엇으로 이 점수가 나왔는지 그대로 보여 준다 */
     $("peelEnd").textContent = Math.round(peelPct * 100) + "%";
-    $("peelPts").textContent = "+" + Math.round(peelPct * TUNE.peelScore);
-    $("dmgEnd").textContent = Math.round(dmgPct * 100) + "%";
-    $("dmgPts").textContent = "-" + Math.round(dmgPct * TUNE.dmgPenalty);
-    $("bonusRow").hidden = !bonus;
-    $("bonusPts").textContent = "+" + bonus;
+    $("keepEnd").textContent = Math.round(keepPct * 100) + "%";
+    $("scoreEnd").textContent = score + "점";
 
-    /* 결과 사진 — 흰자를 얼마나 뜯었는지로 고른다 */
-    const which = dmgPct >= TUNE.dmgBad ? "ruined"
-                : dmgPct >= TUNE.dmgMid ? "damaged"
-                : "peeled";
+    /* 결과 사진 — 등급이 정한다 */
     const im = $("resultImg"), box = $("resultEgg");
-    if (IMG[which].ok) {
-      im.src = IMG[which].src;
-      const z = RESULT_ZOOM[which];
+    if (IMG[grade.img].ok) {
+      im.src = IMG[grade.img].src;
+      const z = RESULT_ZOOM[grade.img];
       im.style.transform = "translateY(" + z.shift + "%) scale(" + z.zoom + ")";
       box.hidden = false;
     } else box.hidden = true;
 
-    $("remark").textContent = remarkFor(dmgPct);
+    $("remark").textContent = remarkFor(grade.key);
 
     if (score > S.best) {
       S.best = score;
-      try { localStorage.setItem("ccojik_peelegg_best", String(score)); } catch (_) {}
+      try { localStorage.setItem("ccojik_peelegg_best100", String(score)); } catch (_) {}
     }
     $("bestEnd").textContent = S.best;
     $("bestStart").textContent = S.best;
@@ -603,7 +603,7 @@
 
   $("startBtn").addEventListener("click", start);
   $("againBtn").addEventListener("click", start);
-  $("doneBtn").addEventListener("click", () => { if (S.mode === "play") finish(false); });
+  $("doneBtn").addEventListener("click", () => { if (S.mode === "play") finish(); });
 
   /* ============================================================
      루프

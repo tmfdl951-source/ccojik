@@ -53,8 +53,8 @@
       <ul class="howto">
         <li><b>살살 문지르면</b> 껍질만 벗겨집니다</li>
         <li><b class="warn">급하게 문지르면</b> 흰자까지 뜯깁니다</li>
-        <li>껍질 벗길수록 <b>+점</b>, 흰자 뜯을수록 <b class="warn">-점</b>.
-          안 뜯고 다 벗기면 <b>만점</b></li>
+        <li>껍질 많이 벗기고 <b class="warn">흰자 안 뜯을수록</b> 고득점.
+          <b>100점 만점</b></li>
         <li>시간은 <b id="timeInfo">20</b>초. 되돌리기는 없습니다</li>
       </ul>
       <button class="btn" type="button" id="startBtn">시작하기</button>
@@ -66,13 +66,13 @@
         <img id="resultImg" alt="결과 계란" />
       </div>
       <p class="score-line">
-        <span class="score-big" id="finalScore">0</span><span class="score-cap">점</span>
+        <span class="grade" id="gradeLabel">완벽</span>
+        <span class="score-big" id="finalScore">0</span><span class="score-cap">/ 100</span>
       </p>
       <p class="remark" id="remark"></p>
       <p class="tally">
-        껍질 <b id="peelEnd">0%</b> <span class="plus" id="peelPts">+0</span>
-        &middot; 손상 <b id="dmgEnd">0%</b> <span class="minus" id="dmgPts">-0</span><span
-          id="bonusRow" hidden> &middot; 시간 <span class="plus" id="bonusPts">+0</span></span>
+        껍질 제거 <b id="peelEnd">0%</b> &middot; 흰자 보존 <b id="keepEnd">0%</b>
+        &rarr; <b id="scoreEnd">0점</b>
       </p>
       <p class="best">최고 <span id="bestEnd">0</span>점</p>
       <button class="btn" type="button" id="againBtn">다시 하기</button>

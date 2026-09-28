@@ -168,9 +168,21 @@ body { display: flex; align-items: center; justify-content: center; }
 .howto b.warn { color: var(--red); }
 
 .score-line {
-  display: flex; align-items: baseline; justify-content: center; gap: 5px;
-  flex-shrink: 0;
+  display: flex; align-items: baseline; justify-content: center; gap: 7px;
+  flex-shrink: 0; flex-wrap: wrap;
 }
+/* 등급 딱지 — 점수 옆에 큼직하게 */
+.grade {
+  font-family: var(--f-title);
+  font-size: clamp(16px, min(5.6vw, 2.9vh), 28px); line-height: 1;
+  color: var(--paper); background: var(--ink);
+  padding: clamp(3px, .7vh, 6px) clamp(7px, 2.2vw, 12px);
+  align-self: center;
+}
+.grade.g-perfect { background: var(--green); }
+.grade.g-good    { background: var(--ink); }
+.grade.g-damaged { background: #C98A1E; }
+.grade.g-ruined  { background: var(--red); }
 .score-big {
   font-family: var(--f-title);
   font-size: clamp(30px, min(11vw, 5.6vh), 56px); line-height: 1; color: var(--ink);
