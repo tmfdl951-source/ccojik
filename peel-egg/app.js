@@ -35,7 +35,9 @@
     timeBonus:   12,       // 다 깐 뒤 남은 1초당
     doneAt: 0.98,          // 이만큼 벗기면 저절로 끝난다
 
-    /* 결과 사진이 갈리는 손상도 경계 */
+    /* 손상도 구간 — 결과 사진과 한줄평이 여기서 함께 갈린다.
+       dmgFine 아래 완벽 / dmgMid 아래 양호 / dmgBad 아래 손상 / 그 위 파괴 */
+    dmgFine: 0.03,         // 이 아래면 거의 안 뜯긴 것
     dmgMid: 0.10,          // 이 위면 우둘투둘한 사진
     dmgBad: 0.30,          // 이 위면 너덜너덜한 사진
 
@@ -61,15 +63,16 @@
     ruined:  { zoom: 1.53, shift: -2.6 },
   };
 
-  /* 한줄평 — 문장만 더 넣으면 바로 늘어난다 */
-  const REMARKS = {
-    top:  ["장인의 손길, 완벽한 계란", "편의점 알바 3년차", "이 구역 계란 장인"],
-    mid:  ["먹을 순 있습니다", "반은 껍질 반은 흰자", "그럭저럭 까셨습니다"],
-    low:  ["이게 계란이었나요", "흰자를 다 드셨네요", "삶은 계란 학대죄"],
-    slow: ["시간이 다 됐습니다. 껍질째 드세요", "아직 껍질이 남았습니다"],
-    rush: ["시간에 쫓겨 흰자를 학살했습니다", "급하면 이렇게 됩니다"],
-  };
-  const pick = a => a[Math.floor(Math.random() * a.length)];
+  /* 한줄평 — 문장은 data.js 에 있다. 손상도로 구간을 고르고 그 안에서 무작위. */
+  function remarkFor(dmgPct) {
+    const key = dmgPct < TUNE.dmgFine ? "perfect"
+              : dmgPct < TUNE.dmgMid  ? "fine"
+              : dmgPct < TUNE.dmgBad  ? "damaged"
+              : "ruined";
+    const pool = (window.PEEL_EGG_REMARKS || {})[key];
+    /* data.js 를 못 불러와도 게임은 굴러가야 한다 — 한 줄만 비워 둔다 */
+    return pool && pool.length ? pool[Math.floor(Math.random() * pool.length)] : "";
+  }
 
   const $ = id => document.getElementById(id);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -101,7 +104,6 @@
     torn: 0,
     drag: null,
     best: 0,
-    timedOut: false,
   };
   try { S.best = +(localStorage.getItem("ccojik_peelegg_best") || 0) || 0; } catch (_) {}
 
@@ -351,7 +353,7 @@
     t.classList.toggle("hot", S.left <= TUNE.hotAt);
     $("timeNum").textContent = Math.max(0, Math.ceil(S.left));
     $("timeFill").style.width = clamp(S.left / TUNE.time, 0, 1) * 100 + "%";
-    if (S.left <= 0) { S.timedOut = true; finish(true); }
+    if (S.left <= 0) finish(true);
   }
 
   function paintHud() {
@@ -363,7 +365,6 @@
     S.mode = "play";
     S.left = TUNE.time;
     S.drag = null;
-    S.timedOut = false;
     fitCanvas();
     buildCells();
     paintHud();
@@ -400,14 +401,7 @@
       box.hidden = false;
     } else box.hidden = true;
 
-    /* 멘트 — 시간에 쫓겼는지도 섞는다 */
-    let line;
-    if (timedOut && peelPct < 0.6) line = pick(REMARKS.slow);
-    else if (timedOut && dmgPct >= 0.3) line = pick(REMARKS.rush);
-    else if (score >= 700) line = pick(REMARKS.top);
-    else if (score >= 300) line = pick(REMARKS.mid);
-    else line = pick(REMARKS.low);
-    $("remark").textContent = line;
+    $("remark").textContent = remarkFor(dmgPct);
 
     if (score > S.best) {
       S.best = score;
