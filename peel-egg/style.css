@@ -108,6 +108,10 @@ body { display: flex; align-items: center; justify-content: center; }
   font-size: clamp(18px, min(6.2vw, 3.1vh), 30px); line-height: 1.15;
 }
 .hud-num.bad { color: var(--red); }
+/* 어느 쪽이 좋은 방향인지 — 초록 +, 빨강 - */
+.dir { font-style: normal; font-weight: bold; }
+.dir.good { color: var(--green); }
+.dir.bad { color: var(--red); }
 
 /* ============================================================
    계란
@@ -195,6 +199,17 @@ body { display: flex; align-items: center; justify-content: center; }
   object-fit: contain;
   transform: scale(1.7);          /* 손상도에 따라 app.js 가 다시 넣는다 */
 }
+
+/* 점수가 어떻게 나왔는지 — 무엇으로 더하고 뺐는지 한 줄로 */
+.tally {
+  flex-shrink: 0;
+  font-size: clamp(12px, min(3.7vw, 1.95vh), 17px); line-height: 1.45;
+  color: var(--gray); max-width: 100%;
+}
+.tally b { color: var(--ink); font-weight: normal; }
+.tally .plus { color: var(--green); }
+.tally .minus { color: var(--red); }
+.tally [hidden] { display: none; }
 
 .best { font-size: clamp(12px, min(3.6vw, 1.9vh), 16px); color: var(--gray); line-height: 1.6; }
 .best span { color: var(--ink); }

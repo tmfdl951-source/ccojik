@@ -34,11 +34,11 @@
   <!-- ===== 진행 상태 ===== -->
   <div class="hud">
     <div class="hud-box">
-      <span class="hud-label">껍질 제거</span>
+      <span class="hud-label">껍질 제거 <i class="dir good">+</i></span>
       <span class="hud-num" id="peelNum">0%</span>
     </div>
     <div class="hud-box">
-      <span class="hud-label">흰자 손상</span>
+      <span class="hud-label">흰자 손상 <i class="dir bad">-</i></span>
       <span class="hud-num bad" id="dmgNum">0%</span>
     </div>
   </div>
@@ -53,6 +53,8 @@
       <ul class="howto">
         <li><b>살살 문지르면</b> 껍질만 벗겨집니다</li>
         <li><b class="warn">급하게 문지르면</b> 흰자까지 뜯깁니다</li>
+        <li>껍질 벗길수록 <b>+점</b>, 흰자 뜯을수록 <b class="warn">-점</b>.
+          안 뜯고 다 벗기면 <b>만점</b></li>
         <li>시간은 <b id="timeInfo">20</b>초. 되돌리기는 없습니다</li>
       </ul>
       <button class="btn" type="button" id="startBtn">시작하기</button>
@@ -67,10 +69,12 @@
         <span class="score-big" id="finalScore">0</span><span class="score-cap">점</span>
       </p>
       <p class="remark" id="remark"></p>
-      <p class="best">
-        껍질 <span id="peelEnd">0%</span> · 흰자 손상 <span id="dmgEnd">0%</span><br>
-        최고 <span id="bestEnd">0</span>점
+      <p class="tally">
+        껍질 <b id="peelEnd">0%</b> <span class="plus" id="peelPts">+0</span>
+        &middot; 손상 <b id="dmgEnd">0%</b> <span class="minus" id="dmgPts">-0</span><span
+          id="bonusRow" hidden> &middot; 시간 <span class="plus" id="bonusPts">+0</span></span>
       </p>
+      <p class="best">최고 <span id="bestEnd">0</span>점</p>
       <button class="btn" type="button" id="againBtn">다시 하기</button>
     </div>
   </div>

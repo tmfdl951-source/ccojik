@@ -9,6 +9,8 @@
  * 쌓이는 것 — 같은 자리를 계속 문지르거나 급하게 연타하면 쌓인다. 그래서
  * 제자리 탭으로만 까는 꼼수가 통하지 않는다.
  * 지우기는 층마다 따로 둔 캔버스에 destination-out 으로 한다.
+ * 껍질은 그냥 사라지지 않는다. 문지른 칸에 먼저 금이 짝 가고, 잠깐 뒤
+ * 그 칸이 조각으로 떨어져 나가 중력을 받아 화면 아래로 사라진다.
  *
  * 숫자(껍질 제거율·손상도)는 계란을 나눈 격자로 센다. 격자와 마스킹은 같은
  * rub() 안에서 함께 갱신되므로 화면과 숫자가 어긋나지 않는다. */
@@ -42,6 +44,14 @@
     stressTear: 1.0,       // 이만큼 쌓이면 흰자가 뜯긴다
 
     tearBlob: 0.62,        // 뜯긴 자국 반지름 (칸 크기 배수)
+
+    /* 껍질이 깨져 떨어지는 연출. 속도·거리는 게임판 높이 대비라 화면 크기를 안 탄다. */
+    crackLife: 0.20,       // 금이 보이는 시간(초)
+    chipWait:  0.10,       // 금이 간 뒤 조각이 떨어지기까지(초)
+    chipToss:  0.26,       // 떨어져 나갈 때 튕기는 속도 (게임판 높이 대비/초)
+    chipDrop:  2.1,        // 중력 (게임판 높이 대비/초제곱)
+    chipSpin:  7,          // 도는 속도 (라디안/초)
+    maxChips:  90,         // 동시에 떨어지는 조각 수 상한 (성능)
 
     /* 채점 */
     peelScore:   1000,     // 껍질을 다 벗기면 받는 점수
@@ -116,6 +126,8 @@
     stress: null,        // 칸마다 쌓인 부담
     stressAt: null,      // 그 부담을 마지막으로 건드린 시각
     lastTap: 0,          // 직전에 탭한 시각 — 연타가 급한지 보려고
+    chips: [],           // 떨어지는 껍질 조각
+    cracks: [],          // 막 깨진 자리에 짧게 보이는 금
     total: 0,
     peeled: 0,
     torn: 0,
@@ -148,6 +160,8 @@
   try { new ResizeObserver(onResize).observe(cv); } catch (_) {}
   function onResize() {
     /* 화면이 바뀌어도 지금까지 벗기고 뜯은 자리는 그대로 옮겨 온다 */
+    S.chips.length = 0;                 // 날던 조각은 새 좌표계와 안 맞는다
+    S.cracks.length = 0;
     const oldShell = shellCv.width ? snapshot(shellCv) : null;
     const oldWhite = whiteCv.width ? snapshot(whiteCv) : null;
     if (fitCanvas() && S.cells) buildLayers(oldShell, oldWhite);
@@ -299,6 +313,60 @@
     buildLayers(null, null);
   }
 
+  /* ============================================================
+     껍질이 깨져 떨어진다
+     ============================================================ */
+  /* 칸 하나가 껍질 층에서 떨어져 나간다. 금이 먼저 가고, 잠깐 뒤 조각이 떨어진다. */
+  function breakChip(R, i, j) {
+    const cw = R.w / TUNE.cols, ch = R.h / TUNE.rows;
+    const lx = i * cw, ly = j * ch;                 // 껍질 층 안쪽 좌표
+
+    /* 껍질 층에서 그 칸을 지운다. 칸 사이에 실금이 남지 않게 아주 살짝 넓게. */
+    const g = shellCv.getContext("2d");
+    g.save();
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.globalCompositeOperation = "destination-out";
+    g.fillStyle = "#000";
+    g.fillRect(lx - 0.6, ly - 0.6, cw + 1.2, ch + 1.2);
+    g.restore();
+
+    /* 깨진 자리에 짧게 금이 보인다 */
+    S.cracks.push({
+      x: R.x + lx + cw / 2, y: R.y + ly + ch / 2,
+      r: Math.max(cw, ch) * 1.6, a: Math.random() * 6.28,
+      life: TUNE.crackLife,
+    });
+
+    /* 너무 많으면 조각은 생략한다 — 칸은 그대로 사라지므로 게임에는 지장 없다 */
+    if (S.chips.length >= TUNE.maxChips) return;
+    const toss = TUNE.chipToss * H;
+    const sx = IMG.shell.ok ? IMG.shell.el.naturalWidth / R.w : 1;
+    const sy = IMG.shell.ok ? IMG.shell.el.naturalHeight / R.h : 1;
+    S.chips.push({
+      x: R.x + lx + cw / 2, y: R.y + ly + ch / 2, w: cw, h: ch,
+      sx: lx * sx, sy: ly * sy, sw: cw * sx, sh: ch * sy,
+      vx: (Math.random() - 0.5) * toss,
+      vy: -Math.random() * toss * 0.45,             // 살짝 튕겨 올랐다가 떨어진다
+      rot: 0, vr: (Math.random() - 0.5) * TUNE.chipSpin,
+      wait: TUNE.chipWait,                          // 금이 가는 동안은 제자리
+    });
+  }
+
+  function stepChips(dt) {
+    const grav = TUNE.chipDrop * H;
+    for (let k = S.chips.length - 1; k >= 0; k--) {
+      const c = S.chips[k];
+      if (c.wait > 0) { c.wait -= dt; continue; }    // 아직 금만 간 상태
+      c.vy += grav * dt;
+      c.x += c.vx * dt; c.y += c.vy * dt;
+      c.rot += c.vr * dt;
+      if (c.y - c.h > H) S.chips.splice(k, 1);       // 화면 아래로 나가면 버린다
+    }
+    for (let k = S.cracks.length - 1; k >= 0; k--) {
+      if ((S.cracks[k].life -= dt) <= 0) S.cracks.splice(k, 1);
+    }
+  }
+
   /* 한 칸에 부담을 더하고 지금 얼마나 쌓였는지 돌려준다.
      빠진 만큼은 건드릴 때 한꺼번에 계산한다 — 매 프레임 전체를 훑지 않아도 된다. */
   function addStress(idx, gain, now) {
@@ -327,6 +395,38 @@
     if (baseCv.width) g.drawImage(baseCv, R.x, R.y, R.w, R.h);     // 뜯긴 흰자
     if (whiteCv.width) g.drawImage(whiteCv, R.x, R.y, R.w, R.h);   // 매끈한 흰자
     if (shellCv.width) g.drawImage(shellCv, R.x, R.y, R.w, R.h);   // 껍질
+
+    /* 막 깨진 자리에 짧게 금이 간다 */
+    if (S.cracks.length) {
+      g.strokeStyle = "#7A6746";
+      g.lineWidth = Math.max(1, R.w * 0.007);
+      g.lineCap = "round";
+      for (const c of S.cracks) {
+        g.globalAlpha = Math.max(0, c.life / TUNE.crackLife) * 0.75;
+        g.beginPath();
+        for (let n = 0; n < 3; n++) {
+          const a = c.a + n * 2.09;
+          g.moveTo(c.x, c.y);
+          g.lineTo(c.x + Math.cos(a) * c.r, c.y + Math.sin(a) * c.r);
+        }
+        g.stroke();
+      }
+      g.globalAlpha = 1;
+    }
+
+    /* 떨어지는 껍질 조각 — 사진에서 그 칸을 그대로 떼어 그린다 */
+    for (const c of S.chips) {
+      g.save();
+      g.translate(c.x, c.y);
+      g.rotate(c.rot);
+      if (IMG.shell.ok) {
+        g.drawImage(IMG.shell.el, c.sx, c.sy, c.sw, c.sh, -c.w / 2, -c.h / 2, c.w, c.h);
+      } else {
+        g.fillStyle = "#D5C3A0";
+        g.fillRect(-c.w / 2, -c.h / 2, c.w, c.h);
+      }
+      g.restore();
+    }
   }
 
   /* ============================================================
@@ -363,6 +463,7 @@
         /* 뜯기는 길은 둘 — 한 번에 빠르게 긁었거나, 부담이 꽉 찼거나 */
         const tear = addStress(idx, gain, now) >= TUNE.stressTear || Math.random() < p;
         if (st === SHELL) {
+          breakChip(R, i, j);                  // 이 칸의 껍질이 깨져 떨어진다
           if (tear) { S.cells[idx] = TORN; S.peeled++; S.torn++; tears.push(c); }
           else { S.cells[idx] = PEELED; S.peeled++; }
         } else if (tear) {
@@ -371,8 +472,7 @@
         }
       }
     }
-    /* 껍질은 문지른 자리 전체가 벗겨진다 (계란 밖은 애초에 안 그려져 있다) */
-    if (touched) erase(shellCv, R, [{ x, y }], br);
+    /* 껍질은 칸 단위로 깨져 떨어진다 (breakChip). 여기서 따로 지우지 않는다. */
     /* 매끈한 흰자는 뜯긴 칸에서만 벗겨져 아래 뜯긴 흰자가 드러난다 */
     erase(whiteCv, R, tears, Math.max(cw, ch) * TUNE.tearBlob);
 
@@ -403,6 +503,8 @@
     S.left = TUNE.time;
     S.drag = null;
     S.lastTap = 0;
+    S.chips.length = 0;
+    S.cracks.length = 0;
     fitCanvas();
     buildCells();
     paintHud();
@@ -424,8 +526,13 @@
     const score = Math.max(0, Math.round(peelPct * TUNE.peelScore - dmgPct * TUNE.dmgPenalty + bonus));
 
     $("finalScore").textContent = score;
+    /* 무엇으로 이 점수가 나왔는지 그대로 보여 준다 */
     $("peelEnd").textContent = Math.round(peelPct * 100) + "%";
+    $("peelPts").textContent = "+" + Math.round(peelPct * TUNE.peelScore);
     $("dmgEnd").textContent = Math.round(dmgPct * 100) + "%";
+    $("dmgPts").textContent = "-" + Math.round(dmgPct * TUNE.dmgPenalty);
+    $("bonusRow").hidden = !bonus;
+    $("bonusPts").textContent = "+" + bonus;
 
     /* 결과 사진 — 흰자를 얼마나 뜯었는지로 고른다 */
     const which = dmgPct >= TUNE.dmgBad ? "ruined"
@@ -507,6 +614,7 @@
     last = now;
     if (!W || !H) { fitCanvas(); if (W && H && !S.cells) buildCells(); }
     step(dt);
+    stepChips(dt);                        // 판이 끝나도 조각은 마저 떨어진다
     render();
     requestAnimationFrame(tick);
   }
