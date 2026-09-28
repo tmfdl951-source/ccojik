@@ -56,22 +56,32 @@ body { display: flex; align-items: center; justify-content: center; }
    타이머
    ============================================================ */
 .timer { flex-shrink: 0; }
-.timer-row { display: flex; align-items: baseline; justify-content: center; gap: 8px; }
+.timer-row {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  /* 5초 이하에서 숫자가 커질 자리를 처음부터 비워 둔다.
+     칸 높이가 변하지 않으므로 아래 계란 화면이 밀려 내려가지 않는다. */
+  min-height: calc(clamp(26px, min(9vw, 4.6vh), 46px) * 1.52);
+}
 .timer-label { font-size: clamp(11px, min(3.2vw, 1.7vh), 15px); color: var(--gray); }
 .timer-num {
   font-family: var(--f-title);
   font-size: clamp(26px, min(9vw, 4.6vh), 46px); line-height: 1.1;
 }
-/* 5초 이하면 촉박하게 — 커지고, 빨개지고, 두근거린다 */
-.timer-num { display: inline-block; }
+/* 5초 이하면 촉박하게 — 커지고, 빨개지고, 두근거린다.
+   커지는 것은 font-size 가 아니라 transform 이다. font-size 를 키우면 칸이
+   같이 커지면서 아래 계란 화면을 밀어낸다. transform 은 자리를 안 건드린다. */
+.timer-num { display: inline-block; transform-origin: center center; }
 .timer.hot .timer-num {
   color: var(--red);
-  font-size: clamp(40px, min(15vw, 7.4vh), 78px);
+  transform: scale(1.55);           /* 애니메이션이 꺼져 있어도 커지긴 한다 */
   animation: tick .5s steps(2, end) infinite;
 }
 .timer.hot .timer-label { color: var(--red); }
 .timer.hot .bar { border-color: var(--red); }
-@keyframes tick { 50% { transform: scale(1.16); } }
+@keyframes tick {
+  0%, 100% { transform: scale(1.55); }
+  50%      { transform: scale(1.72); }
+}
 .bar {
   position: relative; width: 100%; margin-top: 3px;
   height: clamp(10px, 1.8vh, 16px);
