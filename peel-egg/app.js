@@ -9,8 +9,10 @@
  * 쌓이는 것 — 같은 자리를 계속 문지르거나 급하게 연타하면 쌓인다. 그래서
  * 제자리 탭으로만 까는 꼼수가 통하지 않는다.
  * 지우기는 층마다 따로 둔 캔버스에 destination-out 으로 한다.
- * 껍질은 그냥 사라지지 않는다. 문지른 칸에 먼저 금이 짝 가고, 잠깐 뒤
- * 그 칸이 조각으로 떨어져 나가 중력을 받아 화면 아래로 사라진다.
+ * 껍질은 그냥 사라지지 않는다. 계란 표면에 흩뿌린 점들로 보로노이 조각을
+ * 미리 잘라 두고, 문지른 자리의 조각에 먼저 그 모양대로 금이 짝 간 뒤
+ * 조각이 떨어져 나가 중력을 받아 화면 아래로 사라진다. 네모 격자가 아니라
+ * 제각각 생긴 다각형이라 계단처럼 보이지 않는다.
  *
  * 숫자(껍질 제거율·손상도)는 계란을 나눈 격자로 센다. 격자와 마스킹은 같은
  * rub() 안에서 함께 갱신되므로 화면과 숫자가 어긋나지 않는다. */
@@ -24,7 +26,10 @@
     time: 10,              // 제한시간(초) — 여기만 바꾸면 전부 따라간다
     hotAt: 5,              // 남은 시간이 이 아래면 빨갛게 커지고 두근거린다
 
-    cols: 18, rows: 30,    // 계란을 나눈 칸 수 (사진 비율에 맞춰 세로로 길게)
+    /* 껍질 조각 한 장이자 채점 한 칸. 조각이 손에 잡히는 크기가 되도록 성기게 잡는다.
+       너무 잘게 쪼개면 무겁고 오히려 픽셀처럼 보인다. */
+    cols: 11, rows: 18,
+    jitter: 0.38,          // 조각 씨앗점을 칸 안에서 흔드는 정도 (칸 크기 대비)
     brush: 0.17,           // 붓 반지름 (계란 가로 폭 대비)
 
     /* 문지르는 속도 — 계란 가로 반지름을 1초에 몇 번 지나가는지로 잰다.
@@ -46,7 +51,7 @@
     tearBlob: 0.62,        // 뜯긴 자국 반지름 (칸 크기 배수)
 
     /* 껍질이 깨져 떨어지는 연출. 속도·거리는 게임판 높이 대비라 화면 크기를 안 탄다. */
-    crackLife: 0.20,       // 금이 보이는 시간(초)
+    crackLife: 0.22,       // 금이 보이는 시간(초)
     chipWait:  0.10,       // 금이 간 뒤 조각이 떨어지기까지(초)
     chipToss:  0.26,       // 떨어져 나갈 때 튕기는 속도 (게임판 높이 대비/초)
     chipDrop:  2.1,        // 중력 (게임판 높이 대비/초제곱)
@@ -128,6 +133,7 @@
     stress: null,        // 칸마다 쌓인 부담
     stressAt: null,      // 그 부담을 마지막으로 건드린 시각
     lastTap: 0,          // 직전에 탭한 시각 — 연타가 급한지 보려고
+    shards: null,        // 칸마다의 조각 모양 (0~1 비율 좌표라 화면이 바뀌어도 그대로)
     chips: [],           // 떨어지는 껍질 조각
     cracks: [],          // 막 깨진 자리에 짧게 보이는 금
     total: 0,
@@ -313,41 +319,124 @@
       }
     }
     if (!S.total) S.total = 1;           // 0 으로 나누는 것만 막는다
+    S.shards = buildShards();            // 판마다 새로 깨진다 — 같은 모양이 반복되지 않게
     buildLayers(null, null);
+  }
+
+  /* ============================================================
+     껍질 조각 — 보로노이로 제각각 생긴 다각형을 미리 잘라 둔다
+     ============================================================ */
+  /* 씨앗점 a 쪽만 남기고 b 쪽을 잘라낸다 (두 점의 수직이등분선 기준) */
+  function clipHalf(poly, ax, ay, bx, by) {
+    const mx = (ax + bx) / 2, my = (ay + by) / 2;
+    const nx = bx - ax, ny = by - ay;
+    const side = p => (p.u - mx) * nx + (p.v - my) * ny;   // 음수면 a 쪽
+    const out = [];
+    for (let k = 0; k < poly.length; k++) {
+      const P = poly[k], Q = poly[(k + 1) % poly.length];
+      const sp = side(P), sq = side(Q);
+      if (sp <= 0) out.push(P);
+      if ((sp < 0 && sq > 0) || (sp > 0 && sq < 0)) {
+        const t = sp / (sp - sq);
+        out.push({ u: P.u + (Q.u - P.u) * t, v: P.v + (Q.v - P.v) * t });
+      }
+    }
+    return out;
+  }
+
+  /* 칸마다 조각 하나. 좌표는 계란 사각형을 0~1 로 본 비율이라 화면 크기를 안 탄다. */
+  function buildShards() {
+    const C = TUNE.cols, Rw = TUNE.rows;
+    const cw = 1 / C, ch = 1 / Rw;
+    /* 씨앗점을 칸 안에서 흔든다 — 이게 조각 모양을 제각각으로 만든다 */
+    const site = [];
+    for (let j = 0; j < Rw; j++) {
+      for (let i = 0; i < C; i++) {
+        site.push({
+          u: (i + 0.5 + (Math.random() - 0.5) * TUNE.jitter * 2) * cw,
+          v: (j + 0.5 + (Math.random() - 0.5) * TUNE.jitter * 2) * ch,
+        });
+      }
+    }
+    const out = [];
+    for (let j = 0; j < Rw; j++) {
+      for (let i = 0; i < C; i++) {
+        const idx = j * C + i, a = site[idx];
+        /* 넉넉한 사각형에서 시작해 이웃들과의 경계로 깎아 나간다.
+           가장자리 조각이 계란 밖으로 뻗지 않게 처음부터 0~1 안으로 잘라 둔다. */
+        const l = Math.max(0, a.u - cw * 1.6), r = Math.min(1, a.u + cw * 1.6);
+        const t = Math.max(0, a.v - ch * 1.6), b2 = Math.min(1, a.v + ch * 1.6);
+        let poly = [{ u: l, v: t }, { u: r, v: t }, { u: r, v: b2 }, { u: l, v: b2 }];
+        for (let dj = -2; dj <= 2 && poly.length > 2; dj++) {
+          for (let di = -2; di <= 2; di++) {
+            if (!di && !dj) continue;
+            const ni = i + di, nj = j + dj;
+            if (ni < 0 || nj < 0 || ni >= C || nj >= Rw) continue;
+            const b = site[nj * C + ni];
+            poly = clipHalf(poly, a.u, a.v, b.u, b.v);
+            if (poly.length < 3) break;
+          }
+        }
+        let lu = 1, lv = 1, hu = 0, hv = 0;
+        for (const q of poly) {
+          if (q.u < lu) lu = q.u; if (q.u > hu) hu = q.u;
+          if (q.v < lv) lv = q.v; if (q.v > hv) hv = q.v;
+        }
+        out.push({ site: a, poly, lu, lv, hu, hv });
+      }
+    }
+    return out;
+  }
+
+  /* 조각의 다각형을 캔버스에 그릴 길로 깐다 (ox,oy 만큼 옮겨서) */
+  function shardPath(g, sh, R, ox, oy) {
+    g.beginPath();
+    for (let k = 0; k < sh.poly.length; k++) {
+      const q = sh.poly[k];
+      const x = q.u * R.w + ox, y = q.v * R.h + oy;
+      if (k) g.lineTo(x, y); else g.moveTo(x, y);
+    }
+    g.closePath();
   }
 
   /* ============================================================
      껍질이 깨져 떨어진다
      ============================================================ */
-  /* 칸 하나가 껍질 층에서 떨어져 나간다. 금이 먼저 가고, 잠깐 뒤 조각이 떨어진다. */
+  /* 조각 하나가 껍질 층에서 떨어져 나간다. 제 모양대로 금이 먼저 가고,
+     잠깐 뒤 그 모양 그대로 조각이 떨어진다. */
   function breakChip(R, i, j) {
-    const cw = R.w / TUNE.cols, ch = R.h / TUNE.rows;
-    const lx = i * cw, ly = j * ch;                 // 껍질 층 안쪽 좌표
+    const sh = S.shards[j * TUNE.cols + i];
+    if (!sh || sh.poly.length < 3) return;
 
-    /* 껍질 층에서 그 칸을 지운다. 칸 사이에 실금이 남지 않게 아주 살짝 넓게. */
+    /* 껍질 층에서 그 조각 모양을 지운다.
+       fill 만 하면 가장자리 반투명이 실금으로 남으므로 같은 길을 한 번 더 긋는다. */
     const g = shellCv.getContext("2d");
     g.save();
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.globalCompositeOperation = "destination-out";
-    g.fillStyle = "#000";
-    g.fillRect(lx - 0.6, ly - 0.6, cw + 1.2, ch + 1.2);
+    g.fillStyle = "#000"; g.strokeStyle = "#000";
+    g.lineWidth = 1.2; g.lineJoin = "round";
+    shardPath(g, sh, R, 0, 0);
+    g.fill(); g.stroke();
     g.restore();
 
-    /* 깨진 자리에 짧게 금이 보인다 */
-    S.cracks.push({
-      x: R.x + lx + cw / 2, y: R.y + ly + ch / 2,
-      r: Math.max(cw, ch) * 1.6, a: Math.random() * 6.28,
-      life: TUNE.crackLife,
-    });
+    /* 깨진 자리에 그 조각 모양대로 금이 보인다 — 직선 격자가 아니다 */
+    S.cracks.push({ sh, R: { w: R.w, h: R.h }, ox: R.x, oy: R.y, life: TUNE.crackLife });
 
-    /* 너무 많으면 조각은 생략한다 — 칸은 그대로 사라지므로 게임에는 지장 없다 */
+    /* 너무 많으면 조각은 생략한다 — 껍질은 그대로 사라지므로 게임에는 지장 없다 */
     if (S.chips.length >= TUNE.maxChips) return;
     const toss = TUNE.chipToss * H;
-    const sx = IMG.shell.ok ? IMG.shell.el.naturalWidth / R.w : 1;
-    const sy = IMG.shell.ok ? IMG.shell.el.naturalHeight / R.h : 1;
+    const kx = IMG.shell.ok ? IMG.shell.el.naturalWidth / R.w : 1;
+    const ky = IMG.shell.ok ? IMG.shell.el.naturalHeight / R.h : 1;
+    const cx = sh.site.u * R.w, cy = sh.site.v * R.h;     // 조각이 도는 중심
+    const bx = sh.lu * R.w, by = sh.lv * R.h;
+    const bw = (sh.hu - sh.lu) * R.w, bh = (sh.hv - sh.lv) * R.h;
     S.chips.push({
-      x: R.x + lx + cw / 2, y: R.y + ly + ch / 2, w: cw, h: ch,
-      sx: lx * sx, sy: ly * sy, sw: cw * sx, sh: ch * sy,
+      sh, x: R.x + cx, y: R.y + cy, cx, cy,
+      /* 사진에서 떼어 올 자리와, 조각 중심을 원점으로 놓았을 때 그릴 자리 */
+      sx: bx * kx, sy: by * ky, sw: bw * kx, sh2: bh * ky,
+      dx: bx - cx, dy: by - cy, dw: bw, dh: bh,
+      w: bw, h: bh,
       vx: (Math.random() - 0.5) * toss,
       vy: -Math.random() * toss * 0.45,             // 살짝 튕겨 올랐다가 떨어진다
       rot: 0, vr: (Math.random() - 0.5) * TUNE.chipSpin,
@@ -399,34 +488,31 @@
     if (whiteCv.width) g.drawImage(whiteCv, R.x, R.y, R.w, R.h);   // 매끈한 흰자
     if (shellCv.width) g.drawImage(shellCv, R.x, R.y, R.w, R.h);   // 껍질
 
-    /* 막 깨진 자리에 짧게 금이 간다 */
+    /* 막 깨진 자리에 금이 간다 — 조각이 갈라진 모양 그대로라 들쭉날쭉하다 */
     if (S.cracks.length) {
       g.strokeStyle = "#7A6746";
-      g.lineWidth = Math.max(1, R.w * 0.007);
-      g.lineCap = "round";
+      g.lineWidth = Math.max(1, R.w * 0.008);
+      g.lineJoin = "round";
       for (const c of S.cracks) {
-        g.globalAlpha = Math.max(0, c.life / TUNE.crackLife) * 0.75;
-        g.beginPath();
-        for (let n = 0; n < 3; n++) {
-          const a = c.a + n * 2.09;
-          g.moveTo(c.x, c.y);
-          g.lineTo(c.x + Math.cos(a) * c.r, c.y + Math.sin(a) * c.r);
-        }
+        g.globalAlpha = Math.max(0, c.life / TUNE.crackLife) * 0.8;
+        shardPath(g, c.sh, R, c.ox, c.oy);
         g.stroke();
       }
       g.globalAlpha = 1;
     }
 
-    /* 떨어지는 껍질 조각 — 사진에서 그 칸을 그대로 떼어 그린다 */
+    /* 떨어지는 껍질 조각 — 제 모양대로 오려서 사진을 그 안에 그린다 */
     for (const c of S.chips) {
       g.save();
       g.translate(c.x, c.y);
       g.rotate(c.rot);
+      shardPath(g, c.sh, R, -c.cx, -c.cy);        // 조각 중심이 원점
+      g.clip();
       if (IMG.shell.ok) {
-        g.drawImage(IMG.shell.el, c.sx, c.sy, c.sw, c.sh, -c.w / 2, -c.h / 2, c.w, c.h);
+        g.drawImage(IMG.shell.el, c.sx, c.sy, c.sw, c.sh2, c.dx, c.dy, c.dw, c.dh);
       } else {
         g.fillStyle = "#D5C3A0";
-        g.fillRect(-c.w / 2, -c.h / 2, c.w, c.h);
+        g.fillRect(c.dx, c.dy, c.dw, c.dh);
       }
       g.restore();
     }
