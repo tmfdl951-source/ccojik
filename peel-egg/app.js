@@ -143,6 +143,9 @@
   }
   addEventListener("resize", onResize);
   addEventListener("orientationchange", onResize);
+  /* 주소창이 접히거나 화면이 돌아가도 캔버스 크기를 바로 따라잡는다.
+     window 의 resize 가 안 오는 브라우저가 있어 캔버스를 직접 지켜본다. */
+  try { new ResizeObserver(onResize).observe(cv); } catch (_) {}
   function onResize() {
     /* 화면이 바뀌어도 지금까지 벗기고 뜯은 자리는 그대로 옮겨 온다 */
     const oldShell = shellCv.width ? snapshot(shellCv) : null;
