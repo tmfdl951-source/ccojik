@@ -1,10 +1,14 @@
 /* ===== 꼬직 · 계란 완벽하게 까기 =====
- * 매끈한 흰자 사진을 깔고 그 위에 껍질 사진을 겹친 뒤, 문지른 자리만
- * 껍질 레이어에서 지워(destination-out) 아래 흰자가 드러나게 한다.
- * 문지르는 속도가 전부 — 살살이면 껍질만, 급하면 흰자까지 뜯긴다.
+ * 계란은 사진 세 장을 포개 만든다. 아래부터
+ *   1) egg-damaged  뜯긴 흰자  — 손상됐을 때 드러나는 층
+ *   2) egg-peeled   매끈한 흰자 — 잘 깠을 때 보이는 층
+ *   3) egg-shell    껍질       — 시작 상태
+ * 살살 문지르면 껍질만 지워져 매끈한 흰자가 나오고,
+ * 급하게 문지르면 그 자리는 매끈한 흰자까지 지워져 뜯긴 흰자가 드러난다.
+ * 지우기는 층마다 따로 둔 캔버스에 destination-out 으로 한다.
  *
- * 숫자(껍질 제거율·손상도)는 계란을 나눈 격자로 따로 센다. 마스킹은 보이는 것,
- * 격자는 채점하는 것 — 둘 다 같은 rub() 에서 함께 갱신되므로 어긋나지 않는다. */
+ * 숫자(껍질 제거율·손상도)는 계란을 나눈 격자로 센다. 격자와 마스킹은 같은
+ * rub() 안에서 함께 갱신되므로 화면과 숫자가 어긋나지 않는다. */
 (() => {
   "use strict";
 
@@ -23,6 +27,8 @@
     safeSpeed: 1.6,
     hardSpeed: 5.2,
 
+    tearBlob: 0.62,        // 뜯긴 자국 반지름 (칸 크기 배수)
+
     /* 채점 */
     peelScore:   1000,     // 껍질을 다 벗기면 받는 점수
     dmgPenalty:  1400,     // 흰자를 다 뜯으면 깎이는 점수
@@ -38,13 +44,12 @@
     eggOffY: 0.0,          // 위아래 미세 조정 (계란 높이 대비)
   };
 
-  /* 껍질 사진과 흰자 사진은 찍은 계란이 달라 실루엣이 조금 어긋난다.
-     흰자 쪽을 줄이고 내려서 껍질과 겹치게 맞춘 값 — 실측으로 낸 숫자다.
+  /* 세 장은 찍은 계란이 달라 사진 속 계란 크기가 제각각이다. 껍질 사진을 기준으로
+     나머지를 줄이고 옮겨 겹치게 맞춘 값 — 알파를 실측해서 낸 숫자다.
      사진을 갈아 끼우면 여기만 다시 잡으면 된다. */
   const FIT = {
-    scale: 0.885,          // 껍질 대비 흰자 크기
-    dx: 0.000,             // 좌우 (계란 폭 대비)
-    dy: -0.009,            // 위아래 (계란 높이 대비)
+    peeled:  { scale: 0.885, dx:  0.001, dy: -0.009 },
+    damaged: { scale: 0.865, dx: -0.006, dy: -0.016 },
   };
 
   /* 한줄평 — 문장만 더 넣으면 바로 늘어난다 */
@@ -92,8 +97,10 @@
   try { S.best = +(localStorage.getItem("ccojik_peelegg_best") || 0) || 0; } catch (_) {}
 
   const cv = $("cv"), ctx = cv.getContext("2d");
-  /* 껍질 레이어 — 여기서만 지운다. 바탕 흰자는 건드리지 않는다. */
-  const shellCv = document.createElement("canvas");
+  /* 계란 세 층 — 아래부터 위로. 지우기는 이 캔버스들에만 한다. */
+  const baseCv = document.createElement("canvas");    // 뜯긴 흰자 (안 지운다)
+  const whiteCv = document.createElement("canvas");   // 매끈한 흰자
+  const shellCv = document.createElement("canvas");   // 껍질
   let W = 0, H = 0, dpr = 1;
 
   function fitCanvas() {
@@ -109,13 +116,15 @@
   addEventListener("resize", onResize);
   addEventListener("orientationchange", onResize);
   function onResize() {
-    const old = shellCv.width ? cloneShell() : null;
-    if (fitCanvas() && S.cells) { buildShell(old); }
+    /* 화면이 바뀌어도 지금까지 벗기고 뜯은 자리는 그대로 옮겨 온다 */
+    const oldShell = shellCv.width ? snapshot(shellCv) : null;
+    const oldWhite = whiteCv.width ? snapshot(whiteCv) : null;
+    if (fitCanvas() && S.cells) buildLayers(oldShell, oldWhite);
   }
-  function cloneShell() {
+  function snapshot(src) {
     const c = document.createElement("canvas");
-    c.width = shellCv.width; c.height = shellCv.height;
-    c.getContext("2d").drawImage(shellCv, 0, 0);
+    c.width = src.width; c.height = src.height;
+    c.getContext("2d").drawImage(src, 0, 0);
     return c;
   }
 
@@ -127,16 +136,15 @@
     const ww = w * fit, hh = h * fit;
     return { x: (W - ww) / 2, y: (H - hh) / 2 + hh * TUNE.eggOffY, w: ww, h: hh };
   }
-  /* 흰자 사진이 놓이는 자리 — 껍질 사각형에 보정을 먹인다 */
-  function peeledRect(R) {
-    const w = R.w * FIT.scale, h = R.h * FIT.scale;
+  /* 층 안에서 사진이 놓이는 자리 (층 왼쪽 위가 0,0) */
+  function fitRect(R, f) {
+    const w = R.w * f.scale, h = R.h * f.scale;
     return {
-      x: R.x + (R.w - w) / 2 + R.w * FIT.dx,
-      y: R.y + (R.h - h) / 2 + R.h * FIT.dy,
+      x: (R.w - w) / 2 + R.w * f.dx,
+      y: (R.h - h) / 2 + R.h * f.dy,
       w, h,
     };
   }
-
   /* 칸 (i,j) 의 중심 */
   function cellPos(R, i, j) {
     return {
@@ -146,37 +154,80 @@
   }
 
   /* ============================================================
-     껍질 레이어
+     세 층 만들기
      ============================================================ */
-  function buildShell(prev) {
-    const R = eggRect();
-    shellCv.width = Math.max(1, Math.round(R.w * dpr));
-    shellCv.height = Math.max(1, Math.round(R.h * dpr));
-    const g = shellCv.getContext("2d");
+  function layerCtx(c, R) {
+    c.width = Math.max(1, Math.round(R.w * dpr));
+    c.height = Math.max(1, Math.round(R.h * dpr));
+    const g = c.getContext("2d");
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, R.w, R.h);
-    if (prev) {
-      /* 크기가 바뀐 경우 — 벗긴 자리를 그대로 옮겨 온다 */
-      g.setTransform(1, 0, 0, 1, 0, 0);
-      g.drawImage(prev, 0, 0, shellCv.width, shellCv.height);
-      g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    } else if (IMG.shell.ok) {
-      g.drawImage(IMG.shell.el, 0, 0, R.w, R.h);
-    } else {
-      /* 사진을 못 불러왔을 때 — 베이지 타원으로 대신한다 */
+    return g;
+  }
+  /* 계란 윤곽 — 껍질 사진이 곧 윤곽이다. 못 불러오면 타원으로 대신한다. */
+  function drawEggShape(g, R) {
+    if (IMG.shell.ok) g.drawImage(IMG.shell.el, 0, 0, R.w, R.h);
+    else {
       g.fillStyle = "#D5C3A0";
       g.beginPath(); g.ellipse(R.w / 2, R.h / 2, R.w * .48, R.h * .48, 0, 0, 7); g.fill();
     }
   }
-  /* 문지른 자리를 껍질 레이어에서 지운다 */
-  function eraseShell(x, y, r) {
+  /* 세 층의 가장자리를 계란 윤곽에 딱 맞춘다 — 안 그러면 아래층이 테두리로 비친다 */
+  function clipToEgg(g, R) {
+    g.save();
+    g.globalCompositeOperation = "destination-in";
+    drawEggShape(g, R);
+    g.restore();
+  }
+  /* 이전 층을 크기만 바꿔 옮겨 담는다 (화면이 바뀌었을 때) */
+  function carryOver(g, c, prev) {
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.drawImage(prev, 0, 0, c.width, c.height);
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function buildLayers(prevShell, prevWhite) {
     const R = eggRect();
-    const g = shellCv.getContext("2d");
+
+    /* 맨 아래 — 뜯긴 흰자. 여기는 절대 안 지운다. 위 두 층이 지워지면 드러난다. */
+    const gb = layerCtx(baseCv, R);
+    if (IMG.damaged.ok) {
+      const B = fitRect(R, FIT.damaged);
+      gb.drawImage(IMG.damaged.el, B.x, B.y, B.w, B.h);
+    } else { gb.fillStyle = "#E0CDAE"; gb.fillRect(0, 0, R.w, R.h); }
+    clipToEgg(gb, R);
+
+    /* 중간 — 매끈한 흰자. 급하게 문지른 칸만 여기가 지워진다. */
+    const gw = layerCtx(whiteCv, R);
+    if (prevWhite) carryOver(gw, whiteCv, prevWhite);
+    else {
+      if (IMG.peeled.ok) {
+        const P = fitRect(R, FIT.peeled);
+        gw.drawImage(IMG.peeled.el, P.x, P.y, P.w, P.h);
+      } else { gw.fillStyle = "#FFFDF7"; gw.fillRect(0, 0, R.w, R.h); }
+      clipToEgg(gw, R);
+    }
+
+    /* 맨 위 — 껍질. 문지르면 무조건 여기부터 지워진다. */
+    const gs = layerCtx(shellCv, R);
+    if (prevShell) carryOver(gs, shellCv, prevShell);
+    else drawEggShape(gs, R);
+  }
+
+  /* 한 층에서 동그랗게 지운다. 여러 군데를 한 번에 지울 수 있다. */
+  function erase(c, R, pts, r) {
+    if (!pts.length) return;
+    const g = c.getContext("2d");
     g.save();
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.globalCompositeOperation = "destination-out";
     g.fillStyle = "#000";
-    g.beginPath(); g.arc(x - R.x, y - R.y, r, 0, 7); g.fill();
+    g.beginPath();
+    for (const p of pts) {
+      g.moveTo(p.x - R.x + r, p.y - R.y);        // 점끼리 선으로 이어지지 않게
+      g.arc(p.x - R.x, p.y - R.y, r, 0, 7);
+    }
+    g.fill();
     g.restore();
   }
 
@@ -212,11 +263,11 @@
       }
     }
     if (!S.total) S.total = 1;           // 0 으로 나누는 것만 막는다
-    buildShell(null);
+    buildLayers(null, null);
   }
 
   /* ============================================================
-     그리기
+     그리기 — 아래부터 위로 세 장
      ============================================================ */
   function render() {
     if (!W || !H) return;
@@ -230,16 +281,9 @@
     g.ellipse(R.x + R.w / 2, R.y + R.h * .97, R.w * .34, R.h * .03, 0, 0, 7);
     g.fill();
 
-    /* 아래: 매끈한 흰자 */
-    const Q = peeledRect(R);
-    if (IMG.peeled.ok) g.drawImage(IMG.peeled.el, Q.x, Q.y, Q.w, Q.h);
-    else {
-      g.fillStyle = "#FFFDF7"; g.strokeStyle = "#1A1A16"; g.lineWidth = 3;
-      g.beginPath(); g.ellipse(Q.x + Q.w / 2, Q.y + Q.h / 2, Q.w * .48, Q.h * .48, 0, 0, 7);
-      g.fill(); g.stroke();
-    }
-    /* 위: 아직 안 벗긴 껍질 */
-    if (shellCv.width) g.drawImage(shellCv, R.x, R.y, R.w, R.h);
+    if (baseCv.width) g.drawImage(baseCv, R.x, R.y, R.w, R.h);     // 뜯긴 흰자
+    if (whiteCv.width) g.drawImage(whiteCv, R.x, R.y, R.w, R.h);   // 매끈한 흰자
+    if (shellCv.width) g.drawImage(shellCv, R.x, R.y, R.w, R.h);   // 껍질
   }
 
   /* ============================================================
@@ -258,6 +302,7 @@
     const j1 = Math.min(TUNE.rows - 1, Math.ceil((y + br - R.y) / ch));
 
     let touched = false;
+    const tears = [];                    // 이번에 뜯긴 칸들
     for (let j = j0; j <= j1; j++) {
       for (let i = i0; i <= i1; i++) {
         const idx = j * TUNE.cols + i;
@@ -270,16 +315,19 @@
         if (st === TORN) continue;
         const tear = Math.random() < p;
         if (st === SHELL) {
-          if (tear) { S.cells[idx] = TORN; S.peeled++; S.torn++; }
+          if (tear) { S.cells[idx] = TORN; S.peeled++; S.torn++; tears.push(c); }
           else { S.cells[idx] = PEELED; S.peeled++; }
         } else if (tear) {
           /* 이미 벗긴 자리를 급하게 또 문지르면 흰자가 파인다 */
-          S.cells[idx] = TORN; S.torn++;
+          S.cells[idx] = TORN; S.torn++; tears.push(c);
         }
       }
     }
-    /* 계란 밖을 문질러도 껍질은 안 지워진다 */
-    if (touched) eraseShell(x, y, br);
+    /* 껍질은 문지른 자리 전체가 벗겨진다 (계란 밖은 애초에 안 그려져 있다) */
+    if (touched) erase(shellCv, R, [{ x, y }], br);
+    /* 매끈한 흰자는 뜯긴 칸에서만 벗겨져 아래 뜯긴 흰자가 드러난다 */
+    erase(whiteCv, R, tears, Math.max(cw, ch) * TUNE.tearBlob);
+
     paintHud();
     if (S.peeled / S.total >= TUNE.doneAt) finish(false);
   }
@@ -414,16 +462,16 @@
     requestAnimationFrame(tick);
   }
 
-  /* 부팅 — 사진부터 불러오고, 껍질 사진이 오면 격자를 다시 잡는다 */
+  /* 부팅 — 사진부터 불러오고, 오는 대로 층을 다시 만든다 */
   Object.keys(IMG).forEach(k => {
     const o = IMG[k], im = new Image();
     im.onload = () => {
       o.ok = true; o.el = im;
-      if (k === "shell") {
-        imgAspect = im.naturalWidth / im.naturalHeight;
-        /* 사진이 늦게 와도 하던 판을 초기화하지는 않는다 */
-        if (W && H && S.mode !== "play") buildCells();
-      }
+      if (k === "shell") imgAspect = im.naturalWidth / im.naturalHeight;
+      /* 사진이 늦게 와도 하던 판을 초기화하지는 않는다 */
+      if (!W || !H || S.mode === "play") return;
+      if (k === "shell") buildCells();
+      else if (S.cells) buildLayers(null, null);
     };
     im.onerror = () => { o.ok = false; };    // 없으면 도형으로 굴러간다
     im.src = o.src;
