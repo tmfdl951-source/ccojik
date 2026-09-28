@@ -239,8 +239,25 @@ body { display: flex; align-items: center; justify-content: center; }
 }
 .btn:active { background: var(--gray); }
 
-.pad { flex-shrink: 0; }
-.btn.done { width: 100%; padding: clamp(8px, 1.8vh, 14px) 10px; }
+.pad { flex-shrink: 0; display: flex; gap: clamp(5px, 1.6vw, 9px); }
+.btn.done { flex: 1 1 60%; padding: clamp(8px, 1.8vh, 14px) 10px; }
+.btn.flip {
+  flex: 1 1 40%; padding: clamp(8px, 1.8vh, 14px) 10px;
+  color: var(--ink); background: var(--paper);
+}
+.btn.flip:active { background: var(--wall); }
+
+/* 지금 보는 면 — 게임판 구석에 작게 */
+.face-tag, .face-done {
+  position: absolute; top: clamp(5px, 1.2vh, 10px); z-index: 3;
+  font-size: clamp(11px, min(3.4vw, 1.8vh), 15px); line-height: 1;
+  padding: clamp(3px, .7vh, 6px) clamp(6px, 2vw, 10px);
+  border: 2px solid var(--ink); background: var(--paper);
+  pointer-events: none;
+}
+.face-tag { left: clamp(5px, 1.6vw, 10px); font-family: var(--f-title); }
+.face-done { right: clamp(5px, 1.6vw, 10px); color: var(--gray); }
+.face-done span { color: var(--ink); }
 
 /* 아주 낮은 화면(가로로 든 휴대폰) — 설명부터 접는다. 버튼은 반드시 남긴다. */
 @media (max-height: 430px) {

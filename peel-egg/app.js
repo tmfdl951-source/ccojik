@@ -14,6 +14,10 @@
  * 조각이 떨어져 나가 중력을 받아 화면 아래로 사라진다. 네모 격자가 아니라
  * 제각각 생긴 다각형이라 계단처럼 보이지 않는다.
  *
+ * 계란에는 앞면과 뒷면이 있다. 두 면은 껍질·흰자 상태를 따로 들고 있고,
+ * 돌리면(가로로 뒤집는 짧은 애니메이션) 반대 면이 앞으로 나온다. 뒷면은 같은
+ * 사진을 좌우로 뒤집어 그려 "반대쪽"처럼 보이게 한다. 점수는 양면을 합쳐서 낸다.
+ *
  * 숫자(껍질 제거율·손상도)는 계란을 나눈 격자로 센다. 격자와 마스킹은 같은
  * rub() 안에서 함께 갱신되므로 화면과 숫자가 어긋나지 않는다. */
 (() => {
@@ -23,8 +27,13 @@
      튜닝 — 숫자는 전부 여기서만 만진다
      ============================================================ */
   const TUNE = {
-    time: 10,              // 제한시간(초) — 여기만 바꾸면 전부 따라간다
+    time: 22,              // 제한시간(초) — 여기만 바꾸면 전부 따라간다.
+                           // 양면을 다 까야 하므로 한 면만 있던 때의 두 배가 넘는다.
     hotAt: 5,              // 남은 시간이 이 아래면 빨갛게 커지고 두근거린다
+
+    /* 계란 돌리기 */
+    spinTime: 0.45,        // 뒤집히는 데 걸리는 시간(초). 이 동안은 까기가 안 먹는다.
+    flipDrag: 0.22,        // 계란 밖을 이만큼(계란 폭 대비) 좌우로 끌면 뒤집힌다
 
     /* 껍질 조각 한 장이자 채점 한 칸. 조각이 손에 잡히는 크기가 되도록 성기게 잡는다.
        너무 잘게 쪼개면 무겁고 오히려 픽셀처럼 보인다. */
@@ -135,32 +144,43 @@
   /* ============================================================
      상태
      ============================================================ */
+  /* 면 하나가 들고 있는 것 — 껍질/흰자 상태와 그 면만의 층 두 장.
+     맨 아래 '뜯긴 흰자'는 지우지 않으므로 두 면이 같이 쓴다(그릴 때만 뒤집는다). */
+  function newFace(flip) {
+    return {
+      flip,              // 뒷면이면 좌우로 뒤집어 그린다
+      cells: null, inside: null, stress: null, stressAt: null,
+      shards: null,
+      total: 0, peeled: 0, torn: 0,
+      shell: document.createElement("canvas"),   // 껍질
+      white: document.createElement("canvas"),   // 매끈한 흰자
+    };
+  }
+
   const S = {
     mode: "start",
     left: TUNE.time,
-    cells: null,
-    inside: null,        // 껍질이 덮여 있던 칸인지 (사진의 불투명한 부분)
-    stress: null,        // 칸마다 쌓인 부담
-    stressAt: null,      // 그 부담을 마지막으로 건드린 시각
+    faces: [newFace(false), newFace(true)],
+    face: 0,             // 지금 앞에 나와 있는 면
+    spin: null,          // 돌아가는 중이면 { p: 0~1, from, to }
+    swipe: null,         // 계란 밖을 끌어 돌리려는 중
     lastTap: 0,          // 직전에 탭한 시각 — 연타가 급한지 보려고
     moved: false,        // 이번 프레임에 손이 움직였나 (가만히 누르고 있는지 보려고)
-    shards: null,        // 칸마다의 조각 모양 (0~1 비율 좌표라 화면이 바뀌어도 그대로)
     chips: [],           // 떨어지는 껍질 조각
     cracks: [],          // 막 깨진 자리에 짧게 보이는 금
-    total: 0,
-    peeled: 0,
-    torn: 0,
     drag: null,
     best: 0,
   };
+  const FACE = () => S.faces[S.face];
+  const sum = k => S.faces[0][k] + S.faces[1][k];
+  /* 계란 한가운데를 기준으로 좌우를 뒤집는다 (뒷면 좌표 <-> 화면 좌표) */
+  const mirX = (R, x) => R.x * 2 + R.w - x;
   /* 눈금이 0~100 으로 바뀌었다. 예전 기록(수백~천점)이 섞이지 않게 키를 새로 쓴다. */
   try { S.best = +(localStorage.getItem("ccojik_peelegg_best100") || 0) || 0; } catch (_) {}
 
   const cv = $("cv"), ctx = cv.getContext("2d");
-  /* 계란 세 층 — 아래부터 위로. 지우기는 이 캔버스들에만 한다. */
-  const baseCv = document.createElement("canvas");    // 뜯긴 흰자 (안 지운다)
-  const whiteCv = document.createElement("canvas");   // 매끈한 흰자
-  const shellCv = document.createElement("canvas");   // 껍질
+  /* 맨 아래 '뜯긴 흰자'는 지우지 않으므로 두 면이 같이 쓴다 */
+  const baseCv = document.createElement("canvas");
   let W = 0, H = 0, dpr = 1;
 
   function fitCanvas() {
@@ -182,9 +202,11 @@
     /* 화면이 바뀌어도 지금까지 벗기고 뜯은 자리는 그대로 옮겨 온다 */
     S.chips.length = 0;                 // 날던 조각은 새 좌표계와 안 맞는다
     S.cracks.length = 0;
-    const oldShell = shellCv.width ? snapshot(shellCv) : null;
-    const oldWhite = whiteCv.width ? snapshot(whiteCv) : null;
-    if (fitCanvas() && S.cells) buildLayers(oldShell, oldWhite);
+    const keep = S.faces.map(f => ({
+      shell: f.shell.width ? snapshot(f.shell) : null,
+      white: f.white.width ? snapshot(f.white) : null,
+    }));
+    if (fitCanvas() && S.faces[0].cells) buildLayers(keep);
   }
   function snapshot(src) {
     const c = document.createElement("canvas");
@@ -251,10 +273,10 @@
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  function buildLayers(prevShell, prevWhite) {
+  function buildLayers(keep) {
     const R = eggRect();
 
-    /* 맨 아래 — 뜯긴 흰자. 여기는 절대 안 지운다. 위 두 층이 지워지면 드러난다. */
+    /* 맨 아래 — 뜯긴 흰자. 여기는 절대 안 지운다. 두 면이 같이 쓴다. */
     const gb = layerCtx(baseCv, R);
     if (IMG.damaged.ok) {
       const B = fitRect(R, FIT.damaged);
@@ -262,21 +284,23 @@
     } else { gb.fillStyle = "#E0CDAE"; gb.fillRect(0, 0, R.w, R.h); }
     clipToEgg(gb, R);
 
-    /* 중간 — 매끈한 흰자. 급하게 문지른 칸만 여기가 지워진다. */
-    const gw = layerCtx(whiteCv, R);
-    if (prevWhite) carryOver(gw, whiteCv, prevWhite);
-    else {
-      if (IMG.peeled.ok) {
-        const P = fitRect(R, FIT.peeled);
-        gw.drawImage(IMG.peeled.el, P.x, P.y, P.w, P.h);
-      } else { gw.fillStyle = "#FFFDF7"; gw.fillRect(0, 0, R.w, R.h); }
-      clipToEgg(gw, R);
-    }
-
-    /* 맨 위 — 껍질. 문지르면 무조건 여기부터 지워진다. */
-    const gs = layerCtx(shellCv, R);
-    if (prevShell) carryOver(gs, shellCv, prevShell);
-    else drawEggShape(gs, R);
+    S.faces.forEach((f, n) => {
+      const prev = keep && keep[n];
+      /* 중간 — 매끈한 흰자. 급하게 문지른 칸만 여기가 지워진다. */
+      const gw = layerCtx(f.white, R);
+      if (prev && prev.white) carryOver(gw, f.white, prev.white);
+      else {
+        if (IMG.peeled.ok) {
+          const P = fitRect(R, FIT.peeled);
+          gw.drawImage(IMG.peeled.el, P.x, P.y, P.w, P.h);
+        } else { gw.fillStyle = "#FFFDF7"; gw.fillRect(0, 0, R.w, R.h); }
+        clipToEgg(gw, R);
+      }
+      /* 맨 위 — 껍질. 문지르면 무조건 여기부터 지워진다. */
+      const gs = layerCtx(f.shell, R);
+      if (prev && prev.shell) carryOver(gs, f.shell, prev.shell);
+      else drawEggShape(gs, R);
+    });
   }
 
   /* 한 층에서 동그랗게 지운다. 여러 군데를 한 번에 지울 수 있다. */
@@ -299,13 +323,6 @@
   /* 채점용 격자 — 껍질 사진의 불투명한 자리만 '깔 대상'으로 센다 */
   function buildCells() {
     const n = TUNE.cols * TUNE.rows;
-    S.cells = new Uint8Array(n);
-    S.inside = new Uint8Array(n);
-    S.stress = new Float32Array(n);
-    S.stressAt = new Float32Array(n);
-    S.total = 0;
-    S.peeled = 0; S.torn = 0;
-
     let alpha = null;
     if (IMG.shell.ok) {
       try {
@@ -316,22 +333,30 @@
         alpha = g.getImageData(0, 0, TUNE.cols, TUNE.rows).data;
       } catch (_) { alpha = null; }      // file:// 로 열면 픽셀을 못 읽는다
     }
-    for (let j = 0; j < TUNE.rows; j++) {
-      for (let i = 0; i < TUNE.cols; i++) {
-        const idx = j * TUNE.cols + i;
-        let on;
-        if (alpha) on = alpha[idx * 4 + 3] > 100;
-        else {
-          /* 사진을 못 읽으면 타원으로 대신 잡는다 */
-          const dx = (i + .5) / TUNE.cols * 2 - 1, dy = (j + .5) / TUNE.rows * 2 - 1;
-          on = dx * dx + dy * dy <= 1;
+    S.faces.forEach(f => {
+      f.cells = new Uint8Array(n);
+      f.inside = new Uint8Array(n);
+      f.stress = new Float32Array(n);
+      f.stressAt = new Float32Array(n);
+      f.total = 0; f.peeled = 0; f.torn = 0;
+      for (let j = 0; j < TUNE.rows; j++) {
+        for (let i = 0; i < TUNE.cols; i++) {
+          const idx = j * TUNE.cols + i;
+          let on;
+          if (alpha) on = alpha[idx * 4 + 3] > 100;
+          else {
+            /* 사진을 못 읽으면 타원으로 대신 잡는다 */
+            const dx = (i + .5) / TUNE.cols * 2 - 1, dy = (j + .5) / TUNE.rows * 2 - 1;
+            on = dx * dx + dy * dy <= 1;
+          }
+          if (on) { f.inside[idx] = 1; f.total++; }
         }
-        if (on) { S.inside[idx] = 1; S.total++; }
       }
-    }
-    if (!S.total) S.total = 1;           // 0 으로 나누는 것만 막는다
-    S.shards = buildShards();            // 판마다 새로 깨진다 — 같은 모양이 반복되지 않게
-    buildLayers(null, null);
+      if (!f.total) f.total = 1;         // 0 으로 나누는 것만 막는다
+      /* 면마다 따로 깨진다 — 앞뒤가 똑같은 모양으로 갈라지면 어색하다 */
+      f.shards = buildShards();
+    });
+    buildLayers(null);
   }
 
   /* ============================================================
@@ -416,12 +441,13 @@
   /* 조각 하나가 껍질 층에서 떨어져 나간다. 제 모양대로 금이 먼저 가고,
      잠깐 뒤 그 모양 그대로 조각이 떨어진다. */
   function breakChip(R, i, j) {
-    const sh = S.shards[j * TUNE.cols + i];
+    const f = FACE();
+    const sh = f.shards[j * TUNE.cols + i];
     if (!sh || sh.poly.length < 3) return;
 
     /* 껍질 층에서 그 조각 모양을 지운다.
        fill 만 하면 가장자리 반투명이 실금으로 남으므로 같은 길을 한 번 더 긋는다. */
-    const g = shellCv.getContext("2d");
+    const g = f.shell.getContext("2d");
     g.save();
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.globalCompositeOperation = "destination-out";
@@ -442,8 +468,10 @@
     const cx = sh.site.u * R.w, cy = sh.site.v * R.h;     // 조각이 도는 중심
     const bx = sh.lu * R.w, by = sh.lv * R.h;
     const bw = (sh.hu - sh.lu) * R.w, bh = (sh.hv - sh.lv) * R.h;
+    /* 뒷면은 뒤집어 보이고 있으므로 조각도 화면상 반대쪽에서 떨어져야 한다 */
+    const scrX = f.flip ? mirX(R, R.x + cx) : R.x + cx;
     S.chips.push({
-      sh, x: R.x + cx, y: R.y + cy, cx, cy,
+      sh, flip: f.flip, x: scrX, y: R.y + cy, cx, cy,
       /* 사진에서 떼어 올 자리와, 조각 중심을 원점으로 놓았을 때 그릴 자리 */
       sx: bx * kx, sy: by * ky, sw: bw * kx, sh2: bh * ky,
       dx: bx - cx, dy: by - cy, dw: bw, dh: bh,
@@ -472,11 +500,11 @@
 
   /* 한 칸에 부담을 더하고 지금 얼마나 쌓였는지 돌려준다.
      빠진 만큼은 건드릴 때 한꺼번에 계산한다 — 매 프레임 전체를 훑지 않아도 된다. */
-  function addStress(idx, gain, now) {
-    const gone = (now - S.stressAt[idx]) / 1000 * TUNE.stressFade;
-    const v = Math.max(0, S.stress[idx] - gone) + gain;
-    S.stress[idx] = v;
-    S.stressAt[idx] = now;
+  function addStress(f, idx, gain, now) {
+    const gone = (now - f.stressAt[idx]) / 1000 * TUNE.stressFade;
+    const v = Math.max(0, f.stress[idx] - gone) + gain;
+    f.stress[idx] = v;
+    f.stressAt[idx] = now;
     return v;
   }
 
@@ -495,12 +523,25 @@
     g.ellipse(R.x + R.w / 2, R.y + R.h * .97, R.w * .34, R.h * .03, 0, 0, 7);
     g.fill();
 
-    if (baseCv.width) g.drawImage(baseCv, R.x, R.y, R.w, R.h);     // 뜯긴 흰자
-    if (whiteCv.width) g.drawImage(whiteCv, R.x, R.y, R.w, R.h);   // 매끈한 흰자
-    if (shellCv.width) g.drawImage(shellCv, R.x, R.y, R.w, R.h);   // 껍질
+    /* 돌아가는 중에는 가로로 납작해졌다가 반대 면이 나온다.
+       뒷면은 같은 사진을 좌우로 뒤집어 그려 "반대쪽"처럼 보이게 한다. */
+    const shown = S.spin ? (S.spin.p < 0.5 ? S.spin.from : S.spin.to) : S.face;
+    const face = S.faces[shown];
+    const squash = S.spin ? Math.max(0.03, Math.abs(Math.cos(Math.PI * S.spin.p))) : 1;
+    const ecx = R.x + R.w / 2;
 
-    /* 막 깨진 자리에 금이 간다 — 조각이 갈라진 모양 그대로라 들쭉날쭉하다 */
-    if (S.cracks.length) {
+    g.save();
+    g.translate(ecx, 0);
+    g.scale(squash * (face.flip ? -1 : 1), 1);
+    g.translate(-ecx, 0);
+
+    if (baseCv.width) g.drawImage(baseCv, R.x, R.y, R.w, R.h);        // 뜯긴 흰자
+    if (face.white.width) g.drawImage(face.white, R.x, R.y, R.w, R.h); // 매끈한 흰자
+    if (face.shell.width) g.drawImage(face.shell, R.x, R.y, R.w, R.h); // 껍질
+
+    /* 막 깨진 자리에 금이 간다 — 조각이 갈라진 모양 그대로라 들쭉날쭉하다.
+       금은 면에 붙어 있으므로 뒤집기 변환 안에서 그린다. */
+    if (S.cracks.length && !S.spin) {
       g.strokeStyle = "#7A6746";
       g.lineWidth = Math.max(1, R.w * 0.008);
       g.lineJoin = "round";
@@ -511,12 +552,14 @@
       }
       g.globalAlpha = 1;
     }
+    g.restore();
 
-    /* 떨어지는 껍질 조각 — 제 모양대로 오려서 사진을 그 안에 그린다 */
+    /* 떨어지는 껍질 조각 — 이미 떨어져 나왔으므로 화면 좌표로 따로 그린다 */
     for (const c of S.chips) {
       g.save();
       g.translate(c.x, c.y);
       g.rotate(c.rot);
+      if (c.flip) g.scale(-1, 1);                 // 뒷면에서 떨어진 조각
       shardPath(g, c.sh, R, -c.cx, -c.cy);        // 조각 중심이 원점
       g.clip();
       if (IMG.shell.ok) {
@@ -535,18 +578,22 @@
   /* dwell: 붓을 대고 있던 시간(초).  impulse: 탭 한 번에 실리는 부담.
      sweep: 붓 지름 대비 이번에 지나간 거리(한 번 훑고 지나가면 1). */
   /* 한 칸을 뜯는다. 껍질이 남아 있었다면 그 조각도 같이 떨어져 나간다. */
-  function tearCell(R, i, j, tears) {
+  function tearCell(f, R, i, j, tears) {
     if (i < 0 || j < 0 || i >= TUNE.cols || j >= TUNE.rows) return;
     const idx = j * TUNE.cols + i;
-    if (!S.inside[idx] || S.cells[idx] === TORN) return;
-    if (S.cells[idx] === SHELL) { breakChip(R, i, j); S.peeled++; }
-    S.cells[idx] = TORN;
-    S.torn++;
+    if (!f.inside[idx] || f.cells[idx] === TORN) return;
+    if (f.cells[idx] === SHELL) { breakChip(R, i, j); f.peeled++; }
+    f.cells[idx] = TORN;
+    f.torn++;
     tears.push(cellPos(R, i, j));
   }
 
   function rub(x, y, speedNorm, dwell, impulse, sweep) {
+    if (S.spin) return;                  // 돌아가는 중에는 까기가 안 먹는다
     const R = eggRect();
+    const f = FACE();
+    /* 뒷면은 뒤집어 보이고 있으니, 손가락이 닿은 화면 자리를 면 좌표로 옮긴다 */
+    if (f.flip) x = mirX(R, x);
     const br = (R.w / 2) * TUNE.brush;
     /* 속도가 safe 를 넘을수록 흰자가 뜯길 확률이 오른다.
        이 확률은 '붓이 한 번 훑고 지나갈 때' 기준이다. 아래에서 지나간 거리만큼
@@ -574,34 +621,51 @@
     for (let j = j0; j <= j1; j++) {
       for (let i = i0; i <= i1; i++) {
         const idx = j * TUNE.cols + i;
-        if (!S.inside[idx]) continue;
+        if (!f.inside[idx]) continue;
         const c = cellPos(R, i, j);
         if (Math.hypot(c.x - x, c.y - y) > br) continue;
         touched = true;
 
-        const st = S.cells[idx];
+        const st = f.cells[idx];
         if (st === TORN) continue;
         /* 뜯기는 길은 둘 — 한 번에 빠르게 긁었거나, 부담이 꽉 찼거나 */
-        const tear = addStress(idx, gain, now) >= TUNE.stressTear || Math.random() < passP;
+        const tear = addStress(f, idx, gain, now) >= TUNE.stressTear || Math.random() < passP;
         if (tear) {
           /* 한 번 뜯기면 옆으로 번진다 — 한 번의 실수가 찔끔으로 끝나지 않게 */
-          tearCell(R, i, j, tears);
-          if (Math.random() < TUNE.tearSpread) tearCell(R, i - 1, j, tears);
-          if (Math.random() < TUNE.tearSpread) tearCell(R, i + 1, j, tears);
-          if (Math.random() < TUNE.tearSpread) tearCell(R, i, j - 1, tears);
-          if (Math.random() < TUNE.tearSpread) tearCell(R, i, j + 1, tears);
+          tearCell(f, R, i, j, tears);
+          if (Math.random() < TUNE.tearSpread) tearCell(f, R, i - 1, j, tears);
+          if (Math.random() < TUNE.tearSpread) tearCell(f, R, i + 1, j, tears);
+          if (Math.random() < TUNE.tearSpread) tearCell(f, R, i, j - 1, tears);
+          if (Math.random() < TUNE.tearSpread) tearCell(f, R, i, j + 1, tears);
         } else if (st === SHELL) {
           breakChip(R, i, j);                  // 껍질만 깨져 떨어진다
-          S.cells[idx] = PEELED; S.peeled++;
+          f.cells[idx] = PEELED; f.peeled++;
         }
       }
     }
     /* 껍질은 칸 단위로 깨져 떨어진다 (breakChip). 여기서 따로 지우지 않는다. */
     /* 매끈한 흰자는 뜯긴 칸에서만 벗겨져 아래 뜯긴 흰자가 드러난다 */
-    erase(whiteCv, R, tears, Math.max(cw, ch) * TUNE.tearBlob);
+    erase(f.white, R, tears, Math.max(cw, ch) * TUNE.tearBlob);
 
     paintHud();
-    if (S.peeled / S.total >= TUNE.doneAt) finish();
+    if (sum("peeled") / sum("total") >= TUNE.doneAt) finish();
+  }
+
+  /* ============================================================
+     계란 돌리기
+     ============================================================ */
+  function flipEgg() {
+    if (S.mode !== "play" || S.spin) return;
+    S.cracks.length = 0;                 // 금은 면에 붙어 있다 — 같이 넘어가면 어색하다
+    S.drag = null; S.swipe = null;
+    S.spin = { p: 0, from: S.face, to: 1 - S.face };
+  }
+  function stepSpin(dt) {
+    if (!S.spin) return;
+    S.spin.p += dt / TUNE.spinTime;
+    /* 반쯤 돌아 옆면이 보이는 순간에 반대 면으로 바꾼다 */
+    if (S.spin.p >= 0.5 && S.face === S.spin.from) { S.face = S.spin.to; paintHud(); }
+    if (S.spin.p >= 1) S.spin = null;
   }
 
   /* ============================================================
@@ -622,8 +686,13 @@
   }
 
   function paintHud() {
-    $("peelNum").textContent = Math.round(S.peeled / S.total * 100) + "%";
-    $("dmgNum").textContent = Math.round(S.torn / S.total * 100) + "%";
+    /* 앞뒤를 합쳐서 센다 — 한 면만 까면 제거율이 반밖에 안 오른다 */
+    $("peelNum").textContent = Math.round(sum("peeled") / sum("total") * 100) + "%";
+    $("dmgNum").textContent = Math.round(sum("torn") / sum("total") * 100) + "%";
+    const f = FACE();
+    $("faceTag").textContent = f.flip ? "뒷면" : "앞면";
+    /* 지금 보는 면이 얼마나 깠는지도 같이 — 뒤집을 때가 됐는지 알 수 있게 */
+    $("faceDone").textContent = Math.round(f.peeled / f.total * 100) + "%";
   }
 
   function start() {
@@ -631,6 +700,9 @@
     S.left = TUNE.time;
     S.drag = null;
     S.lastTap = 0;
+    S.face = 0;
+    S.spin = null;
+    S.swipe = null;
     S.chips.length = 0;
     S.cracks.length = 0;
     fitCanvas();
@@ -648,7 +720,8 @@
     S.mode = "over";
     S.drag = null;
 
-    const peelPct = S.peeled / S.total, dmgPct = S.torn / S.total;
+    /* 앞뒤를 합쳐서 낸다 — 뒷면을 안 까면 제거율이 안 오른다 */
+    const peelPct = sum("peeled") / sum("total"), dmgPct = sum("torn") / sum("total");
     const keepPct = 1 - dmgPct;                     // 흰자 보존율
     const score = clamp(Math.round(
       100 * Math.pow(peelPct, TUNE.wPeel) * Math.pow(keepPct, TUNE.wKeep)), 0, 100);
@@ -690,10 +763,16 @@
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   }
   cv.addEventListener("pointerdown", e => {
-    if (S.mode !== "play") return;
+    if (S.mode !== "play" || S.spin) return;
     e.preventDefault();
     try { cv.setPointerCapture(e.pointerId); } catch (_) {}
     const p = pos(e), now = performance.now();
+    const R = eggRect();
+    /* 계란 밖을 잡으면 까는 게 아니라 돌리는 것이다 — 두 조작이 안 섞인다 */
+    if (p.x < R.x || p.x > R.x + R.w || p.y < R.y || p.y > R.y + R.h) {
+      S.swipe = { x0: p.x };
+      return;
+    }
     S.moved = true;
     /* 직전 탭과의 간격 — 짧을수록 급한 연타다. 탭으로 안전하게 까는 길은 없다. */
     const gap = S.lastTap ? (now - S.lastTap) / 1000 : 99;
@@ -704,7 +783,14 @@
   }, { passive: false });
 
   cv.addEventListener("pointermove", e => {
-    if (S.mode !== "play" || !S.drag) return;
+    if (S.mode !== "play") return;
+    if (S.swipe) {                       // 계란 밖에서 좌우로 끄는 중
+      e.preventDefault();
+      const R = eggRect();
+      if (Math.abs(pos(e).x - S.swipe.x0) > R.w * TUNE.flipDrag) flipEgg();
+      return;
+    }
+    if (!S.drag || S.spin) return;
     e.preventDefault();
     const p = pos(e), now = performance.now();
     S.moved = true;
@@ -725,7 +811,7 @@
     S.drag = { x: p.x, y: p.y, t: now };
   }, { passive: false });
 
-  const endDrag = () => { S.drag = null; };
+  const endDrag = () => { S.drag = null; S.swipe = null; };
   ["pointerup", "pointercancel"].forEach(t => cv.addEventListener(t, endDrag));
   addEventListener("pointerup", endDrag);
   addEventListener("blur", endDrag);
@@ -733,6 +819,7 @@
   $("startBtn").addEventListener("click", start);
   $("againBtn").addEventListener("click", start);
   $("doneBtn").addEventListener("click", () => { if (S.mode === "play") finish(); });
+  $("flipBtn").addEventListener("click", flipEgg);
 
   /* ============================================================
      루프
@@ -741,7 +828,8 @@
   function tick(now) {
     const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
     last = now;
-    if (!W || !H) { fitCanvas(); if (W && H && !S.cells) buildCells(); }
+    if (!W || !H) { fitCanvas(); if (W && H && !S.faces[0].cells) buildCells(); }
+    stepSpin(dt);
     step(dt);
     stepChips(dt);                        // 판이 끝나도 조각은 마저 떨어진다
     render();
@@ -757,7 +845,7 @@
       /* 사진이 늦게 와도 하던 판을 초기화하지는 않는다 */
       if (!W || !H || S.mode === "play") return;
       if (k === "shell") buildCells();
-      else if (S.cells) buildLayers(null, null);
+      else if (S.faces[0].cells) buildLayers(null);
     };
     im.onerror = () => { o.ok = false; };    // 없으면 도형으로 굴러간다
     im.src = o.src;

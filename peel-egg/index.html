@@ -46,6 +46,8 @@
   <!-- ===== 계란 ===== -->
   <div class="stage" id="stage">
     <canvas id="cv"></canvas>
+      <div class="face-tag" id="faceTag">앞면</div>
+      <div class="face-done"><span id="faceDone">0%</span></div>
 
     <div class="over" id="startOver">
       <h1 class="title">계란 완벽하게 까기</h1>
@@ -53,6 +55,7 @@
       <ul class="howto">
         <li><b>살살 문지르면</b> 껍질만 벗겨집니다</li>
         <li><b class="warn">급하게 문지르면</b> 흰자까지 뜯깁니다</li>
+        <li><b>계란을 돌려서</b> 뒷면도 까세요. 양면을 합쳐 셉니다</li>
         <li>껍질 많이 벗기고 <b class="warn">흰자 안 뜯을수록</b> 고득점.
           <b>100점 만점</b></li>
         <li>시간은 <b id="timeInfo">20</b>초. 되돌리기는 없습니다</li>
@@ -80,6 +83,7 @@
   </div>
 
   <div class="pad">
+    <button class="btn flip" type="button" id="flipBtn">뒤집기</button>
     <button class="btn done" type="button" id="doneBtn">완성</button>
   </div>
 
