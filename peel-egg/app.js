@@ -30,23 +30,33 @@
        너무 잘게 쪼개면 무겁고 오히려 픽셀처럼 보인다. */
     cols: 11, rows: 18,
     jitter: 0.38,          // 조각 씨앗점을 칸 안에서 흔드는 정도 (칸 크기 대비)
-    brush: 0.17,           // 붓 반지름 (계란 가로 폭 대비)
+    brush: 0.32,           // 붓 반지름 (계란 가로 폭 대비). 크면 한 번에 넓게 벗겨진다.
+
+    /* ---- 난이도 ---- 이 아래 숫자만 만지면 쉬워지고 어려워진다.
+       지금은 "정말 조심해야 안 뜯긴다" 쪽으로 잡아 뒀다. */
 
     /* 문지르는 속도 — 계란 가로 반지름을 1초에 몇 번 지나가는지로 잰다.
-       safe 아래는 안전, hard 위는 거의 확실히 뜯긴다. 그 사이는 확률. */
-    safeSpeed: 1.6,
-    hardSpeed: 5.2,
+       safe 아래만 안전하다. 이 폭이 좁을수록 어렵다.
+       hard 위는 거의 확실히 뜯긴다. 그 사이는 확률. */
+    safeSpeed: 1.0,
+    hardSpeed: 2.2,
 
     /* 흰자가 뜯기는 두 번째 길 — 한 부위에 쌓이는 부담.
-       빠르게 긁는 것과 별개로, 같은 자리를 계속 문지르거나 급하게 연타하면 쌓인다.
-       쌓인 부담은 시간이 지나면 저절로 빠지므로, 천천히 넓게 가면 안 쌓인다. */
-    stressRate: 2.2,       // 대고 있는 1초당 쌓이는 부담
-    tapHit:     0.30,      // 한 번 탭(클릭)할 때 실리는 부담
-    tapCalm:    0.30,      // 탭 간격이 이보다 길면 침착한 것 (초)
-    tapRush:    0.06,      // 이보다 짧으면 완전히 급한 연타 (초)
-    rushBoost:  3,         // 급한 연타가 부담을 몇 배까지 키우나
-    stressFade: 1.6,       // 1초에 빠지는 부담
+       빠르게 긁는 것과 별개로, 한 자리에 머무르거나(꾹 누르기) 급하게 연타하거나
+       같은 데를 거듭 문지르면 쌓인다. 넓게 옮겨 다니면 안 쌓인다. */
+    stillSpeed: 0.35,      // 이보다 느리면 '머물러 있다'고 본다
+    stressRate: 5.0,       // 머무는 1초당 쌓이는 부담 (꾹 누르면 이게 붙는다)
+    sweepHit:   0.55,      // 붓이 한 번 지나갈 때 쌓이는 부담.
+                           // 시간이 아니라 지나간 거리로 센다 — 천천히 가는 것은
+                           // 벌이 아니고, 같은 데를 거듭 지나가는 것이 벌이다.
+    tapHit:     0.35,      // 한 번 탭(클릭)할 때 실리는 부담
+    tapCalm:    0.50,      // 탭 간격이 이보다 길면 침착한 것 (초)
+    tapRush:    0.08,      // 이보다 짧으면 완전히 급한 연타 (초)
+    rushBoost:  2.5,       // 급한 연타가 부담을 몇 배까지 키우나
+    stressFade: 1.2,       // 1초에 빠지는 부담 (작을수록 오래 남아 어렵다)
     stressTear: 1.0,       // 이만큼 쌓이면 흰자가 뜯긴다
+
+    tearSpread: 0.55,      // 한 칸이 뜯기면 옆 칸까지 번질 확률 (손상이 찔끔이 아니게)
 
     tearBlob: 0.62,        // 뜯긴 자국 반지름 (칸 크기 배수)
 
@@ -133,6 +143,7 @@
     stress: null,        // 칸마다 쌓인 부담
     stressAt: null,      // 그 부담을 마지막으로 건드린 시각
     lastTap: 0,          // 직전에 탭한 시각 — 연타가 급한지 보려고
+    moved: false,        // 이번 프레임에 손이 움직였나 (가만히 누르고 있는지 보려고)
     shards: null,        // 칸마다의 조각 모양 (0~1 비율 좌표라 화면이 바뀌어도 그대로)
     chips: [],           // 떨어지는 껍질 조각
     cracks: [],          // 막 깨진 자리에 짧게 보이는 금
@@ -521,14 +532,35 @@
   /* ============================================================
      문지르기
      ============================================================ */
-  /* dwell: 이번에 붓을 대고 있던 시간(초). impulse: 탭 한 번에 실리는 부담. */
-  function rub(x, y, speedNorm, dwell, impulse) {
+  /* dwell: 붓을 대고 있던 시간(초).  impulse: 탭 한 번에 실리는 부담.
+     sweep: 붓 지름 대비 이번에 지나간 거리(한 번 훑고 지나가면 1). */
+  /* 한 칸을 뜯는다. 껍질이 남아 있었다면 그 조각도 같이 떨어져 나간다. */
+  function tearCell(R, i, j, tears) {
+    if (i < 0 || j < 0 || i >= TUNE.cols || j >= TUNE.rows) return;
+    const idx = j * TUNE.cols + i;
+    if (!S.inside[idx] || S.cells[idx] === TORN) return;
+    if (S.cells[idx] === SHELL) { breakChip(R, i, j); S.peeled++; }
+    S.cells[idx] = TORN;
+    S.torn++;
+    tears.push(cellPos(R, i, j));
+  }
+
+  function rub(x, y, speedNorm, dwell, impulse, sweep) {
     const R = eggRect();
     const br = (R.w / 2) * TUNE.brush;
-    /* 속도가 safe 를 넘을수록 흰자가 뜯길 확률이 오른다 */
+    /* 속도가 safe 를 넘을수록 흰자가 뜯길 확률이 오른다.
+       이 확률은 '붓이 한 번 훑고 지나갈 때' 기준이다. 아래에서 지나간 거리만큼
+       나눠 굴리므로, 프레임이 몇 번 돌았는지에 따라 결과가 달라지지 않는다. */
     const p = clamp((speedNorm - TUNE.safeSpeed) / (TUNE.hardSpeed - TUNE.safeSpeed), 0, 1);
-    /* 이번 손놀림이 그 칸에 얹는 부담 */
-    const gain = (dwell || 0) * TUNE.stressRate + (impulse || 0);
+    /* 이번 손놀림이 그 칸에 얹는 부담.
+       sweep 은 붓 지름 대비 지나간 거리 — 한 번 훑고 지나가면 1 이 된다.
+       머무를수록(stillSpeed 아래) 시간당 부담이 따로 크게 붙는다 = 꾹 누르기. */
+    const still = clamp(1 - speedNorm / TUNE.stillSpeed, 0, 1);
+    const gain = (sweep || 0) * TUNE.sweepHit
+               + (dwell || 0) * TUNE.stressRate * still
+               + (impulse || 0);
+    /* 이번에 지나간 만큼만 굴린다 — 한 번 다 훑고 지나가면 딱 p 가 된다 */
+    const passP = p > 0 ? 1 - Math.pow(1 - p, Math.min(1, sweep || 0)) : 0;
     const now = performance.now();
 
     const cw = R.w / TUNE.cols, ch = R.h / TUNE.rows;
@@ -550,14 +582,17 @@
         const st = S.cells[idx];
         if (st === TORN) continue;
         /* 뜯기는 길은 둘 — 한 번에 빠르게 긁었거나, 부담이 꽉 찼거나 */
-        const tear = addStress(idx, gain, now) >= TUNE.stressTear || Math.random() < p;
-        if (st === SHELL) {
-          breakChip(R, i, j);                  // 이 칸의 껍질이 깨져 떨어진다
-          if (tear) { S.cells[idx] = TORN; S.peeled++; S.torn++; tears.push(c); }
-          else { S.cells[idx] = PEELED; S.peeled++; }
-        } else if (tear) {
-          /* 이미 벗긴 자리를 급하게 또 문지르면 흰자가 파인다 */
-          S.cells[idx] = TORN; S.torn++; tears.push(c);
+        const tear = addStress(idx, gain, now) >= TUNE.stressTear || Math.random() < passP;
+        if (tear) {
+          /* 한 번 뜯기면 옆으로 번진다 — 한 번의 실수가 찔끔으로 끝나지 않게 */
+          tearCell(R, i, j, tears);
+          if (Math.random() < TUNE.tearSpread) tearCell(R, i - 1, j, tears);
+          if (Math.random() < TUNE.tearSpread) tearCell(R, i + 1, j, tears);
+          if (Math.random() < TUNE.tearSpread) tearCell(R, i, j - 1, tears);
+          if (Math.random() < TUNE.tearSpread) tearCell(R, i, j + 1, tears);
+        } else if (st === SHELL) {
+          breakChip(R, i, j);                  // 껍질만 깨져 떨어진다
+          S.cells[idx] = PEELED; S.peeled++;
         }
       }
     }
@@ -573,6 +608,10 @@
      진행
      ============================================================ */
   function step(dt) {
+    if (S.mode !== "play") return;
+    /* 손을 댄 채 가만히 있으면 pointermove 가 안 온다. 그 시간도 부담으로 친다. */
+    if (S.drag && !S.moved) rub(S.drag.x, S.drag.y, 0, dt, 0);
+    S.moved = false;
     if (S.mode !== "play") return;
     S.left -= dt;
     const t = $("timer");
@@ -655,6 +694,7 @@
     e.preventDefault();
     try { cv.setPointerCapture(e.pointerId); } catch (_) {}
     const p = pos(e), now = performance.now();
+    S.moved = true;
     /* 직전 탭과의 간격 — 짧을수록 급한 연타다. 탭으로 안전하게 까는 길은 없다. */
     const gap = S.lastTap ? (now - S.lastTap) / 1000 : 99;
     const rush = clamp((TUNE.tapCalm - gap) / (TUNE.tapCalm - TUNE.tapRush), 0, 1);
@@ -667,6 +707,7 @@
     if (S.mode !== "play" || !S.drag) return;
     e.preventDefault();
     const p = pos(e), now = performance.now();
+    S.moved = true;
     const dt = Math.max(0.008, (now - S.drag.t) / 1000);
     const dist = Math.hypot(p.x - S.drag.x, p.y - S.drag.y);
     const rx = eggRect().w / 2;
@@ -674,9 +715,11 @@
     const speedNorm = (dist / dt) / rx;
     /* 빠르게 움직이면 그 사이가 비므로 중간중간 찍어 준다 */
     const steps = Math.max(1, Math.ceil(dist / (rx * TUNE.brush * 0.7)));
+    const sweep = dist / (rx * TUNE.brush * 2);     // 붓 지름 몇 개만큼 지나갔나
     for (let s = 1; s <= steps; s++) {
       rub(S.drag.x + (p.x - S.drag.x) * s / steps,
-          S.drag.y + (p.y - S.drag.y) * s / steps, speedNorm, dt / steps, 0);
+          S.drag.y + (p.y - S.drag.y) * s / steps,
+          speedNorm, dt / steps, 0, sweep / steps);
       if (S.mode !== "play") break;
     }
     S.drag = { x: p.x, y: p.y, t: now };
