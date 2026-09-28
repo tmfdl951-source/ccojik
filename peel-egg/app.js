@@ -16,8 +16,8 @@
      튜닝 — 숫자는 전부 여기서만 만진다
      ============================================================ */
   const TUNE = {
-    time: 20,              // 제한시간(초)
-    hotAt: 5,              // 남은 시간이 이 아래면 빨갛게 커진다
+    time: 10,              // 제한시간(초) — 여기만 바꾸면 전부 따라간다
+    hotAt: 5,              // 남은 시간이 이 아래면 빨갛게 커지고 두근거린다
 
     cols: 18, rows: 30,    // 계란을 나눈 칸 수 (사진 비율에 맞춰 세로로 길게)
     brush: 0.17,           // 붓 반지름 (계란 가로 폭 대비)
@@ -50,6 +50,15 @@
   const FIT = {
     peeled:  { scale: 0.885, dx:  0.001, dy: -0.009 },
     damaged: { scale: 0.865, dx: -0.006, dy: -0.016 },
+  };
+
+  /* 결과 화면 — 사진 가장자리의 빈 여백을 걷어내고 계란만 꽉 차게 키운다.
+     zoom 은 계란이 자리 높이를 채우는 배율, shift 는 계란이 사진 한가운데가
+     아니라 조금 아래에 있어서 올려 주는 값(%). 알파를 실측해 낸 숫자다. */
+  const RESULT_ZOOM = {
+    peeled:  { zoom: 1.72, shift: -2.0 },
+    damaged: { zoom: 1.67, shift: -3.2 },
+    ruined:  { zoom: 1.53, shift: -2.6 },
   };
 
   /* 한줄평 — 문장만 더 넣으면 바로 늘어난다 */
@@ -383,9 +392,13 @@
     const which = dmgPct >= TUNE.dmgBad ? "ruined"
                 : dmgPct >= TUNE.dmgMid ? "damaged"
                 : "peeled";
-    const im = $("resultImg");
-    if (IMG[which].ok) { im.src = IMG[which].src; im.hidden = false; }
-    else im.hidden = true;
+    const im = $("resultImg"), box = $("resultEgg");
+    if (IMG[which].ok) {
+      im.src = IMG[which].src;
+      const z = RESULT_ZOOM[which];
+      im.style.transform = "translateY(" + z.shift + "%) scale(" + z.zoom + ")";
+      box.hidden = false;
+    } else box.hidden = true;
 
     /* 멘트 — 시간에 쫓겼는지도 섞는다 */
     let line;
