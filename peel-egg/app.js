@@ -31,9 +31,15 @@
                            // 양면을 다 까야 하므로 한 면만 있던 때의 두 배가 넘는다.
     hotAt: 5,              // 남은 시간이 이 아래면 빨갛게 커지고 두근거린다
 
-    /* 계란 돌리기 */
-    spinTime: 0.45,        // 뒤집히는 데 걸리는 시간(초). 이 동안은 까기가 안 먹는다.
-    flipDrag: 0.22,        // 계란 밖을 이만큼(계란 폭 대비) 좌우로 끌면 뒤집힌다
+    /* 계란 돌리기 — 납작해지지 않고 굴러 넘어가는 느낌으로.
+       기울기·미끄러짐·표면을 스치는 빛을 겹쳐 입체 착시를 준다. */
+    spinTime:   0.50,      // 굴러 도는 데 걸리는 시간(초). 이 동안은 까기가 안 먹는다.
+    spinTilt:   0.17,      // 도는 동안 기우는 각도(라디안)
+    spinSlide:  0.055,     // 옆으로 미끄러지는 정도 (계란 폭 대비)
+    spinSquash: 0.10,      // 가로로 줄어드는 최대치. 0 까지 납작해지지 않게 조금만.
+    spinBlend:  0.28,      // 반대 면으로 넘어가며 겹치는 구간 (0~1 중 길이)
+    spinGlow:   0.42,      // 굴러갈 때 표면을 스치는 빛의 세기
+    flipDrag:   0.22,      // 계란 밖을 이만큼(계란 폭 대비) 끌면 한 바퀴다
 
     /* 껍질 조각 한 장이자 채점 한 칸. 조각이 손에 잡히는 크기가 되도록 성기게 잡는다.
        너무 잘게 쪼개면 무겁고 오히려 픽셀처럼 보인다. */
@@ -98,6 +104,10 @@
     peeled:  { scale: 0.885, dx:  0.001, dy: -0.009 },
     damaged: { scale: 0.865, dx: -0.006, dy: -0.016 },
   };
+
+  /* 껍질 사진의 불투명한 부분을 실측해 낸 타원 — 계란 사각형을 0~1 로 본 값.
+     굴러갈 때 표면을 스치는 빛을 이 안에만 가두는 데 쓴다. */
+  const EGG_OVAL = { cx: 0.500, cy: 0.501, rx: 0.337, ry: 0.240 };
 
   /* 등급 — 점수로 갈린다. 경계값·이름·쓸 사진을 한자리에서 본다.
      위에서부터 내려오며 처음 맞는 칸을 쓴다. 한줄평은 key 로 data.js 에서 찾는다. */
@@ -523,36 +533,49 @@
     g.ellipse(R.x + R.w / 2, R.y + R.h * .97, R.w * .34, R.h * .03, 0, 0, 7);
     g.fill();
 
-    /* 돌아가는 중에는 가로로 납작해졌다가 반대 면이 나온다.
+    /* 굴러 도는 중 — 계란은 둥근 모양을 지킨 채 살짝 기울고 미끄러진다.
+       가로로는 아주 조금만 줄어든다(납작해지지 않는다).
        뒷면은 같은 사진을 좌우로 뒤집어 그려 "반대쪽"처럼 보이게 한다. */
-    const shown = S.spin ? (S.spin.p < 0.5 ? S.spin.from : S.spin.to) : S.face;
-    const face = S.faces[shown];
-    const squash = S.spin ? Math.max(0.03, Math.abs(Math.cos(Math.PI * S.spin.p))) : 1;
-    const ecx = R.x + R.w / 2;
-
-    g.save();
-    g.translate(ecx, 0);
-    g.scale(squash * (face.flip ? -1 : 1), 1);
-    g.translate(-ecx, 0);
-
-    if (baseCv.width) g.drawImage(baseCv, R.x, R.y, R.w, R.h);        // 뜯긴 흰자
-    if (face.white.width) g.drawImage(face.white, R.x, R.y, R.w, R.h); // 매끈한 흰자
-    if (face.shell.width) g.drawImage(face.shell, R.x, R.y, R.w, R.h); // 껍질
-
-    /* 막 깨진 자리에 금이 간다 — 조각이 갈라진 모양 그대로라 들쭉날쭉하다.
-       금은 면에 붙어 있으므로 뒤집기 변환 안에서 그린다. */
-    if (S.cracks.length && !S.spin) {
-      g.strokeStyle = "#7A6746";
-      g.lineWidth = Math.max(1, R.w * 0.008);
-      g.lineJoin = "round";
-      for (const c of S.cracks) {
-        g.globalAlpha = Math.max(0, c.life / TUNE.crackLife) * 0.8;
-        shardPath(g, c.sh, R, c.ox, c.oy);
-        g.stroke();
-      }
-      g.globalAlpha = 1;
+    let roll = null;
+    if (S.spin) {
+      const s = S.spin;
+      const p = s.manual ? s.raw : easeOut(s.raw);
+      const wave = Math.sin(Math.PI * p);            // 0 -> 1 -> 0
+      roll = {
+        p,
+        tilt: wave * TUNE.spinTilt * s.dir,
+        slide: wave * TUNE.spinSlide * R.w * s.dir,
+        squash: 1 - wave * TUNE.spinSquash,
+        /* 반대 면으로 넘어가는 짧은 구간에서만 겹쳐 보인다 — 툭 끊기지 않게 */
+        blend: clamp((p - (0.5 - TUNE.spinBlend / 2)) / TUNE.spinBlend, 0, 1),
+        dir: s.dir, from: s.from, to: s.to,
+      };
     }
-    g.restore();
+
+    if (roll) {
+      drawFace(g, R, S.faces[roll.from], 1, roll);
+      if (roll.blend > 0) drawFace(g, R, S.faces[roll.to], roll.blend, roll);
+      drawRollGlow(g, R, roll);
+    } else {
+      drawFace(g, R, S.faces[S.face], 1, null);
+      /* 막 깨진 자리에 금이 간다 — 조각이 갈라진 모양 그대로라 들쭉날쭉하다 */
+      if (S.cracks.length) {
+        const face = S.faces[S.face];
+        g.save();
+        const ecx = R.x + R.w / 2;
+        g.translate(ecx, 0); g.scale(face.flip ? -1 : 1, 1); g.translate(-ecx, 0);
+        g.strokeStyle = "#7A6746";
+        g.lineWidth = Math.max(1, R.w * 0.008);
+        g.lineJoin = "round";
+        for (const c of S.cracks) {
+          g.globalAlpha = Math.max(0, c.life / TUNE.crackLife) * 0.8;
+          shardPath(g, c.sh, R, c.ox, c.oy);
+          g.stroke();
+        }
+        g.globalAlpha = 1;
+        g.restore();
+      }
+    }
 
     /* 떨어지는 껍질 조각 — 이미 떨어져 나왔으므로 화면 좌표로 따로 그린다 */
     for (const c of S.chips) {
@@ -570,6 +593,64 @@
       }
       g.restore();
     }
+  }
+
+  /* 한 면을 그린다. roll 이 있으면 굴러가는 자세로. */
+  function drawFace(g, R, face, alpha, roll) {
+    const ecx = R.x + R.w / 2, ecy = R.y + R.h / 2;
+    g.save();
+    g.globalAlpha = alpha;
+    if (roll) {
+      g.translate(ecx + roll.slide, ecy);
+      g.rotate(roll.tilt);
+      g.scale(roll.squash * (face.flip ? -1 : 1), 1);
+      g.translate(-ecx, -ecy);
+    } else {
+      g.translate(ecx, 0);
+      g.scale(face.flip ? -1 : 1, 1);
+      g.translate(-ecx, 0);
+    }
+    if (baseCv.width) g.drawImage(baseCv, R.x, R.y, R.w, R.h);        // 뜯긴 흰자
+    if (face.white.width) g.drawImage(face.white, R.x, R.y, R.w, R.h); // 매끈한 흰자
+    if (face.shell.width) g.drawImage(face.shell, R.x, R.y, R.w, R.h); // 껍질
+    g.restore();
+  }
+
+  /* 굴러가는 착시의 핵심 — 표면을 스치고 지나가는 빛과 그늘.
+     계란 실루엣 안쪽에만 칠한다. */
+  function drawRollGlow(g, R, roll) {
+    const wave = Math.sin(Math.PI * roll.p);
+    if (wave < 0.02) return;
+    const ecx = R.x + R.w / 2, ecy = R.y + R.h / 2;
+    g.save();
+    g.translate(ecx + roll.slide, ecy);
+    g.rotate(roll.tilt);
+    g.translate(-ecx, -ecy);
+    g.beginPath();
+    g.ellipse(R.x + EGG_OVAL.cx * R.w, R.y + EGG_OVAL.cy * R.h,
+              EGG_OVAL.rx * R.w, EGG_OVAL.ry * R.h, 0, 0, 7);
+    g.clip();
+
+    /* 빛이 지나가는 자리 — 도는 방향으로 쓸고 간다 */
+    const lead = roll.dir > 0 ? roll.p : 1 - roll.p;
+    const band = R.w * 0.55;
+    const at = R.x + R.w * (0.15 + lead * 0.7);
+    const gr = g.createLinearGradient(at - band, 0, at + band, 0);
+    gr.addColorStop(0, "rgba(255,255,255,0)");
+    gr.addColorStop(0.5, "rgba(255,255,255," + (TUNE.spinGlow * wave).toFixed(3) + ")");
+    gr.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = gr;
+    g.fillRect(R.x, R.y, R.w, R.h);
+
+    /* 빛 뒤로는 그늘이 따라온다 — 둥글게 말려 들어가는 느낌 */
+    const back = at - roll.dir * R.w * 0.62;
+    const gd = g.createLinearGradient(back - band, 0, back + band, 0);
+    gd.addColorStop(0, "rgba(40,30,15,0)");
+    gd.addColorStop(0.5, "rgba(40,30,15," + (TUNE.spinGlow * 0.5 * wave).toFixed(3) + ")");
+    gd.addColorStop(1, "rgba(40,30,15,0)");
+    g.fillStyle = gd;
+    g.fillRect(R.x, R.y, R.w, R.h);
+    g.restore();
   }
 
   /* ============================================================
@@ -654,18 +735,45 @@
   /* ============================================================
      계란 돌리기
      ============================================================ */
-  function flipEgg() {
+  /* 굴러 멈추는 느낌 — 뒤로 갈수록 느려진다 */
+  const easeOut = t => 1 - Math.pow(1 - t, 3);
+
+  function startSpin(dir, manual) {
     if (S.mode !== "play" || S.spin) return;
     S.cracks.length = 0;                 // 금은 면에 붙어 있다 — 같이 넘어가면 어색하다
-    S.drag = null; S.swipe = null;
-    S.spin = { p: 0, from: S.face, to: 1 - S.face };
+    S.drag = null;
+    S.spin = { raw: 0, dir: dir || 1, from: S.face, to: 1 - S.face, manual: !!manual, back: false };
   }
+  function flipEgg() { startSpin(1, false); }
+
+  /* 얼마나 돌았는지 정하고, 반을 넘어가면 그때 반대 면으로 바꾼다 */
+  function setSpinP(raw) {
+    const s = S.spin;
+    if (!s) return;
+    s.raw = clamp(raw, 0, 1);
+    const want = s.raw >= 0.5 ? s.to : s.from;
+    if (S.face !== want) { S.face = want; paintHud(); }
+  }
+
   function stepSpin(dt) {
-    if (!S.spin) return;
-    S.spin.p += dt / TUNE.spinTime;
-    /* 반쯤 돌아 옆면이 보이는 순간에 반대 면으로 바꾼다 */
-    if (S.spin.p >= 0.5 && S.face === S.spin.from) { S.face = S.spin.to; paintHud(); }
-    if (S.spin.p >= 1) S.spin = null;
+    const s = S.spin;
+    if (!s || s.manual) return;          // 손으로 끌고 있는 중이면 그 값을 따른다
+    const step = dt / TUNE.spinTime;
+    if (s.back) {                        // 반을 못 넘겼으면 원래 면으로 되돌아간다
+      setSpinP(s.raw - step);
+      if (s.raw <= 0) S.spin = null;
+    } else {
+      setSpinP(s.raw + step);
+      if (s.raw >= 1) S.spin = null;
+    }
+  }
+
+  /* 손을 뗐을 때 — 가까운 면으로 스냅 */
+  function releaseSpin() {
+    const s = S.spin;
+    if (!s || !s.manual) return;
+    s.manual = false;
+    s.back = s.raw < 0.5;
   }
 
   /* ============================================================
@@ -787,7 +895,10 @@
     if (S.swipe) {                       // 계란 밖에서 좌우로 끄는 중
       e.preventDefault();
       const R = eggRect();
-      if (Math.abs(pos(e).x - S.swipe.x0) > R.w * TUNE.flipDrag) flipEgg();
+      const dx = pos(e).x - S.swipe.x0;
+      /* 끈 만큼 굴러간다. 손을 떼면 가까운 면으로 스냅한다. */
+      if (!S.spin && Math.abs(dx) > R.w * 0.02) startSpin(dx > 0 ? 1 : -1, true);
+      if (S.spin && S.spin.manual) setSpinP(Math.abs(dx) / (R.w * TUNE.flipDrag));
       return;
     }
     if (!S.drag || S.spin) return;
@@ -811,7 +922,7 @@
     S.drag = { x: p.x, y: p.y, t: now };
   }, { passive: false });
 
-  const endDrag = () => { S.drag = null; S.swipe = null; };
+  const endDrag = () => { S.drag = null; S.swipe = null; releaseSpin(); };
   ["pointerup", "pointercancel"].forEach(t => cv.addEventListener(t, endDrag));
   addEventListener("pointerup", endDrag);
   addEventListener("blur", endDrag);
