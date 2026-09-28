@@ -11,7 +11,8 @@
   --green: #1C9A46;
   --gray:  #7A7A70;
 
-  --f-title: "Black Han Sans", sans-serif;
+  --f-head:  "Pretendard", sans-serif;   /* 제목 — 획이 안 뭉치는 쪽 */
+  --f-title: "Black Han Sans", sans-serif;  /* 숫자·버튼 */
   --f: "Do Hyeon", sans-serif;
 }
 
@@ -119,8 +120,14 @@ body { display: flex; align-items: center; justify-content: center; }
 .over[hidden] { display: none; }
 
 .title {
-  font-family: var(--f-title);
-  font-size: clamp(24px, min(8.6vw, 4.8vh), 44px); line-height: 1.25;
+  font-family: var(--f-head);
+  font-weight: 800;
+  font-size: clamp(27px, min(9.8vw, 5.5vh), 52px);
+  line-height: 1.34;
+  /* 받침 있는 글자('벽' '까')가 옆 글자에 붙지 않게 넉넉히 띄운다 */
+  letter-spacing: 0.025em;
+  word-spacing: 0.12em;
+  color: var(--ink);
 }
 .lead { font-size: clamp(13px, min(4.2vw, 2.2vh), 19px); line-height: 1.4; }
 

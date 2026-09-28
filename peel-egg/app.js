@@ -4,7 +4,10 @@
  *   2) egg-peeled   매끈한 흰자 — 잘 깠을 때 보이는 층
  *   3) egg-shell    껍질       — 시작 상태
  * 살살 문지르면 껍질만 지워져 매끈한 흰자가 나오고,
- * 급하게 문지르면 그 자리는 매끈한 흰자까지 지워져 뜯긴 흰자가 드러난다.
+ * 급하게 다루면 그 자리는 매끈한 흰자까지 지워져 뜯긴 흰자가 드러난다.
+ * 급하다는 판정은 두 갈래다. (1) 한 번에 빠르게 긁는 것, (2) 한 부위에 부담이
+ * 쌓이는 것 — 같은 자리를 계속 문지르거나 급하게 연타하면 쌓인다. 그래서
+ * 제자리 탭으로만 까는 꼼수가 통하지 않는다.
  * 지우기는 층마다 따로 둔 캔버스에 destination-out 으로 한다.
  *
  * 숫자(껍질 제거율·손상도)는 계란을 나눈 격자로 센다. 격자와 마스킹은 같은
@@ -26,6 +29,17 @@
        safe 아래는 안전, hard 위는 거의 확실히 뜯긴다. 그 사이는 확률. */
     safeSpeed: 1.6,
     hardSpeed: 5.2,
+
+    /* 흰자가 뜯기는 두 번째 길 — 한 부위에 쌓이는 부담.
+       빠르게 긁는 것과 별개로, 같은 자리를 계속 문지르거나 급하게 연타하면 쌓인다.
+       쌓인 부담은 시간이 지나면 저절로 빠지므로, 천천히 넓게 가면 안 쌓인다. */
+    stressRate: 2.2,       // 대고 있는 1초당 쌓이는 부담
+    tapHit:     0.30,      // 한 번 탭(클릭)할 때 실리는 부담
+    tapCalm:    0.30,      // 탭 간격이 이보다 길면 침착한 것 (초)
+    tapRush:    0.06,      // 이보다 짧으면 완전히 급한 연타 (초)
+    rushBoost:  3,         // 급한 연타가 부담을 몇 배까지 키우나
+    stressFade: 1.6,       // 1초에 빠지는 부담
+    stressTear: 1.0,       // 이만큼 쌓이면 흰자가 뜯긴다
 
     tearBlob: 0.62,        // 뜯긴 자국 반지름 (칸 크기 배수)
 
@@ -99,6 +113,9 @@
     left: TUNE.time,
     cells: null,
     inside: null,        // 껍질이 덮여 있던 칸인지 (사진의 불투명한 부분)
+    stress: null,        // 칸마다 쌓인 부담
+    stressAt: null,      // 그 부담을 마지막으로 건드린 시각
+    lastTap: 0,          // 직전에 탭한 시각 — 연타가 급한지 보려고
     total: 0,
     peeled: 0,
     torn: 0,
@@ -247,6 +264,8 @@
     const n = TUNE.cols * TUNE.rows;
     S.cells = new Uint8Array(n);
     S.inside = new Uint8Array(n);
+    S.stress = new Float32Array(n);
+    S.stressAt = new Float32Array(n);
     S.total = 0;
     S.peeled = 0; S.torn = 0;
 
@@ -277,6 +296,16 @@
     buildLayers(null, null);
   }
 
+  /* 한 칸에 부담을 더하고 지금 얼마나 쌓였는지 돌려준다.
+     빠진 만큼은 건드릴 때 한꺼번에 계산한다 — 매 프레임 전체를 훑지 않아도 된다. */
+  function addStress(idx, gain, now) {
+    const gone = (now - S.stressAt[idx]) / 1000 * TUNE.stressFade;
+    const v = Math.max(0, S.stress[idx] - gone) + gain;
+    S.stress[idx] = v;
+    S.stressAt[idx] = now;
+    return v;
+  }
+
   /* ============================================================
      그리기 — 아래부터 위로 세 장
      ============================================================ */
@@ -300,11 +329,15 @@
   /* ============================================================
      문지르기
      ============================================================ */
-  function rub(x, y, speedNorm) {
+  /* dwell: 이번에 붓을 대고 있던 시간(초). impulse: 탭 한 번에 실리는 부담. */
+  function rub(x, y, speedNorm, dwell, impulse) {
     const R = eggRect();
     const br = (R.w / 2) * TUNE.brush;
     /* 속도가 safe 를 넘을수록 흰자가 뜯길 확률이 오른다 */
     const p = clamp((speedNorm - TUNE.safeSpeed) / (TUNE.hardSpeed - TUNE.safeSpeed), 0, 1);
+    /* 이번 손놀림이 그 칸에 얹는 부담 */
+    const gain = (dwell || 0) * TUNE.stressRate + (impulse || 0);
+    const now = performance.now();
 
     const cw = R.w / TUNE.cols, ch = R.h / TUNE.rows;
     const i0 = Math.max(0, Math.floor((x - br - R.x) / cw));
@@ -324,7 +357,8 @@
 
         const st = S.cells[idx];
         if (st === TORN) continue;
-        const tear = Math.random() < p;
+        /* 뜯기는 길은 둘 — 한 번에 빠르게 긁었거나, 부담이 꽉 찼거나 */
+        const tear = addStress(idx, gain, now) >= TUNE.stressTear || Math.random() < p;
         if (st === SHELL) {
           if (tear) { S.cells[idx] = TORN; S.peeled++; S.torn++; tears.push(c); }
           else { S.cells[idx] = PEELED; S.peeled++; }
@@ -365,6 +399,7 @@
     S.mode = "play";
     S.left = TUNE.time;
     S.drag = null;
+    S.lastTap = 0;
     fitCanvas();
     buildCells();
     paintHud();
@@ -423,9 +458,13 @@
     if (S.mode !== "play") return;
     e.preventDefault();
     try { cv.setPointerCapture(e.pointerId); } catch (_) {}
-    const p = pos(e);
-    S.drag = { x: p.x, y: p.y, t: performance.now() };
-    rub(p.x, p.y, 0);                       // 처음 댄 자리는 살살 댄 것으로 본다
+    const p = pos(e), now = performance.now();
+    /* 직전 탭과의 간격 — 짧을수록 급한 연타다. 탭으로 안전하게 까는 길은 없다. */
+    const gap = S.lastTap ? (now - S.lastTap) / 1000 : 99;
+    const rush = clamp((TUNE.tapCalm - gap) / (TUNE.tapCalm - TUNE.tapRush), 0, 1);
+    S.lastTap = now;
+    S.drag = { x: p.x, y: p.y, t: now };
+    rub(p.x, p.y, 0, 0, TUNE.tapHit * (1 + rush * TUNE.rushBoost));
   }, { passive: false });
 
   cv.addEventListener("pointermove", e => {
@@ -441,7 +480,7 @@
     const steps = Math.max(1, Math.ceil(dist / (rx * TUNE.brush * 0.7)));
     for (let s = 1; s <= steps; s++) {
       rub(S.drag.x + (p.x - S.drag.x) * s / steps,
-          S.drag.y + (p.y - S.drag.y) * s / steps, speedNorm);
+          S.drag.y + (p.y - S.drag.y) * s / steps, speedNorm, dt / steps, 0);
       if (S.mode !== "play") break;
     }
     S.drag = { x: p.x, y: p.y, t: now };
