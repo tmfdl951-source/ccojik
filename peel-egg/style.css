@@ -1,0 +1,178 @@
+/* ===== 꼬직 · 계란 완벽하게 까기 =====
+ * 톤: 담백한 플래시게임. 밝은 배경 + 큼직한 계란 하나 + 굵은 검정 바 버튼.
+ * 세로 치수는 화면 높이(vh)에 비례 — 어떤 화면에서도 스크롤 없이 한 화면.
+ * 글자는 촬영용이라 크고 굵게. 금지: 이모지 */
+:root {
+  --ink:   #1A1A16;
+  --paper: #FFFFFF;
+  --wall:  #E8E4D8;    /* 바깥 바탕 */
+  --stage: #F6F3E9;    /* 게임판 */
+  --red:   #DA2B2B;
+  --green: #1C9A46;
+  --gray:  #7A7A70;
+
+  --f-title: "Black Han Sans", sans-serif;
+  --f: "Do Hyeon", sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%;
+  background: var(--wall);
+  color: var(--ink);
+  font-family: var(--f);
+  -webkit-user-select: none; user-select: none;
+  overflow: hidden;                 /* 페이지가 통째로 밀리지 않게 */
+  overscroll-behavior: none;        /* 당겨서 새로고침 차단 */
+}
+body { display: flex; align-items: center; justify-content: center; }
+
+.app {
+  position: relative;
+  width: min(500px, 100vw);
+  height: 100dvh;
+  background: var(--paper);
+  border-left: 4px solid var(--ink);
+  border-right: 4px solid var(--ink);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  gap: clamp(5px, 1.2vh, 11px);
+  padding: clamp(8px, 1.8vh, 16px) clamp(8px, 2.6vw, 16px);
+}
+
+.sig {
+  position: absolute; right: 5px; bottom: 3px; z-index: 9;
+  font-size: 10px; line-height: 1; color: #C6C6BC; pointer-events: none;
+}
+
+/* ============================================================
+   타이머
+   ============================================================ */
+.timer { flex-shrink: 0; }
+.timer-row { display: flex; align-items: baseline; justify-content: center; gap: 8px; }
+.timer-label { font-size: clamp(11px, min(3.2vw, 1.7vh), 15px); color: var(--gray); }
+.timer-num {
+  font-family: var(--f-title);
+  font-size: clamp(26px, min(9vw, 4.6vh), 46px); line-height: 1.1;
+}
+/* 5초 이하면 촉박하게 */
+.timer.hot .timer-num { color: var(--red); font-size: clamp(34px, min(12vw, 6vh), 62px); }
+.timer.hot .timer-label { color: var(--red); }
+.bar {
+  position: relative; width: 100%; margin-top: 3px;
+  height: clamp(10px, 1.8vh, 16px);
+  background: var(--paper); border: 3px solid var(--ink); overflow: hidden;
+}
+.bar-fill { position: absolute; inset: 0; width: 100%; background: var(--green); }
+.timer.hot .bar-fill { background: var(--red); }
+
+/* ============================================================
+   진행 상태
+   ============================================================ */
+.hud { display: flex; gap: clamp(5px, 1.6vw, 9px); flex-shrink: 0; }
+.hud-box {
+  flex: 1; border: 3px solid var(--ink); background: var(--paper);
+  padding: clamp(3px, .7vh, 6px) clamp(4px, 1.4vw, 8px);
+  text-align: center;
+}
+.hud-label {
+  display: block; font-size: clamp(10px, min(3vw, 1.5vh), 13px);
+  color: var(--gray); line-height: 1.2;
+}
+.hud-num {
+  display: block; font-family: var(--f-title);
+  font-size: clamp(18px, min(6.2vw, 3.1vh), 30px); line-height: 1.15;
+}
+.hud-num.bad { color: var(--red); }
+
+/* ============================================================
+   계란
+   ============================================================ */
+.stage {
+  flex: 1 1 auto; min-height: 0; position: relative;
+  border: 4px solid var(--ink); background: var(--stage);
+  overflow: hidden;
+}
+#cv {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  touch-action: none;               /* 기본 스크롤·줌을 끄고 문지르기를 받는다 */
+  cursor: crosshair;
+}
+
+/* 덮개 */
+.over {
+  position: absolute; inset: 0; z-index: 4;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: clamp(7px, 1.7vh, 15px);
+  padding: clamp(10px, 2.4vh, 22px) clamp(12px, 4vw, 24px);
+  text-align: center;
+  background: rgba(255, 255, 255, .95);
+}
+.over[hidden] { display: none; }
+
+.title {
+  font-family: var(--f-title);
+  font-size: clamp(24px, min(8.6vw, 4.8vh), 44px); line-height: 1.25;
+}
+.lead { font-size: clamp(13px, min(4.2vw, 2.2vh), 19px); line-height: 1.4; }
+
+.howto {
+  list-style: none; display: flex; flex-direction: column;
+  gap: clamp(4px, 1vh, 8px); width: 100%; max-width: 360px; text-align: left;
+}
+.howto li {
+  font-size: clamp(12px, min(3.6vw, 1.9vh), 16px); line-height: 1.35;
+  background: var(--paper); border: 3px solid var(--ink);
+  padding: clamp(5px, 1vh, 8px) clamp(8px, 2.4vw, 11px);
+}
+.howto b { color: var(--green); }
+.howto b.warn { color: var(--red); }
+
+.score-big {
+  font-family: var(--f-title);
+  font-size: clamp(44px, min(16vw, 8.4vh), 84px); line-height: 1; color: var(--ink);
+}
+.score-cap { font-size: clamp(13px, min(4.2vw, 2.2vh), 18px); color: var(--gray); margin-top: 2px; }
+.remark {
+  font-family: var(--f-title);
+  font-size: clamp(16px, min(5.4vw, 2.9vh), 26px); line-height: 1.35; max-width: 380px;
+}
+/* 결과 계란 사진 — 남은 세로 공간만 쓴다 */
+.result-img {
+  flex: 0 1 auto; min-height: 0;
+  height: clamp(70px, 20vh, 170px); width: auto; max-width: 70%;
+  object-fit: contain;
+}
+.result-img[hidden] { display: none; }
+
+.best { font-size: clamp(12px, min(3.6vw, 1.9vh), 16px); color: var(--gray); line-height: 1.6; }
+.best span { color: var(--ink); }
+
+/* ============================================================
+   버튼
+   ============================================================ */
+.btn {
+  font-family: var(--f-title);
+  font-size: clamp(16px, min(5.2vw, 2.8vh), 24px); line-height: 1.3;
+  color: var(--paper);
+  background: var(--ink); border: 4px solid var(--ink); border-radius: 0;
+  padding: clamp(8px, 1.7vh, 14px) clamp(22px, 8vw, 40px);
+  cursor: pointer; touch-action: manipulation;
+}
+.btn:active { background: var(--gray); }
+
+.pad { flex-shrink: 0; }
+.btn.done { width: 100%; padding: clamp(8px, 1.8vh, 14px) 10px; }
+
+/* 아주 낮은 화면(가로로 든 휴대폰) — 설명부터 접는다. 버튼은 반드시 남긴다. */
+@media (max-height: 430px) {
+  .howto { display: none; }
+  .over { gap: clamp(5px, 1.2vh, 10px); }
+  .score-big { font-size: clamp(30px, 11vh, 52px); }
+  .result-img { height: clamp(50px, 15vh, 90px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::after, *::before { animation: none !important; transition-duration: .01ms !important; }
+}

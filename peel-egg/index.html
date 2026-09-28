@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport"
+  content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>꼬직 · 계란 완벽하게 까기</title>
+<meta property="og:type" content="website" />
+<meta property="og:title" content="꼬직 · 계란 완벽하게 까기" />
+<meta property="og:description" content="껍질만 벗기고 흰자는 지키세요. 20초 안에." />
+<!-- 웹폰트: 굵은 제목(Black Han Sans) + 본문·숫자(Do Hyeon) -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Do+Hyeon&display=swap" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ===== 타이머 ===== -->
+  <div class="timer" id="timer">
+    <div class="timer-row">
+      <span class="timer-label">남은 시간</span>
+      <span class="timer-num" id="timeNum">20</span>
+    </div>
+    <div class="bar"><div class="bar-fill" id="timeFill"></div></div>
+  </div>
+
+  <!-- ===== 진행 상태 ===== -->
+  <div class="hud">
+    <div class="hud-box">
+      <span class="hud-label">껍질 제거</span>
+      <span class="hud-num" id="peelNum">0%</span>
+    </div>
+    <div class="hud-box">
+      <span class="hud-label">흰자 손상</span>
+      <span class="hud-num bad" id="dmgNum">0%</span>
+    </div>
+  </div>
+
+  <!-- ===== 계란 ===== -->
+  <div class="stage" id="stage">
+    <canvas id="cv"></canvas>
+
+    <div class="over" id="startOver">
+      <h1 class="title">계란 완벽하게 까기</h1>
+      <p class="lead">껍질만 벗기고 흰자는 지키세요</p>
+      <ul class="howto">
+        <li><b>살살 문지르면</b> 껍질만 벗겨집니다</li>
+        <li><b class="warn">급하게 문지르면</b> 흰자까지 뜯깁니다</li>
+        <li>시간은 <b id="timeInfo">20</b>초. 되돌리기는 없습니다</li>
+      </ul>
+      <button class="btn" type="button" id="startBtn">시작하기</button>
+      <p class="best">최고 <span id="bestStart">0</span>점</p>
+    </div>
+
+    <div class="over" id="endOver" hidden>
+      <div class="score-big" id="finalScore">0</div>
+      <div class="score-cap">점</div>
+      <p class="remark" id="remark"></p>
+      <img class="result-img" id="resultImg" alt="결과 계란" hidden />
+      <p class="best">
+        껍질 <span id="peelEnd">0%</span> · 흰자 손상 <span id="dmgEnd">0%</span><br>
+        최고 <span id="bestEnd">0</span>점
+      </p>
+      <button class="btn" type="button" id="againBtn">다시 하기</button>
+    </div>
+  </div>
+
+  <div class="pad">
+    <button class="btn done" type="button" id="doneBtn">완성</button>
+  </div>
+
+  <div class="sig">ccojik</div>
+</div>
+
+<script src="app.js"></script>
+<script>window.SITE_ANALYTICS_PROJECT='ccojik-peel-egg';</script>
+<script src="../analytics.js"></script>
+</body>
+</html>
