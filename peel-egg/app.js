@@ -41,6 +41,12 @@
     spinGlow:   0.42,      // 굴러갈 때 표면을 스치는 빛의 세기
     flipDrag:   0.22,      // 계란 밖을 이만큼(계란 폭 대비) 끌면 한 바퀴다
 
+    /* 돌릴 수 있다는 걸 알리는 힌트. 한 번 돌리고 나면 저절로 사라진다. */
+    nudgeTime:   2.2,      // 시작 직후 계란이 까딱거리는 시간(초)
+    nudgeSwing:  0.06,     // 까딱거리는 각도(라디안)
+    nudgeCycles: 2,        // 그 동안 몇 번 까딱하나
+    hintAt:      0.8,      // 한 면을 이만큼 까면 반대 면을 까라고 알린다
+
     /* 껍질 조각 한 장이자 채점 한 칸. 조각이 손에 잡히는 크기가 되도록 성기게 잡는다.
        너무 잘게 쪼개면 무겁고 오히려 픽셀처럼 보인다. */
     cols: 11, rows: 18,
@@ -174,6 +180,8 @@
     face: 0,             // 지금 앞에 나와 있는 면
     spin: null,          // 돌아가는 중이면 { p: 0~1, from, to }
     swipe: null,         // 계란 밖을 끌어 돌리려는 중
+    flipped: false,      // 한 번이라도 돌려 봤나 (힌트를 거둘지 정한다)
+    nudge: 0,            // 시작 직후 까딱거리는 데 남은 시간
     lastTap: 0,          // 직전에 탭한 시각 — 연타가 급한지 보려고
     moved: false,        // 이번 프레임에 손이 움직였나 (가만히 누르고 있는지 보려고)
     chips: [],           // 떨어지는 껍질 조각
@@ -557,7 +565,7 @@
       if (roll.blend > 0) drawFace(g, R, S.faces[roll.to], roll.blend, roll);
       drawRollGlow(g, R, roll);
     } else {
-      drawFace(g, R, S.faces[S.face], 1, null);
+      drawFace(g, R, S.faces[S.face], 1, nudgePose(R));
       /* 막 깨진 자리에 금이 간다 — 조각이 갈라진 모양 그대로라 들쭉날쭉하다 */
       if (S.cracks.length) {
         const face = S.faces[S.face];
@@ -577,6 +585,8 @@
       }
     }
 
+    drawSpinHint(g, R, performance.now());
+
     /* 떨어지는 껍질 조각 — 이미 떨어져 나왔으므로 화면 좌표로 따로 그린다 */
     for (const c of S.chips) {
       g.save();
@@ -593,6 +603,58 @@
       }
       g.restore();
     }
+  }
+
+  /* 시작 직후 계란이 좌우로 까딱거린다 — 돌아갈 수 있다는 암시.
+     한 번 돌려 보면 그만둔다. */
+  function nudgePose(R) {
+    if (S.nudge <= 0 || S.spin || S.flipped) return null;
+    const t = 1 - S.nudge / TUNE.nudgeTime;        // 0 -> 1
+    const damp = Math.max(0, 1 - t);               // 갈수록 잦아든다
+    const a = Math.sin(t * Math.PI * 2 * TUNE.nudgeCycles) * TUNE.nudgeSwing * damp;
+    return { tilt: a, slide: a * R.w * 0.35, squash: 1 };
+  }
+
+  /* 계란 양옆 여백에 빙 도는 화살표를 그린다 — 여기를 잡고 끌라는 뜻.
+     캔버스로 직접 그린다(그림 파일도, 이모지도 아니다). */
+  function drawSpinHint(g, R, now) {
+    if (S.flipped || S.spin || S.mode !== "play") return;
+    const pulse = 0.55 + 0.45 * Math.sin(now / 420);
+    const margin = (W - R.w) / 2;
+    /* 여백이 좁은 화면(세로로 긴 폰)에서는 계란 가장자리에 살짝 걸쳐서라도 그린다.
+       흰 테두리를 깔기 때문에 겹쳐도 읽힌다. */
+    const rad = Math.max(R.w * 0.055, Math.min(margin * 0.34, R.w * 0.1));
+    const cy = R.y + R.h * 0.42;
+
+    [-1, 1].forEach(side => {
+      const cx = side < 0 ? margin / 2 : W - margin / 2;
+      g.save();
+      g.globalAlpha = 0.85 * pulse;
+      /* 흰 테두리를 먼저 깔아 어떤 바탕에서도 보이게 한다 */
+      for (const outline of [true, false]) {
+        g.strokeStyle = outline ? "rgba(255,255,255,.95)" : "#1A1A16";
+        g.lineWidth = outline ? Math.max(5, rad * 0.55) : Math.max(2, rad * 0.24);
+        g.lineCap = "round";
+        g.lineJoin = "round";
+        const a0 = -0.62 * Math.PI, a1 = 0.72 * Math.PI;
+        g.beginPath();
+        g.arc(cx, cy, rad, a0, a1, side < 0);
+        g.stroke();
+        /* 화살촉 — 호가 끝나는 쪽에 */
+        const end = side < 0 ? a0 : a1;
+        const tipX = cx + Math.cos(end) * rad, tipY = cy + Math.sin(end) * rad;
+        const dir = (side < 0 ? -1 : 1) * (Math.PI / 2);
+        const head = rad * 0.62;
+        g.beginPath();
+        for (const off of [0.6, -0.6]) {
+          g.moveTo(tipX, tipY);
+          g.lineTo(tipX - Math.cos(end + dir + off) * head,
+                   tipY - Math.sin(end + dir + off) * head);
+        }
+        g.stroke();
+      }
+      g.restore();
+    });
   }
 
   /* 한 면을 그린다. roll 이 있으면 굴러가는 자세로. */
@@ -752,7 +814,12 @@
     if (!s) return;
     s.raw = clamp(raw, 0, 1);
     const want = s.raw >= 0.5 ? s.to : s.from;
-    if (S.face !== want) { S.face = want; paintHud(); }
+    if (S.face !== want) {
+      S.face = want;
+      S.flipped = true;              // 돌릴 줄 알게 됐으니 힌트는 거둔다
+      S.nudge = 0;
+      paintHud();
+    }
   }
 
   function stepSpin(dt) {
@@ -785,6 +852,7 @@
     if (S.drag && !S.moved) rub(S.drag.x, S.drag.y, 0, dt, 0);
     S.moved = false;
     if (S.mode !== "play") return;
+    if (S.nudge > 0) S.nudge -= dt;
     S.left -= dt;
     const t = $("timer");
     t.classList.toggle("hot", S.left <= TUNE.hotAt);
@@ -797,10 +865,26 @@
     /* 앞뒤를 합쳐서 센다 — 한 면만 까면 제거율이 반밖에 안 오른다 */
     $("peelNum").textContent = Math.round(sum("peeled") / sum("total") * 100) + "%";
     $("dmgNum").textContent = Math.round(sum("torn") / sum("total") * 100) + "%";
-    const f = FACE();
+    const f = FACE(), other = S.faces[1 - S.face];
     $("faceTag").textContent = f.flip ? "뒷면" : "앞면";
     /* 지금 보는 면이 얼마나 깠는지도 같이 — 뒤집을 때가 됐는지 알 수 있게 */
     $("faceDone").textContent = Math.round(f.peeled / f.total * 100) + "%";
+
+    /* 힌트 — 이 면을 거의 다 깠으면 반대 면으로 가라고 붙잡는다 */
+    const hint = $("spinHint");
+    const needOther = f.peeled / f.total >= TUNE.hintAt &&
+                      other.peeled / other.total < TUNE.hintAt;
+    if (needOther) {
+      hint.textContent = (f.flip ? "앞면" : "뒷면") + "도 까세요";
+      hint.className = "hint urge";
+      hint.hidden = false;
+    } else if (!S.flipped) {
+      hint.textContent = "계란을 드래그해서 돌리면 뒷면도 깔 수 있어요";
+      hint.className = "hint";
+      hint.hidden = false;
+    } else {
+      hint.hidden = true;            // 이미 돌릴 줄 안다
+    }
   }
 
   function start() {
@@ -811,6 +895,8 @@
     S.face = 0;
     S.spin = null;
     S.swipe = null;
+    S.flipped = false;
+    S.nudge = TUNE.nudgeTime;
     S.chips.length = 0;
     S.cracks.length = 0;
     fitCanvas();
