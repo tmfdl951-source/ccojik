@@ -42,6 +42,8 @@
     spinSquash: 0.10,      // 가로로 줄어드는 최대치. 0 까지 납작해지지 않게 조금만.
     spinBlend:  0.28,      // 반대 면으로 넘어가며 겹치는 구간 (0~1 중 길이)
     spinGlow:   0.42,      // 굴러갈 때 표면을 스치는 빛의 세기
+    arrowFlip:  -1,        // 힌트 화살표가 휘어 도는 쪽. 계란 도는 방향과 안 맞으면
+                           // 부호만 뒤집으면 된다 (+1 / -1).
 
     /* 돌릴 수 있다는 걸 알리는 힌트. 한 번 돌리고 나면 저절로 사라진다. */
     nudgeTime:   2.2,      // 시작 직후 계란이 까딱거리는 시간(초)
@@ -53,8 +55,8 @@
        너무 잘게 쪼개면 무겁고 오히려 픽셀처럼 보인다. */
     cols: 11, rows: 18,
     jitter: 0.38,          // 조각 씨앗점을 칸 안에서 흔드는 정도 (칸 크기 대비)
-    edgeMin: 0.02,         // 껍질이 이만큼이라도 덮은 칸은 깔 대상이다.
-                           // 높이면 가장자리 껍질이 안 까진 채로 100% 가 떠 버린다.
+    shellScan: 10,         // 껍질 사진을 칸 하나당 몇 x 몇 으로 훑어 넓이를 잴지.
+                           // 이 격자로 '조각마다 껍질 픽셀이 몇 개인지'를 센다.
     brush: 0.32,           // 붓 반지름 (계란 가로 폭 대비). 크면 한 번에 넓게 벗겨진다.
 
     /* ---- 난이도 ---- 이 아래 숫자만 만지면 쉬워지고 어려워진다.
@@ -83,7 +85,7 @@
 
     tearSpread: 0.55,      // 한 칸이 뜯기면 옆 칸까지 번질 확률 (손상이 찔끔이 아니게)
 
-    tearBlob: 0.62,        // 뜯긴 자국 반지름 (칸 크기 배수)
+    tearBlob: 0.66,        // 뜯긴 자국 반지름 (칸 크기 배수)
 
     /* 껍질이 깨져 떨어지는 연출. 속도·거리는 게임판 높이 대비라 화면 크기를 안 탄다. */
     crackLife: 0.22,       // 금이 보이는 시간(초)
@@ -261,6 +263,11 @@
       y: R.y + (j + 0.5) * (R.h / TUNE.rows),
     };
   }
+  /* 조각이 실제로 놓인 자리 (씨앗점) */
+  function shardPos(R, f, idx) {
+    const st = f.shards[idx].site;
+    return { x: R.x + st.u * R.w, y: R.y + st.v * R.h };
+  }
 
   /* ============================================================
      세 층 만들기
@@ -335,53 +342,27 @@
     g.fillStyle = "#000";
     g.beginPath();
     for (const p of pts) {
-      g.moveTo(p.x - R.x + r, p.y - R.y);        // 점끼리 선으로 이어지지 않게
-      g.arc(p.x - R.x, p.y - R.y, r, 0, 7);
+      const rr = p.r || r;                       // 조각마다 자국 크기가 다르다
+      g.moveTo(p.x - R.x + rr, p.y - R.y);       // 점끼리 선으로 이어지지 않게
+      g.arc(p.x - R.x, p.y - R.y, rr, 0, 7);
     }
     g.fill();
     g.restore();
   }
 
-  /* 채점용 격자 — 껍질 사진의 불투명한 자리만 '깔 대상'으로 센다 */
+  /* 채점용 격자. 조각을 먼저 잘라 두고, 조각마다 껍질 픽셀을 세어 넓이를 매긴다. */
   function buildCells() {
     const n = TUNE.cols * TUNE.rows;
-    let alpha = null;
-    if (IMG.shell.ok) {
-      try {
-        const c = document.createElement("canvas");
-        c.width = TUNE.cols; c.height = TUNE.rows;
-        const g = c.getContext("2d");
-        g.drawImage(IMG.shell.el, 0, 0, TUNE.cols, TUNE.rows);
-        alpha = g.getImageData(0, 0, TUNE.cols, TUNE.rows).data;
-      } catch (_) { alpha = null; }      // file:// 로 열면 픽셀을 못 읽는다
-    }
     S.faces.forEach(f => {
       f.cells = new Uint8Array(n);
       f.inside = new Uint8Array(n);
       f.w = new Float32Array(n);
       f.stress = new Float32Array(n);
       f.stressAt = new Float32Array(n);
-      f.total = 0; f.peeled = 0; f.torn = 0;
-      for (let j = 0; j < TUNE.rows; j++) {
-        for (let i = 0; i < TUNE.cols; i++) {
-          const idx = j * TUNE.cols + i;
-          /* 줄여 그린 알파가 곧 '그 칸을 껍질이 얼마나 덮었나'다.
-             가장자리 칸은 반쯤만 덮여 있다 — 그 몫만큼만 센다.
-             조금이라도 덮였으면 깔 대상에 넣는다. 안 그러면 테두리 껍질이
-             영영 안 까지는데 제거율은 100% 로 떠 버린다. */
-          let cov;
-          if (alpha) cov = alpha[idx * 4 + 3] / 255;
-          else {
-            /* 사진을 못 읽으면 타원으로 대신 잡는다 */
-            const dx = (i + .5) / TUNE.cols * 2 - 1, dy = (j + .5) / TUNE.rows * 2 - 1;
-            cov = dx * dx + dy * dy <= 1 ? 1 : 0;
-          }
-          if (cov > TUNE.edgeMin) { f.inside[idx] = 1; f.w[idx] = cov; f.total += cov; }
-        }
-      }
-      if (!f.total) f.total = 1;         // 0 으로 나누는 것만 막는다
+      f.peeled = 0; f.torn = 0;
       /* 면마다 따로 깨진다 — 앞뒤가 똑같은 모양으로 갈라지면 어색하다 */
       f.shards = buildShards();
+      buildWeights(f);                   // 조각마다 껍질이 몇 픽셀인지
     });
     buildLayers(null);
   }
@@ -449,6 +430,62 @@
       }
     }
     return out;
+  }
+
+  /* 조각마다 '껍질 사진의 불투명한 픽셀'이 몇 개나 들어 있는지 센다.
+     조각은 씨앗점의 보로노이 칸이므로, 어떤 점이 어느 조각에 속하는지는
+     '가장 가까운 씨앗점'으로 정해진다. 칸 사각형이 아니라 조각 모양 그대로다.
+     그래서 씨앗점이 흔들려 칸과 어긋나 있어도 빠지는 껍질이 없다.
+     여기서 잰 값이 곧 제거율의 분모다 — 가장자리까지 다 지워야 100% 가 된다. */
+  function buildWeights(f) {
+    const C = TUNE.cols, Rw = TUNE.rows;
+    const SX = C * TUNE.shellScan, SY = Rw * TUNE.shellScan;
+    let alpha = null;
+    if (IMG.shell.ok) {
+      try {
+        const c = document.createElement("canvas");
+        c.width = SX; c.height = SY;
+        const g = c.getContext("2d");
+        g.drawImage(IMG.shell.el, 0, 0, SX, SY);
+        alpha = g.getImageData(0, 0, SX, SY).data;
+      } catch (_) { alpha = null; }      // file:// 로 열면 픽셀을 못 읽는다
+    }
+
+    f.w.fill(0);
+    f.inside.fill(0);
+    f.total = 0;
+    for (let y = 0; y < SY; y++) {
+      const v = (y + 0.5) / SY;
+      for (let x = 0; x < SX; x++) {
+        const u = (x + 0.5) / SX;
+        let on;
+        if (alpha) on = alpha[(y * SX + x) * 4 + 3] > 128;
+        else {
+          /* 사진을 못 읽으면 타원으로 대신 잡는다 */
+          const dx = u * 2 - 1, dy = v * 2 - 1;
+          on = dx * dx + dy * dy <= 1;
+        }
+        if (!on) continue;
+        /* 가장 가까운 씨앗점 찾기 — 둘레 두 칸 안만 보면 충분하다 */
+        const ci = Math.min(C - 1, Math.floor(u * C));
+        const cj = Math.min(Rw - 1, Math.floor(v * Rw));
+        let best = -1, bd = Infinity;
+        for (let dj = -2; dj <= 2; dj++) {
+          const nj = cj + dj;
+          if (nj < 0 || nj >= Rw) continue;
+          for (let di = -2; di <= 2; di++) {
+            const ni = ci + di;
+            if (ni < 0 || ni >= C) continue;
+            const k = nj * C + ni, st = f.shards[k].site;
+            const d = (st.u - u) * (st.u - u) + (st.v - v) * (st.v - v);
+            if (d < bd) { bd = d; best = k; }
+          }
+        }
+        if (best >= 0) { f.w[best]++; f.total++; }
+      }
+    }
+    for (let k = 0; k < f.w.length; k++) if (f.w[k] > 0) f.inside[k] = 1;
+    if (!f.total) f.total = 1;           // 0 으로 나누는 것만 막는다
   }
 
   /* 조각의 다각형을 캔버스에 그릴 길로 깐다 (ox,oy 만큼 옮겨서) */
@@ -642,7 +679,9 @@
     g.save();
     g.globalAlpha = alpha;
     g.translate(cx, cy);
-    g.rotate(rock);
+    /* 계란이 도는 쪽과 맞추려고 좌우를 뒤집는다 (arrowFlip) */
+    g.scale(TUNE.arrowFlip, 1);
+    g.rotate(rock * TUNE.arrowFlip);
 
     const lw = Math.max(2.5, rad * 0.30);
     /* 0.62pi(왼쪽 아래)에서 1.62pi(위를 지나 오른쪽)까지 — 위로 휘어 오른다 */
@@ -745,7 +784,13 @@
     if (f.cells[idx] === SHELL) { breakChip(R, i, j); f.peeled += f.w[idx]; }
     f.cells[idx] = TORN;
     f.torn += f.w[idx];
-    tears.push(cellPos(R, i, j));
+    /* 가장자리 조각은 껍질을 조금밖에 안 덮는다 — 자국도 그만큼만 남겨야
+       화면에 보이는 손상과 손상도 숫자가 안 어긋난다. */
+    const full = TUNE.shellScan * TUNE.shellScan;
+    const part = Math.min(1, Math.sqrt(f.w[idx] / full));
+    const at = shardPos(R, f, idx);
+    at.r = Math.max(R.w / TUNE.cols, R.h / TUNE.rows) * TUNE.tearBlob * part;
+    tears.push(at);
   }
 
   function rub(x, y, speedNorm, dwell, impulse, sweep) {
@@ -771,10 +816,11 @@
     const now = performance.now();
 
     const cw = R.w / TUNE.cols, ch = R.h / TUNE.rows;
-    const i0 = Math.max(0, Math.floor((x - br - R.x) / cw));
-    const i1 = Math.min(TUNE.cols - 1, Math.ceil((x + br - R.x) / cw));
-    const j0 = Math.max(0, Math.floor((y - br - R.y) / ch));
-    const j1 = Math.min(TUNE.rows - 1, Math.ceil((y + br - R.y) / ch));
+    /* 조각의 씨앗점은 칸 안에서 흔들려 있으므로 한 칸씩 넉넉히 훑는다 */
+    const i0 = Math.max(0, Math.floor((x - br - R.x) / cw) - 1);
+    const i1 = Math.min(TUNE.cols - 1, Math.ceil((x + br - R.x) / cw) + 1);
+    const j0 = Math.max(0, Math.floor((y - br - R.y) / ch) - 1);
+    const j1 = Math.min(TUNE.rows - 1, Math.ceil((y + br - R.y) / ch) + 1);
 
     let touched = false;
     const tears = [];                    // 이번에 뜯긴 칸들
@@ -782,7 +828,9 @@
       for (let i = i0; i <= i1; i++) {
         const idx = j * TUNE.cols + i;
         if (!f.inside[idx]) continue;
-        const c = cellPos(R, i, j);
+        /* 조각이 실제로 놓인 자리로 잰다. 칸 가운데로 재면 씨앗점이 흔들린 만큼
+           어긋나서, 가장자리 조각에 붓이 닿아도 안 깨지는 일이 생긴다. */
+        const c = shardPos(R, f, idx);
         if (Math.hypot(c.x - x, c.y - y) > br) continue;
         touched = true;
 
