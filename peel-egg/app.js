@@ -53,6 +53,8 @@
        너무 잘게 쪼개면 무겁고 오히려 픽셀처럼 보인다. */
     cols: 11, rows: 18,
     jitter: 0.38,          // 조각 씨앗점을 칸 안에서 흔드는 정도 (칸 크기 대비)
+    edgeMin: 0.02,         // 껍질이 이만큼이라도 덮은 칸은 깔 대상이다.
+                           // 높이면 가장자리 껍질이 안 까진 채로 100% 가 떠 버린다.
     brush: 0.32,           // 붓 반지름 (계란 가로 폭 대비). 크면 한 번에 넓게 벗겨진다.
 
     /* ---- 난이도 ---- 이 아래 숫자만 만지면 쉬워지고 어려워진다.
@@ -168,7 +170,7 @@
   function newFace(flip) {
     return {
       flip,              // 뒷면이면 좌우로 뒤집어 그린다
-      cells: null, inside: null, stress: null, stressAt: null,
+      cells: null, inside: null, w: null, stress: null, stressAt: null,
       shards: null,
       total: 0, peeled: 0, torn: 0,
       shell: document.createElement("canvas"),   // 껍질
@@ -356,20 +358,25 @@
     S.faces.forEach(f => {
       f.cells = new Uint8Array(n);
       f.inside = new Uint8Array(n);
+      f.w = new Float32Array(n);
       f.stress = new Float32Array(n);
       f.stressAt = new Float32Array(n);
       f.total = 0; f.peeled = 0; f.torn = 0;
       for (let j = 0; j < TUNE.rows; j++) {
         for (let i = 0; i < TUNE.cols; i++) {
           const idx = j * TUNE.cols + i;
-          let on;
-          if (alpha) on = alpha[idx * 4 + 3] > 100;
+          /* 줄여 그린 알파가 곧 '그 칸을 껍질이 얼마나 덮었나'다.
+             가장자리 칸은 반쯤만 덮여 있다 — 그 몫만큼만 센다.
+             조금이라도 덮였으면 깔 대상에 넣는다. 안 그러면 테두리 껍질이
+             영영 안 까지는데 제거율은 100% 로 떠 버린다. */
+          let cov;
+          if (alpha) cov = alpha[idx * 4 + 3] / 255;
           else {
             /* 사진을 못 읽으면 타원으로 대신 잡는다 */
             const dx = (i + .5) / TUNE.cols * 2 - 1, dy = (j + .5) / TUNE.rows * 2 - 1;
-            on = dx * dx + dy * dy <= 1;
+            cov = dx * dx + dy * dy <= 1 ? 1 : 0;
           }
-          if (on) { f.inside[idx] = 1; f.total++; }
+          if (cov > TUNE.edgeMin) { f.inside[idx] = 1; f.w[idx] = cov; f.total += cov; }
         }
       }
       if (!f.total) f.total = 1;         // 0 으로 나누는 것만 막는다
@@ -617,37 +624,38 @@
     return { tilt: a, slide: a * R.w * 0.35, squash: 1 };
   }
 
-  /* 계란 오른쪽에 휘어진 회전 방향 화살표 하나.
-     원을 한 바퀴 두르지 않는다 — 위를 지나 오른쪽 아래로 휘어 내려오는 158도짜리
-     호에 삼각 화살촉을 붙였다. 돌아가는 '방향'을 가리키는 모양이다.
-     이건 안내일 뿐이고, 실제로 돌리는 곳은 아래 [뒤집기] 버튼이다.
+  /* 계란 오른쪽에 위로 휘어 도는 곡선 화살표 하나.
+     아래에서 시작해 왼쪽을 지나 위로 올라가며 오른쪽으로 빠지는 매끈한 호에,
+     끝에 삼각 화살촉을 붙였다. 동그라미로 한 바퀴 두르지 않는다.
+     이건 안내일 뿐이고 실제로 돌리는 곳은 아래 [뒤집기] 버튼이다.
      캔버스로 직접 그린다(그림 파일도, 이모지도 아니다). */
   function drawSpinHint(g, R, now) {
     if (S.flipped || S.spin || S.mode !== "play") return;
     const margin = (W - R.w) / 2;
     /* 여백이 좁은 세로로 긴 화면에서는 계란에 살짝 걸쳐서라도 그린다 */
-    const rad = Math.max(R.w * 0.068, Math.min(margin * 0.38, R.w * 0.105));
+    const rad = Math.max(R.w * 0.072, Math.min(margin * 0.40, R.w * 0.11));
     const cx = W - margin / 2, cy = R.y + R.h * 0.42;
     /* 통째로 도는 대신 좌우로 조금 흔들린다 — 동그라미로 안 읽히게 */
-    const rock = Math.sin(now / 560) * 0.2;
-    const alpha = 0.62 + 0.24 * Math.sin(now / 520);
+    const rock = Math.sin(now / 560) * 0.16;
+    const alpha = 0.7 + 0.22 * Math.sin(now / 520);
 
     g.save();
     g.globalAlpha = alpha;
     g.translate(cx, cy);
     g.rotate(rock);
 
-    const lw = Math.max(2, rad * 0.26);
-    const a0 = Math.PI * 1.06, a1 = Math.PI * 1.94;   // 위를 지나 오른쪽으로
-    const head = rad * 0.42;                           // 화살촉 크기
-    const tipA = a1 + 0.40;                            // 호보다 조금 더 간 지점
+    const lw = Math.max(2.5, rad * 0.30);
+    /* 0.62pi(왼쪽 아래)에서 1.62pi(위를 지나 오른쪽)까지 — 위로 휘어 오른다 */
+    const a0 = Math.PI * 0.62, a1 = Math.PI * 1.62;
+    const head = rad * 0.46;                           // 화살촉 크기
+    const tipA = a1 + 0.44;                            // 호보다 조금 더 간 지점
     const baseA = a1 - 0.02;
 
-    /* 흰 테두리를 먼저 깔고 그 위에 검은 선 — 어떤 바탕에서도 읽힌다 */
+    /* 흰 테두리를 먼저 깔고 그 위에 빨간 선 — 어떤 바탕에서도 읽힌다 */
     for (const outline of [true, false]) {
-      const col = outline ? "rgba(255,255,255,.95)" : "#1A1A16";
+      const col = outline ? "rgba(255,255,255,.96)" : "#DA2B2B";
       g.strokeStyle = col; g.fillStyle = col;
-      g.lineWidth = outline ? lw * 2.3 : lw;
+      g.lineWidth = outline ? lw * 2.1 : lw;
       g.lineCap = "round"; g.lineJoin = "round";
 
       g.beginPath();
@@ -661,7 +669,7 @@
       g.lineTo(Math.cos(baseA) * (rad - head), Math.sin(baseA) * (rad - head));
       g.closePath();
       g.fill();
-      if (outline) { g.lineWidth = lw * 1.4; g.stroke(); }
+      if (outline) { g.lineWidth = lw * 1.3; g.stroke(); }
     }
     g.restore();
   }
@@ -734,9 +742,9 @@
     if (i < 0 || j < 0 || i >= TUNE.cols || j >= TUNE.rows) return;
     const idx = j * TUNE.cols + i;
     if (!f.inside[idx] || f.cells[idx] === TORN) return;
-    if (f.cells[idx] === SHELL) { breakChip(R, i, j); f.peeled++; }
+    if (f.cells[idx] === SHELL) { breakChip(R, i, j); f.peeled += f.w[idx]; }
     f.cells[idx] = TORN;
-    f.torn++;
+    f.torn += f.w[idx];
     tears.push(cellPos(R, i, j));
   }
 
@@ -791,7 +799,7 @@
           if (Math.random() < TUNE.tearSpread) tearCell(f, R, i, j + 1, tears);
         } else if (st === SHELL) {
           breakChip(R, i, j);                  // 껍질만 깨져 떨어진다
-          f.cells[idx] = PEELED; f.peeled++;
+          f.cells[idx] = PEELED; f.peeled += f.w[idx];
         }
       }
     }
