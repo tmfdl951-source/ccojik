@@ -246,6 +246,9 @@ body { display: flex; align-items: center; justify-content: center; }
   color: var(--ink); background: var(--paper);
 }
 .btn.flip:active { background: var(--wall); }
+/* 아직 한 번도 안 돌려 봤으면 버튼이 스스로 눈에 띈다 */
+.btn.flip.callout { animation: callout 1.1s steps(2, end) infinite; }
+@keyframes callout { 50% { background: var(--ink); color: var(--paper); } }
 
 /* 지금 보는 면 — 게임판 구석에 작게 */
 .face-tag, .face-done {

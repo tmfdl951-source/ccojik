@@ -14,6 +14,9 @@
  * 조각이 떨어져 나가 중력을 받아 화면 아래로 사라진다. 네모 격자가 아니라
  * 제각각 생긴 다각형이라 계단처럼 보이지 않는다.
  *
+ * 조작은 둘로 확실히 갈라 둔다. 게임판 위를 끄는 것은 오직 '까기'이고,
+ * 돌리는 것은 아래 [뒤집기] 버튼 전담이다. 한 손짓이 두 뜻으로 읽히지 않는다.
+ *
  * 계란에는 앞면과 뒷면이 있다. 두 면은 껍질·흰자 상태를 따로 들고 있고,
  * 돌리면(가로로 뒤집는 짧은 애니메이션) 반대 면이 앞으로 나온다. 뒷면은 같은
  * 사진을 좌우로 뒤집어 그려 "반대쪽"처럼 보이게 한다. 점수는 양면을 합쳐서 낸다.
@@ -39,7 +42,6 @@
     spinSquash: 0.10,      // 가로로 줄어드는 최대치. 0 까지 납작해지지 않게 조금만.
     spinBlend:  0.28,      // 반대 면으로 넘어가며 겹치는 구간 (0~1 중 길이)
     spinGlow:   0.42,      // 굴러갈 때 표면을 스치는 빛의 세기
-    flipDrag:   0.22,      // 계란 밖을 이만큼(계란 폭 대비) 끌면 한 바퀴다
 
     /* 돌릴 수 있다는 걸 알리는 힌트. 한 번 돌리고 나면 저절로 사라진다. */
     nudgeTime:   2.2,      // 시작 직후 계란이 까딱거리는 시간(초)
@@ -180,7 +182,6 @@
     faces: [newFace(false), newFace(true)],
     face: 0,             // 지금 앞에 나와 있는 면
     spin: null,          // 돌아가는 중이면 { p: 0~1, from, to }
-    swipe: null,         // 계란 밖을 끌어 돌리려는 중
     flipped: false,      // 한 번이라도 돌려 봤나 (힌트를 거둘지 정한다)
     nudge: 0,            // 시작 직후 까딱거리는 데 남은 시간
     lastTap: 0,          // 직전에 탭한 시각 — 연타가 급한지 보려고
@@ -548,7 +549,7 @@
     let roll = null;
     if (S.spin) {
       const s = S.spin;
-      const p = s.manual ? s.raw : easeOut(s.raw);
+      const p = easeOut(s.raw);
       const wave = Math.sin(Math.PI * p);            // 0 -> 1 -> 0
       roll = {
         p,
@@ -616,34 +617,37 @@
     return { tilt: a, slide: a * R.w * 0.35, squash: 1 };
   }
 
-  /* 계란 오른쪽에 빙 도는 화살표 하나 — 여기를 잡고 끌라는 뜻.
-     원을 거의 한 바퀴 두르는 호에 삼각 화살촉을 붙인 순환 아이콘이다.
+  /* 계란 오른쪽에 휘어진 회전 방향 화살표 하나.
+     원을 한 바퀴 두르지 않는다 — 위를 지나 오른쪽 아래로 휘어 내려오는 158도짜리
+     호에 삼각 화살촉을 붙였다. 돌아가는 '방향'을 가리키는 모양이다.
+     이건 안내일 뿐이고, 실제로 돌리는 곳은 아래 [뒤집기] 버튼이다.
      캔버스로 직접 그린다(그림 파일도, 이모지도 아니다). */
   function drawSpinHint(g, R, now) {
     if (S.flipped || S.spin || S.mode !== "play") return;
     const margin = (W - R.w) / 2;
     /* 여백이 좁은 세로로 긴 화면에서는 계란에 살짝 걸쳐서라도 그린다 */
-    const rad = Math.max(R.w * 0.062, Math.min(margin * 0.36, R.w * 0.095));
+    const rad = Math.max(R.w * 0.068, Math.min(margin * 0.38, R.w * 0.105));
     const cx = W - margin / 2, cy = R.y + R.h * 0.42;
-    const turn = (now / 1600) % (Math.PI * 2);       // 천천히 빙 돈다
-    const alpha = 0.6 + 0.25 * Math.sin(now / 520);  // 은은하게 맥동
+    /* 통째로 도는 대신 좌우로 조금 흔들린다 — 동그라미로 안 읽히게 */
+    const rock = Math.sin(now / 560) * 0.2;
+    const alpha = 0.62 + 0.24 * Math.sin(now / 520);
 
     g.save();
     g.globalAlpha = alpha;
     g.translate(cx, cy);
-    g.rotate(turn);
+    g.rotate(rock);
 
-    const lw = Math.max(2, rad * 0.24);
-    const a0 = -Math.PI * 0.55, a1 = Math.PI * 1.15; // 한 바퀴에서 조금 모자라게
-    const head = rad * 0.40;                          // 화살촉 크기
-    const tip = { a: a1 + 0.42, r: rad };             // 호보다 조금 더 간 지점
-    const base = a1 - 0.03;
+    const lw = Math.max(2, rad * 0.26);
+    const a0 = Math.PI * 1.06, a1 = Math.PI * 1.94;   // 위를 지나 오른쪽으로
+    const head = rad * 0.42;                           // 화살촉 크기
+    const tipA = a1 + 0.40;                            // 호보다 조금 더 간 지점
+    const baseA = a1 - 0.02;
 
     /* 흰 테두리를 먼저 깔고 그 위에 검은 선 — 어떤 바탕에서도 읽힌다 */
     for (const outline of [true, false]) {
       const col = outline ? "rgba(255,255,255,.95)" : "#1A1A16";
       g.strokeStyle = col; g.fillStyle = col;
-      g.lineWidth = outline ? lw * 2.4 : lw;
+      g.lineWidth = outline ? lw * 2.3 : lw;
       g.lineCap = "round"; g.lineJoin = "round";
 
       g.beginPath();
@@ -652,9 +656,9 @@
 
       /* 호가 끝나는 쪽에 삼각 화살촉 — 도는 방향을 가리킨다 */
       g.beginPath();
-      g.moveTo(Math.cos(tip.a) * tip.r, Math.sin(tip.a) * tip.r);
-      g.lineTo(Math.cos(base) * (rad + head), Math.sin(base) * (rad + head));
-      g.lineTo(Math.cos(base) * (rad - head), Math.sin(base) * (rad - head));
+      g.moveTo(Math.cos(tipA) * rad, Math.sin(tipA) * rad);
+      g.lineTo(Math.cos(baseA) * (rad + head), Math.sin(baseA) * (rad + head));
+      g.lineTo(Math.cos(baseA) * (rad - head), Math.sin(baseA) * (rad - head));
       g.closePath();
       g.fill();
       if (outline) { g.lineWidth = lw * 1.4; g.stroke(); }
@@ -805,47 +809,26 @@
   /* 굴러 멈추는 느낌 — 뒤로 갈수록 느려진다 */
   const easeOut = t => 1 - Math.pow(1 - t, 3);
 
-  function startSpin(dir, manual) {
+  /* 돌리기는 [뒤집기] 버튼 전담이다. 게임판을 끄는 것과 섞이지 않는다. */
+  function flipEgg() {
     if (S.mode !== "play" || S.spin) return;
     S.cracks.length = 0;                 // 금은 면에 붙어 있다 — 같이 넘어가면 어색하다
-    S.drag = null;
-    S.spin = { raw: 0, dir: dir || 1, from: S.face, to: 1 - S.face, manual: !!manual, back: false };
-  }
-  function flipEgg() { startSpin(1, false); }
-
-  /* 얼마나 돌았는지 정하고, 반을 넘어가면 그때 반대 면으로 바꾼다 */
-  function setSpinP(raw) {
-    const s = S.spin;
-    if (!s) return;
-    s.raw = clamp(raw, 0, 1);
-    const want = s.raw >= 0.5 ? s.to : s.from;
-    if (S.face !== want) {
-      S.face = want;
-      S.flipped = true;              // 돌릴 줄 알게 됐으니 힌트는 거둔다
-      S.nudge = 0;
-      paintHud();
-    }
+    S.drag = null;                       // 까던 손은 여기서 끊는다
+    S.spin = { raw: 0, dir: 1, from: S.face, to: 1 - S.face };
   }
 
   function stepSpin(dt) {
     const s = S.spin;
-    if (!s || s.manual) return;          // 손으로 끌고 있는 중이면 그 값을 따른다
-    const step = dt / TUNE.spinTime;
-    if (s.back) {                        // 반을 못 넘겼으면 원래 면으로 되돌아간다
-      setSpinP(s.raw - step);
-      if (s.raw <= 0) S.spin = null;
-    } else {
-      setSpinP(s.raw + step);
-      if (s.raw >= 1) S.spin = null;
+    if (!s) return;
+    s.raw = clamp(s.raw + dt / TUNE.spinTime, 0, 1);
+    /* 반을 넘어가는 순간 반대 면으로 바꾼다 */
+    if (s.raw >= 0.5 && S.face === s.from) {
+      S.face = s.to;
+      S.flipped = true;                  // 돌릴 줄 알게 됐으니 힌트는 거둔다
+      S.nudge = 0;
+      paintHud();
     }
-  }
-
-  /* 손을 뗐을 때 — 가까운 면으로 스냅 */
-  function releaseSpin() {
-    const s = S.spin;
-    if (!s || !s.manual) return;
-    s.manual = false;
-    s.back = s.raw < 0.5;
+    if (s.raw >= 1) S.spin = null;
   }
 
   /* ============================================================
@@ -875,6 +858,9 @@
     /* 지금 보는 면이 얼마나 깠는지도 같이 — 뒤집을 때가 됐는지 알 수 있게 */
     $("faceDone").textContent = Math.round(f.peeled / f.total * 100) + "%";
 
+    /* 돌리는 곳이 버튼이라는 걸 버튼 자신도 알린다 */
+    $("flipBtn").classList.toggle("callout", S.mode === "play" && !S.flipped);
+
     /* 힌트 — 이 면을 거의 다 깠으면 반대 면으로 가라고 붙잡는다 */
     const hint = $("spinHint");
     const needOther = f.peeled / f.total >= TUNE.hintAt &&
@@ -884,7 +870,7 @@
       hint.className = "hint urge";
       hint.hidden = false;
     } else if (!S.flipped) {
-      hint.textContent = "계란을 드래그해서 돌리면 뒷면도 깔 수 있어요";
+      hint.textContent = "아래 [뒤집기] 를 누르면 뒷면도 깔 수 있어요";
       hint.className = "hint";
       hint.hidden = false;
     } else {
@@ -899,7 +885,6 @@
     S.lastTap = 0;
     S.face = 0;
     S.spin = null;
-    S.swipe = null;
     S.flipped = false;
     S.nudge = TUNE.nudgeTime;
     S.chips.length = 0;
@@ -967,12 +952,7 @@
     e.preventDefault();
     try { cv.setPointerCapture(e.pointerId); } catch (_) {}
     const p = pos(e), now = performance.now();
-    const R = eggRect();
-    /* 계란 밖을 잡으면 까는 게 아니라 돌리는 것이다 — 두 조작이 안 섞인다 */
-    if (p.x < R.x || p.x > R.x + R.w || p.y < R.y || p.y > R.y + R.h) {
-      S.swipe = { x0: p.x };
-      return;
-    }
+    /* 게임판 위를 누르는 것은 오직 까기다. 돌리기는 [뒤집기] 버튼이 맡는다. */
     S.moved = true;
     /* 직전 탭과의 간격 — 짧을수록 급한 연타다. 탭으로 안전하게 까는 길은 없다. */
     const gap = S.lastTap ? (now - S.lastTap) / 1000 : 99;
@@ -983,17 +963,7 @@
   }, { passive: false });
 
   cv.addEventListener("pointermove", e => {
-    if (S.mode !== "play") return;
-    if (S.swipe) {                       // 계란 밖에서 좌우로 끄는 중
-      e.preventDefault();
-      const R = eggRect();
-      const dx = pos(e).x - S.swipe.x0;
-      /* 끈 만큼 굴러간다. 손을 떼면 가까운 면으로 스냅한다. */
-      if (!S.spin && Math.abs(dx) > R.w * 0.02) startSpin(dx > 0 ? 1 : -1, true);
-      if (S.spin && S.spin.manual) setSpinP(Math.abs(dx) / (R.w * TUNE.flipDrag));
-      return;
-    }
-    if (!S.drag || S.spin) return;
+    if (S.mode !== "play" || !S.drag || S.spin) return;
     e.preventDefault();
     const p = pos(e), now = performance.now();
     S.moved = true;
@@ -1014,7 +984,7 @@
     S.drag = { x: p.x, y: p.y, t: now };
   }, { passive: false });
 
-  const endDrag = () => { S.drag = null; S.swipe = null; releaseSpin(); };
+  const endDrag = () => { S.drag = null; };
   ["pointerup", "pointercancel"].forEach(t => cv.addEventListener(t, endDrag));
   addEventListener("pointerup", endDrag);
   addEventListener("blur", endDrag);
