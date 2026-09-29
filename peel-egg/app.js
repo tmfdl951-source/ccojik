@@ -89,13 +89,14 @@
     chipSpin:  7,          // 도는 속도 (라디안/초)
     maxChips:  90,         // 동시에 떨어지는 조각 수 상한 (성능)
 
-    /* 채점 — 0~100점.
-       점수 = 100 x (껍질 제거율 ^ wPeel) x (흰자 보존율 ^ wKeep)
-       둘을 곱하므로 껍질을 안 벗기거나 흰자를 다 뜯으면 0점으로 수렴하고,
-       다 벗기고 하나도 안 뜯으면 정확히 100점이 된다.
-       중요도를 올리려면 그쪽 지수를 키운다 (예: wKeep 2 -> 흰자 손상이 두 배로 아프다). */
-    wPeel: 1,              // 껍질 제거율의 중요도
-    wKeep: 1,              // 흰자 보존율의 중요도
+    /* 채점 — 0~100점. 두 지표만 쓴다. 앞면+뒷면 합산이다.
+         P = 껍질 제거율  = 벗긴 껍질 / 전체 껍질 x 100
+         W = 흰자 보존율  = 100 - 흰자 손상율
+       점수 = round(P x wPeel + W x wKeep), 0~100 으로 자른다.
+       화면에 적히는 P, W 도 같은 반올림값이라 손으로 계산해도 딱 맞는다.
+       흰자 보존을 더 무겁게 본다 — 다 벗겨도 흰자를 다 뜯으면 40점이다. */
+    wPeel: 0.4,            // 껍질 제거율의 몫
+    wKeep: 0.6,            // 흰자 보존율의 몫 (합이 1 이어야 0~100 이 유지된다)
     doneAt: 0.98,          // 이만큼 벗기면 저절로 끝난다
 
     /* 사진이 화면에서 차지하는 크기 — 어색하면 여기를 만진다 */
@@ -615,46 +616,50 @@
     return { tilt: a, slide: a * R.w * 0.35, squash: 1 };
   }
 
-  /* 계란 양옆 여백에 빙 도는 화살표를 그린다 — 여기를 잡고 끌라는 뜻.
+  /* 계란 오른쪽에 빙 도는 화살표 하나 — 여기를 잡고 끌라는 뜻.
+     원을 거의 한 바퀴 두르는 호에 삼각 화살촉을 붙인 순환 아이콘이다.
      캔버스로 직접 그린다(그림 파일도, 이모지도 아니다). */
   function drawSpinHint(g, R, now) {
     if (S.flipped || S.spin || S.mode !== "play") return;
-    const pulse = 0.55 + 0.45 * Math.sin(now / 420);
     const margin = (W - R.w) / 2;
-    /* 여백이 좁은 화면(세로로 긴 폰)에서는 계란 가장자리에 살짝 걸쳐서라도 그린다.
-       흰 테두리를 깔기 때문에 겹쳐도 읽힌다. */
-    const rad = Math.max(R.w * 0.055, Math.min(margin * 0.34, R.w * 0.1));
-    const cy = R.y + R.h * 0.42;
+    /* 여백이 좁은 세로로 긴 화면에서는 계란에 살짝 걸쳐서라도 그린다 */
+    const rad = Math.max(R.w * 0.062, Math.min(margin * 0.36, R.w * 0.095));
+    const cx = W - margin / 2, cy = R.y + R.h * 0.42;
+    const turn = (now / 1600) % (Math.PI * 2);       // 천천히 빙 돈다
+    const alpha = 0.6 + 0.25 * Math.sin(now / 520);  // 은은하게 맥동
 
-    [-1, 1].forEach(side => {
-      const cx = side < 0 ? margin / 2 : W - margin / 2;
-      g.save();
-      g.globalAlpha = 0.85 * pulse;
-      /* 흰 테두리를 먼저 깔아 어떤 바탕에서도 보이게 한다 */
-      for (const outline of [true, false]) {
-        g.strokeStyle = outline ? "rgba(255,255,255,.95)" : "#1A1A16";
-        g.lineWidth = outline ? Math.max(5, rad * 0.55) : Math.max(2, rad * 0.24);
-        g.lineCap = "round";
-        g.lineJoin = "round";
-        const a0 = -0.62 * Math.PI, a1 = 0.72 * Math.PI;
-        g.beginPath();
-        g.arc(cx, cy, rad, a0, a1, side < 0);
-        g.stroke();
-        /* 화살촉 — 호가 끝나는 쪽에 */
-        const end = side < 0 ? a0 : a1;
-        const tipX = cx + Math.cos(end) * rad, tipY = cy + Math.sin(end) * rad;
-        const dir = (side < 0 ? -1 : 1) * (Math.PI / 2);
-        const head = rad * 0.62;
-        g.beginPath();
-        for (const off of [0.6, -0.6]) {
-          g.moveTo(tipX, tipY);
-          g.lineTo(tipX - Math.cos(end + dir + off) * head,
-                   tipY - Math.sin(end + dir + off) * head);
-        }
-        g.stroke();
-      }
-      g.restore();
-    });
+    g.save();
+    g.globalAlpha = alpha;
+    g.translate(cx, cy);
+    g.rotate(turn);
+
+    const lw = Math.max(2, rad * 0.24);
+    const a0 = -Math.PI * 0.55, a1 = Math.PI * 1.15; // 한 바퀴에서 조금 모자라게
+    const head = rad * 0.40;                          // 화살촉 크기
+    const tip = { a: a1 + 0.42, r: rad };             // 호보다 조금 더 간 지점
+    const base = a1 - 0.03;
+
+    /* 흰 테두리를 먼저 깔고 그 위에 검은 선 — 어떤 바탕에서도 읽힌다 */
+    for (const outline of [true, false]) {
+      const col = outline ? "rgba(255,255,255,.95)" : "#1A1A16";
+      g.strokeStyle = col; g.fillStyle = col;
+      g.lineWidth = outline ? lw * 2.4 : lw;
+      g.lineCap = "round"; g.lineJoin = "round";
+
+      g.beginPath();
+      g.arc(0, 0, rad, a0, a1);
+      g.stroke();
+
+      /* 호가 끝나는 쪽에 삼각 화살촉 — 도는 방향을 가리킨다 */
+      g.beginPath();
+      g.moveTo(Math.cos(tip.a) * tip.r, Math.sin(tip.a) * tip.r);
+      g.lineTo(Math.cos(base) * (rad + head), Math.sin(base) * (rad + head));
+      g.lineTo(Math.cos(base) * (rad - head), Math.sin(base) * (rad - head));
+      g.closePath();
+      g.fill();
+      if (outline) { g.lineWidth = lw * 1.4; g.stroke(); }
+    }
+    g.restore();
   }
 
   /* 한 면을 그린다. roll 이 있으면 굴러가는 자세로. */
@@ -915,19 +920,20 @@
     S.drag = null;
 
     /* 앞뒤를 합쳐서 낸다 — 뒷면을 안 까면 제거율이 안 오른다 */
-    const peelPct = sum("peeled") / sum("total"), dmgPct = sum("torn") / sum("total");
-    const keepPct = 1 - dmgPct;                     // 흰자 보존율
-    const score = clamp(Math.round(
-      100 * Math.pow(peelPct, TUNE.wPeel) * Math.pow(keepPct, TUNE.wKeep)), 0, 100);
+    /* 화면에 적는 값으로 그대로 계산한다 — 보이는 숫자와 점수가 어긋나지 않게 */
+    const P = Math.round(sum("peeled") / sum("total") * 100);       // 껍질 제거율
+    const W = 100 - Math.round(sum("torn") / sum("total") * 100);   // 흰자 보존율
+    const score = clamp(Math.round(P * TUNE.wPeel + W * TUNE.wKeep), 0, 100);
     const grade = GRADES.find(g => score >= g.min) || GRADES[GRADES.length - 1];
 
     $("finalScore").textContent = score;
     $("gradeLabel").textContent = grade.label;
     $("gradeLabel").className = "grade g-" + grade.key;
     /* 무엇으로 이 점수가 나왔는지 그대로 보여 준다 */
-    $("peelEnd").textContent = Math.round(peelPct * 100) + "%";
-    $("keepEnd").textContent = Math.round(keepPct * 100) + "%";
+    $("peelEnd").textContent = P + "%";
+    $("keepEnd").textContent = W + "%";
     $("scoreEnd").textContent = score + "점";
+    $("gradeEnd").textContent = "[" + grade.label + "]";
 
     /* 결과 사진 — 등급이 정한다 */
     const im = $("resultImg"), box = $("resultEgg");
