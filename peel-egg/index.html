@@ -4,17 +4,12 @@
 <meta charset="UTF-8" />
 <meta name="viewport"
   content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<title>꼬직 · 계란 완벽하게 까기</title>
+<title>꼬직 · 흰자 안 뜯고 깔 수 있어요?</title>
 <meta property="og:type" content="website" />
-<meta property="og:title" content="꼬직 · 계란 완벽하게 까기" />
-<meta property="og:description" content="껍질만 벗기고 흰자는 지키세요. 20초 안에." />
-<!-- 웹폰트: 제목(Pretendard ExtraBold) + 숫자·버튼(Black Han Sans) + 본문(Do Hyeon)
-     제목은 획이 뭉치지 않게 Pretendard 로 따로 쓴다. -->
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<meta property="og:title" content="꼬직 · 흰자 안 뜯고 깔 수 있어요?" />
+<meta property="og:description" content="20초 안에 껍질만 깨끗하게 까세요." />
+<!-- 웹폰트: 제목·숫자(Pretendard) — 획이 뭉치지 않는 쪽으로 통일 -->
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-<link rel="stylesheet"
-  href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Do+Hyeon&display=swap" />
 <link rel="stylesheet"
   href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.css" />
 <link rel="stylesheet" href="style.css" />
@@ -22,70 +17,55 @@
 <body>
 <div class="app" id="app">
 
-  <!-- ===== 타이머 ===== -->
-  <div class="timer" id="timer">
-    <div class="timer-row">
-      <span class="timer-label">남은 시간</span>
-      <span class="timer-num" id="timeNum">20</span>
+  <!-- ===== 상단: 시간 · 껍질 · 흰자 ===== -->
+  <div class="top">
+    <div class="timer" id="timer">
+      <span class="timer-num" id="timeNum">20.0</span>
+      <div class="bar"><div class="bar-fill" id="timeFill"></div></div>
     </div>
-    <div class="bar"><div class="bar-fill" id="timeFill"></div></div>
-  </div>
-
-  <!-- ===== 진행 상태 ===== -->
-  <div class="hud">
-    <div class="hud-box">
-      <span class="hud-label">껍질 제거 <i class="dir good">+</i></span>
-      <span class="hud-num" id="peelNum">0%</span>
-    </div>
-    <div class="hud-box">
-      <span class="hud-label">흰자 손상 <i class="dir bad">-</i></span>
-      <span class="hud-num bad" id="dmgNum">0%</span>
+    <div class="gauges">
+      <span class="g">껍질 <b id="peelNum">0%</b></span>
+      <span class="g">흰자 <b id="keepNum">100%</b></span>
     </div>
   </div>
 
   <!-- ===== 계란 ===== -->
   <div class="stage" id="stage">
     <canvas id="cv"></canvas>
-      <div class="face-tag" id="faceTag">앞면</div>
-      <div class="face-done"><span id="faceDone">0%</span></div>
-      <div class="hint" id="spinHint">계란을 드래그해서 돌리면 뒷면도 깔 수 있어요</div>
 
+    <!-- 시작 화면 -->
     <div class="over" id="startOver">
-      <h1 class="title">계란 완벽하게 까기</h1>
-      <p class="lead">껍질만 벗기고 흰자는 지키세요</p>
-      <ul class="howto">
-        <li><b>살살 문지르면</b> 껍질만 벗겨집니다</li>
-        <li><b class="warn">급하게 문지르면</b> 흰자까지 뜯깁니다</li>
-        <li>앞면 다 깠으면 <b>아래 [뒤집기]</b> 로 뒷면도 까세요</li>
-        <li><b>껍질 제거 40%</b> + <b>흰자 보존 60%</b>로 채점.
-          흰자를 지킬수록 고득점</li>
-        <li>시간은 <b id="timeInfo">20</b>초. 되돌리기는 없습니다</li>
-      </ul>
-      <button class="btn" type="button" id="startBtn">시작하기</button>
+      <h1 class="title">흰자 안 뜯고<br>깔 수 있어요?</h1>
+      <p class="lead">20초 안에<br>껍질만 깨끗하게 까세요</p>
+      <img class="hero" src="egg-shell.png" alt="삶은 계란" />
+      <button class="btn big" type="button" id="startBtn">시작하기</button>
       <p class="best">최고 <span id="bestStart">0</span>점</p>
     </div>
 
+    <!-- 결과 화면 -->
     <div class="over over-end" id="endOver" hidden>
-      <div class="result-egg" id="resultEgg" hidden>
-        <img id="resultImg" alt="결과 계란" />
-      </div>
-      <p class="score-line">
-        <span class="grade" id="gradeLabel">완벽</span>
-        <span class="score-big" id="finalScore">0</span><span class="score-cap">/ 100</span>
-      </p>
+      <p class="res-cap">결과</p>
+      <div class="result-egg" id="resultEgg"></div>
+      <p class="score-big" id="finalScore">0</p>
+      <p class="grade" id="gradeLabel">제법 깔끔함</p>
       <p class="remark" id="remark"></p>
-      <p class="tally">
-        껍질 제거 <b id="peelEnd">0%</b> &middot; 흰자 보존 <b id="keepEnd">0%</b>
-        &rarr; 최종 <b id="scoreEnd">0점</b> <b id="gradeEnd">[완벽]</b>
-      </p>
+      <dl class="stats">
+        <div><dt>껍질 제거율</dt><dd id="peelEnd">0%</dd></div>
+        <div><dt>흰자 보존율</dt><dd id="keepEnd">0%</dd></div>
+        <div><dt>남은 시간</dt><dd id="timeEnd">0.0초</dd></div>
+      </dl>
+      <div class="res-btns">
+        <button class="btn big" type="button" id="againBtn">다시하기</button>
+        <button class="btn ghost" type="button" id="shareBtn">결과 공유</button>
+      </div>
       <p class="best">최고 <span id="bestEnd">0</span>점</p>
-      <button class="btn" type="button" id="againBtn">다시 하기</button>
     </div>
   </div>
 
-  <div class="pad">
-    <button class="btn flip" type="button" id="flipBtn">뒤집기</button>
-    <button class="btn done" type="button" id="doneBtn">완성</button>
+  <!-- ===== 하단: 진행률 ===== -->
+  <div class="prog">
+    <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
+    <span class="prog-num" id="progNum">0%</span>
   </div>
 
   <div class="sig">ccojik</div>
