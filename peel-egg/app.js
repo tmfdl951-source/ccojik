@@ -10,7 +10,10 @@
  *
  * 껍질은 보로노이로 조각을 미리 잘라 두고, 조각마다 세 단계를 거쳐 떨어진다.
  *   금(crack) -> 들림(lift) -> 떨어짐(fall)
- * 천천히 문지르면 들려 있던 조각들이 한꺼번에 넓게 벗겨진다(큰 조각).
+ * 반응하는 것은 '포인터가 그 순간 실제로 올라가 있는 조각 하나' 뿐이다.
+ * 옆 조각으로 번지거나, 한 점을 눌러 주변까지 같이 들리는 일은 없다.
+ * 큰 조각은 주변을 같이 까서 만드는 것이 아니라, 씨앗점을 성기게 두어
+ * 처음부터 크게 잘려 있다. 큰 조각은 그만큼 더 긁어야 떨어진다.
  * 급하게 문지르면 매끈한 흰자까지 지워져 뜯긴 흰자가 드러난다.
  *
  * 숫자는 '껍질 사진의 불투명한 픽셀'을 기준으로 센다. 조각마다 그 안의 픽셀
@@ -25,29 +28,37 @@
     time: 20,              // 제한시간(초)
     hotAt: 5,              // 남은 시간이 이 아래면 빨갛게 커지고 두근거린다
 
-    /* 껍질 조각 한 장이자 채점 한 칸. 조각이 손에 잡히는 크기가 되도록 성기게 잡는다.
-       너무 잘게 쪼개면 무겁고 오히려 픽셀처럼 보인다. */
-    cols: 11, rows: 18,
+    /* 껍질 조각 한 장이자 채점 한 칸. 손끝으로 긁어 떼는 크기여야 하므로
+       성기게 잡는다. 너무 잘게 쪼개면 영영 못 깐다 — 포인터가 모든 조각을
+       직접 지나가야 하기 때문이다. */
+    cols: 7, rows: 11,
     jitter: 0.38,          // 조각 씨앗점을 칸 안에서 흔드는 정도 (칸 크기 대비)
-    brush: 0.32,           // 붓 반지름 (계란 가로 폭 대비). 크면 한 번에 넓게 벗겨진다.
+    bigSeeds: 6,           // 큰 조각 수 — 가운데만 남기고 상하좌우 씨앗을 걷어 내면
+                           //  그 자리를 가운데 조각이 먹어 세 칸쯤 되는 조각이 된다
+                           //  (주변을 같이 까서 크게 보이게 하는 방식이 아니다)
+    hitPx: 12,             // 포인터가 조각 테두리에서 이만큼 안이면 그 조각으로 본다
+    unit: 0.143,           // 긁은 거리를 재는 자 (계란 가로 폭 대비 = 칸 하나 폭)
     shellScan: 10,         // 껍질 사진을 칸 하나당 몇 x 몇 으로 훑어 넓이를 잴지
 
     /* ---- 껍질이 떨어지는 세 단계 ----
-       문지른 만큼 조각에 '공들인 양'이 쌓이고, 그 양이 이 선들을 넘을 때마다
-       금 -> 들림 -> 떨어짐 으로 넘어간다. 한 번 훑고 지나가면 약 1 이 쌓인다. */
-    crackAt: 0.18,         // 금이 가기 시작 (한 번 톡 건드려도 금은 간다)
-    liftAt:  0.80,         // 가장자리가 들린다 (한 번 훑는 동안)
-    offAt:   1.60,         // 떨어져 나간다 (두 번째로 훑는 동안)
+       포인터가 그 조각 위를 지나간 거리만큼 '공들인 양'이 쌓이고, 그 양이 이
+       선들을 넘을 때마다 금 -> 들림 -> 떨어짐 으로 넘어간다. 기준은 '보통 크기
+       조각' 이고, 조각이 크면 그만큼 비례해서 더 긁어야 한다. 칸 하나 폭을
+       지나가면 1 이 쌓인다. */
+    crackAt: 0.15,         // 금이 가기 시작 (한 번 톡 건드려도 금은 간다. 조각
+                           //  크기와 무관하다 — 금은 닿은 자리에 간다)
+    liftAt:  0.45,         // 가장자리가 들린다 (계속 문지르는 중간)
+    offAt:   0.85,         // 떨어져 나간다 (조각 하나를 거의 다 건너갈 즈음)
+                           //  보통 조각 하나를 건너가는 거리가 약 1 이다. 세 선을
+                           //  그 안에 두어 한 조각 위에서 금->들림->떨어짐이
+                           //  차례로 보이게 했다. 두 번씩 훑게 하면 20초 안에
+                           //  다 깔 수 없다 (붓이 아니라 점으로 긁기 때문)
 
-    /* 한 번에 몇 조각이 같이 떨어지나. 천천히 갈수록 넓게 벗겨진다. */
-    bigSlow:  0.55,        // 이보다 느리면 '정성껏' 으로 본다
-    bigMax:   22,          // 그때 한 번에 떨어질 수 있는 조각 수 (큰 조각)
-    midMax:   10,          // 보통 속도 (중간 조각)
-    smallMax: 3,           // 급할 때 (작은 조각)
+    bigPiece: 1.7,         // 보통 조각의 이 배수부터 '큰 조각' 으로 본다 (연출·소리)
 
     /* ---- 난이도 ---- 이 아래 숫자만 만지면 쉬워지고 어려워진다. */
-    safeSpeed: 1.4,        // 이 아래로만 안전하다 (계란 반지름 / 초)
-    hardSpeed: 3.4,        // 이 위는 거의 확실히 뜯긴다
+    safeSpeed: 1.8,        // 이 아래로만 안전하다 (계란 반지름 / 초)
+    hardSpeed: 3.8,        // 이 위는 거의 확실히 뜯긴다
 
     stillSpeed: 0.35,      // 이보다 느리면 '머물러 있다'고 본다 (꾹 누르기)
     stressRate: 5.0,       // 머무는 1초당 쌓이는 부담
@@ -59,7 +70,6 @@
     rushBoost:  2.5,       // 급한 연타가 부담을 몇 배까지 키우나
     stressFade: 1.2,       // 1초에 빠지는 부담
     stressTear: 1.0,       // 이만큼 쌓이면 흰자가 뜯긴다
-    tearSpread: 0.10,      // 한 조각이 뜯기면 옆까지 번질 확률 (네 방향 각각)
     tearBlob:   0.66,      // 뜯긴 자국 반지름 (칸 크기 배수)
     deepTear:   2,         // 뜯긴 자리를 이만큼 더 뜯으면 너덜너덜해진다 (횟수)
 
@@ -167,6 +177,7 @@
     again: null,         // 뜯긴 자리를 몇 번 더 뜯었나
     stress: null,        // 조각마다 쌓인 부담
     stressAt: null,      // 그 부담을 마지막으로 건드린 시각
+    wUnit: 1,            // '보통 조각' 한 장의 픽셀 수 (기준선 환산용)
     total: 0,            // 껍질 전체 픽셀
     peeled: 0,           // 벗긴 픽셀
     torn: 0,             // 흰자가 뜯긴 픽셀
@@ -344,7 +355,9 @@
     return out;
   }
 
-  /* 칸마다 조각 하나. 좌표는 계란 사각형을 0~1 로 본 비율이라 화면 크기를 안 탄다. */
+  /* 칸마다 조각 하나. 좌표는 계란 사각형을 0~1 로 본 비율이라 화면 크기를 안 탄다.
+     씨앗점 일부를 솎아 두면 그 자리를 옆 조각이 먹어 두세 칸짜리 큰 조각이
+     된다 — 큰 조각을 '주변을 같이 까서' 만들지 않기 위한 장치다. */
   function buildShards() {
     const C = TUNE.cols, Rw = TUNE.rows;
     const cw = 1 / C, ch = 1 / Rw;
@@ -357,21 +370,58 @@
         });
       }
     }
+    /* 큰 조각 만들기 — 고른 칸의 상하좌우 씨앗을 걷어 내면 그 자리를 가운데
+       조각이 먹어 세 칸쯤 되는 큰 조각이 된다. 큰 조각끼리 겹치지 않게
+       둘레 두 칸은 비워 두고 고른다. */
+    const dead = new Uint8Array(C * Rw);
+    const core = new Uint8Array(C * Rw);
+    const order = [];
+    /* 계란이 좁아지는 위아래 끝은 피한다 — 거기 고르면 '큰 조각'인데 껍질이
+       얼마 안 들어 있어 커 보이지 않는다 */
+    for (let j = 2; j < Rw - 2; j++) for (let i = 1; i < C - 1; i++) order.push(j * C + i);
+    for (let k = order.length - 1; k > 0; k--) {
+      const r = Math.floor(Math.random() * (k + 1));
+      const t = order[k]; order[k] = order[r]; order[r] = t;
+    }
+    let want = TUNE.bigSeeds;
+    for (const k of order) {
+      if (want <= 0) break;
+      const i = k % C, j = (k - i) / C;
+      let clash = false;
+      for (let dj = -2; dj <= 2 && !clash; dj++) {
+        for (let di = -2; di <= 2; di++) {
+          const ni = i + di, nj = j + dj;
+          if (ni < 0 || nj < 0 || ni >= C || nj >= Rw) continue;
+          if (dead[nj * C + ni] || core[nj * C + ni]) { clash = true; break; }
+        }
+      }
+      if (clash) continue;
+      core[k] = 1;
+      dead[(j - 1) * C + i] = 1; dead[(j + 1) * C + i] = 1;
+      dead[j * C + i - 1] = 1;   dead[j * C + i + 1] = 1;
+      want--;
+    }
+    for (let k = 0; k < site.length; k++) if (dead[k]) site[k] = null;
+
     const out = [];
     for (let j = 0; j < Rw; j++) {
       for (let i = 0; i < C; i++) {
         const idx = j * C + i, a = site[idx];
-        /* 넉넉한 사각형에서 시작해 이웃들과의 경계로 깎아 나간다.
+        if (!a) { out.push(null); continue; }          // 솎아 낸 자리
+        /* 넉넉한 사각형에서 시작해 이웃들과의 경계로 깎아 나간다. 솎은 자리를
+           먹고 커질 수 있으니 처음 사각형도 그만큼 넉넉하게 잡는다.
            가장자리 조각이 계란 밖으로 뻗지 않게 처음부터 0~1 안으로 잘라 둔다. */
-        const l = Math.max(0, a.u - cw * 1.6), r = Math.min(1, a.u + cw * 1.6);
-        const t = Math.max(0, a.v - ch * 1.6), b2 = Math.min(1, a.v + ch * 1.6);
+        const l = Math.max(0, a.u - cw * 2.8), r = Math.min(1, a.u + cw * 2.8);
+        const t = Math.max(0, a.v - ch * 2.8), b2 = Math.min(1, a.v + ch * 2.8);
         let poly = [{ u: l, v: t }, { u: r, v: t }, { u: r, v: b2 }, { u: l, v: b2 }];
-        for (let dj = -2; dj <= 2 && poly.length > 2; dj++) {
-          for (let di = -2; di <= 2; di++) {
+        for (let dj = -3; dj <= 3 && poly.length > 2; dj++) {
+          for (let di = -3; di <= 3; di++) {
             if (!di && !dj) continue;
             const ni = i + di, nj = j + dj;
             if (ni < 0 || nj < 0 || ni >= C || nj >= Rw) continue;
-            poly = clipHalf(poly, a.u, a.v, site[nj * C + ni].u, site[nj * C + ni].v);
+            const nb = site[nj * C + ni];
+            if (!nb) continue;
+            poly = clipHalf(poly, a.u, a.v, nb.u, nb.v);
             if (poly.length < 3) break;
           }
         }
@@ -385,6 +435,62 @@
     }
     return out;
   }
+
+  /* 포인터가 올라가 있는 조각 하나 — 가장 가까운 씨앗점이 곧 그 보로노이 칸이다.
+     주변 조각은 보지 않는다. */
+  function nearestShard(R, x, y) {
+    const C = TUNE.cols, Rw = TUNE.rows;
+    const u = (x - R.x) / R.w, v = (y - R.y) / R.h;
+    const ci = clamp(Math.floor(u * C), 0, C - 1);
+    const cj = clamp(Math.floor(v * Rw), 0, Rw - 1);
+    let best = -1, bd = Infinity;
+    for (let dj = -3; dj <= 3; dj++) {
+      const nj = cj + dj;
+      if (nj < 0 || nj >= Rw) continue;
+      for (let di = -3; di <= 3; di++) {
+        const ni = ci + di;
+        if (ni < 0 || ni >= C) continue;
+        const k = nj * C + ni, sh = S.shards[k];
+        if (!sh) continue;
+        const d = (sh.site.u - u) * (sh.site.u - u) + (sh.site.v - v) * (sh.site.v - v);
+        if (d < bd) { bd = d; best = k; }
+      }
+    }
+    return best;
+  }
+
+  /* 그 조각 안(또는 테두리에서 hitPx 안)에 포인터가 있나.
+     손가락이 좀 빗나가도 집히게 하는 여유일 뿐, 여러 조각을 켜는 장치가 아니다. */
+  function onShard(R, idx, x, y) {
+    const sh = S.shards[idx];
+    if (!sh || sh.poly.length < 3) return false;
+    const u = (x - R.x) / R.w, v = (y - R.y) / R.h;
+    let inside = false;
+    const n = sh.poly.length;
+    for (let k = 0, m = n - 1; k < n; m = k++) {
+      const A = sh.poly[k], B = sh.poly[m];
+      if ((A.v > v) !== (B.v > v) &&
+          u < (B.u - A.u) * (v - A.v) / (B.v - A.v) + A.u) inside = !inside;
+    }
+    if (inside) return true;
+    /* 테두리까지의 거리 — 화면 픽셀로 잰다 */
+    let near = Infinity;
+    for (let k = 0; k < n; k++) {
+      const A = sh.poly[k], B = sh.poly[(k + 1) % n];
+      const ax = A.u * R.w, ay = A.v * R.h, bx = B.u * R.w, by = B.v * R.h;
+      const px = x - R.x, py = y - R.y;
+      const dx = bx - ax, dy = by - ay;
+      const len = dx * dx + dy * dy;
+      const t = len ? clamp(((px - ax) * dx + (py - ay) * dy) / len, 0, 1) : 0;
+      const qx = ax + dx * t - px, qy = ay + dy * t - py;
+      const d = Math.sqrt(qx * qx + qy * qy);
+      if (d < near) near = d;
+    }
+    return near <= TUNE.hitPx;
+  }
+
+  /* 조각 하나를 금 가게 / 들게 / 떼어 내는 데 드는 양. 큰 조각은 비례해서 더 든다. */
+  function needOf(idx, base) { return base * (S.w[idx] / S.wUnit); }
 
   /* 조각마다 '껍질 사진의 불투명한 픽셀'이 몇 개나 들어 있는지 센다.
      조각은 씨앗점의 보로노이 칸이므로, 어떤 점이 어느 조각에 속하는지는
@@ -417,26 +523,31 @@
           on = dx * dx + dy * dy <= 1;     // 사진을 못 읽으면 타원으로
         }
         if (!on) continue;
-        /* 가장 가까운 씨앗점 찾기 — 둘레 두 칸 안만 보면 충분하다 */
+        /* 가장 가까운 씨앗점 찾기 — 씨앗을 솎았으니 둘레 세 칸까지 본다 */
         const ci = Math.min(C - 1, Math.floor(u * C));
         const cj = Math.min(Rw - 1, Math.floor(v * Rw));
         let best = -1, bd = Infinity;
-        for (let dj = -2; dj <= 2; dj++) {
+        for (let dj = -3; dj <= 3; dj++) {
           const nj = cj + dj;
           if (nj < 0 || nj >= Rw) continue;
-          for (let di = -2; di <= 2; di++) {
+          for (let di = -3; di <= 3; di++) {
             const ni = ci + di;
             if (ni < 0 || ni >= C) continue;
-            const k = nj * C + ni, st = S.shards[k].site;
-            const d = (st.u - u) * (st.u - u) + (st.v - v) * (st.v - v);
+            const k = nj * C + ni, sh = S.shards[k];
+            if (!sh) continue;
+            const d = (sh.site.u - u) * (sh.site.u - u) + (sh.site.v - v) * (sh.site.v - v);
             if (d < bd) { bd = d; best = k; }
           }
         }
         if (best >= 0) { S.w[best]++; S.total++; }
       }
     }
-    for (let k = 0; k < S.w.length; k++) if (S.w[k] > 0) S.inside[k] = 1;
+    let nIn = 0;
+    for (let k = 0; k < S.w.length; k++) if (S.w[k] > 0) { S.inside[k] = 1; nIn++; }
     if (!S.total) S.total = 1;           // 0 으로 나누는 것만 막는다
+    /* '보통 조각' 한 장 = 껍질 전체를 조각 수로 나눈 값. 기준선을 이걸로 환산해
+       큰 조각은 더 긁어야, 작은 조각은 덜 긁어도 떨어지게 한다. */
+    S.wUnit = Math.max(1, S.total / Math.max(1, nIn));
   }
 
   /* 조각의 다각형을 캔버스에 그릴 길로 깐다 (ox,oy 만큼 옮겨서) */
@@ -502,13 +613,13 @@
   /* 금이 간다 — 조각 모양대로 갈라진 선이 잠깐 보인다 */
   function markCrack(R, idx) {
     S.cracks.push({ sh: S.shards[idx], ox: R.x, oy: R.y, life: 0.22 });
-    sfx("crack_small");
+    sfx(S.w[idx] >= S.wUnit * TUNE.bigPiece ? "crack_big" : "crack_small");
   }
 
   /* 가장자리가 들린다 — 껍질 층에서는 빼고, 살짝 어긋난 조각으로 얹어 둔다 */
   function liftShard(R, idx) {
     const sh = S.shards[idx];
-    if (!sh || sh.poly.length < 3) return;
+    if (!sh || sh.poly.length < 3) return;   // 솎아 낸 자리에는 조각이 없다
     cutShell(R, sh);
     const sp = shardSprite(R, sh);
     const ang = Math.random() * 6.28;
@@ -726,19 +837,15 @@
      문지르기
      ============================================================ */
   /* 흰자를 뜯는다. 이미 뜯긴 자리를 또 괴롭히면 너덜너덜해진다. */
-  function tearShard(R, idx, tears, spread) {
+  function tearShard(R, idx, tears) {
     if (idx < 0 || idx >= S.hurt.length || !S.inside[idx]) return;
-    const full = TUNE.shellScan * TUNE.shellScan;
-    const part = Math.min(1, Math.sqrt(S.w[idx] / full));
+    const part = Math.min(1, Math.sqrt(S.w[idx] / S.wUnit));
     const at = shardPos(R, idx);
     at.r = Math.max(R.w / TUNE.cols, R.h / TUNE.rows) * TUNE.tearBlob * part;
 
     if (S.hurt[idx] === WHOLE) {
       if (S.stage[idx] !== GONE) {
-        /* 옆으로 번지는 것은 이미 드러난 흰자만 괴롭힌다. 번짐이 껍질까지
-           걷어 가면 급하게 긁을 때 껍질이 공짜로 벗겨져, 빠를수록 손상률이
-           낮아지는 역전이 생긴다. */
-        if (spread) return;
+        /* 껍질이 아직 붙어 있었다면 그것부터 같이 떨어져 나간다 */
         dropShard(R, idx, 1); S.stage[idx] = GONE; S.peeled += S.w[idx];
       }
       S.hurt[idx] = TORN;
@@ -754,45 +861,26 @@
     }
   }
 
-  /* 들려 있던 조각들을 한꺼번에 떼어 낸다. 천천히 갈수록 넓게 벗겨진다. */
-  function takeOff(R, i, j, speedNorm) {
-    const cap = speedNorm <= TUNE.bigSlow ? TUNE.bigMax
-              : speedNorm <= TUNE.safeSpeed ? TUNE.midMax : TUNE.smallMax;
-    const start = j * TUNE.cols + i;
-    const q = [start], seen = new Set([start]), got = [];
-    while (q.length && got.length < cap) {
-      const k = q.shift();
-      if (!S.inside[k] || S.stage[k] === GONE) continue;
-      /* 시작 조각 말고는 '이미 들려 있는' 것만 같이 떨어진다 */
-      if (got.length && S.stage[k] < LIFTED) continue;
-      got.push(k);
-      const ki = k % TUNE.cols, kj = (k - ki) / TUNE.cols;
-      const nb = [[ki - 1, kj], [ki + 1, kj], [ki, kj - 1], [ki, kj + 1]];
-      for (const [a, b] of nb) {
-        if (a < 0 || b < 0 || a >= TUNE.cols || b >= TUNE.rows) continue;
-        const nk = b * TUNE.cols + a;
-        if (!seen.has(nk)) { seen.add(nk); q.push(nk); }
-      }
-    }
-    if (!got.length) return 0;
-    const power = got.length >= TUNE.midMax ? 1.6 : got.length >= TUNE.smallMax ? 1.25 : 1;
-    for (const k of got) {
-      dropShard(R, k, power);
-      S.stage[k] = GONE;
-      S.peeled += S.w[k];
-    }
+  /* 다 긁은 조각 하나가 떨어져 나간다. 옆 조각은 건드리지 않는다 —
+     크게 벗겨지는 손맛은 '그 조각 자체가 크다' 에서 나온다. */
+  function takeOff(R, idx) {
+    if (!S.inside[idx] || S.stage[idx] === GONE) return 0;
+    const big = S.w[idx] >= S.wUnit * TUNE.bigPiece;
+    dropShard(R, idx, big ? 1.6 : 1);
+    S.stage[idx] = GONE;
+    S.peeled += S.w[idx];
     /* 큰 조각이 `쫘악` 벗겨질 때가 가장 손맛이 좋다 — 피드백도 그만큼 세게 */
-    if (got.length >= TUNE.midMax) { sfx("peel_big"); buzz(20); say("쫘악!"); }
+    if (big) { sfx("peel_big"); buzz(20); say("쫘악!"); }
     else { sfx("peel_small"); buzz(10); }
-    return got.length;
+    return 1;
   }
 
-  /* dwell: 붓을 대고 있던 시간(초). impulse: 탭 한 번에 실리는 부담.
-     sweep: 붓 지름 대비 이번에 지나간 거리(한 번 훑고 지나가면 1). */
+  /* dwell: 그 자리에 대고 있던 시간(초). impulse: 탭 한 번에 실리는 부담.
+     sweep: 칸 하나 폭 대비 이번에 지나간 거리(칸 하나를 지나가면 1).
+     반응하는 조각은 포인터가 올라가 있는 '하나' 뿐이다. */
   function rub(x, y, speedNorm, dwell, impulse, sweep) {
     if (S.mode !== "play") return;
     const R = eggRect();
-    const br = (R.w / 2) * TUNE.brush;
     /* 속도가 safe 를 넘을수록 흰자가 뜯길 확률이 오른다. 이 확률은 '붓이 한 번
        훑고 지나갈 때' 기준이고, 지나간 거리만큼 거듭제곱해 굴리므로
        프레임이 몇 번 돌았는지에 따라 결과가 달라지지 않는다. */
@@ -808,55 +896,36 @@
     const effort = (sweep || 0) + (dwell || 0) * 1.5 * still + (impulse || 0) * 0.6;
     const now = performance.now();
 
-    const cw = R.w / TUNE.cols, ch = R.h / TUNE.rows;
-    /* 조각의 씨앗점은 칸 안에서 흔들려 있으므로 한 칸씩 넉넉히 훑는다 */
-    const i0 = Math.max(0, Math.floor((x - br - R.x) / cw) - 1);
-    const i1 = Math.min(TUNE.cols - 1, Math.ceil((x + br - R.x) / cw) + 1);
-    const j0 = Math.max(0, Math.floor((y - br - R.y) / ch) - 1);
-    const j1 = Math.min(TUNE.rows - 1, Math.ceil((y + br - R.y) / ch) + 1);
+    /* 포인터가 지금 올라가 있는 조각 하나. 못 찾으면 아무 일도 없다. */
+    const idx = nearestShard(R, x, y);
+    if (idx < 0 || !S.inside[idx] || !onShard(R, idx, x, y)) { paintHud(); return; }
 
     const tears = [];
     let damaged = false;
-    for (let j = j0; j <= j1; j++) {
-      for (let i = i0; i <= i1; i++) {
-        const idx = j * TUNE.cols + i;
-        if (!S.inside[idx]) continue;
-        /* 조각이 실제로 놓인 자리로 잰다 — 칸 가운데로 재면 씨앗점이 흔들린
-           만큼 어긋나서 가장자리 조각이 안 깨진다 */
-        const c = shardPos(R, idx);
-        if (Math.hypot(c.x - x, c.y - y) > br) continue;
-
-        /* 뜯기는 길은 둘 — 부담이 꽉 찼거나(꾹 누르기·연타·거듭 문지르기),
-           급하게 긁다가 확률에 걸렸거나 */
-        const tear = addStress(idx, gain, now) >= TUNE.stressTear
-                  || Math.random() < passP;
-        if (tear) {
-          if (S.hurt[idx] === WHOLE) damaged = true;
-          tearShard(R, idx, tears, false);
-          if (Math.random() < TUNE.tearSpread) tearShard(R, idx - 1, tears, true);
-          if (Math.random() < TUNE.tearSpread) tearShard(R, idx + 1, tears, true);
-          if (Math.random() < TUNE.tearSpread) tearShard(R, idx - TUNE.cols, tears, true);
-          if (Math.random() < TUNE.tearSpread) tearShard(R, idx + TUNE.cols, tears, true);
-          continue;
-        }
-        if (S.stage[idx] === GONE) continue;
-
-        /* 껍질은 공들인 만큼 단계를 올린다: 금 -> 들림 -> 떨어짐 */
-        S.work[idx] += effort;
-        if (S.stage[idx] === INTACT && S.work[idx] >= TUNE.crackAt) {
-          S.stage[idx] = CRACKED;
-          markCrack(R, idx);
-        }
-        if (S.stage[idx] === CRACKED && S.work[idx] >= TUNE.liftAt) {
-          S.stage[idx] = LIFTED;
-          liftShard(R, idx);
-        }
-        if (S.stage[idx] === LIFTED && S.work[idx] >= TUNE.offAt) {
-          takeOff(R, i, j, speedNorm);
-        }
+    /* 뜯기는 길은 둘 — 부담이 꽉 찼거나(꾹 누르기·연타·거듭 문지르기),
+       급하게 긁다가 확률에 걸렸거나 */
+    const tear = addStress(idx, gain, now) >= TUNE.stressTear
+              || Math.random() < passP;
+    if (tear) {
+      if (S.hurt[idx] === WHOLE) damaged = true;
+      tearShard(R, idx, tears);
+    } else if (S.stage[idx] !== GONE) {
+      /* 껍질은 공들인 만큼 단계를 올린다: 금 -> 들림 -> 떨어짐 */
+      S.work[idx] += effort;
+      if (S.stage[idx] === INTACT && S.work[idx] >= TUNE.crackAt) {
+        S.stage[idx] = CRACKED;
+        markCrack(R, idx);
+      }
+      if (S.stage[idx] === CRACKED && S.work[idx] >= needOf(idx, TUNE.liftAt)) {
+        S.stage[idx] = LIFTED;
+        liftShard(R, idx);
+      }
+      if (S.stage[idx] === LIFTED && S.work[idx] >= needOf(idx, TUNE.offAt)) {
+        takeOff(R, idx);
       }
     }
     if (tears.length) {
+      const cw = R.w / TUNE.cols, ch = R.h / TUNE.rows;
       erase(whiteCv, R, tears, Math.max(cw, ch) * TUNE.tearBlob);
       if (damaged) {
         sfx("white_damage"); buzz(40);
@@ -1100,9 +1169,12 @@
     /* 끄는 쪽으로 계란이 아주 살짝 기운다 (조작에 방해되지 않을 만큼만) */
     S.tiltTo = clamp(dxp / rx, -1, 1) * TUNE.tiltMax;
     S.shiftTo = clamp(dyp / (R.h / 2), -1, 1) * TUNE.shiftMax;
-    /* 빠르게 움직이면 그 사이가 비므로 중간중간 찍어 준다 */
-    const steps = Math.max(1, Math.ceil(dist / (rx * TUNE.brush * 0.7)));
-    const sweep = dist / (rx * TUNE.brush * 2);
+    /* 빠르게 움직이면 그 사이가 비므로 지나간 길을 촘촘히 나눠 찍는다.
+       한 번 찍을 때마다 그 점이 올라간 조각 하나만 반응한다 — 빨리 그어도
+       주변이 한꺼번에 켜지지 않고, 실제로 지나간 길만 벗겨진다. */
+    const unit = R.w * TUNE.unit;
+    const steps = Math.max(1, Math.ceil(dist / (unit * 0.4)));
+    const sweep = dist / unit;
     for (let s = 1; s <= steps; s++) {
       rub(S.drag.x + dxp * s / steps, S.drag.y + dyp * s / steps,
           speedNorm, dt / steps, 0, sweep / steps);
