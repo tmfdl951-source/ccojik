@@ -1,0 +1,208 @@
+/* ===== 꼬직 · 햄버거 배달 런 =====
+ * 도로와 장애물보다 '햄버거'가 먼저 보여야 한다. UI 는 위아래로 얇게.
+ * 세로 치수는 전부 화면 높이에 비례 — 1080x1920 부터 작은 폰까지 한 화면.
+ * 금지: 이모지, 과한 그림자·글로우·그라데이션 */
+:root {
+  --ink:   #1A1A16;
+  --paper: #FFFFFF;
+  --wall:  #E8E4D8;    /* 바깥 바탕 */
+  --road:  #8E8E88;    /* 도로 */
+  --red:   #DA2B2B;
+  --green: #1C9A46;
+  --gray:  #7A7A70;
+  --point: #FFCE1F;    /* 포인트 노랑 */
+
+  --f: "Pretendard", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%;
+  background: var(--wall);
+  color: var(--ink);
+  font-family: var(--f);
+  -webkit-user-select: none; user-select: none;
+  overflow: hidden;                 /* 페이지가 통째로 밀리지 않게 */
+  overscroll-behavior: none;        /* 당겨서 새로고침 차단 */
+  /* 한글은 기본값이면 단어 한가운데서 끊긴다. 띄어쓰기에서만 넘기게 한다. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+body { display: flex; align-items: center; justify-content: center; }
+
+.app {
+  position: relative;
+  width: min(520px, 100vw);
+  height: 100dvh;
+  background: var(--paper);
+  border-left: 4px solid var(--ink);
+  border-right: 4px solid var(--ink);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  gap: clamp(5px, 1.1vh, 11px);
+  padding: clamp(8px, 1.6vh, 16px) clamp(8px, 2.6vw, 16px);
+  padding-bottom: calc(clamp(8px, 1.6vh, 16px) + env(safe-area-inset-bottom, 0px));
+}
+
+.sig {
+  position: absolute; right: 5px; bottom: 3px; z-index: 9;
+  font-size: 10px; line-height: 1; color: #C6C6BC; pointer-events: none;
+}
+
+/* ============================================================
+   상단 — 거리 / 햄버거 층수
+   ============================================================ */
+.top {
+  flex-shrink: 0;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 10px;
+}
+.gauge { display: flex; align-items: baseline; gap: .25em; }
+.gauge.right { flex-direction: row; }
+.g-cap {
+  font-size: clamp(11px, min(3.4vw, 1.8vh), 15px);
+  color: var(--gray); font-weight: 700;
+}
+.g-num {
+  font-weight: 800; font-variant-numeric: tabular-nums;
+  font-size: clamp(26px, min(8vw, 4.2vh), 46px); line-height: 1;
+}
+.g-unit {
+  font-size: clamp(13px, min(3.8vw, 2vh), 18px); font-weight: 800;
+}
+/* 재료가 몇 개 안 남았으면 빨갛게 — 숫자만 보고도 위험을 안다 */
+.gauge.low .g-num, .gauge.low .g-unit { color: var(--red); }
+.gauge.low .g-num { animation: thump .45s steps(2, end) infinite; }
+@keyframes thump { 50% { transform: scale(1.1); } }
+
+/* ============================================================
+   게임판
+   ============================================================ */
+.stage {
+  flex: 1 1 auto; min-height: 0; position: relative;
+  border: 4px solid var(--ink); background: var(--road);
+  overflow: hidden;
+}
+#cv {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  touch-action: none;               /* 기본 스크롤·줌을 끄고 드래그를 받는다 */
+  cursor: grab;
+}
+
+/* ============================================================
+   덮개 (시작 / 결과)
+   ============================================================ */
+.over {
+  position: absolute; inset: 0; z-index: 4; min-height: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: clamp(6px, 1.4vh, 14px);
+  padding: clamp(10px, 2.2vh, 20px) clamp(12px, 4vw, 24px);
+  text-align: center;
+  background: rgba(246, 243, 233, .97);
+}
+.over[hidden] { display: none; }
+
+.title {
+  font-weight: 800;
+  font-size: clamp(22px, min(7.4vw, 4vh), 40px);
+  line-height: 1.26; letter-spacing: 0.01em;
+}
+.lead {
+  font-size: clamp(13px, min(4.2vw, 2.2vh), 19px);
+  line-height: 1.45; color: var(--gray);
+}
+/* 시작 화면의 높은 햄버거 — 남는 세로를 다 먹는다 */
+.hero {
+  flex: 1 1 0; min-height: 0;
+  width: auto; max-width: 60%;
+  object-fit: contain;
+}
+
+.btn {
+  font-family: var(--f); font-weight: 800;
+  font-size: clamp(15px, min(5vw, 2.6vh), 22px); line-height: 1.3;
+  color: var(--paper);
+  background: var(--ink); border: 4px solid var(--ink); border-radius: 0;
+  padding: clamp(9px, 1.7vh, 15px) clamp(22px, 8vw, 40px);
+  cursor: pointer; touch-action: manipulation;
+}
+.btn:active { background: var(--gray); }
+.btn.big { width: 100%; max-width: 360px; }
+.btn.ghost { color: var(--ink); background: var(--paper); }
+.btn.ghost:active { background: var(--wall); }
+
+.best { font-size: clamp(11px, min(3.4vw, 1.8vh), 15px); color: var(--gray); }
+.best span { color: var(--ink); font-weight: 700; }
+
+/* ============================================================
+   결과 화면 — 거리가 주역
+   ============================================================ */
+.over-end { justify-content: flex-start; gap: clamp(4px, 1vh, 10px); }
+.res-cap {
+  font-size: clamp(13px, min(4.2vw, 2.2vh), 19px);
+  color: var(--red); font-weight: 800; letter-spacing: 0.08em;
+}
+/* 무너진 햄버거 — 글·버튼이 자리를 잡고 남는 세로를 다 먹는다 */
+.result-egg {
+  flex: 1 1 0;
+  min-height: clamp(80px, 16vh, 170px);
+  max-height: 34%;
+  width: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
+.result-egg-cv {
+  max-width: 100%; max-height: 100%;
+  width: auto; height: auto;
+}
+.score-big {
+  font-weight: 800; font-variant-numeric: tabular-nums;
+  font-size: clamp(38px, min(13vw, 6.4vh), 68px); line-height: 1;
+}
+.score-big::after { content: "m"; font-size: 0.45em; margin-left: 0.06em; }
+.grade {
+  font-weight: 800;
+  font-size: clamp(18px, min(6vw, 3vh), 30px); line-height: 1.2;
+}
+.remark {
+  font-size: clamp(13px, min(4vw, 2vh), 18px); line-height: 1.4;
+  color: var(--gray); max-width: 22em;
+}
+
+.stats {
+  width: 100%; max-width: 320px;
+  display: flex; flex-direction: column; gap: clamp(1px, .4vh, 4px);
+  font-size: clamp(12px, min(3.7vw, 1.9vh), 17px);
+  color: var(--gray);
+}
+.stats div { display: flex; justify-content: space-between; gap: 12px; }
+.stats dd { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.res-btns {
+  width: 100%; max-width: 360px;
+  display: flex; flex-direction: column; gap: clamp(5px, 1vh, 9px);
+}
+
+/* 작은 폰 — 장식부터 줄인다 */
+@media (max-height: 640px) {
+  .over-end { gap: clamp(3px, .8vh, 7px); }
+  .result-egg { min-height: 70px; max-height: 26%; }
+}
+
+/* 아주 낮은 화면(가로로 든 휴대폰) — 설명부터 접는다. 버튼은 반드시 남긴다. */
+@media (max-height: 460px) {
+  .lead { display: none; }
+  .remark { display: none; }
+  .hero { display: none; }
+  .over { gap: clamp(4px, 1vh, 8px); }
+  .score-big { font-size: clamp(28px, 10vh, 44px); }
+  .result-egg { min-height: 60px; max-height: 24%; }
+  .stats { flex-direction: row; justify-content: center; gap: 12px; max-width: none; }
+  .stats div { gap: 5px; }
+  .res-btns { flex-direction: row; max-width: none; }
+  .btn { padding: clamp(7px, 1.4vh, 12px) clamp(14px, 4vw, 26px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::after, *::before { animation: none !important; transition-duration: .01ms !important; }
+}
