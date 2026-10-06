@@ -104,6 +104,10 @@
       { tier: "expert",  gap: 1180 },
       { tier: "endless", gap: 1050 },
     ],
+    /* ENDLESS 는 속도를 더 올리지 않는다(상한 유지). 대신 간격을 조금씩 좁혀
+       난이도를 올린다 — 운이 아니라 집중력 싸움이 되게. */
+    endlessSqueeze: 0.0012,     // 800m 뒤 1m 마다 간격이 이 비율만큼 줄어든다
+    endlessGapMin: 720,         // 그래도 이 아래로는 안 좁아진다 (논리 px)
     riskRouteFrom: 170,         // 안전/재료 갈림길이 나오기 시작하는 거리(m)
     /* 이 거리(m)부터는 '가운데로만 달리면' 반드시 걸리게 패턴을 한쪽으로 민다.
        손을 안 대면 100~180m 쯤에서 햄버거가 다 떨어지도록 하는 장치다.
@@ -111,21 +115,53 @@
     forceCenterFrom: 55,
     centerBand: 155,            // 가운데라고 보는 폭 (논리 px, 좌우 각각)
 
-    /* ---- 스테이지 ---- 난이도(패턴 풀)와 따로 둔다. 이건 '보여 주기' 용이다.
-       도로 색과 배너만 바뀌고 게임은 멈추지 않는다. */
+    /* ---- 스테이지 ---- 난이도(간격)와 따로 둔다. 장소가 바뀌는 느낌을 맡는다.
+       색은 즉시 안 바뀌고 colorEase 초에 걸쳐 섞인다. 게임은 멈추지 않는다.
+         road/side/line  도로·인도·차선 색
+         marks           노면 표시 방식 (dash / lanes / mix)
+         far/mid/near    레이어별 꾸밈 종류 (패럴랙스 속도가 다르다)
+         deco            노면 위 장식 (횡단보도·공사 띠)
+         anim            그 스테이지에서 하나만 움직인다
+         pools           쓸 패턴 풀 (장애물 구성이 스테이지마다 달라진다) */
     stages: [
-      { at: 0,   name: "골목길",    road: "#9A9A92", line: "rgba(255,255,255,.72)",
-        deco: ["pot", "fence", "lamp"] },
-      { at: 150, name: "번화가",    road: "#85857E", line: "rgba(255,255,255,.80)",
-        deco: ["shop", "rack", "cross"] },
-      { at: 350, name: "배달 지옥", road: "#6E6E68", line: "rgba(255,206,31,.72)",
-        deco: ["barrier", "stripe", "cone2"] },
-      { at: 600, name: "러시아워",  road: "#585852", line: "rgba(255,206,31,.88)",
-        deco: ["lamp", "shop", "dash"] },
-      { at: 800, name: "ENDLESS",   road: "#45453F", line: "rgba(218,43,43,.85)",
-        deco: ["barrier", "shop", "lamp", "stripe", "pot"] },
+      { at: 0, name: "골목길", road: "#8E8E88", side: "#E8E0CA",
+        line: "rgba(255,255,255,.78)", marks: "dash", anim: "none",
+        far: ["house"], mid: ["wall"],
+        near: ["pot", "fence", "lamp", "mailbox", "postsign"],
+        deco: [], pools: ["easy", "normal"] },
+      { at: 150, name: "번화가", road: "#777772", side: "#D9D9D3",
+        line: "rgba(255,255,255,.82)", marks: "dash", anim: "light",
+        far: ["tower"], mid: ["shoprow"],
+        near: ["shop", "rack", "bench", "roadsign"],
+        deco: ["cross"], pools: ["normal", "medium"] },
+      { at: 350, name: "배달 지옥", road: "#666660", side: "#CDC4AC",
+        line: "rgba(255,206,31,.78)", marks: "dash", anim: "tape",
+        far: ["crane"], mid: ["hoard"],
+        near: ["workfence", "barrier", "cone2", "worksign"],
+        deco: ["hazard"], pools: ["medium", "hard"] },
+      { at: 600, name: "러시아워", road: "#565650", side: "#C3C7CD",
+        line: "rgba(255,255,255,.86)", marks: "lanes", anim: "streak",
+        far: ["skyline"], mid: ["guard"],
+        near: ["car", "busstop", "light", "rail"],
+        deco: [], pools: ["hard", "expert"] },
+      { at: 800, name: "ENDLESS", road: "#4E4E48", side: "#CBC7BE",
+        line: "rgba(218,43,43,.85)", marks: "mix", anim: "mix",
+        far: ["skyline", "tower"], mid: ["wall", "hoard"],
+        near: ["pot", "shop", "barrier", "car", "lamp"],
+        deco: ["cross", "hazard"], pools: ["endless"] },
     ],
     bannerTime: 0.85,           // 스테이지 배너가 떠 있는 시간(초)
+    colorEase: 0.5,             // 도로·인도 색이 섞이는 시간(초)
+
+    /* ---- 환경 레이어 ---- 속도가 다르면 평면으로 안 보인다.
+       개수 상한은 모바일을 기준으로 잡았다. */
+    envLayers: [
+      { key: "far",  speed: 0.45, cap: 8,  gap: [700, 1500] },
+      { key: "mid",  speed: 0.70, cap: 8,  gap: [480, 1000] },
+      { key: "near", speed: 1.00, cap: 12, gap: [240, 560] },
+      { key: "deco", speed: 1.00, cap: 5,  gap: [1400, 3000] },
+      { key: "fg",   speed: 1.12, cap: 4,  gap: [320, 800] },
+    ],
 
     /* ---- 체크포인트 ---- */
     checkEvery: 150,            // 이 거리(m)마다
@@ -174,6 +210,7 @@
   const DEBUG_GAME = false;
   const DEBUG_COLLISION = false;
   const DEBUG_ASSET = false;        // 앵커·보이는 영역·접지선을 그려 본다
+  const DEBUG_ENV = false;          // 스테이지·환경 레이어 상태를 그려 본다
 
   /* ============================================================
      그림 — image/ 안의 실제 파일. 파일명은 그대로 둔다(이중 확장자 포함).
@@ -421,7 +458,8 @@
     combo: 0, comboBest: 0,
     items: { shield: 0, magnet: 0, double: 0 },
     mission: null, missionDone: 0, missionLeft: [],
-    envs: [],                   // 길가 꾸밈
+    env: { far: [], mid: [], near: [], deco: [], fg: [] },
+    road: null, sideC: null, lineC: null,   // 지금 색 (목표 색으로 섞여 간다)
     pops: [],                   // 떠오르는 작은 글자 (+1, +50)
     flash: 0,                   // 체크포인트 때 아주 짧은 흰 섬광
     readyLeft: 0,               // READY / GO 연출
@@ -608,25 +646,38 @@
   }
 
   /* 떨어지는 재료 — 중력·회전·한 번의 튕김. 화면을 벗어나면 치운다. */
-  /* 길가 꾸밈 — 스테이지마다 다른 것이 흐른다. 속도감과 '여기가 어디인지'만
-     거들고, 장애물보다 눈에 띄면 안 되므로 옅은 색으로만 그린다. */
+  /* 환경 꾸밈 — 레이어마다 흐르는 속도가 다르다(패럴랙스). 충돌과는 아무 상관이
+     없고(blocks() 밖이다), 장애물보다 눈에 띄지 않게 옅은 색으로만 그린다.
+     개수는 레이어마다 상한을 둬 모바일에서 늘어나지 않게 한다. */
   function stepEnv(dt) {
     void dt;
-    while (S.envs.length < 12) {
-      const last = S.envs.length ? S.envs[S.envs.length - 1].wy : S.scroll;
-      const pool = stageInfo().deco;
-      S.envs.push({
-        wy: last + rnd(260, 520),
-        side: Math.random() < 0.5 ? -1 : 1,
-        kind: pool[Math.floor(Math.random() * pool.length)],
-        h: rnd(170, 400),
-        w: rnd(0.8, 1.25),
-      });
-    }
-    for (let i = S.envs.length - 1; i >= 0; i--) {
-      if (S.envs[i].wy < S.scroll - 500) S.envs.splice(i, 1);
+    const st = stageInfo();
+    for (const L of GAME_CONFIG.envLayers) {
+      const arr = S.env[L.key];
+      const pool = L.key === "deco" ? st.deco
+                 : L.key === "fg" ? (st.anim === "streak" || st.anim === "mix" ? ["streak"] : [])
+                 : st[L.key];
+      const base = S.scroll * L.speed;
+      if (pool && pool.length) {
+        while (arr.length < L.cap) {
+          const last = arr.length ? arr[arr.length - 1].wy : base;
+          arr.push({
+            wy: last + rnd(L.gap[0], L.gap[1]),
+            side: Math.random() < 0.5 ? -1 : 1,
+            kind: pool[Math.floor(Math.random() * pool.length)],
+            h: rnd(0.8, 1.25), w: rnd(0.85, 1.2),
+            seed: Math.random() * 6.28,
+          });
+        }
+      }
+      for (let i = arr.length - 1; i >= 0; i--) {
+        if (arr[i].wy < base - 600) arr.splice(i, 1);
+      }
     }
   }
+  const envCount = () =>
+    S.env.far.length + S.env.mid.length + S.env.near.length +
+    S.env.deco.length + S.env.fg.length;
 
   function stepFallen(dt) {
     const floorY = 30;                                  // 발밑 가까이가 바닥
@@ -723,11 +774,15 @@
       () => [["wall", 0, 0, { gapW: 210, len: 1000 }], ["item", 0, 1200], ["cone", -60, 1500]],
     ],
     endless: [
-      () => [["scooter", 300, 0, { dir: -1 }], ["cone", -140, 0], ["cone", 20, 0]],
-      () => [["sign", 0, 0, { gapLayers: 10 }], ["box", 0, 560], ["bike", -300, 560, { dir: 1 }]],
-      () => [["wall", 0, 0, { gapW: 200, len: 1100 }], ["bump", 0, 1400], ["cone", 0, 1700]],
-      () => [["puddle", -120, 0], ["scooter", -300, 300, { dir: 1 }], ["cone", 60, 520]]
-              .concat(coinLine(250, 4, 760, -30)),
+      /* A */ () => [["sign", 0, 0, { gapLayers: 11 }], ["item", -240, 620], ["item", 240, 620]],
+      /* B */ () => [["bike", -320, 0, { dir: 1 }], ["cone", 40, 0]]
+              .concat(coinLine(260, 5, 520, -40)),
+      /* C */ () => [["bump", 0, 0], ["box", -60, 420], ["box", 250, 420]],
+      /* D */ () => [["scooter", 300, 0, { dir: -1 }], ["cone", -140, 0], ["cone", 20, 0]],
+      /* E */ () => [["wall", 0, 0, { gapW: 205, len: 1050 }], ["item", 0, 1250],
+                     ["cone", -60, 1550]],
+      /* F */ () => [["sign", 0, 0, { gapLayers: 10 }], ["box", 0, 560],
+                     ["bike", -300, 560, { dir: 1 }]],
     ],
   };
 
@@ -759,6 +814,42 @@
     return n;
   }
   function stageInfo() { return GAME_CONFIG.stages[S.stage]; }
+
+  /* "#RRGGBB" / "rgba(r,g,b,a)" -> [r,g,b,a] */
+  function toRGBA(c) {
+    if (c[0] === "#") {
+      return [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16),
+              parseInt(c.slice(5, 7), 16), 1];
+    }
+    const m = c.match(/rgba?\(([^)]+)\)/);
+    const p = m[1].split(",").map(Number);
+    return [p[0], p[1], p[2], p.length > 3 ? p[3] : 1];
+  }
+  const asCSS = v => "rgba(" + Math.round(v[0]) + "," + Math.round(v[1]) + "," +
+    Math.round(v[2]) + "," + v[3].toFixed(3) + ")";
+  function lerpC(a, b, k) {
+    return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k,
+            a[2] + (b[2] - a[2]) * k, a[3] + (b[3] - a[3]) * k];
+  }
+  /* 스테이지가 바뀔 때 한 번에 정리한다 */
+  function setStage(n) {
+    S.stage = n;
+    const st = GAME_CONFIG.stages[n];
+    if (!S.road) {                               // 첫 판은 바로 그 색으로
+      S.road = toRGBA(st.road); S.sideC = toRGBA(st.side); S.lineC = toRGBA(st.line);
+    }
+    /* 꾸밈은 비우지 않는다 — 지나가는 중인 것이 뚝 끊기면 어색하다.
+       새로 나오는 것만 새 스테이지 종류로 바뀐다. */
+    banner("STAGE " + (n + 1), st.name);
+    sfx("checkpoint");
+  }
+  function stepColors(dt) {
+    const st = stageInfo();
+    const k = Math.min(1, dt / GAME_CONFIG.colorEase);
+    S.road = lerpC(S.road, toRGBA(st.road), k);
+    S.sideC = lerpC(S.sideC, toRGBA(st.side), k);
+    S.lineC = lerpC(S.lineC, toRGBA(st.line), k);
+  }
 
   /* 화면 가운데에 잠깐 뜨는 알림 — 게임은 멈추지 않는다 */
   function banner(text, sub, sec) {
@@ -815,9 +906,14 @@
     return "easy";
   }
   function spawnGap() {
-    const t = tier();
-    for (const g of GAME_CONFIG.spawnGap) if (g.tier === t) return g.gap;
-    return 1600;
+    const C = GAME_CONFIG, t = tier();
+    let base = 1600;
+    for (const g of C.spawnGap) if (g.tier === t) base = g.gap;
+    if (t === "endless") {
+      const over = Math.max(0, S.dist - C.difficultyDistances.endless);
+      base = Math.max(C.endlessGapMin, base * (1 - over * C.endlessSqueeze));
+    }
+    return base;
   }
 
   /* 첫 10초 대본 — 이 구간만은 의도대로 보여 준다.
@@ -964,9 +1060,13 @@
       if (!S.nextSpawn) S.nextSpawn = S.scroll + 1400;
       while (S.nextSpawn < S.scroll + REF_H * 1.1) {
         const useRisk = S.dist >= C.riskRouteFrom && Math.random() < 0.22;
-        const pool = PATTERNS[tier()];
+        /* 어떤 장애물이 나오나는 '스테이지' 가 정한다 (간격은 난이도가 정한다).
+           그래서 번화가에서는 자전거가, 러시아워에서는 킥보드가 늘어난다. */
+        const names = stageInfo().pools;
+        const name = names[Math.floor(Math.random() * names.length)];
+        const pool = PATTERNS[name];
         const n = Math.floor(Math.random() * pool.length);
-        S.pattern = useRisk ? "risk" : tier() + "_" + (n + 1);
+        S.pattern = useRisk ? "risk" : name + "_" + (n + 1);
         const rows = useRisk ? riskPattern() : pool[n]();
         /* 특수 아이템은 드물게, 비어 있는 자리에 하나만 */
         if (S.dist >= C.itemFrom && Math.random() < C.itemChance) {
@@ -1266,42 +1366,138 @@
     g.closePath();
   }
 
-  /* 길가·노면 꾸밈 — 스테이지별로 종류가 다르다 */
-  function drawEnv(g) {
-    for (const e of S.envs) {
-      const y = -(e.wy - S.scroll);
-      const x = e.side * (ROAD + 160);
+  /* ============================================================
+     환경 — 레이어 순서는 render() 에 적어 둔 그대로다.
+     원칙: 채도·대비를 낮게, 선은 약하게, 실루엣 위주. 장애물·캐릭터보다
+     절대 눈에 띄지 않아야 한다 (그래서 전부 반투명으로만 그린다).
+     ============================================================ */
+
+  /* 레이어 하나를 그린다 — wy 를 그 레이어 속도로 환산해 화면 y 를 낸다 */
+  function layerY(e, speed) { return -(e.wy - S.scroll * speed); }
+
+  /* ---- 1. 바탕 — 하늘/건물 틈이 보이는 먼 쪽 ---- */
+  function drawBase(g) {
+    const top = screenTop(), bot = screenBottom();
+    g.fillStyle = asCSS([S.sideC[0] * 0.82, S.sideC[1] * 0.84, S.sideC[2] * 0.88, 1]);
+    g.fillRect(-ROAD * 4, top, ROAD * 8, bot - top);
+  }
+
+  /* ---- 2. 먼 배경 (x0.45) ---- */
+  function drawFar(g) {
+    for (const e of S.env.far) {
+      const y = layerY(e, 0.45), x = e.side * (ROAD + 520);
+      g.fillStyle = "rgba(60,60,70,.16)";
+      switch (e.kind) {
+        case "house":                               // 낮은 집 지붕 줄
+          for (let i = 0; i < 3; i++) {
+            const h = 220 * e.h * (0.7 + i * 0.15);
+            g.fillRect(x - 300 + i * 210, y - h, 180, h);
+          }
+          break;
+        case "tower":                               // 높은 건물
+          g.fillRect(x - 180, y - 900 * e.h, 360, 900 * e.h);
+          g.fillStyle = "rgba(255,255,255,.07)";
+          for (let r = 0; r < 7; r++) {
+            for (let c = 0; c < 3; c++) {
+              g.fillRect(x - 130 + c * 90, y - 860 * e.h + r * 110, 54, 64);
+            }
+          }
+          break;
+        case "crane":                               // 공사 크레인
+          g.fillRect(x - 14, y - 1000 * e.h, 28, 1000 * e.h);
+          g.fillRect(x - 320, y - 1000 * e.h, 640, 24);
+          break;
+        case "skyline":                             // 빌딩 스카이라인
+          for (let i = 0; i < 4; i++) {
+            const h = (420 + (i % 3) * 320) * e.h;
+            g.fillRect(x - 380 + i * 200, y - h, 170, h);
+          }
+          break;
+      }
+    }
+  }
+
+  /* ---- 3. 중간 (x0.70) ---- */
+  function drawMid(g) {
+    for (const e of S.env.mid) {
+      const y = layerY(e, 0.70), x = e.side * (ROAD + 300);
+      switch (e.kind) {
+        case "wall":                                // 담벼락
+          g.fillStyle = "rgba(150,110,80,.18)";
+          g.fillRect(x - 230, y - 300 * e.h, 460, 300 * e.h);
+          g.fillStyle = "rgba(255,255,255,.08)";
+          for (let r = 0; r < 4; r++) g.fillRect(x - 230, y - 300 * e.h + r * 76, 460, 8);
+          break;
+        case "shoprow":                             // 상점 줄 — 쇼윈도 실루엣
+          g.fillStyle = "rgba(70,80,95,.20)";
+          g.fillRect(x - 260, y - 460 * e.h, 520, 460 * e.h);
+          g.fillStyle = "rgba(255,255,255,.12)";
+          for (let i = 0; i < 3; i++) g.fillRect(x - 210 + i * 150, y - 300, 110, 180);
+          break;
+        case "hoard":                               // 공사 가림막
+          g.fillStyle = "rgba(120,120,110,.22)";
+          g.fillRect(x - 280, y - 360 * e.h, 560, 360 * e.h);
+          g.fillStyle = "rgba(240,180,40,.16)";
+          for (let i = 0; i < 6; i++) g.fillRect(x - 280 + i * 96, y - 360 * e.h, 48, 360 * e.h);
+          break;
+        case "guard":                               // 가드레일
+          g.fillStyle = "rgba(200,205,215,.22)";
+          g.fillRect(x - 300, y - 110, 600, 26);
+          g.fillStyle = "rgba(120,125,135,.22)";
+          for (let i = 0; i < 4; i++) g.fillRect(x - 280 + i * 190, y - 110, 18, 110);
+          break;
+      }
+    }
+  }
+
+  /* ---- 4. 길가 (x1.0) — 플레이 영역 바로 옆 ---- */
+  function drawSide(g) {
+    const t = performance.now();
+    for (const e of S.env.near) {
+      const y = layerY(e, 1), x = e.side * (ROAD + 150);
       const w = e.w;
       switch (e.kind) {
-        case "pot":                                  // 화분
+        case "pot":                                 // 화분
           g.fillStyle = "rgba(120,70,40,.30)";
           g.fillRect(x - 34 * w, y - 54, 68 * w, 54);
-          g.fillStyle = "rgba(40,110,50,.28)";
+          g.fillStyle = "rgba(40,110,50,.26)";
           g.beginPath(); g.ellipse(x, y - 78, 44 * w, 40, 0, 0, 7); g.fill();
           break;
-        case "fence":                                // 낮은 담장
+        case "fence":                               // 낮은 담장
           g.fillStyle = "rgba(0,0,0,.12)";
           g.fillRect(x - 150, y - 90, 300, 90);
           g.fillStyle = "rgba(255,255,255,.10)";
           for (let i = -2; i <= 2; i++) g.fillRect(x + i * 60 - 6, y - 90, 12, 90);
           break;
-        case "lamp":                                 // 가로등
+        case "lamp":                                // 가로등
           g.fillStyle = "rgba(0,0,0,.22)";
-          g.fillRect(x - 8, y - e.h, 16, e.h);
-          g.fillRect(x - 8 - e.side * 60, y - e.h, 60, 14);
-          g.fillStyle = "rgba(255,206,31,.22)";
+          g.fillRect(x - 8, y - 380 * e.h, 16, 380 * e.h);
+          g.fillRect(x - 8 - e.side * 60, y - 380 * e.h, 60, 14);
+          g.fillStyle = "rgba(255,206,31,.20)";
           g.beginPath();
-          g.ellipse(x - e.side * 60, y - e.h + 20, 26, 20, 0, 0, 7); g.fill();
+          g.ellipse(x - e.side * 60, y - 380 * e.h + 20, 26, 20, 0, 0, 7); g.fill();
           break;
-        case "shop":                                 // 상점 간판
+        case "mailbox":                             // 우편함
+          g.fillStyle = "rgba(190,60,60,.26)";
+          g.fillRect(x - 26, y - 120, 52, 120);
           g.fillStyle = "rgba(0,0,0,.14)";
-          g.fillRect(x - 150, y - e.h, 300, e.h);
-          g.fillStyle = "rgba(218,43,43,.22)";
-          g.fillRect(x - 130, y - e.h + 26, 260, 54);
-          g.fillStyle = "rgba(255,255,255,.14)";
-          for (let i = 0; i < 3; i++) g.fillRect(x - 110, y - e.h + 110 + i * 70, 220, 40);
+          g.fillRect(x - 30, y - 134, 60, 18);
           break;
-        case "rack":                                 // 자전거 주차
+        case "postsign":                            // 작은 표지판
+          g.fillStyle = "rgba(0,0,0,.20)";
+          g.fillRect(x - 6, y - 200, 12, 200);
+          g.fillStyle = "rgba(90,130,200,.24)";
+          g.fillRect(x - 48, y - 230, 96, 56);
+          break;
+        case "shop":                                // 상점 간판
+          g.fillStyle = "rgba(0,0,0,.14)";
+          g.fillRect(x - 150, y - 400 * e.h, 300, 400 * e.h);
+          g.fillStyle = "rgba(218,43,43,.20)";
+          g.fillRect(x - 130, y - 400 * e.h + 26, 260, 54);
+          g.fillStyle = "rgba(255,255,255,.13)";
+          for (let i = 0; i < 2; i++) g.fillRect(x - 110, y - 240 + i * 90, 220, 60);
+          break;
+        case "rack":                                // 자전거 거치대
           g.strokeStyle = "rgba(0,0,0,.22)"; g.lineWidth = 9;
           for (let i = -1; i <= 1; i++) {
             g.beginPath();
@@ -1310,66 +1506,164 @@
             g.stroke();
           }
           break;
-        case "barrier":                              // 공사 경고 배리어
+        case "bench":                               // 벤치
+          g.fillStyle = "rgba(130,90,50,.26)";
+          g.fillRect(x - 80, y - 60, 160, 16);
+          g.fillRect(x - 80, y - 92, 160, 14);
           g.fillStyle = "rgba(0,0,0,.16)";
+          g.fillRect(x - 70, y - 60, 12, 60); g.fillRect(x + 58, y - 60, 12, 60);
+          break;
+        case "roadsign":                            // 도로 표지판
+          g.fillStyle = "rgba(0,0,0,.20)";
+          g.fillRect(x - 7, y - 250, 14, 250);
+          g.fillStyle = "rgba(40,120,70,.24)";
+          g.fillRect(x - 70, y - 300, 140, 62);
+          break;
+        case "workfence":                           // 공사 펜스
+          g.strokeStyle = "rgba(240,160,30,.30)"; g.lineWidth = 7;
+          for (let i = 0; i < 3; i++) {
+            g.strokeRect(x - 130 + i * 90, y - 110, 80, 110);
+          }
+          break;
+        case "barrier":                             // 임시 배리어
+          g.fillStyle = "rgba(0,0,0,.14)";
           g.fillRect(x - 120, y - 96, 240, 96);
           for (let i = 0; i < 5; i++) {
-            g.fillStyle = i % 2 ? "rgba(240,160,30,.40)" : "rgba(255,255,255,.26)";
+            g.fillStyle = i % 2 ? "rgba(240,160,30,.36)" : "rgba(255,255,255,.24)";
             g.fillRect(x - 120 + i * 48, y - 96, 48, 96);
           }
           break;
-        case "cone2":                                // 길가에 치워 둔 콘
-          g.fillStyle = "rgba(242,106,27,.32)";
+        case "cone2":                               // 치워 둔 콘
+          g.fillStyle = "rgba(242,106,27,.30)";
           g.beginPath();
           g.moveTo(x, y - 84); g.lineTo(x + 36, y); g.lineTo(x - 36, y);
           g.closePath(); g.fill();
           break;
-        case "stripe":                               // 도로 가장자리 공사 띠
-          g.fillStyle = "rgba(240,160,30,.22)";
-          g.fillRect(e.side * (ROAD - 14), y - 220, 28, 220);
+        case "worksign":                            // 공사 표지판
+          g.fillStyle = "rgba(0,0,0,.18)";
+          g.fillRect(x - 7, y - 210, 14, 210);
+          g.fillStyle = "rgba(240,180,40,.30)";
+          g.beginPath();
+          g.moveTo(x, y - 300); g.lineTo(x + 62, y - 200); g.lineTo(x - 62, y - 200);
+          g.closePath(); g.fill();
           break;
-        case "cross":                                // 횡단보도 (도로를 가로지른다)
-          if (e.side < 0) {
-            g.fillStyle = "rgba(255,255,255,.16)";
-            for (let i = -4; i <= 4; i++) g.fillRect(i * 96 - 32, y - 150, 64, 150);
-          }
+        case "car":                                 // 주차 차량 실루엣
+          g.fillStyle = "rgba(70,80,100,.26)";
+          g.fillRect(x - 90, y - 150, 180, 110);
+          g.fillRect(x - 70, y - 210, 140, 70);
+          g.fillStyle = "rgba(0,0,0,.22)";
+          g.beginPath(); g.ellipse(x - 56, y - 40, 24, 24, 0, 0, 7); g.fill();
+          g.beginPath(); g.ellipse(x + 56, y - 40, 24, 24, 0, 0, 7); g.fill();
           break;
-        case "dash":                                 // 바깥 차선 — 속도감
-          g.fillStyle = "rgba(255,255,255,.14)";
-          g.fillRect(e.side * (ROAD - 70) - 7, y - 200, 14, 200);
+        case "busstop":                             // 버스정류장
+          g.fillStyle = "rgba(0,0,0,.16)";
+          g.fillRect(x - 140, y - 300, 280, 16);
+          g.fillRect(x - 140, y - 300, 14, 300);
+          g.fillRect(x + 126, y - 300, 14, 300);
+          g.fillStyle = "rgba(90,130,200,.18)";
+          g.fillRect(x - 120, y - 170, 240, 120);
+          break;
+        case "light": {                             // 신호등 — 이 스테이지의 '움직이는 하나'
+          g.fillStyle = "rgba(0,0,0,.22)";
+          g.fillRect(x - 8, y - 360, 16, 360);
+          g.fillRect(x - 8, y - 360, 90 * -e.side, 12);
+          const on = Math.floor(t / 700 + e.seed) % 2 === 0;
+          g.fillStyle = on ? "rgba(40,170,80,.42)" : "rgba(200,60,50,.42)";
+          g.beginPath();
+          g.ellipse(x - e.side * 70, y - 346, 17, 17, 0, 0, 7); g.fill();
+          break;
+        }
+        case "rail":                                // 가드레일 조각
+          g.fillStyle = "rgba(200,205,215,.24)";
+          g.fillRect(x - 120, y - 96, 240, 20);
+          g.fillStyle = "rgba(120,125,135,.24)";
+          g.fillRect(x - 10, y - 96, 20, 96);
           break;
       }
     }
   }
 
-  /* 도로 — 중앙 플레이 영역과 좌우 경계가 또렷해야 장애물이 묻히지 않는다.
-     스테이지마다 색만 조금 진해진다 (장애물이 묻히지 않을 만큼만). */
+  /* ---- 5. 노면 장식 — 횡단보도·공사 띠. 충돌과는 무관하다. ---- */
+  function drawRoadDeco(g) {
+    const t = performance.now();
+    for (const e of S.env.deco) {
+      const y = layerY(e, 1);
+      if (e.kind === "cross") {                     // 횡단보도
+        g.fillStyle = "rgba(255,255,255,.22)";
+        for (let i = -4; i <= 4; i++) g.fillRect(i * 96 - 32, y - 170, 64, 170);
+      } else if (e.kind === "hazard") {             // 공사 구간 — 양쪽 띠
+        for (const sd of [-1, 1]) {
+          for (let i = 0; i < 7; i++) {
+            g.fillStyle = i % 2 ? "rgba(240,180,40,.30)" : "rgba(30,30,28,.26)";
+            g.fillRect(sd * (ROAD - 34) - 17, y - 420 + i * 60, 34, 60);
+          }
+        }
+        /* 공사 테이프가 아주 조금 물결친다 */
+        g.strokeStyle = "rgba(240,180,40,.26)"; g.lineWidth = 8;
+        g.beginPath();
+        for (let i = 0; i <= 10; i++) {
+          const xx = -ROAD + (ROAD * 2) * (i / 10);
+          const yy = y - 440 + Math.sin(i * 0.9 + t / 320 + e.seed) * 10;
+          if (i) g.lineTo(xx, yy); else g.moveTo(xx, yy);
+        }
+        g.stroke();
+      }
+    }
+  }
+
+  /* ---- 11. 앞 레이어 (x1.12) — 속도감만. 러시아워에서만 쓴다. ---- */
+  function drawFg(g) {
+    for (const e of S.env.fg) {
+      const y = layerY(e, 1.12);
+      const x = e.side * (ROAD - 60 - 120 * e.w);
+      g.fillStyle = "rgba(255,255,255,.10)";
+      g.fillRect(x - 5, y - 240 * e.h, 10, 240 * e.h);
+    }
+  }
+
+  /* 도로 — 플레이 영역이 한눈에 보여야 한다. 스테이지마다 색과 표시가 다르다. */
   function drawRoad(g) {
     const top = screenTop(), bot = screenBottom();
-    g.fillStyle = stageInfo().road;
-    g.fillRect(-ROAD * 3, top, ROAD * 6, bot - top);
+    const st = stageInfo();
     /* 인도 */
-    g.fillStyle = "#C9C5B6";
-    g.fillRect(-ROAD * 3, top, ROAD * 3 - ROAD, bot - top);
-    g.fillRect(ROAD, top, ROAD * 3, bot - top);
-    g.strokeStyle = "#1A1A16"; g.lineWidth = 7;
+    g.fillStyle = asCSS(S.sideC);
+    g.fillRect(-ROAD * 4, top, ROAD * 8, bot - top);
+    /* 차도 */
+    g.fillStyle = asCSS(S.road);
+    g.fillRect(-ROAD, top, ROAD * 2, bot - top);
+    /* 경계 — 턱(curb)으로 '여기까지가 플레이 영역' 을 알린다 */
+    g.fillStyle = "rgba(255,255,255,.55)";
+    g.fillRect(-ROAD - 16, top, 16, bot - top);
+    g.fillRect(ROAD, top, 16, bot - top);
+    g.strokeStyle = "#1A1A16"; g.lineWidth = 6;
     g.beginPath();
     g.moveTo(-ROAD, top); g.lineTo(-ROAD, bot);
     g.moveTo(ROAD, top); g.lineTo(ROAD, bot);
     g.stroke();
-    /* 가운데 차선 — 아래로 흐르며 전진감을 만든다. 칸 사이를 좁게 두어
-       빠를수록 더 빨리 흐르는 것처럼 보이게 한다. */
+
+    /* 노면 표시 — 전진 속도에 맞춰 아래로 흐른다 */
     const step = 260, len = 150;
     const off = S.scroll % step;
-    g.fillStyle = stageInfo().line;
+    const marks = st.marks === "mix"
+      ? (Math.floor(S.dist / 200) % 2 ? "lanes" : "dash") : st.marks;
+    g.fillStyle = asCSS(S.lineC);
     for (let y = top - step; y < bot + step; y += step) {
-      g.fillRect(-18, y + off, 36, len);
+      g.fillRect(-18, y + off, 36, len);            // 가운데 점선
+      if (marks === "lanes") {                      // 2~3차선처럼 보이게
+        g.fillRect(-ROAD * 0.46 - 9, y + off, 18, len);
+        g.fillRect(ROAD * 0.46 - 9, y + off, 18, len);
+      }
     }
-    /* 좌우 경계 안쪽 띠 — 도로 폭이 한눈에 보이게 */
-    g.fillStyle = "rgba(255,255,255,.28)";
-    for (let y = top - step; y < bot + step; y += step) {
-      g.fillRect(-ROAD + 26, y + off, 10, len);
-      g.fillRect(ROAD - 36, y + off, 10, len);
+    if (marks === "lanes") {                        // 가장자리 실선
+      g.fillStyle = "rgba(255,255,255,.30)";
+      g.fillRect(-ROAD + 24, top, 8, bot - top);
+      g.fillRect(ROAD - 32, top, 8, bot - top);
+    } else {
+      g.fillStyle = "rgba(255,255,255,.16)";        // 안쪽 띠
+      for (let y = top - step; y < bot + step; y += step) {
+        g.fillRect(-ROAD + 26, y + off, 10, len);
+        g.fillRect(ROAD - 36, y + off, 10, len);
+      }
     }
   }
 
@@ -1576,12 +1870,20 @@
       return;
     }
     if (K.wall) {
+      /* 벽이 가까워지는 것이 보여야 '가운데로 가야 한다' 를 안다 */
       const len = e.len || 900, half = e.gapW / 2;
+      const L = (e.x - half) + ROAD, Rw = ROAD - (e.x + half);
       g.fillStyle = "#B4502A"; g.strokeStyle = "#1A1A16"; g.lineWidth = 6;
-      g.fillRect(-ROAD, y - len, (e.x - half) + ROAD, len);
-      g.strokeRect(-ROAD, y - len, (e.x - half) + ROAD, len);
-      g.fillRect(e.x + half, y - len, ROAD - (e.x + half), len);
-      g.strokeRect(e.x + half, y - len, ROAD - (e.x + half), len);
+      g.fillRect(-ROAD, y - len, L, len);
+      g.strokeRect(-ROAD, y - len, L, len);
+      g.fillRect(e.x + half, y - len, Rw, len);
+      g.strokeRect(e.x + half, y - len, Rw, len);
+      /* 통로 쪽 면에 노랑·검정 띠 */
+      for (let i = 0; i * 70 < len; i++) {
+        g.fillStyle = i % 2 ? "#F0C21E" : "#1A1A16";
+        g.fillRect(e.x - half - 18, y - len + i * 70, 18, 70);
+        g.fillRect(e.x + half, y - len + i * 70, 18, 70);
+      }
       return;
     }
     /* 움직이는 장애물은 오기 전에 알린다 — 갑자기 튀어나오면 억울하다 */
@@ -1592,8 +1894,14 @@
         g.save();
         g.globalAlpha = 0.35 + 0.35 * Math.abs(Math.sin(performance.now() / 160));
         g.fillStyle = "#DA2B2B";
+        /* 위쪽에 '어디로 오는지' */
         g.beginPath();
         g.moveTo(e.x, t + 34); g.lineTo(e.x - 30, t); g.lineTo(e.x + 30, t);
+        g.closePath(); g.fill();
+        /* 들어오는 쪽 변에 화살표 — 가로로 지나갈 것을 미리 알린다 */
+        const d = e.dir || 1, ex = -d * (ROAD - 30);
+        g.beginPath();
+        g.moveTo(ex + d * 34, y); g.lineTo(ex, y - 26); g.lineTo(ex, y + 26);
         g.closePath(); g.fill();
         g.restore();
       }
@@ -1853,6 +2161,39 @@
     }
   }
 
+  /* 환경만 따로 들여다본다 (DEBUG_ENV) */
+  function drawEnvDebug(g) {
+    const st = stageInfo();
+    g.lineWidth = 2;
+    for (const [key, speed, col] of [["far", 0.45, "#64B5F6"], ["mid", 0.7, "#81C784"],
+                                     ["near", 1, "#FFD54F"], ["deco", 1, "#FF8A65"],
+                                     ["fg", 1.12, "#BA68C8"]]) {
+      g.strokeStyle = col;
+      for (const e of S.env[key]) {
+        const y = layerY(e, speed);
+        const x = key === "deco" ? 0 : e.side * (ROAD + 150);
+        g.strokeRect(x - 60, y - 60, 120, 60);
+      }
+    }
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const rows = [
+      "stage: " + (S.stage + 1) + " " + st.name,
+      "road: " + asCSS(S.road),
+      "env: far " + S.env.far.length + " / mid " + S.env.mid.length +
+        " / near " + S.env.near.length + " / deco " + S.env.deco.length +
+        " / fg " + S.env.fg.length + "  = " + envCount(),
+      "near kinds: " + [...new Set(S.env.near.map(e => e.kind))].join(","),
+      "marks: " + st.marks + "  anim: " + st.anim,
+      "pools: " + st.pools.join(","),
+    ];
+    g.font = "600 11px monospace";
+    g.textAlign = "left"; g.textBaseline = "top";
+    g.fillStyle = "rgba(255,255,255,.88)";
+    g.fillRect(4, H - rows.length * 14 - 12, 300, rows.length * 14 + 8);
+    g.fillStyle = "#1A1A16";
+    rows.forEach((t, i) => g.fillText(t, 10, H - rows.length * 14 - 7 + i * 14));
+  }
+
   function drawDebug(g) {
     const rows = [
       "fps: " + S.fps.toFixed(0),
@@ -1886,11 +2227,18 @@
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, W, H);
     world(g);
+    /* 1 바탕 -> 2 먼 배경 -> 3 중간 -> 4 길가 -> 5 도로 -> 6 노면 장식
+       -> 7 장애물 -> 8 먹는 것 -> 9 캐릭터 -> 10 햄버거 -> 11 앞 -> 12 HUD */
+    drawBase(g);
+    drawFar(g);
+    drawMid(g);
+    drawSide(g);
     drawRoad(g);
-    drawEnv(g);
-    /* 멀리 있는 것부터 */
+    drawRoadDeco(g);
+    /* 장애물을 먼저, 먹는 것(재료·코인·아이템)을 그 위에 — 가려지면 안 된다 */
     const sorted = S.ents.slice().sort((a, b) => b.wy - a.wy);
-    for (const e of sorted) drawEnt(g, e);
+    for (const e of sorted) if (!KIND[e.kind].item && !KIND[e.kind].coin && !KIND[e.kind].gift) drawEnt(g, e);
+    for (const e of sorted) if (KIND[e.kind].item || KIND[e.kind].coin || KIND[e.kind].gift) drawEnt(g, e);
     const px = S.x * MOVE_RANGE;
     shadow(g, px, 6, 62, 0.22);
     drawPlayer(g, px, S.hop + S.bob);
@@ -1898,8 +2246,10 @@
     drawBurger(g, px, -handY() + S.hop + S.bobLag);
     drawFlyers(g);
     drawFallen(g);
+    drawFg(g);
     drawPops(g);
     if (DEBUG_COLLISION) drawBoxes(g);
+    if (DEBUG_ENV) drawEnvDebug(g);
     if (DEBUG_ASSET) drawAnchors(g);
     if (S.flash > 0) {
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1952,11 +2302,7 @@
 
     /* 스테이지가 바뀌면 배너만 띄운다 — 게임은 멈추지 않는다 */
     const st = stageOf(S.dist);
-    if (st !== S.stage) {
-      S.stage = st;
-      banner("STAGE " + (st + 1), GAME_CONFIG.stages[st].name);
-      sfx("checkpoint");
-    }
+    if (st !== S.stage) setStage(st);
     /* 체크포인트 — 햄버거를 잘 지켰으면 그만큼 보너스 */
     if (S.dist >= S.nextCheck) {
       const b = S.layers.length * GAME_CONFIG.checkBonus;
@@ -1968,6 +2314,7 @@
       S.nextCheck += GAME_CONFIG.checkEvery;
     }
     stepEnv(dt);
+    stepColors(dt);
     paintHud();
   }
 
@@ -2039,12 +2386,15 @@
     S.got = 0; S.lost = 0; S.maxStack = S.layers.length;
     S.lastHit = -9;
     /* V2 */
-    S.stage = 0; S.banner = ""; S.bannerSub = ""; S.bannerLeft = 0;
+    S.banner = ""; S.bannerSub = ""; S.bannerLeft = 0;
     S.nextCheck = GAME_CONFIG.checkEvery;
     S.score = 0; S.coins = 0;
     S.combo = 0; S.comboBest = 0;
     S.items.shield = 0; S.items.magnet = 0; S.items.double = 0;
-    S.envs.length = 0;
+    for (const k of ["far", "mid", "near", "deco", "fg"]) S.env[k].length = 0;
+    S.road = null; S.sideC = null; S.lineC = null;
+    setStage(0);
+    S.bannerLeft = 0;                              // 첫 스테이지 배너는 안 띄운다
     S.pops.length = 0;
     S.flash = 0;
     S.shakeAmpNow = 0;
@@ -2269,7 +2619,9 @@
     handY, gapHeight, stepOf, ingW, visHeight, drawHero, loadAssets,
     ASSET_VERSION, RUN_BOB, RUN_HZ, BURGER_LAG, flyTo, paintBest,
     stageOf, stageInfo, swayState, dropLeanNow, totalScore, gain,
-    nextMission, missionTick, coinLine, banner, reset, drawEnv,
+    nextMission, missionTick, coinLine, banner, reset,
+    setStage, stepColors, toRGBA, asCSS, envCount, DEBUG_ENV,
+    drawBase, drawFar, drawMid, drawSide, drawRoadDeco, drawFg,
     offCenter, blocks, pop, IMG_DIR, SFX_GAP,
     assetsReady: () => assetsReady,
   });
