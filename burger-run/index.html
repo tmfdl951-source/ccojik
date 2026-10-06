@@ -4,10 +4,10 @@
 <meta charset="UTF-8" />
 <meta name="viewport"
   content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<title>꼬직 · 햄버거 배달 런</title>
+<title>꼬직 · 햄버거 배달 챌린지</title>
 <meta property="og:type" content="website" />
-<meta property="og:title" content="꼬직 · 햄버거 배달 런" />
-<meta property="og:description" content="이 햄버거 들고 몇 m 갈 수 있어요?" />
+<meta property="og:title" content="꼬직 · 햄버거 배달 챌린지" />
+<meta property="og:description" content="햄버거를 지키면서 최대한 멀리 배달하세요!" />
 <!-- 웹폰트: 숫자가 커서 획이 뭉치지 않는 쪽으로 (peel-egg 와 같은 폰트) -->
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
 <link rel="stylesheet"
@@ -24,6 +24,12 @@
       <span class="g-cap">거리</span>
       <span class="g-val"><b class="g-num" id="distNum">0</b><span class="g-unit">m</span></span>
     </div>
+    <div class="mid">
+      <span class="s-num" id="scoreNum">0</span>
+      <span class="mission" id="missionBox" hidden>
+        <b id="missionText">-</b>
+      </span>
+    </div>
     <div class="gauge right" id="stackBox">
       <span class="g-cap">햄버거</span>
       <span class="g-val"><b class="g-num" id="stackNum">14</b><span class="g-unit">단</span></span>
@@ -34,33 +40,35 @@
   <div class="stage" id="stage">
     <canvas id="cv"></canvas>
 
-    <!-- 시작 화면 — 첫 화면부터 높은 햄버거가 보인다 -->
+    <!-- 타이틀 -->
     <div class="over" id="startOver">
-      <h1 class="title">이 햄버거 들고<br>몇 m 갈 수 있어요?</h1>
+      <h1 class="title">햄버거<br>배달 챌린지</h1>
       <canvas class="hero" id="heroCv" width="300" height="560"></canvas>
-      <p class="lead">좌우로 움직여 장애물을 피하세요</p>
-      <button class="btn big" type="button" id="startBtn">시작하기</button>
-      <p class="best">최고 <span id="bestStart">0m</span></p>
+      <p class="lead">햄버거를 지키면서<br>최대한 멀리 배달하세요!</p>
+      <p class="best">BEST <span id="bestStart">0m</span></p>
+      <button class="btn big" type="button" id="startBtn">배달 시작</button>
     </div>
 
     <!-- 결과 화면 -->
     <div class="over over-end" id="endOver" hidden>
-      <p class="res-cap" id="resTitle">배달 실패!</p>
+      <p class="res-cap" id="resTitle">배달 종료!</p>
+      <p class="new-rec" id="newRec" hidden>NEW RECORD!</p>
       <div class="result-egg" id="resultArt"></div>
       <p class="score-big" id="finalDist">0</p>
       <p class="grade" id="gradeLabel">동네 배달원</p>
       <p class="remark" id="remark"></p>
       <dl class="stats">
+        <div class="score-row"><dt>SCORE</dt><dd id="finalScore">0</dd></div>
         <div><dt>최대 햄버거</dt><dd id="maxStack">0단</dd></div>
         <div><dt>획득 재료</dt><dd id="gotCount">0개</dd></div>
-        <div><dt>떨어진 재료</dt><dd id="lostCount">0개</dd></div>
         <div><dt>PERFECT</dt><dd id="perfCount">0회</dd></div>
+        <div><dt>최대 COMBO</dt><dd id="comboCount">0</dd></div>
       </dl>
       <div class="res-btns">
-        <button class="btn big" type="button" id="againBtn">다시 도전</button>
+        <button class="btn big" type="button" id="againBtn">다시 배달</button>
         <button class="btn ghost" type="button" id="shareBtn">결과 공유</button>
       </div>
-      <p class="best">최고 <span id="bestEnd">0m</span></p>
+      <p class="best">BEST <span id="bestEnd">0m</span></p>
     </div>
   </div>
 

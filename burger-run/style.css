@@ -56,8 +56,26 @@ body { display: flex; align-items: center; justify-content: center; }
 .top {
   flex-shrink: 0;
   display: flex; align-items: flex-end; justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
 }
+/* 가운데 — 점수와 미션. 거리·층수보다 작게 둔다. */
+.mid {
+  flex: 1 1 0; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  text-align: center;
+}
+.s-num {
+  font-weight: 800; font-variant-numeric: tabular-nums;
+  font-size: clamp(13px, min(4vw, 2.1vh), 19px); line-height: 1;
+  color: var(--ink);
+}
+.mission {
+  font-size: clamp(9px, min(2.8vw, 1.5vh), 12px);
+  color: var(--gray); line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+.mission b { color: var(--ink); font-weight: 700; }
+.mission[hidden] { display: none; }
 .gauge { display: flex; flex-direction: column; gap: 0; line-height: 1; }
 .gauge.right { align-items: flex-end; }
 .g-cap {
@@ -177,6 +195,17 @@ body { display: flex; align-items: center; justify-content: center; }
   color: var(--gray);
 }
 .stats div { display: flex; justify-content: space-between; gap: 12px; }
+.stats .score-row { border-bottom: 2px solid var(--ink); padding-bottom: 2px; margin-bottom: 2px; }
+.stats .score-row dt { color: var(--ink); font-weight: 800; letter-spacing: .06em; }
+.stats .score-row dd { font-size: 1.18em; }
+.new-rec {
+  font-weight: 800; letter-spacing: .08em;
+  font-size: clamp(14px, min(4.6vw, 2.4vh), 21px);
+  color: var(--red);
+  animation: rec .6s steps(2, end) infinite;
+}
+.new-rec[hidden] { display: none; }
+@keyframes rec { 50% { opacity: .35; } }
 .stats dd { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
 
 .res-btns {
@@ -193,6 +222,7 @@ body { display: flex; align-items: center; justify-content: center; }
 /* 아주 낮은 화면(가로로 든 휴대폰) — 설명부터 접는다. 버튼은 반드시 남긴다. */
 @media (max-height: 460px) {
   .lead { display: none; }
+  .mission { display: none; }
   .remark { display: none; }
   .hero { display: none; }
   .over { gap: clamp(4px, 1vh, 8px); }

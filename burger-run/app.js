@@ -19,6 +19,9 @@
  * 재서 얻은 '보이는 부분'의 테두리(BOX)로 크기와 접지선을 보정한다. 그래서
  * 원본 픽셀 크기는 쓰지 않고, 보이는 폭을 논리 px 로 지정해 그린다.
  *
+ * V2 에서 더한 것 — 스테이지(보여 주기용)와 난이도(패턴 풀용)를 따로 두고,
+ * 체크포인트·코인·점수·콤보·특수 아이템·미션을 얹었다. 물리와 그림은 그대로다.
+ *
  * 금지: 외부 라이브러리, 이모지 */
 (() => {
   "use strict";
@@ -102,6 +105,55 @@
       { tier: "endless", gap: 1050 },
     ],
     riskRouteFrom: 170,         // 안전/재료 갈림길이 나오기 시작하는 거리(m)
+
+    /* ---- 스테이지 ---- 난이도(패턴 풀)와 따로 둔다. 이건 '보여 주기' 용이다.
+       도로 색과 배너만 바뀌고 게임은 멈추지 않는다. */
+    stages: [
+      { at: 0,   name: "골목길",    road: "#8E8E88", line: "rgba(255,255,255,.72)" },
+      { at: 150, name: "번화가",    road: "#7E7E78", line: "rgba(255,255,255,.78)" },
+      { at: 350, name: "배달 지옥", road: "#6E6E68", line: "rgba(255,206,31,.72)" },
+      { at: 600, name: "러시아워",  road: "#5E5E58", line: "rgba(255,206,31,.85)" },
+      { at: 800, name: "ENDLESS",   road: "#4E4E48", line: "rgba(218,43,43,.80)" },
+    ],
+    bannerTime: 0.85,           // 스테이지 배너가 떠 있는 시간(초)
+
+    /* ---- 체크포인트 ---- */
+    checkEvery: 150,            // 이 거리(m)마다
+    checkBonus: 50,             // 남은 햄버거 한 층당 보너스 점수
+    checkTime: 1.0,             // 배너 시간(초)
+
+    /* ---- 점수 ---- 메인 기록은 거리다. 점수는 '잘한 것' 을 모은다. */
+    scorePerMeter: 10,
+    coinScore: 50,
+    perfectScore: 100,          // x 콤보
+    comboMax: 10,               // 점수 배수는 여기까지만
+    missionScore: 500,
+
+    /* ---- 코인 ---- */
+    coinR: 34,                  // 보이는 반지름 (논리 px)
+    coinGap: 150,               // 줄로 놓을 때의 간격
+
+    /* ---- 특수 아이템 ---- 셋뿐이다 */
+    itemTime: 5.0,              // 효과 시간(초)
+    itemFrom: 120,              // 이 거리(m) 뒤부터 나온다
+    itemChance: 0.3,            // 패턴을 놓을 때 아이템이 끼일 확률
+    magnetR: 320,               // 자석이 끌어당기는 거리 (논리 px)
+
+    /* ---- 미션 ---- 한 판에 세 개까지 */
+    missions: [
+      { kind: "patty",   need: 3,  text: "패티 ?개 먹기" },
+      { kind: "perfect", need: 2,  text: "PERFECT ?회" },
+      { kind: "coin",    need: 10, text: "코인 ?개 먹기" },
+    ],
+
+    /* ---- 흔들림 상태 ---- 보이는 게이지는 안 만든다. 판정과 디버그용. */
+    unstableAt: 0.45,           // 낙하선 대비 이 비율을 넘으면 UNSTABLE
+    dangerAt: 0.75,             //  이 비율을 넘으면 DANGER
+    dropLeanTall: 0.92,         // 21단 이상에서 낙하선이 이만큼으로 내려간다
+    dropLeanHuge: 0.86,         // 31단 이상
+
+    /* ---- 이동 장애물 예고 ---- */
+    warnAhead: 1500,            // 이만큼 앞에서부터 화살표로 알린다 (논리 px)
 
     /* ---- 성능 울타리 ---- */
     maxFallen: 40,              // 떨어져 날아가는 재료 수 상한
@@ -229,6 +281,7 @@
   const SFX = {
     hit_soft: null, hit_hard: null, drop: null,
     pickup: null, perfect: null, bump: null, over: null,
+    coin: null, checkpoint: null, new_record: null,
   };
   const sfxCache = {};
   function sfx(name) {
@@ -341,12 +394,23 @@
     got: 0, lost: 0, maxStack: 0,
     lastHit: -9,
     pattern: "-",               // 지금 깔린 패턴 이름 (디버그)
-    best: 0, bestStack: 0,
+    /* V2 */
+    stage: 0, banner: "", bannerSub: "", bannerLeft: 0,
+    nextCheck: 0,
+    score: 0,                   // 거리 점수를 뺀 '모은 점수'
+    coins: 0,
+    combo: 0, comboBest: 0,
+    items: { shield: 0, magnet: 0, double: 0 },
+    mission: null, missionDone: 0, missionLeft: [],
+    envs: [],                   // 길가 실루엣
+    readyLeft: 0,               // READY / GO 연출
+    best: 0, bestStack: 0, bestScore: 0,
     fps: 0,
   };
   try {
     S.best = +(localStorage.getItem("ccojik_burgerrun_best") || 0) || 0;
     S.bestStack = +(localStorage.getItem("ccojik_burgerrun_stack") || 0) || 0;
+    S.bestScore = +(localStorage.getItem("ccojik_burgerrun_score") || 0) || 0;
   } catch (_) {}
 
   const cv = $("cv"), ctx = cv.getContext("2d");
@@ -445,7 +509,7 @@
     }
     /* 너무 휘면 위에서부터 떨어진다 */
     let guard = 0;
-    while (S.layers.length && Math.abs(topLean()) > C.dropLean && guard++ < 4) {
+    while (S.layers.length && Math.abs(topLean()) > dropLeanNow() && guard++ < 4) {
       dropLayers(1, Math.sign(topLean()));
     }
   }
@@ -461,6 +525,8 @@
 
   /* 위에서부터 n 장을 떨어뜨린다 — 배열에서 지우지 않고 '떨어지는 재료'로 넘긴다 */
   function dropLayers(n, dir) {
+    /* 쟁반(방어막)을 들고 있으면 부딪혀도 재료를 안 떨어뜨린다 */
+    if (S.items.shield > 0 && n > 0) { say("쟁반이 막았다!"); return; }
     for (let c = 0; c < n && S.layers.length; c++) {
       const i = S.layers.length - 1;
       const L = S.layers[i];
@@ -513,6 +579,7 @@
     if (top && top.t === "bunTop") S.layers.splice(S.layers.length - 1, 0, L);
     else S.layers.push(L);
     if (!fromFlyer) S.got++;                       // 날아온 것은 먹을 때 이미 셌다
+    if (fromFlyer && t === "patty") missionTick("patty");
     S.maxStack = Math.max(S.maxStack, S.layers.length);
     if (fromFlyer) { sfx("pickup"); }
     paintHud();
@@ -520,6 +587,23 @@
   }
 
   /* 떨어지는 재료 — 중력·회전·한 번의 튕김. 화면을 벗어나면 치운다. */
+  /* 길가 실루엣 — 속도감만 거든다. 장애물보다 눈에 띄면 안 된다. */
+  function stepEnv(dt) {
+    void dt;
+    while (S.envs.length < 10) {
+      const last = S.envs.length ? S.envs[S.envs.length - 1].wy : S.scroll;
+      S.envs.push({
+        wy: last + rnd(320, 620),
+        side: Math.random() < 0.5 ? -1 : 1,
+        kind: Math.random() < 0.5 ? "tree" : "block",
+        h: rnd(180, 420),
+      });
+    }
+    for (let i = S.envs.length - 1; i >= 0; i--) {
+      if (S.envs[i].wy < S.scroll - 400) S.envs.splice(i, 1);
+    }
+  }
+
   function stepFallen(dt) {
     const floorY = 30;                                  // 발밑 가까이가 바닥
     for (let i = S.fallen.length - 1; i >= 0; i--) {
@@ -559,6 +643,10 @@
     scooter: { hw: 62, h: 118, loss: "strong", move: 280, label: "킥보드" },
     wall:    { wall: true, label: "좁은 통로" },
     item:    { item: true, hw: 52, label: "재료" },
+    coin:    { coin: true, hw: 40, label: "코인" },
+    shield:  { gift: true, hw: 50, label: "쟁반" },
+    magnet:  { gift: true, hw: 50, label: "자석" },
+    double:  { gift: true, hw: 50, label: "2배" },
   };
 
   function ent(kind, x, wy, extra) {
@@ -576,14 +664,15 @@
   const PATTERNS = {
     easy: [
       () => [["cone", -200, 0], ["cone", -40, 0], ["item", 240, 300]],
-      () => [["bin", 180, 0], ["item", -160, 280], ["item", -160, 560]],
+      () => [["bin", 180, 0]].concat(coinLine(-170, 4, 200, 0)),
       () => [["cone", 0, 0], ["item", -260, 320], ["item", 260, 320]],
-      () => [["cone", -300, 0], ["cone", -140, 0], ["item", 220, 260]],
+      () => [["cone", -300, 0], ["cone", -140, 0]].concat(coinLine(230, 3, 180, 0)),
     ],
     normal: [
       () => [["box", -230, 0], ["bin", 120, 180], ["item", -60, 520]],
       () => [["sign", 0, 0, { gapLayers: 15 }], ["item", -200, 420], ["item", 200, 420]],
-      () => [["cone", -120, 0], ["cone", 40, 0], ["box", 260, 160], ["item", -280, 480]],
+      () => [["cone", -120, 0], ["cone", 40, 0], ["box", 260, 160]]
+              .concat(coinLine(-290, 4, 420, 20)),
       () => [["bin", -260, 0], ["box", 60, 120], ["item", 280, 380]],
     ],
     /* 중반 이후로는 '가운데' 도 위협한다 — 가만히 있으면 안 되게.
@@ -591,18 +680,21 @@
     medium: [
       () => [["puddle", -150, 0], ["cone", 60, 200], ["cone", 240, 200]],
       () => [["bump", 0, 0], ["cone", -30, 560]],
-      () => [["bike", -300, 0, { dir: 1 }], ["box", 60, 240]],
+      () => [["bike", -300, 0, { dir: 1 }], ["box", 60, 240]]
+              .concat(coinLine(260, 3, 520, -40)),
       () => [["sign", -100, 0, { hw: 250, gapLayers: 12 }], ["cone", 20, 420], ["item", 300, 420]],
     ],
     hard: [
       () => [["wall", 0, 0, { gapW: 230, len: 900 }], ["cone", 0, 1180]],
       () => [["sign", 0, 0, { gapLayers: 11 }], ["cone", -40, 520], ["cone", 200, 520]],
-      () => [["bike", 280, 0, { dir: -1 }], ["puddle", -200, 260], ["box", 40, 520]],
+      () => [["bike", 280, 0, { dir: -1 }], ["puddle", -200, 260], ["box", 40, 520]]
+              .concat(coinLine(-300, 3, 700, 30)),
       () => [["bump", 0, 0], ["box", -60, 420], ["box", 240, 420]],
     ],
     expert: [
       () => [["bike", -320, 0, { dir: 1 }], ["cone", 0, 0], ["cone", 160, 0]],
-      () => [["wire", 0, 0, { gapLayers: 15 }], ["puddle", 120, 300], ["cone", -80, 300]],
+      () => [["wire", 0, 0, { gapLayers: 15 }], ["puddle", 120, 300], ["cone", -80, 300]]
+              .concat(coinLine(260, 4, 560, 0)),
       () => [["bump", 0, 0], ["box", 0, 300], ["bump", 0, 820]],
       () => [["wall", 0, 0, { gapW: 210, len: 1000 }], ["item", 0, 1200], ["cone", -60, 1500]],
     ],
@@ -610,9 +702,19 @@
       () => [["scooter", 300, 0, { dir: -1 }], ["cone", -140, 0], ["cone", 20, 0]],
       () => [["sign", 0, 0, { gapLayers: 10 }], ["box", 0, 560], ["bike", -300, 560, { dir: 1 }]],
       () => [["wall", 0, 0, { gapW: 200, len: 1100 }], ["bump", 0, 1400], ["cone", 0, 1700]],
-      () => [["puddle", -120, 0], ["scooter", -300, 300, { dir: 1 }], ["cone", 60, 520]],
+      () => [["puddle", -120, 0], ["scooter", -300, 300, { dir: 1 }], ["cone", 60, 520]]
+              .concat(coinLine(250, 4, 760, -30)),
     ],
   };
+
+  /* 코인 줄 — 플레이 방향을 끌어 주는 역할이다 */
+  function coinLine(x, n, dy, curve) {
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      out.push(["coin", x + (curve || 0) * i, dy + i * GAME_CONFIG.coinGap]);
+    }
+    return out;
+  }
 
   /* 안전/재료 갈림길 — 한쪽은 비었고 한쪽은 재료가 많고 장애물도 많다 */
   function riskPattern() {
@@ -621,7 +723,62 @@
     for (let i = 0; i < 3; i++) out.push(["item", side * 240 + rnd(-30, 30), i * 300]);
     out.push(["cone", side * 150, 120]);
     out.push(["box", side * 330, 480]);
-    return out;
+    /* 반대쪽은 비어 있고 코인만 깔린다 — 안전한 길이 어느 쪽인지 보이게 */
+    return out.concat(coinLine(-side * 250, 4, 60, 0));
+  }
+
+  /* 지금 스테이지 번호 (0부터) */
+  function stageOf(d) {
+    const L = GAME_CONFIG.stages;
+    let n = 0;
+    for (let i = 0; i < L.length; i++) if (d >= L[i].at) n = i;
+    return n;
+  }
+  function stageInfo() { return GAME_CONFIG.stages[S.stage]; }
+
+  /* 화면 가운데에 잠깐 뜨는 알림 — 게임은 멈추지 않는다 */
+  function banner(text, sub, sec) {
+    S.banner = text; S.bannerSub = sub || "";
+    S.bannerLeft = sec || GAME_CONFIG.bannerTime;
+  }
+
+  /* 흔들림 상태 — SAFE / UNSTABLE / DANGER. 게이지는 안 띄운다. */
+  function swayState() {
+    const r = Math.abs(topLean()) / dropLeanNow();
+    return r >= GAME_CONFIG.dangerAt ? "DANGER"
+         : r >= GAME_CONFIG.unstableAt ? "UNSTABLE" : "SAFE";
+  }
+  /* 지금의 낙하선 — 높을수록 조금 더 쉽게 떨어진다 */
+  function dropLeanNow() {
+    const n = S.layers.length, C = GAME_CONFIG;
+    return C.dropLean * (n >= 31 ? C.dropLeanHuge : n >= 21 ? C.dropLeanTall : 1);
+  }
+
+  /* 점수 — 거리 점수 + 모은 점수 */
+  function totalScore() {
+    return Math.floor(S.dist) * GAME_CONFIG.scorePerMeter + S.score;
+  }
+  function gain(n) {
+    S.score += Math.round(n * (S.items.double > 0 ? 2 : 1));
+  }
+
+  /* ---- 미션 — 한 번에 하나만 보여 준다 ---- */
+  function nextMission() {
+    S.mission = S.missionLeft.length ? S.missionLeft.shift() : null;
+    if (S.mission) S.mission.have = 0;
+    paintMission();
+  }
+  function missionTick(kind, n) {
+    const m = S.mission;
+    if (!m || m.kind !== kind) return;
+    m.have += n || 1;
+    if (m.have >= m.need) {
+      S.missionDone++;
+      gain(GAME_CONFIG.missionScore);
+      banner("CLEAR!", "+" + GAME_CONFIG.missionScore, 0.8);
+      sfx("perfect");
+      nextMission();
+    } else paintMission();
   }
 
   function tier() {
@@ -662,6 +819,12 @@
     ensurePassable(wy);
   }
 
+  /* 길을 막는 것만 — 먹는 것(재료·코인·특수 아이템)과 머리 위·턱은 아니다 */
+  function blocks(kind) {
+    const K = KIND[kind];
+    return !K.item && !K.coin && !K.gift && !K.over && !K.bump && !K.slip;
+  }
+
   /* 한 줄에서 '몸 가운데'가 있을 수 있는 x 구간들 */
   function freeLanes(list) {
     const blocks = [];
@@ -687,8 +850,7 @@
      앞 줄에 서 있을 수 있던 자리에서 좌우로 움직여 닿는지 본다 — 못 닿으면
      그 줄에서 가장 넓은 놈을 치운다. 보고 반응할 시간까지 치는 울타리다. */
   function ensurePassable(from) {
-    const mine = S.ents.filter(e => e.wy >= from - 10 &&
-      !KIND[e.kind].item && !KIND[e.kind].over && !KIND[e.kind].bump);
+    const mine = S.ents.filter(e => e.wy >= from - 10 && blocks(e.kind));
     if (!mine.length) return;
     mine.sort((a, b) => a.wy - b.wy);
     const rows = [];
@@ -744,7 +906,12 @@
         const pool = PATTERNS[tier()];
         const n = Math.floor(Math.random() * pool.length);
         S.pattern = useRisk ? "risk" : tier() + "_" + (n + 1);
-        place(useRisk ? riskPattern() : pool[n](), S.nextSpawn);
+        const rows = useRisk ? riskPattern() : pool[n]();
+        /* 특수 아이템은 드물게, 비어 있는 자리에 하나만 */
+        if (S.dist >= C.itemFrom && Math.random() < C.itemChance) {
+          rows.push([pick(["shield", "magnet", "double"]), rnd(-260, 260), rnd(600, 1000)]);
+        }
+        place(rows, S.nextSpawn);
         S.nextSpawn += spawnGap() * rnd(0.9, 1.15);
       }
     }
@@ -852,6 +1019,37 @@
         continue;
       }
 
+      /* ---- 코인 ---- */
+      if (K.coin) {
+        if (!e.hit) {
+          /* 자석이 켜져 있으면 가까운 것은 끌려온다 */
+          if (S.items.magnet > 0 && Math.abs(rel) < C.magnetR && dx < C.magnetR) {
+            e.x += (px - e.x) * Math.min(1, dt * 6);
+            e.wy -= (e.wy - S.scroll) * Math.min(1, dt * 6);
+          }
+          if (Math.abs(rel) < 70 && dx < e.hw + PLAYER_HW) {
+            e.hit = true;
+            S.coins++;
+            gain(C.coinScore);
+            missionTick("coin");
+            sfx("coin"); buzz(8);
+          }
+        }
+        continue;
+      }
+
+      /* ---- 특수 아이템 ---- */
+      if (K.gift) {
+        if (!e.hit && Math.abs(rel) < 70 && dx < e.hw + PLAYER_HW) {
+          e.hit = true;
+          S.items[e.kind] = C.itemTime;
+          banner(e.kind === "shield" ? "SHIELD!" : e.kind === "magnet" ? "MAGNET!" : "SCORE x2!",
+                 C.itemTime.toFixed(0) + "s", 0.7);
+          sfx("perfect"); buzz(12);
+        }
+        continue;
+      }
+
       /* ---- 재료 획득 ---- */
       if (K.item) {
         if (!e.hit && Math.abs(rel) < 70 && dx < e.hw + PLAYER_HW) {
@@ -887,15 +1085,21 @@
 
   function perfect() {
     S.perfect++;
+    S.combo = S.perfect;
     S.perfectBest = Math.max(S.perfectBest, S.perfect);
+    S.comboBest = Math.max(S.comboBest, S.combo);
     S.perfectHold = 0.9;
-    sfx("perfect");
+    gain(GAME_CONFIG.perfectScore * Math.min(S.combo, GAME_CONFIG.comboMax));
+    missionTick("perfect");
+    sfx("perfect"); buzz(10);
     /* 몇 번 연속하면 재료 한 장 — 보너스는 여기까지다 */
     if (S.perfect % GAME_CONFIG.perfectReward === 0) addLayer(pick(FILLINGS));
   }
   function hitShake(kind) {
-    S.shake = GAME_CONFIG.shakeTime;
-    S.perfect = 0;
+    S.shake = kind === "hard" ? GAME_CONFIG.shakeTime : GAME_CONFIG.shakeTime * 0.6;
+    S.shakeAmpNow = kind === "hard" ? GAME_CONFIG.shakeAmp : GAME_CONFIG.shakeAmp * 0.5;
+    if (S.combo > 1) say("COMBO BREAK", true);
+    S.perfect = 0; S.combo = 0;
     sfx(kind === "hard" ? "hit_hard" : "hit_soft");
     buzz(kind === "hard" ? 35 : 15);
   }
@@ -978,7 +1182,8 @@
     /* 그림을 줄여 그리므로 보간을 켠다. 느려지면 프레임이 먼저다. */
     g.imageSmoothingEnabled = true;
     try { g.imageSmoothingQuality = "high"; } catch (_) {}
-    const shake = S.shake > 0 ? (Math.random() - 0.5) * GAME_CONFIG.shakeAmp * (S.shake / GAME_CONFIG.shakeTime) : 0;
+    const amp = S.shakeAmpNow || GAME_CONFIG.shakeAmp;
+    const shake = S.shake > 0 ? (Math.random() - 0.5) * amp * (S.shake / GAME_CONFIG.shakeTime) : 0;
     g.setTransform(dpr * s, 0, 0, dpr * s,
       dpr * (W / 2 + shake), dpr * (H * GAME_CONFIG.playerY));
   }
@@ -996,10 +1201,26 @@
     g.closePath();
   }
 
-  /* 도로 — 중앙 플레이 영역과 좌우 경계가 또렷해야 장애물이 묻히지 않는다 */
+  /* 길가 실루엣 */
+  function drawEnv(g) {
+    for (const e of S.envs) {
+      const y = -(e.wy - S.scroll);
+      const x = e.side * (ROAD + 150);
+      g.fillStyle = "rgba(0,0,0,.13)";
+      if (e.kind === "tree") {
+        g.fillRect(x - 10, y - e.h * 0.45, 20, e.h * 0.45);
+        g.beginPath(); g.ellipse(x, y - e.h * 0.55, 80, 95, 0, 0, 7); g.fill();
+      } else {
+        g.fillRect(x - 120, y - e.h, 240, e.h);
+      }
+    }
+  }
+
+  /* 도로 — 중앙 플레이 영역과 좌우 경계가 또렷해야 장애물이 묻히지 않는다.
+     스테이지마다 색만 조금 진해진다 (장애물이 묻히지 않을 만큼만). */
   function drawRoad(g) {
     const top = screenTop(), bot = screenBottom();
-    g.fillStyle = "#8E8E88";
+    g.fillStyle = stageInfo().road;
     g.fillRect(-ROAD * 3, top, ROAD * 6, bot - top);
     /* 인도 */
     g.fillStyle = "#C9C5B6";
@@ -1014,7 +1235,7 @@
        빠를수록 더 빨리 흐르는 것처럼 보이게 한다. */
     const step = 260, len = 150;
     const off = S.scroll % step;
-    g.fillStyle = "rgba(255,255,255,.72)";
+    g.fillStyle = stageInfo().line;
     for (let y = top - step; y < bot + step; y += step) {
       g.fillRect(-18, y + off, 36, len);
     }
@@ -1153,6 +1374,36 @@
   function drawEnt(g, e) {
     const K = KIND[e.kind];
     const y = -(e.wy - S.scroll);
+    if (K.coin) {
+      if (e.hit) return;
+      const R = GAME_CONFIG.coinR;
+      const sp = Math.cos(performance.now() / 260 + e.wy * 0.01);   // 돌아가는 느낌
+      g.save();
+      g.translate(e.x, y);
+      g.scale(Math.max(0.25, Math.abs(sp)), 1);
+      g.fillStyle = "#F0B820"; g.strokeStyle = "#8A6200"; g.lineWidth = 6;
+      g.beginPath(); g.ellipse(0, 0, R, R, 0, 0, 7); g.fill(); g.stroke();
+      g.fillStyle = "#FFD764";
+      g.beginPath(); g.ellipse(0, 0, R * 0.55, R * 0.55, 0, 0, 7); g.fill();
+      g.restore();
+      return;
+    }
+    if (K.gift) {
+      if (e.hit) return;
+      const w = 86;
+      g.save();
+      g.translate(e.x, y + Math.sin(performance.now() / 300 + e.wy) * 8);
+      g.fillStyle = e.kind === "shield" ? "#3C78C8"
+                  : e.kind === "magnet" ? "#C8402F" : "#1C9A46";
+      g.strokeStyle = "#1A1A16"; g.lineWidth = 6;
+      roundRect(g, -w / 2, -w / 2, w, w, 14); g.fill(); g.stroke();
+      g.fillStyle = "#FFF";
+      g.font = "800 42px Pretendard, sans-serif";
+      g.textAlign = "center"; g.textBaseline = "middle";
+      g.fillText(e.kind === "shield" ? "방어" : e.kind === "magnet" ? "자석" : "x2", 0, 2);
+      g.restore();
+      return;
+    }
     if (K.item) {
       if (e.hit) return;
       shadow(g, e.x, y + 26, 40, 0.18);
@@ -1207,6 +1458,21 @@
       g.strokeRect(e.x + half, y - len, ROAD - (e.x + half), len);
       return;
     }
+    /* 움직이는 장애물은 오기 전에 알린다 — 갑자기 튀어나오면 억울하다 */
+    if (K.move) {
+      const rel = e.wy - S.scroll;
+      if (rel > 0 && rel < GAME_CONFIG.warnAhead) {
+        const t = screenTop() + 60;
+        g.save();
+        g.globalAlpha = 0.35 + 0.35 * Math.abs(Math.sin(performance.now() / 160));
+        g.fillStyle = "#DA2B2B";
+        g.beginPath();
+        g.moveTo(e.x, t + 34); g.lineTo(e.x - 30, t); g.lineTo(e.x + 30, t);
+        g.closePath(); g.fill();
+        g.restore();
+      }
+    }
+
     /* 땅에 놓인 것들 — 그림은 '접지 중앙' 기준이라 바닥선에 딱 붙는다 */
     shadow(g, e.x, y + 8, e.hw * 0.9);
     const vis = OBSTACLE_VISUAL[e.kind];
@@ -1278,6 +1544,60 @@
     }
   }
 
+  /* 가운데 알림 — STAGE / CHECKPOINT / CLEAR / READY / GO */
+  function drawBanner(g) {
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.textAlign = "center"; g.textBaseline = "middle";
+    let big = "", sub = "", a = 1;
+    if (S.mode === "ready") {
+      big = S.readyLeft > 0.4 ? "READY" : "GO!";
+      a = 1;
+    } else if (S.bannerLeft > 0) {
+      big = S.banner; sub = S.bannerSub;
+      a = Math.min(1, S.bannerLeft * 3);
+    }
+    if (!big) return;
+    const size = Math.max(22, Math.min(W * 0.1, H * 0.06));
+    g.save();
+    g.globalAlpha = a;
+    g.font = "800 " + size + "px Pretendard, sans-serif";
+    g.lineWidth = Math.max(4, size * 0.26);
+    g.strokeStyle = "rgba(255,255,255,.95)";
+    const y = H * 0.4;
+    g.strokeText(big, W / 2, y);
+    g.fillStyle = big === "GO!" ? "#1C9A46" : "#1A1A16";
+    g.fillText(big, W / 2, y);
+    if (sub) {
+      const s2 = size * 0.42;
+      g.font = "800 " + s2 + "px Pretendard, sans-serif";
+      g.lineWidth = Math.max(3, s2 * 0.3);
+      g.strokeText(sub, W / 2, y + size * 0.78);
+      g.fillStyle = "#7A7A70";
+      g.fillText(sub, W / 2, y + size * 0.78);
+    }
+    g.restore();
+  }
+
+  /* 켜져 있는 특수 아이템 — 작은 남은 시간만 */
+  function drawItems(g) {
+    const on = [];
+    if (S.items.shield > 0) on.push(["방어", S.items.shield, "#3C78C8"]);
+    if (S.items.magnet > 0) on.push(["자석", S.items.magnet, "#C8402F"]);
+    if (S.items.double > 0) on.push(["x2", S.items.double, "#1C9A46"]);
+    if (!on.length) return;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const size = Math.max(10, Math.min(W * 0.032, H * 0.02));
+    g.font = "800 " + size + "px Pretendard, sans-serif";
+    g.textAlign = "left"; g.textBaseline = "top";
+    on.forEach((it, i) => {
+      const y = 6 + i * (size * 1.7);
+      g.fillStyle = it[2];
+      g.fillRect(6, y, size * 4.6, size * 1.4);
+      g.fillStyle = "#FFF";
+      g.fillText(it[0] + " " + it[1].toFixed(1) + "s", 10, y + size * 0.2);
+    });
+  }
+
   /* 짧은 상태 메시지 / PERFECT */
   function drawMsg(g) {
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1294,11 +1614,11 @@
       g.fillText(S.msg, W / 2, y);
       g.globalAlpha = 1;
     }
-    if (S.perfectHold > 0 && S.perfect > 0) {
+    if (S.perfectHold > 0 && S.combo > 0) {
       const size = Math.max(16, Math.min(W * 0.062, H * 0.038));
       g.globalAlpha = Math.min(1, S.perfectHold * 2);
       g.font = "800 " + size + "px Pretendard, sans-serif";
-      const txt = S.perfect > 1 ? "PERFECT x" + S.perfect : "PERFECT!";
+      const txt = S.combo > 1 ? "PERFECT x" + S.combo : "PERFECT!";
       const y = H * 0.3;
       g.lineWidth = Math.max(3, size * 0.28);
       g.strokeStyle = "rgba(255,255,255,.95)";
@@ -1375,7 +1695,12 @@
       "distance: " + S.dist.toFixed(1) + "m",
       "speed: " + S.speed.toFixed(0),
       "layers: " + S.layers.length,
-      "sway(top): " + topLean().toFixed(0) + " / " + GAME_CONFIG.dropLean,
+      "sway(top): " + topLean().toFixed(0) + " / " + dropLeanNow().toFixed(0) +
+        "  " + swayState(),
+      "score: " + totalScore() + "  combo: " + S.combo,
+      "stage: " + (S.stage + 1) + " " + stageInfo().name,
+      "coins: " + S.coins + "  items: " +
+        ["shield", "magnet", "double"].filter(k => S.items[k] > 0).join(",") || "-",
       "player vx: " + S.vx.toFixed(2) + "  ax: " + S.ax.toFixed(1),
       "difficulty: " + tier(),
       "pattern: " + S.pattern,
@@ -1398,6 +1723,7 @@
     g.clearRect(0, 0, W, H);
     world(g);
     drawRoad(g);
+    drawEnv(g);
     /* 멀리 있는 것부터 */
     const sorted = S.ents.slice().sort((a, b) => b.wy - a.wy);
     for (const e of sorted) drawEnt(g, e);
@@ -1411,6 +1737,8 @@
     if (DEBUG_COLLISION) drawBoxes(g);
     if (DEBUG_ASSET) drawAnchors(g);
     drawMsg(g);
+    drawBanner(g);
+    drawItems(g);
     if (DEBUG_GAME) drawDebug(g);
   }
 
@@ -1418,9 +1746,19 @@
      진행
      ============================================================ */
   function step(dt) {
+    if (S.mode === "ready") {
+      S.readyLeft -= dt;
+      if (S.readyLeft <= 0) { S.mode = "play"; S.readyLeft = 0; }
+      return;
+    }
     if (S.mode !== "play") {
       if (S.shake > 0) S.shake -= dt;
+      if (S.bannerLeft > 0) S.bannerLeft -= dt;
       return;
+    }
+    /* 특수 아이템 남은 시간 */
+    for (const k of ["shield", "magnet", "double"]) {
+      if (S.items[k] > 0) S.items[k] = Math.max(0, S.items[k] - dt);
     }
     stepPlayer(dt);
     stepWorld(dt);
@@ -1438,6 +1776,25 @@
     if (S.shake > 0) S.shake -= dt;
     if (S.msgLeft > 0) S.msgLeft -= dt;
     if (S.perfectHold > 0) S.perfectHold -= dt;
+    if (S.bannerLeft > 0) S.bannerLeft -= dt;
+
+    /* 스테이지가 바뀌면 배너만 띄운다 — 게임은 멈추지 않는다 */
+    const st = stageOf(S.dist);
+    if (st !== S.stage) {
+      S.stage = st;
+      banner("STAGE " + (st + 1), GAME_CONFIG.stages[st].name);
+      sfx("checkpoint");
+    }
+    /* 체크포인트 — 햄버거를 잘 지켰으면 그만큼 보너스 */
+    if (S.dist >= S.nextCheck) {
+      const b = S.layers.length * GAME_CONFIG.checkBonus;
+      gain(b);
+      banner("CHECKPOINT!", Math.floor(S.dist) + "m · 햄버거 " + S.layers.length +
+        "단 · +" + b, GAME_CONFIG.checkTime);
+      sfx("checkpoint"); buzz(12);
+      S.nextCheck += GAME_CONFIG.checkEvery;
+    }
+    stepEnv(dt);
     paintHud();
   }
 
@@ -1445,10 +1802,19 @@
     $("distNum").textContent = Math.floor(S.dist);
     $("stackNum").textContent = S.layers.length;
     $("stackBox").classList.toggle("low", S.layers.length <= 3);
+    $("scoreNum").textContent = totalScore().toLocaleString();
+  }
+  function paintMission() {
+    const box = $("missionBox");
+    if (!S.mission) { box.hidden = true; return; }
+    box.hidden = false;
+    $("missionText").textContent =
+      S.mission.text.replace("?", S.mission.need) + "  " + S.mission.have + "/" + S.mission.need;
   }
   /* 최고 기록 — 거리와 가장 높이 쌓은 층수, 둘만 둔다 */
   function paintBest() {
-    const t = S.best + "m" + (S.bestStack ? " · " + S.bestStack + "단" : "");
+    const t = S.best + "m" + (S.bestStack ? " · " + S.bestStack + "단" : "") +
+      (S.bestScore ? " · " + S.bestScore.toLocaleString() + "점" : "");
     $("bestStart").textContent = t;
     $("bestEnd").textContent = t;
   }
@@ -1472,7 +1838,15 @@
   /* ============================================================
      판 시작 / 끝
      ============================================================ */
-  function start() {
+  /* 배달 시작 — 타이틀에서 올 때만 READY 0.5초, GO! 0.4초를 보여 준다.
+     '다시 배달' 은 이미 흐름을 아는 사람이므로 바로 달린다 (템포). */
+  function start(skipReady) {
+    reset();
+    if (!skipReady) { S.mode = "ready"; S.readyLeft = 0.9; }
+    $("startOver").hidden = true;
+    $("endOver").hidden = true;
+  }
+  function reset() {
     fitCanvas();
     S.mode = "play";
     S.dist = 0; S.scroll = 0; S.speed = GAME_CONFIG.baseSpeed;
@@ -1491,8 +1865,21 @@
     S.perfect = 0; S.perfectBest = 0; S.perfectHold = 0;
     S.got = 0; S.lost = 0; S.maxStack = S.layers.length;
     S.lastHit = -9;
-    $("startOver").hidden = true;
-    $("endOver").hidden = true;
+    /* V2 */
+    S.stage = 0; S.banner = ""; S.bannerSub = ""; S.bannerLeft = 0;
+    S.nextCheck = GAME_CONFIG.checkEvery;
+    S.score = 0; S.coins = 0;
+    S.combo = 0; S.comboBest = 0;
+    S.items.shield = 0; S.items.magnet = 0; S.items.double = 0;
+    S.envs.length = 0;
+    S.shakeAmpNow = 0;
+    S.missionDone = 0;
+    S.missionLeft = GAME_CONFIG.missions.map(m => Object.assign({}, m));
+    for (let i = S.missionLeft.length - 1; i > 0; i--) {
+      const r = Math.floor(Math.random() * (i + 1));
+      const t = S.missionLeft[i]; S.missionLeft[i] = S.missionLeft[r]; S.missionLeft[r] = t;
+    }
+    nextMission();
     paintHud();
   }
 
@@ -1516,15 +1903,20 @@
     if (S.mode !== "ending") return;               // 그 사이에 다시 시작했으면 버린다
     S.mode = "over";
     const m = Math.floor(S.dist);
+    const sc = totalScore();
     const G = gradeFor(m);
-    $("resTitle").textContent = "배달 실패!";
+    const rec = m > S.best || sc > S.bestScore;
+    $("resTitle").textContent = "배달 종료!";
+    $("newRec").hidden = !rec;
     $("finalDist").textContent = m;
+    $("finalScore").textContent = sc.toLocaleString();
     $("gradeLabel").textContent = G.title;
     $("remark").textContent = G.remark;
     $("maxStack").textContent = S.maxStack + "단";
     $("gotCount").textContent = S.got + "개";
-    $("lostCount").textContent = S.lost + "개";
     $("perfCount").textContent = S.perfectBest + "회";
+    $("comboCount").textContent = "x" + S.comboBest;
+    if (rec) sfx("new_record");
 
     const art = snapPile();
     const box = $("resultArt");
@@ -1532,7 +1924,7 @@
     art.className = "result-egg-cv";
     box.appendChild(art);
     lastArt = art;
-    lastInfo = { m, grade: G, stack: S.maxStack };
+    lastInfo = { m, grade: G, stack: S.maxStack, score: sc };
 
     if (m > S.best) {
       S.best = m;
@@ -1541,6 +1933,10 @@
     if (S.maxStack > S.bestStack) {
       S.bestStack = S.maxStack;
       try { localStorage.setItem("ccojik_burgerrun_stack", String(S.bestStack)); } catch (_) {}
+    }
+    if (sc > S.bestScore) {
+      S.bestScore = sc;
+      try { localStorage.setItem("ccojik_burgerrun_score", String(sc)); } catch (_) {}
     }
     paintBest();
     $("endOver").hidden = false;
@@ -1600,7 +1996,8 @@
     g.font = "800 230px Pretendard, sans-serif";
     g.fillText(m + "m", 540, 880);
     g.font = "800 54px Pretendard, sans-serif";
-    g.fillText("최대 " + (lastInfo ? lastInfo.stack : 0) + "단", 540, 970);
+    g.fillText("최대 " + (lastInfo ? lastInfo.stack : 0) + "단 · " +
+      (lastInfo ? lastInfo.score.toLocaleString() : 0) + "점", 540, 970);
     g.font = "800 72px Pretendard, sans-serif";
     g.fillText(lastInfo ? lastInfo.grade.title : "", 540, 1080);
     g.font = "700 40px Pretendard, sans-serif";
@@ -1669,7 +2066,7 @@
      버튼
      ============================================================ */
   $("startBtn").addEventListener("click", () => { if (assetsReady) start(); });
-  $("againBtn").addEventListener("click", start);
+  $("againBtn").addEventListener("click", () => start(true));
   $("shareBtn").addEventListener("click", shareResult);
 
   paintBest();
@@ -1697,6 +2094,8 @@
     BURGER_BASE_OFFSET_Y, FALLING_SCALE, PICKUP_SCALE, DEBUG_ASSET,
     handY, gapHeight, stepOf, ingW, visHeight, drawHero, loadAssets,
     ASSET_VERSION, RUN_BOB, RUN_HZ, BURGER_LAG, flyTo, paintBest,
+    stageOf, stageInfo, swayState, dropLeanNow, totalScore, gain,
+    nextMission, missionTick, coinLine, banner, reset, drawEnv,
     assetsReady: () => assetsReady,
   });
 })();
