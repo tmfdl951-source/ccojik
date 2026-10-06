@@ -97,23 +97,33 @@
       easy: 0, normal: 100, medium: 250, hard: 400, expert: 600, endless: 800,
     },
     spawnGap: [                 // 난이도별 패턴 간격 (논리 px)
-      { tier: "easy",    gap: 2000 },
-      { tier: "normal",  gap: 1750 },
+      { tier: "easy",    gap: 1800 },
+      { tier: "normal",  gap: 1620 },
       { tier: "medium",  gap: 1500 },
       { tier: "hard",    gap: 1320 },
       { tier: "expert",  gap: 1180 },
       { tier: "endless", gap: 1050 },
     ],
     riskRouteFrom: 170,         // 안전/재료 갈림길이 나오기 시작하는 거리(m)
+    /* 이 거리(m)부터는 '가운데로만 달리면' 반드시 걸리게 패턴을 한쪽으로 민다.
+       손을 안 대면 100~180m 쯤에서 햄버거가 다 떨어지도록 하는 장치다.
+       그 전(0~50m)은 규칙을 익히는 구간이라 건드리지 않는다. */
+    forceCenterFrom: 55,
+    centerBand: 155,            // 가운데라고 보는 폭 (논리 px, 좌우 각각)
 
     /* ---- 스테이지 ---- 난이도(패턴 풀)와 따로 둔다. 이건 '보여 주기' 용이다.
        도로 색과 배너만 바뀌고 게임은 멈추지 않는다. */
     stages: [
-      { at: 0,   name: "골목길",    road: "#8E8E88", line: "rgba(255,255,255,.72)" },
-      { at: 150, name: "번화가",    road: "#7E7E78", line: "rgba(255,255,255,.78)" },
-      { at: 350, name: "배달 지옥", road: "#6E6E68", line: "rgba(255,206,31,.72)" },
-      { at: 600, name: "러시아워",  road: "#5E5E58", line: "rgba(255,206,31,.85)" },
-      { at: 800, name: "ENDLESS",   road: "#4E4E48", line: "rgba(218,43,43,.80)" },
+      { at: 0,   name: "골목길",    road: "#9A9A92", line: "rgba(255,255,255,.72)",
+        deco: ["pot", "fence", "lamp"] },
+      { at: 150, name: "번화가",    road: "#85857E", line: "rgba(255,255,255,.80)",
+        deco: ["shop", "rack", "cross"] },
+      { at: 350, name: "배달 지옥", road: "#6E6E68", line: "rgba(255,206,31,.72)",
+        deco: ["barrier", "stripe", "cone2"] },
+      { at: 600, name: "러시아워",  road: "#585852", line: "rgba(255,206,31,.88)",
+        deco: ["lamp", "shop", "dash"] },
+      { at: 800, name: "ENDLESS",   road: "#45453F", line: "rgba(218,43,43,.85)",
+        deco: ["barrier", "shop", "lamp", "stripe", "pot"] },
     ],
     bannerTime: 0.85,           // 스테이지 배너가 떠 있는 시간(초)
 
@@ -170,22 +180,26 @@
      ============================================================ */
   /* 파일명이 그대로라 브라우저·CDN 이 옛 그림을 쥐고 있을 수 있다.
      그림을 갈아 끼울 때마다 이 날짜만 올리면 즉시 새 그림이 간다. */
-  const ASSET_VERSION = "20261006b";
+  const ASSET_VERSION = "20261006c";
+  /* image/ 에는 원본(합계 11.6MB)이 그대로 있고, 게임은 image/opt/ 의 가벼운
+     사본(합계 1.4MB)을 쓴다. 사본은 화면에 그려지는 크기의 약 두 배 해상도라
+     눈으로는 차이가 없다. 그림을 다시 줄이면 ASSET_VERSION 만 올리면 된다. */
+  const IMG_DIR = "image/opt/";
   const ASSETS = {
-    player:    "image/player.png.png?v=" + ASSET_VERSION,
-    bunTop:    "image/ing-bun-top.png.png",
-    bunBottom: "image/ing-bun-bottom.png.png",
-    patty:     "image/ing-patty.png.png",
-    cheese:    "image/ing-cheese.png.png",
-    lettuce:   "image/ing-lettuce.png.png",
-    tomato:    "image/ing-tomato.png.png",
-    pickle:    "image/ing-pickle.png.png",
-    cone:      "image/obs-cone.png.png",
-    bin:       "image/obs-bin.png.png",
-    box:       "image/obs-box.png.png",
-    bike:      "image/obs-bike.png.png",
-    scooter:   "image/obs-scooter.png.png",
-    sign:      "image/obs-sign.png.png",
+    player:    IMG_DIR + "player.png.png?v=" + ASSET_VERSION,
+    bunTop:    IMG_DIR + "ing-bun-top.png.png?v=" + ASSET_VERSION,
+    bunBottom: IMG_DIR + "ing-bun-bottom.png.png?v=" + ASSET_VERSION,
+    patty:     IMG_DIR + "ing-patty.png.png?v=" + ASSET_VERSION,
+    cheese:    IMG_DIR + "ing-cheese.png.png?v=" + ASSET_VERSION,
+    lettuce:   IMG_DIR + "ing-lettuce.png.png?v=" + ASSET_VERSION,
+    tomato:    IMG_DIR + "ing-tomato.png.png?v=" + ASSET_VERSION,
+    pickle:    IMG_DIR + "ing-pickle.png.png?v=" + ASSET_VERSION,
+    cone:      IMG_DIR + "obs-cone.png.png?v=" + ASSET_VERSION,
+    bin:       IMG_DIR + "obs-bin.png.png?v=" + ASSET_VERSION,
+    box:       IMG_DIR + "obs-box.png.png?v=" + ASSET_VERSION,
+    bike:      IMG_DIR + "obs-bike.png.png?v=" + ASSET_VERSION,
+    scooter:   IMG_DIR + "obs-scooter.png.png?v=" + ASSET_VERSION,
+    sign:      IMG_DIR + "obs-sign.png.png?v=" + ASSET_VERSION,
   };
 
   /* 알파를 실제로 훑어 얻은 '보이는 부분'의 테두리 — 캔버스 대비 비율이다.
@@ -280,13 +294,17 @@
   /* 효과음 — 파일이 들어오면 여기 경로만 채우면 된다. 없으면 조용히 넘어간다. */
   const SFX = {
     hit_soft: null, hit_hard: null, drop: null,
-    pickup: null, perfect: null, bump: null, over: null,
-    coin: null, checkpoint: null, new_record: null,
+    pickup: null, perfect: null, bump: null,
+    coin: null, checkpoint: null, new_record: null, game_over: null,
   };
-  const sfxCache = {};
+  const sfxCache = {}, sfxAt = {};
+  const SFX_GAP = 60;                    // 같은 소리가 겹쳐 터지지 않게 (ms)
   function sfx(name) {
     const src = SFX[name];
-    if (!src) return;
+    if (!src) return;                    // 아직 파일이 없다
+    const now = performance.now();
+    if (now - (sfxAt[name] || -9999) < SFX_GAP) return;
+    sfxAt[name] = now;
     try {
       let a = sfxCache[name];
       if (!a) { a = sfxCache[name] = new Audio(src); a.preload = "auto"; }
@@ -317,13 +335,14 @@
       rec.el.onload = () => { rec.ok = true; fin(); };
       /* 파일 이름이 'ing-patty.png.png' 처럼 확장자가 겹쳐 있다. 나중에 누가
          'ing-patty.png' 로 고쳐 두면 그쪽으로 한 번 더 찾아본다. */
-      let retried = false;
+      /* 가벼운 사본이 없으면 원본으로, 그래도 없으면 확장자가 하나인 쪽으로 */
+      const alt = [
+        ASSETS[k].replace(IMG_DIR, "image/"),
+        ASSETS[k].replace(/[.]png[.]png([?]|$)/, ".png$1"),
+      ];
+      let tryN = 0;
       rec.el.onerror = () => {
-        if (!retried && /.png.png$/.test(ASSETS[k])) {
-          retried = true;
-          rec.el.src = ASSETS[k].replace(/.png.png$/, ".png");
-          return;
-        }
+        if (tryN < alt.length) { rec.el.src = alt[tryN++]; return; }
         console.warn("[burger-run] 그림을 못 읽었습니다: " + ASSETS[k]);
         fin();
       };
@@ -402,7 +421,9 @@
     combo: 0, comboBest: 0,
     items: { shield: 0, magnet: 0, double: 0 },
     mission: null, missionDone: 0, missionLeft: [],
-    envs: [],                   // 길가 실루엣
+    envs: [],                   // 길가 꾸밈
+    pops: [],                   // 떠오르는 작은 글자 (+1, +50)
+    flash: 0,                   // 체크포인트 때 아주 짧은 흰 섬광
     readyLeft: 0,               // READY / GO 연출
     best: 0, bestStack: 0, bestScore: 0,
     fps: 0,
@@ -587,20 +608,23 @@
   }
 
   /* 떨어지는 재료 — 중력·회전·한 번의 튕김. 화면을 벗어나면 치운다. */
-  /* 길가 실루엣 — 속도감만 거든다. 장애물보다 눈에 띄면 안 된다. */
+  /* 길가 꾸밈 — 스테이지마다 다른 것이 흐른다. 속도감과 '여기가 어디인지'만
+     거들고, 장애물보다 눈에 띄면 안 되므로 옅은 색으로만 그린다. */
   function stepEnv(dt) {
     void dt;
-    while (S.envs.length < 10) {
+    while (S.envs.length < 12) {
       const last = S.envs.length ? S.envs[S.envs.length - 1].wy : S.scroll;
+      const pool = stageInfo().deco;
       S.envs.push({
-        wy: last + rnd(320, 620),
+        wy: last + rnd(260, 520),
         side: Math.random() < 0.5 ? -1 : 1,
-        kind: Math.random() < 0.5 ? "tree" : "block",
-        h: rnd(180, 420),
+        kind: pool[Math.floor(Math.random() * pool.length)],
+        h: rnd(170, 400),
+        w: rnd(0.8, 1.25),
       });
     }
     for (let i = S.envs.length - 1; i >= 0; i--) {
-      if (S.envs[i].wy < S.scroll - 400) S.envs.splice(i, 1);
+      if (S.envs[i].wy < S.scroll - 500) S.envs.splice(i, 1);
     }
   }
 
@@ -817,6 +841,43 @@
       S.ents.push(e);
     }
     ensurePassable(wy);
+    offCenter(wy);
+  }
+
+  /* 한 줄의 빈 길이 하필 '가운데' 면, 그 줄을 통째로 옆으로 민다.
+     막는 것을 더하지 않고 자리만 옮기므로 지나갈 길은 그대로 남는다 —
+     대신 가만히 있으면 반드시 걸린다. */
+  function offCenter(from) {
+    const C = GAME_CONFIG;
+    if (S.dist < C.forceCenterFrom) return;
+    const mine = S.ents.filter(e => e.wy >= from - 10 && blocks(e.kind));
+    if (!mine.length) return;
+    mine.sort((a, b) => a.wy - b.wy);
+    const rows = [];
+    for (const e of mine) {
+      const r = rows[rows.length - 1];
+      if (r && Math.abs(e.wy - r.wy) < 120) r.list.push(e);
+      else rows.push({ wy: e.wy, list: [e] });
+    }
+    for (const row of rows) {
+      const free = freeLanes(row.list);
+      /* 가운데를 품은 빈 길이 있나 */
+      const mid = free.find(f => f[0] <= C.centerBand && f[1] >= -C.centerBand);
+      if (!mid) continue;
+      /* 그 길의 가까운 쪽 끝이 가운데 밖으로 나가게 민다 */
+      const toLeft = -(C.centerBand + 10) - mid[1];     // 음수
+      const toRight = (C.centerBand + 10) - mid[0];     // 양수
+      let d = Math.abs(toLeft) < Math.abs(toRight) ? toLeft : toRight;
+      /* 밀어도 장애물이 도로 안에 남아야 한다 */
+      let lo = -Infinity, hi = Infinity;
+      for (const e of row.list) {
+        lo = Math.max(lo, -ROAD + 50 - (e.x - e.hw));
+        hi = Math.min(hi, ROAD - 50 - (e.x + e.hw));
+      }
+      d = clamp(d, lo, hi);
+      if (!isFinite(d) || !d) continue;
+      for (const e of row.list) e.x += d;
+    }
   }
 
   /* 길을 막는 것만 — 먹는 것(재료·코인·특수 아이템)과 머리 위·턱은 아니다 */
@@ -1032,6 +1093,8 @@
             S.coins++;
             gain(C.coinScore);
             missionTick("coin");
+            pop("+" + (C.coinScore * (S.items.double > 0 ? 2 : 1)), e.x, -(e.wy - S.scroll),
+                "#C08A00");
             sfx("coin"); buzz(8);
           }
         }
@@ -1055,7 +1118,9 @@
         if (!e.hit && Math.abs(rel) < 70 && dx < e.hw + PLAYER_HW) {
           e.hit = true; e.taken = true;
           /* 그 자리에서 탑 꼭대기로 날아간다 */
-          if (flyTo(e.t, e.x, -(e.wy - S.scroll))) say(ING[e.t].name + " +1");
+          if (flyTo(e.t, e.x, -(e.wy - S.scroll))) {
+            pop("+1", e.x, -(e.wy - S.scroll), "#1C9A46");
+          }
         }
         continue;
       }
@@ -1088,7 +1153,7 @@
     S.combo = S.perfect;
     S.perfectBest = Math.max(S.perfectBest, S.perfect);
     S.comboBest = Math.max(S.comboBest, S.combo);
-    S.perfectHold = 0.9;
+    S.perfectHold = 0.45;
     gain(GAME_CONFIG.perfectScore * Math.min(S.combo, GAME_CONFIG.comboMax));
     missionTick("perfect");
     sfx("perfect"); buzz(10);
@@ -1201,17 +1266,78 @@
     g.closePath();
   }
 
-  /* 길가 실루엣 */
+  /* 길가·노면 꾸밈 — 스테이지별로 종류가 다르다 */
   function drawEnv(g) {
     for (const e of S.envs) {
       const y = -(e.wy - S.scroll);
-      const x = e.side * (ROAD + 150);
-      g.fillStyle = "rgba(0,0,0,.13)";
-      if (e.kind === "tree") {
-        g.fillRect(x - 10, y - e.h * 0.45, 20, e.h * 0.45);
-        g.beginPath(); g.ellipse(x, y - e.h * 0.55, 80, 95, 0, 0, 7); g.fill();
-      } else {
-        g.fillRect(x - 120, y - e.h, 240, e.h);
+      const x = e.side * (ROAD + 160);
+      const w = e.w;
+      switch (e.kind) {
+        case "pot":                                  // 화분
+          g.fillStyle = "rgba(120,70,40,.30)";
+          g.fillRect(x - 34 * w, y - 54, 68 * w, 54);
+          g.fillStyle = "rgba(40,110,50,.28)";
+          g.beginPath(); g.ellipse(x, y - 78, 44 * w, 40, 0, 0, 7); g.fill();
+          break;
+        case "fence":                                // 낮은 담장
+          g.fillStyle = "rgba(0,0,0,.12)";
+          g.fillRect(x - 150, y - 90, 300, 90);
+          g.fillStyle = "rgba(255,255,255,.10)";
+          for (let i = -2; i <= 2; i++) g.fillRect(x + i * 60 - 6, y - 90, 12, 90);
+          break;
+        case "lamp":                                 // 가로등
+          g.fillStyle = "rgba(0,0,0,.22)";
+          g.fillRect(x - 8, y - e.h, 16, e.h);
+          g.fillRect(x - 8 - e.side * 60, y - e.h, 60, 14);
+          g.fillStyle = "rgba(255,206,31,.22)";
+          g.beginPath();
+          g.ellipse(x - e.side * 60, y - e.h + 20, 26, 20, 0, 0, 7); g.fill();
+          break;
+        case "shop":                                 // 상점 간판
+          g.fillStyle = "rgba(0,0,0,.14)";
+          g.fillRect(x - 150, y - e.h, 300, e.h);
+          g.fillStyle = "rgba(218,43,43,.22)";
+          g.fillRect(x - 130, y - e.h + 26, 260, 54);
+          g.fillStyle = "rgba(255,255,255,.14)";
+          for (let i = 0; i < 3; i++) g.fillRect(x - 110, y - e.h + 110 + i * 70, 220, 40);
+          break;
+        case "rack":                                 // 자전거 주차
+          g.strokeStyle = "rgba(0,0,0,.22)"; g.lineWidth = 9;
+          for (let i = -1; i <= 1; i++) {
+            g.beginPath();
+            g.moveTo(x + i * 54 - 20, y); g.lineTo(x + i * 54 - 20, y - 62);
+            g.lineTo(x + i * 54 + 20, y - 62); g.lineTo(x + i * 54 + 20, y);
+            g.stroke();
+          }
+          break;
+        case "barrier":                              // 공사 경고 배리어
+          g.fillStyle = "rgba(0,0,0,.16)";
+          g.fillRect(x - 120, y - 96, 240, 96);
+          for (let i = 0; i < 5; i++) {
+            g.fillStyle = i % 2 ? "rgba(240,160,30,.40)" : "rgba(255,255,255,.26)";
+            g.fillRect(x - 120 + i * 48, y - 96, 48, 96);
+          }
+          break;
+        case "cone2":                                // 길가에 치워 둔 콘
+          g.fillStyle = "rgba(242,106,27,.32)";
+          g.beginPath();
+          g.moveTo(x, y - 84); g.lineTo(x + 36, y); g.lineTo(x - 36, y);
+          g.closePath(); g.fill();
+          break;
+        case "stripe":                               // 도로 가장자리 공사 띠
+          g.fillStyle = "rgba(240,160,30,.22)";
+          g.fillRect(e.side * (ROAD - 14), y - 220, 28, 220);
+          break;
+        case "cross":                                // 횡단보도 (도로를 가로지른다)
+          if (e.side < 0) {
+            g.fillStyle = "rgba(255,255,255,.16)";
+            for (let i = -4; i <= 4; i++) g.fillRect(i * 96 - 32, y - 150, 64, 150);
+          }
+          break;
+        case "dash":                                 // 바깥 차선 — 속도감
+          g.fillStyle = "rgba(255,255,255,.14)";
+          g.fillRect(e.side * (ROAD - 70) - 7, y - 200, 14, 200);
+          break;
       }
     }
   }
@@ -1544,6 +1670,33 @@
     }
   }
 
+  /* 먹었을 때 그 자리에 떠오르는 작은 글자 */
+  function pop(text, x, y, color) {
+    if (S.pops.length > 12) S.pops.shift();
+    S.pops.push({ text, x, y, life: 0.55, color: color || "#1A1A16" });
+  }
+  function stepPops(dt) {
+    for (let i = S.pops.length - 1; i >= 0; i--) {
+      const p = S.pops[i];
+      p.life -= dt; p.y -= 150 * dt;
+      if (p.life <= 0) S.pops.splice(i, 1);
+    }
+  }
+  function drawPops(g) {
+    for (const p of S.pops) {
+      const a = Math.min(1, p.life * 3);
+      g.save();
+      g.globalAlpha = a;
+      g.textAlign = "center"; g.textBaseline = "middle";
+      g.font = "800 46px Pretendard, sans-serif";
+      g.lineWidth = 12; g.strokeStyle = "rgba(255,255,255,.95)";
+      g.strokeText(p.text, p.x, p.y);
+      g.fillStyle = p.color;
+      g.fillText(p.text, p.x, p.y);
+      g.restore();
+    }
+  }
+
   /* 가운데 알림 — STAGE / CHECKPOINT / CLEAR / READY / GO */
   function drawBanner(g) {
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1615,16 +1768,27 @@
       g.globalAlpha = 1;
     }
     if (S.perfectHold > 0 && S.combo > 0) {
-      const size = Math.max(16, Math.min(W * 0.062, H * 0.038));
-      g.globalAlpha = Math.min(1, S.perfectHold * 2);
+      /* 짧고 크게 — 들어올 때 살짝 커진다 */
+      const k = clamp(S.perfectHold / 0.45, 0, 1);
+      const grow = 1 + (1 - k) * 0.18;
+      const size = Math.max(18, Math.min(W * 0.082, H * 0.05)) * grow;
+      g.globalAlpha = Math.min(1, k * 2.2);
       g.font = "800 " + size + "px Pretendard, sans-serif";
-      const txt = S.combo > 1 ? "PERFECT x" + S.combo : "PERFECT!";
       const y = H * 0.3;
-      g.lineWidth = Math.max(3, size * 0.28);
+      g.lineWidth = Math.max(4, size * 0.26);
       g.strokeStyle = "rgba(255,255,255,.95)";
-      g.strokeText(txt, W / 2, y);
+      g.strokeText("PERFECT!", W / 2, y);
       g.fillStyle = "#1C9A46";
-      g.fillText(txt, W / 2, y);
+      g.fillText("PERFECT!", W / 2, y);
+      if (S.combo > 1) {
+        const s2 = size * 0.46;
+        g.font = "800 " + s2 + "px Pretendard, sans-serif";
+        g.lineWidth = Math.max(3, s2 * 0.3);
+        g.strokeStyle = "rgba(255,255,255,.95)";
+        g.strokeText("COMBO x" + S.combo, W / 2, y + size * 0.72);
+        g.fillStyle = "#1A1A16";
+        g.fillText("COMBO x" + S.combo, W / 2, y + size * 0.72);
+      }
       g.globalAlpha = 1;
     }
   }
@@ -1734,8 +1898,14 @@
     drawBurger(g, px, -handY() + S.hop + S.bobLag);
     drawFlyers(g);
     drawFallen(g);
+    drawPops(g);
     if (DEBUG_COLLISION) drawBoxes(g);
     if (DEBUG_ASSET) drawAnchors(g);
+    if (S.flash > 0) {
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      g.fillStyle = "rgba(255,255,255," + (S.flash / 0.14 * 0.4).toFixed(3) + ")";
+      g.fillRect(0, 0, W, H);
+    }
     drawMsg(g);
     drawBanner(g);
     drawItems(g);
@@ -1765,6 +1935,8 @@
     stepSway(dt);
     stepFallen(dt);
     stepFlyers(dt);
+    stepPops(dt);
+    if (S.flash > 0) S.flash -= dt;
     checkHits(dt);
     /* 카메라 — 탑이 높아지면 조금 물러난다 */
     S.zoomTo = 1;
@@ -1792,6 +1964,7 @@
       banner("CHECKPOINT!", Math.floor(S.dist) + "m · 햄버거 " + S.layers.length +
         "단 · +" + b, GAME_CONFIG.checkTime);
       sfx("checkpoint"); buzz(12);
+      S.flash = 0.14;
       S.nextCheck += GAME_CONFIG.checkEvery;
     }
     stepEnv(dt);
@@ -1872,6 +2045,8 @@
     S.combo = 0; S.comboBest = 0;
     S.items.shield = 0; S.items.magnet = 0; S.items.double = 0;
     S.envs.length = 0;
+    S.pops.length = 0;
+    S.flash = 0;
     S.shakeAmpNow = 0;
     S.missionDone = 0;
     S.missionLeft = GAME_CONFIG.missions.map(m => Object.assign({}, m));
@@ -1889,7 +2064,7 @@
     S.slowmo = 0.35;                               // 마지막 재료가 떨어지는 순간
     S.shake = GAME_CONFIG.shakeTime;
     S.drag = null;
-    sfx("over"); buzz([30, 60, 30]);
+    sfx("game_over"); buzz([30, 60, 30]);
     say("배달 실패!", true);
     setTimeout(showResult, 700);
   }
@@ -1913,7 +2088,6 @@
     $("gradeLabel").textContent = G.title;
     $("remark").textContent = G.remark;
     $("maxStack").textContent = S.maxStack + "단";
-    $("gotCount").textContent = S.got + "개";
     $("perfCount").textContent = S.perfectBest + "회";
     $("comboCount").textContent = "x" + S.comboBest;
     if (rec) sfx("new_record");
@@ -2096,6 +2270,7 @@
     ASSET_VERSION, RUN_BOB, RUN_HZ, BURGER_LAG, flyTo, paintBest,
     stageOf, stageInfo, swayState, dropLeanNow, totalScore, gain,
     nextMission, missionTick, coinLine, banner, reset, drawEnv,
+    offCenter, blocks, pop, IMG_DIR, SFX_GAP,
     assetsReady: () => assetsReady,
   });
 })();

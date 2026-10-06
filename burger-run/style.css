@@ -200,12 +200,13 @@ body { display: flex; align-items: center; justify-content: center; }
 .stats .score-row dd { font-size: 1.18em; }
 .new-rec {
   font-weight: 800; letter-spacing: .08em;
-  font-size: clamp(14px, min(4.6vw, 2.4vh), 21px);
+  font-size: clamp(15px, min(5vw, 2.6vh), 23px);
   color: var(--red);
-  animation: rec .6s steps(2, end) infinite;
+  animation: recIn .32s cubic-bezier(.2, 1.6, .4, 1) 1, rec .7s steps(2, end) .32s infinite;
 }
 .new-rec[hidden] { display: none; }
-@keyframes rec { 50% { opacity: .35; } }
+@keyframes rec { 50% { opacity: .4; } }
+@keyframes recIn { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .stats dd { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
 
 .res-btns {
