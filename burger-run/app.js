@@ -15,6 +15,10 @@
  * 스프링이고, 손끝의 '가속도'가 그 스프링을 흔든다. 위로 갈수록 무르게
  * 묶여 있어 탑이 휘어 보인다. 많이 휘면 위에서부터 떨어진다.
  *
+ * 그림은 전부 image/ 의 PNG 다. 파일마다 투명 여백이 달라서, 알파를 실제로
+ * 재서 얻은 '보이는 부분'의 테두리(BOX)로 크기와 접지선을 보정한다. 그래서
+ * 원본 픽셀 크기는 쓰지 않고, 보이는 폭을 논리 px 로 지정해 그린다.
+ *
  * 금지: 외부 라이브러리, 이모지 */
 (() => {
   "use strict";
@@ -25,7 +29,9 @@
   const GAME_CONFIG = {
     /* ---- 시작 상태 ---- */
     startBurgerLayers: 14,      // 첫 화면부터 이만큼 높다
-    maxLayers: 40,              // 이 위로는 안 쌓인다 (성능·화면)
+    maxLayers: 32,              // 이 위로는 안 쌓인다 (성능·화면)
+                                //  32단 x 평균 간격 40 + 캐릭터 = 논리 1578px,
+                                //  줌 0.85 에서 쓸 수 있는 1649px 안에 들어온다
 
     /* ---- 전진 ---- 논리 px/초 */
     baseSpeed: 1000,
@@ -68,11 +74,12 @@
 
     /* ---- 카메라 ---- */
     playerY: 0.73,              // 플레이어가 화면 위에서 어디쯤인가
-    cameraZoom: [               // 탑이 높아지면 조금씩 물러난다
-      { upTo: 15, scale: 1.00 },
-      { upTo: 25, scale: 0.95 },
-      { upTo: 35, scale: 0.90 },
-      { upTo: 999, scale: 0.85 },
+    cameraZoom: [               // 탑이 높아지면 조금씩 물러난다.
+      { upTo: 15, scale: 1.00 },   //  마지막 칸(0.80)은 '패티만 32단' 같은
+      { upTo: 22, scale: 0.95 },   //  가장 높은 경우(논리 1691px)까지
+      { upTo: 27, scale: 0.90 },   //  꼭대기가 잘리지 않게 잡은 값이다
+      { upTo: 31, scale: 0.85 },
+      { upTo: 999, scale: 0.80 },
     ],
     zoomEase: 3.2,
     shakeTime: 0.18,            // 충돌 순간에만 아주 약하게
@@ -97,14 +104,87 @@
     maxEntities: 60,            // 화면에 둘 장애물·아이템 수 상한
   };
 
-  /* 디버그 — 배포는 둘 다 false */
+  /* 디버그 — 배포는 전부 false */
   const DEBUG_GAME = false;
   const DEBUG_COLLISION = false;
+  const DEBUG_ASSET = false;        // 앵커·보이는 영역·접지선을 그려 본다
+
+  /* ============================================================
+     그림 — image/ 안의 실제 파일. 파일명은 그대로 둔다(이중 확장자 포함).
+     ============================================================ */
+  const ASSETS = {
+    player:    "image/player.png.png",
+    bunTop:    "image/ing-bun-top.png.png",
+    bunBottom: "image/ing-bun-bottom.png.png",
+    patty:     "image/ing-patty.png.png",
+    cheese:    "image/ing-cheese.png.png",
+    lettuce:   "image/ing-lettuce.png.png",
+    tomato:    "image/ing-tomato.png.png",
+    pickle:    "image/ing-pickle.png.png",
+    cone:      "image/obs-cone.png.png",
+    bin:       "image/obs-bin.png.png",
+    box:       "image/obs-box.png.png",
+    bike:      "image/obs-bike.png.png",
+    scooter:   "image/obs-scooter.png.png",
+    sign:      "image/obs-sign.png.png",
+  };
+
+  /* 알파를 실제로 훑어 얻은 '보이는 부분'의 테두리 — 캔버스 대비 비율이다.
+     l/t/r/b 는 사방의 투명 여백. 이 값이 없으면 파일마다 여백이 달라
+     크기도 접지선도 제각각 어긋난다. 그림을 바꾸면 이 표도 다시 재야 한다. */
+  const BOX = {
+    player:    { l: .015, t: .218, r: .016, b: .047, hand: .254 },
+    bunTop:    { l: .076, t: .086, r: .076, b: .105 },
+    bunBottom: { l: .076, t: .327, r: .078, b: .108 },
+    patty:     { l: .165, t: .196, r: .164, b: .169 },
+    cheese:    { l: .118, t: .250, r: .119, b: .249 },
+    lettuce:   { l: .023, t: .159, r: .023, b: .146 },
+    tomato:    { l: .092, t: .104, r: .093, b: .110 },
+    pickle:    { l: .049, t: .225, r: .048, b: .185 },
+    cone:      { l: .008, t: .058, r: .010, b: .054 },
+    bin:       { l: .028, t: .103, r: .029, b: .049 },
+    box:       { l: .003, t: .247, r: .004, b: .120 },
+    bike:      { l: .001, t: .321, r: .000, b: .089 },
+    scooter:   { l: .016, t: .056, r: .021, b: .035 },
+    sign:      { l: .014, t: .203, r: .014, b: .224 },
+  };
+
+  /* 보이는 크기 — 원본 픽셀이 아니라 전부 논리 px 로 따로 잡는다 */
+  const PLAYER_VISUAL = { width: 220, offsetX: 0, offsetY: 0 };
+  const BURGER_W = 210;              // 기준 재료(1.0)의 보이는 폭
+  const BURGER_BASE_OFFSET_Y = 0;    // + 면 아래로, - 면 위로. 손과의 간격 조정용
+
+  /* 재료마다 보이는 폭과 '쌓는 간격' 을 따로 둔다.
+     그림 높이를 그대로 간격으로 쓰면 탑이 들쭉날쭉하거나 벌어진다.
+     widthScale 은 BURGER_W 대비 '보이는 폭', stackStep 은 쌓는 간격이다. */
+  const ING_VISUAL = {
+    bunTop:    { widthScale: 1.00, stackStep: 48, offsetY: 0 },
+    bunBottom: { widthScale: 0.98, stackStep: 34, offsetY: 0 },
+    patty:     { widthScale: 0.95, stackStep: 46, offsetY: 0 },
+    cheese:    { widthScale: 1.02, stackStep: 34, offsetY: 0 },
+    lettuce:   { widthScale: 1.05, stackStep: 40, offsetY: 0 },
+    tomato:    { widthScale: 0.93, stackStep: 46, offsetY: 0 },
+    pickle:    { widthScale: 0.88, stackStep: 30, offsetY: 0 },
+  };
+  const FALLING_SCALE = 0.90;        // 떨어지는 재료는 조금 작게
+  const PICKUP_SCALE = 0.70;         // 길에 놓인 재료는 더 작게
+
+  /* 장애물마다 보이는 폭 (논리 px). 높이는 그림 비율로 정한다.
+     판정(KIND.hw)은 보이는 폭보다 12% 작게 — 투명 여백까지 맞고 억울하지 않게. */
+  const OBSTACLE_VISUAL = {
+    cone:    { width: 105, offsetX: 0, offsetY: 0 },
+    bin:     { width: 186, offsetX: 0, offsetY: 0 },
+    box:     { width: 155, offsetX: 0, offsetY: 0 },
+    bike:    { width: 168, offsetX: 0, offsetY: 0 },
+    scooter: { width: 141, offsetX: 0, offsetY: 0 },
+  };
 
   /* 논리 좌표계 */
   const REF_H = 1920;           // 화면 높이를 이 값으로 본다
   const ROAD = 440;             // 도로 반폭
-  const PLAYER_HW = 66;         // 플레이어 반폭
+  /* 판정 반폭 — 몸통 기준이다. 그림의 보이는 폭(220)의 0.6 배로, 위로 든
+     양팔과 머리는 판정에 넣지 않는다 (팔까지 맞으면 억울하다). */
+  const PLAYER_HW = 66;
   const MOVE_RANGE = ROAD - PLAYER_HW - 10;
 
   /* ============================================================
@@ -153,6 +233,66 @@
 
   const $ = id => document.getElementById(id);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  /* ============================================================
+     그림 불러오기 — 다 올 때까지 시작 버튼을 잠근다. 한 장이 실패해도
+     게임은 돌아간다 (그 그림만 도형으로 대신 그린다).
+     ============================================================ */
+  const IMGS = {};
+  let assetsReady = false, assetsLeft = 0;
+  function loadAssets(done) {
+    const keys = Object.keys(ASSETS);
+    assetsLeft = keys.length;
+    for (const k of keys) {
+      const rec = IMGS[k] = { ok: false, el: new Image() };
+      const fin = () => {
+        if (--assetsLeft <= 0) { assetsReady = true; done && done(); }
+      };
+      rec.el.onload = () => { rec.ok = true; fin(); };
+      /* 파일 이름이 'ing-patty.png.png' 처럼 확장자가 겹쳐 있다. 나중에 누가
+         'ing-patty.png' 로 고쳐 두면 그쪽으로 한 번 더 찾아본다. */
+      let retried = false;
+      rec.el.onerror = () => {
+        if (!retried && /.png.png$/.test(ASSETS[k])) {
+          retried = true;
+          rec.el.src = ASSETS[k].replace(/.png.png$/, ".png");
+          return;
+        }
+        console.warn("[burger-run] 그림을 못 읽었습니다: " + ASSETS[k]);
+        fin();
+      };
+      rec.el.src = ASSETS[k];
+    }
+  }
+  const has = k => !!(IMGS[k] && IMGS[k].ok);
+
+  /* 보이는 폭을 w 로 맞춰 그린다. mode "bottom" 이면 (x,y) 가 접지 중앙,
+     "center" 면 보이는 영역의 중심. 비율은 원본 그대로 — 찌그러뜨리지 않는다. */
+  function drawAsset(g, key, x, y, w, mode, rot) {
+    if (!has(key)) return false;
+    const B = BOX[key], im = IMGS[key].el;
+    const vw = 1 - B.l - B.r, vh = 1 - B.t - B.b;
+    const dw = w / vw;
+    const dh = dw * (im.naturalHeight / im.naturalWidth);
+    const ox = -dw * (B.l + vw / 2);
+    const oy = mode === "bottom" ? -dh * (1 - B.b) : -dh * (B.t + vh / 2);
+    g.save();
+    g.translate(x, y);
+    if (rot) g.rotate(rot);
+    g.drawImage(im, ox, oy, dw, dh);
+    g.restore();
+    return true;
+  }
+  /* 그 그림을 w 폭으로 그렸을 때 보이는 높이 */
+  function visHeight(key, w) {
+    if (!has(key)) return w * 0.33;
+    const B = BOX[key], im = IMGS[key].el;
+    const dw = w / (1 - B.l - B.r);
+    return dw * (im.naturalHeight / im.naturalWidth) * (1 - B.t - B.b);
+  }
+  /* 재료 한 장의 보이는 폭 / 쌓는 간격 */
+  const ingW = t => BURGER_W * (ING_VISUAL[t] ? ING_VISUAL[t].widthScale : 1);
+  const stepOf = t => (ING_VISUAL[t] ? ING_VISUAL[t].stackStep : 34);
   const rnd = (a, b) => a + Math.random() * (b - a);
   const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 
@@ -230,16 +370,34 @@
     for (const r of GAME_CONFIG.swayByHeight) if (n <= r.upTo) return r.mul;
     return 1;
   }
-  /* 탑 전체 높이 (논리 px) */
+  /* 탑 전체 높이 (논리 px) — 그림 높이가 아니라 '쌓는 간격'의 합이다 */
   function stackHeight() {
     let h = 0;
-    for (const L of S.layers) h += ING[L.t].h;
+    for (const L of S.layers) h += stepOf(L.t);
     return h;
   }
-  /* 층 i 의 바닥이 발밑에서 얼마나 높은가 */
+  /* 층 i 의 바닥이 손끝에서 얼마나 높은가 */
   function layerBase(i) {
     let h = 0;
-    for (let k = 0; k < i; k++) h += ING[S.layers[k].t].h;
+    for (let k = 0; k < i; k++) h += stepOf(S.layers[k].t);
+    return h;
+  }
+  /* 손끝 높이 — 발밑에서 위로 몇 px 인가. 햄버거는 여기서부터 쌓인다. */
+  function handY() {
+    if (!has("player")) return 300;
+    const B = BOX.player, im = IMGS.player.el;
+    const dw = PLAYER_VISUAL.width / (1 - B.l - B.r);
+    const dh = dw * (im.naturalHeight / im.naturalWidth);
+    /* 손끝과 머리 꼭대기 중 '더 높은 쪽' 위에 얹는다. 손끝만 보고 얹으면
+       (이 그림은 머리가 손보다 조금 높다) 햄버거가 얼굴을 덮는다. */
+    const top = Math.min(B.hand, B.t);
+    return dh * (1 - B.b) - dh * top - BURGER_BASE_OFFSET_Y;
+  }
+  /* 간판의 '통과 높이' — 지금 탑에서 그 층수가 차지하는 실제 높이.
+     판정은 층수로 하므로(§21) 보이는 선과 판정선이 어긋나지 않게 맞춘다. */
+  function gapHeight(n) {
+    let h = handY();
+    for (let i = 0; i < n; i++) h += stepOf(S.layers[i] ? S.layers[i].t : "patty");
     return h;
   }
   /* 맨 위가 중심에서 얼마나 밀려 있나 (논리 px) */
@@ -286,14 +444,14 @@
   function dropLayers(n, dir) {
     for (let c = 0; c < n && S.layers.length; c++) {
       const i = S.layers.length - 1;
-      const L = S.layers[i], ing = ING[L.t];
+      const L = S.layers[i];
       const bx = S.x * MOVE_RANGE;
       let ox = 0;
       for (let k = 0; k <= i; k++) ox += S.layers[k].off;
       if (S.fallen.length < GAME_CONFIG.maxFallen) {
         S.fallen.push({
           t: L.t,
-          x: bx + ox, y: -(layerBase(i) + ing.h / 2) - S.hop,
+          x: bx + ox, y: -(handY() + layerBase(i) + stepOf(L.t) / 2) - S.hop,
           vx: (dir || (Math.random() < 0.5 ? -1 : 1)) * rnd(120, 420) + L.vel * 0.5,
           vy: rnd(-420, -120),
           rot: 0, vr: rnd(-7, 7),
@@ -326,7 +484,7 @@
 
   /* 떨어지는 재료 — 중력·회전·한 번의 튕김. 화면을 벗어나면 치운다. */
   function stepFallen(dt) {
-    const floorY = 40;                                  // 발밑보다 조금 아래가 바닥
+    const floorY = 30;                                  // 발밑 가까이가 바닥
     for (let i = S.fallen.length - 1; i >= 0; i--) {
       const f = S.fallen[i];
       f.vy += 2200 * dt;
@@ -773,6 +931,9 @@
   /* 논리 좌표로 그릴 수 있게 변환을 깐다. 원점은 플레이어 발밑. */
   function world(g) {
     const s = sc * S.zoom;
+    /* 그림을 줄여 그리므로 보간을 켠다. 느려지면 프레임이 먼저다. */
+    g.imageSmoothingEnabled = true;
+    try { g.imageSmoothingQuality = "high"; } catch (_) {}
     const shake = S.shake > 0 ? (Math.random() - 0.5) * GAME_CONFIG.shakeAmp * (S.shake / GAME_CONFIG.shakeTime) : 0;
     g.setTransform(dpr * s, 0, 0, dpr * s,
       dpr * (W / 2 + shake), dpr * (H * GAME_CONFIG.playerY));
@@ -814,8 +975,15 @@
     }
   }
 
-  /* 재료 한 장 — 종류마다 생김새가 분명히 다르다 */
+  /* 재료 한 장 — 실제 PNG 를 보이는 중심 기준으로 얹는다.
+     scale 은 기준 폭 대비 배수, 회전은 보이는 중심을 축으로 돈다. */
   function drawIng(g, t, x, y, scale, rot) {
+    if (drawAsset(g, t, x, y + (ING_VISUAL[t] ? ING_VISUAL[t].offsetY : 0),
+                  ingW(t) * (scale || 1), "center", rot)) return;
+    /* 그림을 못 읽었을 때만 — 게임이 멈추지 않게 도형으로 대신 그린다 */
+    drawIngShape(g, t, x, y, scale, rot);
+  }
+  function drawIngShape(g, t, x, y, scale, rot) {
     const ing = ING[t];
     const w = ing.w * (scale || 1), h = ing.h * (scale || 1);
     g.save();
@@ -871,21 +1039,29 @@
     g.restore();
   }
 
-  /* 햄버거 탑 — 층마다 어긋나고 조금씩 기울어 탑이 휘어 보인다 */
+  /* 햄버거 탑 — 층마다 어긋나고 조금씩 기울어 탑이 휘어 보인다.
+     모든 층은 같은 중심축(bx)에서 시작하고, 흔들림만 더해진다. */
   function drawBurger(g, bx, by) {
     let ox = 0, h = 0;
     for (let i = 0; i < S.layers.length; i++) {
-      const L = S.layers[i], ing = ING[L.t];
+      const L = S.layers[i];
+      const step = stepOf(L.t);
       ox += L.off;
-      h += ing.h;
+      h += step;
       const pop = L.pop ? 1 + L.pop * 0.22 : 1;
       if (L.pop) L.pop = Math.max(0, L.pop - 0.04);
-      drawIng(g, L.t, bx + ox, by - h + ing.h / 2, pop, clamp(L.off * 0.004, -0.2, 0.2));
+      drawIng(g, L.t, bx + ox, by - h + step / 2, pop, clamp(L.off * 0.004, -0.2, 0.2));
     }
   }
 
-  /* 캐릭터 — 동글동글하게. 얼굴은 정면. */
+  /* 캐릭터 — 흑백 선 캐릭터 그림을 '발밑 중앙' 기준으로 얹는다.
+     그림은 손을 위로 든 자세고, 그 손 위에 햄버거가 쌓인다. */
   function drawPlayer(g, x, y) {
+    if (drawAsset(g, "player", x + PLAYER_VISUAL.offsetX, y + PLAYER_VISUAL.offsetY,
+                  PLAYER_VISUAL.width, "bottom", 0)) return;
+    drawPlayerShape(g, x, y);
+  }
+  function drawPlayerShape(g, x, y) {
     g.save();
     g.translate(x, y);
     g.lineWidth = 6; g.strokeStyle = "#1A1A16";
@@ -931,27 +1107,29 @@
       shadow(g, e.x, y + 26, 40, 0.18);
       g.save();
       g.translate(0, Math.sin(performance.now() / 260 + e.wy) * 8);
-      drawIng(g, e.t, e.x, y, 0.62, 0);
+      drawIng(g, e.t, e.x, y, PICKUP_SCALE, 0);
       g.restore();
       return;
     }
     if (K.over) {
-      /* 머리 위 — 간판은 두껍고 전깃줄은 얇다. 기둥으로 높이를 알린다. */
+      /* 머리 위 — 통과 높이(gap)가 판정선이다. 간판 그림의 '아래 끝'을 그 선에
+         맞춰 얹어야 보이는 것과 판정이 같아진다. 기둥은 그대로 그린다. */
       const hw = e.hw || K.hw;
-      const gapPx = e.gapLayers !== undefined ? e.gapLayers * 34 : K.gapLayers * 34;
-      const th = K.thin ? 14 : 78;
-      g.fillStyle = K.thin ? "#3A3A34" : "#C8402F";
-      g.strokeStyle = "#1A1A16"; g.lineWidth = 6;
-      roundRect(g, e.x - hw, y - gapPx - th, hw * 2, th, K.thin ? 7 : 6);
-      g.fill(); g.stroke();
-      if (!K.thin) {
-        g.fillStyle = "#FFF";
-        g.font = "800 44px Pretendard, sans-serif";
-        g.textAlign = "center"; g.textBaseline = "middle";
-        g.fillText("배달중", e.x, y - gapPx - th / 2);
-        g.fillStyle = "#6B6B62";
-        g.fillRect(e.x - hw - 14, y - gapPx - th, 16, gapPx + th);
-        g.fillRect(e.x + hw - 2, y - gapPx - th, 16, gapPx + th);
+      const gap = gapHeight(e.gapLayers !== undefined ? e.gapLayers : K.gapLayers);
+      if (K.thin) {
+        g.fillStyle = "#3A3A34"; g.strokeStyle = "#1A1A16"; g.lineWidth = 6;
+        roundRect(g, e.x - hw, y - gap - 14, hw * 2, 14, 7);
+        g.fill(); g.stroke();
+        return;
+      }
+      const th = visHeight("sign", hw * 2) || 78;
+      g.fillStyle = "#6B6B62";                     // 기둥 먼저
+      g.fillRect(e.x - hw - 14, y - gap - th, 16, gap + th);
+      g.fillRect(e.x + hw - 2, y - gap - th, 16, gap + th);
+      if (!drawAsset(g, "sign", e.x, y - gap, hw * 2, "bottom", 0)) {
+        g.fillStyle = "#C8402F"; g.strokeStyle = "#1A1A16"; g.lineWidth = 6;
+        roundRect(g, e.x - hw, y - gap - 78, hw * 2, 78, 6);
+        g.fill(); g.stroke();
       }
       return;
     }
@@ -978,8 +1156,21 @@
       g.strokeRect(e.x + half, y - len, ROAD - (e.x + half), len);
       return;
     }
-    /* 땅에 놓인 것들 */
+    /* 땅에 놓인 것들 — 그림은 '접지 중앙' 기준이라 바닥선에 딱 붙는다 */
     shadow(g, e.x, y + 8, e.hw * 0.9);
+    const vis = OBSTACLE_VISUAL[e.kind];
+    if (vis && drawAsset(g, e.kind, e.x + vis.offsetX, y + vis.offsetY, vis.width, "bottom", 0)) {
+      if (KIND[e.kind].move) {                     // 어디로 가는지 보이게
+        g.fillStyle = "#1A1A16";
+        const d = (e.dir || 1);
+        g.beginPath();
+        g.moveTo(e.x + d * (e.hw + 34), y - e.h * 0.4);
+        g.lineTo(e.x + d * (e.hw + 8), y - e.h * 0.4 - 17);
+        g.lineTo(e.x + d * (e.hw + 8), y - e.h * 0.4 + 17);
+        g.closePath(); g.fill();
+      }
+      return;
+    }
     g.strokeStyle = "#1A1A16"; g.lineWidth = 6;
     if (e.kind === "cone") {
       g.fillStyle = "#F26A1B";
@@ -1018,8 +1209,9 @@
 
   function drawFallen(g) {
     for (const f of S.fallen) {
-      shadow(g, f.x, 40, 26 * clamp(1 - (40 - f.y) / 900, 0.25, 1), 0.14);
-      drawIng(g, f.t, f.x, f.y, 0.86, f.rot);
+      /* 그림자로 높이를 느끼게 — 높이 있을수록 작고 옅다 */
+      shadow(g, f.x, 30, 26 * clamp(1 - (30 - f.y) / 900, 0.25, 1), 0.14);
+      drawIng(g, f.t, f.x, f.y, FALLING_SCALE, f.rot);
     }
   }
 
@@ -1080,6 +1272,40 @@
       }
     }
   }
+  /* 그림을 맞출 때만 (DEBUG_ASSET) — 앵커·보이는 영역·판정선 */
+  function drawAnchors(g) {
+    const px = S.x * MOVE_RANGE, hy = handY();
+    g.lineWidth = 3;
+    /* 플레이어 앵커(발밑)와 손끝 */
+    g.strokeStyle = "#00E5FF";
+    g.beginPath(); g.moveTo(px - 60, 0); g.lineTo(px + 60, 0); g.stroke();
+    g.strokeStyle = "#76FF03";
+    g.beginPath(); g.moveTo(px - 140, -hy); g.lineTo(px + 140, -hy); g.stroke();
+    /* 햄버거 중심축과 층마다의 보이는 영역 */
+    g.strokeStyle = "rgba(255,234,0,.8)";
+    g.beginPath(); g.moveTo(px, -hy); g.lineTo(px, -hy - stackHeight()); g.stroke();
+    let ox = 0, h = 0;
+    for (const L of S.layers) {
+      ox += L.off; h += stepOf(L.t);
+      const w = ingW(L.t), vh2 = visHeight(L.t, w);
+      g.strokeRect(px + ox - w / 2, -hy - h + stepOf(L.t) / 2 - vh2 / 2, w, vh2);
+    }
+    /* 장애물 앵커와 간판 판정선 */
+    for (const e of S.ents) {
+      const K = KIND[e.kind], y = -(e.wy - S.scroll);
+      if (K.over) {
+        const gap = gapHeight(e.gapLayers !== undefined ? e.gapLayers : K.gapLayers);
+        g.strokeStyle = "#FF1744";
+        g.beginPath();
+        g.moveTo(e.x - (e.hw || K.hw), y - gap); g.lineTo(e.x + (e.hw || K.hw), y - gap);
+        g.stroke();
+      } else if (OBSTACLE_VISUAL[e.kind]) {
+        g.strokeStyle = "#FF9100";
+        g.beginPath(); g.moveTo(e.x - 40, y); g.lineTo(e.x + 40, y); g.stroke();
+      }
+    }
+  }
+
   function drawDebug(g) {
     const rows = [
       "fps: " + S.fps.toFixed(0),
@@ -1113,9 +1339,10 @@
     const px = S.x * MOVE_RANGE;
     shadow(g, px, 6, 58, 0.22);
     drawPlayer(g, px, S.hop);
-    drawBurger(g, px, -150 + S.hop);
+    drawBurger(g, px, -handY() + S.hop);
     drawFallen(g);
     if (DEBUG_COLLISION) drawBoxes(g);
+    if (DEBUG_ASSET) drawAnchors(g);
     drawMsg(g);
     if (DEBUG_GAME) drawDebug(g);
   }
@@ -1238,23 +1465,25 @@
     $("endOver").hidden = false;
   }
 
-  /* 무너진 햄버거 — 바닥에 흩어진 재료를 그린다 */
+  /* 무너진 햄버거 — 플레이에 쓴 그림 그대로, 바닥에 흩어진 모습으로 그린다 */
   function snapPile() {
     const c = document.createElement("canvas");
-    c.width = 520; c.height = 300;
+    c.width = 560; c.height = 320;
     const g = c.getContext("2d");
-    g.translate(260, 236);
+    g.imageSmoothingEnabled = true;
+    try { g.imageSmoothingQuality = "high"; } catch (_) {}
+    g.translate(280, 250);
     const show = Math.min(9, Math.max(3, S.lost));
     for (let i = 0; i < show; i++) {
       const t = i === 0 ? "bunBottom" : (i === show - 1 ? "bunTop" : FILLINGS[i % FILLINGS.length]);
-      const x = Math.sin(i * 2.1) * 110;
-      const y = -i * 6 - 6;
+      const x = Math.sin(i * 2.1) * 115;
+      const y = -i * 7 - 8;
       g.save();
       g.globalAlpha = 0.25;
       g.fillStyle = "#000";
-      g.beginPath(); g.ellipse(x, 14, 56, 11, 0, 0, 7); g.fill();
+      g.beginPath(); g.ellipse(x, 16, 58, 11, 0, 0, 7); g.fill();
       g.restore();
-      drawIng(g, t, x, y, 0.62, Math.sin(i * 1.7) * 0.5);
+      drawIng(g, t, x, y, 0.58, Math.sin(i * 1.7) * 0.5);
     }
     return c;
   }
@@ -1334,36 +1563,47 @@
     const c = $("heroCv");
     if (!c) return;
     const g = c.getContext("2d");
+    g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, c.width, c.height);
+    g.imageSmoothingEnabled = true;
+    try { g.imageSmoothingQuality = "high"; } catch (_) {}
     const layers = buildBurger(GAME_CONFIG.startBurgerLayers);
     let h = 0;
-    for (const L of layers) h += ING[L.t].h;
-    const s = Math.min(c.width / 320, c.height / (h + 60));
+    for (const L of layers) h += stepOf(L.t);
+    const s = Math.min(c.width / (BURGER_W * 1.5), c.height / (h + 70));
     g.setTransform(s, 0, 0, s, c.width / 2, c.height - 20);
     g.globalAlpha = 0.22; g.fillStyle = "#000";
-    g.beginPath(); g.ellipse(0, 6, 150, 26, 0, 0, 7); g.fill();
+    g.beginPath(); g.ellipse(0, 6, BURGER_W * 0.6, 26, 0, 0, 7); g.fill();
     g.globalAlpha = 1;
     let y = 0, ox = 0;
     for (let i = 0; i < layers.length; i++) {
-      const ing = ING[layers[i].t];
       /* 가만히 있어도 살짝 휜 채로 — '이걸 떨어뜨리지 않는 게임' 임을 알린다 */
       ox += (i / layers.length) * 3.4;
-      y += ing.h;
-      drawIng(g, layers[i].t, ox, -y + ing.h / 2, 1, ox * 0.004);
+      y += stepOf(layers[i].t);
+      drawIng(g, layers[i].t, ox, -y + stepOf(layers[i].t) / 2, 1, ox * 0.004);
     }
   }
 
   /* ============================================================
      버튼
      ============================================================ */
-  $("startBtn").addEventListener("click", start);
+  $("startBtn").addEventListener("click", () => { if (assetsReady) start(); });
   $("againBtn").addEventListener("click", start);
   $("shareBtn").addEventListener("click", shareResult);
 
   $("bestStart").textContent = S.best;
   paintHud();
   fitCanvas();
-  drawHero();
+
+  /* 그림이 다 와야 시작할 수 있다. 로딩 화면은 두지 않고 버튼만 잠근다. */
+  const btn = $("startBtn");
+  btn.disabled = true;
+  btn.textContent = "불러오는 중";
+  loadAssets(() => {
+    btn.disabled = false;
+    btn.textContent = "시작하기";
+    drawHero();                        // 그림이 온 뒤 다시 그린다
+  });
 
   /* 검사용으로만 들여다본다 */
   window.__burger = () => ({
@@ -1372,5 +1612,9 @@
     start, gameOver, showResult, step, render, buildBurger, buildCard,
     dropLayers, addLayer, kickSway, topLean, stackHeight, tier, place,
     ensurePassable, freeLanes, snapPile, shareResult, swayMul, gradeFor,
+    ASSETS, BOX, IMGS, ING_VISUAL, OBSTACLE_VISUAL, PLAYER_VISUAL, BURGER_W,
+    BURGER_BASE_OFFSET_Y, FALLING_SCALE, PICKUP_SCALE, DEBUG_ASSET,
+    handY, gapHeight, stepOf, ingW, visHeight, drawHero, loadAssets,
+    assetsReady: () => assetsReady,
   });
 })();

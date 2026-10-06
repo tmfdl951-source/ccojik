@@ -206,3 +206,6 @@ body { display: flex; align-items: center; justify-content: center; }
 @media (prefers-reduced-motion: reduce) {
   *, *::after, *::before { animation: none !important; transition-duration: .01ms !important; }
 }
+
+/* 그림 불러오는 동안은 잠긴다 */
+.btn:disabled { background: var(--gray); border-color: var(--gray); cursor: default; }
