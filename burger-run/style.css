@@ -58,18 +58,19 @@ body { display: flex; align-items: center; justify-content: center; }
   display: flex; align-items: flex-end; justify-content: space-between;
   gap: 10px;
 }
-.gauge { display: flex; align-items: baseline; gap: .25em; }
-.gauge.right { flex-direction: row; }
+.gauge { display: flex; flex-direction: column; gap: 0; line-height: 1; }
+.gauge.right { align-items: flex-end; }
 .g-cap {
-  font-size: clamp(11px, min(3.4vw, 1.8vh), 15px);
-  color: var(--gray); font-weight: 700;
+  font-size: clamp(10px, min(3vw, 1.6vh), 13px);
+  color: var(--gray); font-weight: 700; letter-spacing: .06em;
 }
+.g-val { display: flex; align-items: baseline; gap: .08em; }
 .g-num {
   font-weight: 800; font-variant-numeric: tabular-nums;
-  font-size: clamp(26px, min(8vw, 4.2vh), 46px); line-height: 1;
+  font-size: clamp(30px, min(9.4vw, 4.8vh), 54px); line-height: 1;
 }
 .g-unit {
-  font-size: clamp(13px, min(3.8vw, 2vh), 18px); font-weight: 800;
+  font-size: clamp(14px, min(4.2vw, 2.2vh), 20px); font-weight: 800;
 }
 /* 재료가 몇 개 안 남았으면 빨갛게 — 숫자만 보고도 위험을 안다 */
 .gauge.low .g-num, .gauge.low .g-unit { color: var(--red); }

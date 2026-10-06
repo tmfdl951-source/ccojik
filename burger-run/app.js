@@ -29,9 +29,10 @@
   const GAME_CONFIG = {
     /* ---- 시작 상태 ---- */
     startBurgerLayers: 14,      // 첫 화면부터 이만큼 높다
-    maxLayers: 32,              // 이 위로는 안 쌓인다 (성능·화면)
-                                //  32단 x 평균 간격 40 + 캐릭터 = 논리 1578px,
-                                //  줌 0.85 에서 쓸 수 있는 1649px 안에 들어온다
+    maxLayers: 28,              // 이 위로는 안 쌓인다 (성능·화면)
+                                //  재료와 캐릭터를 키운 만큼 상한을 내렸다.
+                                //  28단 최악(패티만) = 논리 1710px 로, 가장 많이
+                                //  물러난 줌(0.80)에서 쓸 수 있는 1752px 안이다
 
     /* ---- 전진 ---- 논리 px/초 */
     baseSpeed: 1000,
@@ -48,14 +49,15 @@
     /* ---- 햄버거 흔들림 ---- */
     swaySpring: 52,             // 제자리로 돌아가는 힘
     swayDamp: 6.2,              // 감쇠 (작으면 오래 출렁인다)
-    swayDrive: 0.07,            // 손끝 가속도가 실리는 정도
+    swayDrive: 0.09,            // 손끝 가속도가 실리는 정도. 아슬아슬함의 핵심이라
+                                //  '한 번 크게 꺾으면 눈에 보이게' 까지 올렸다
     swayTopBias: 0.75,          // 위층일수록 더 실린다 (0 이면 전층 같음)
     swaySpringTop: 0.5,         // 위층은 이만큼 무르게 묶인다
     swayByHeight: [             // 높을수록 전체가 더 흔들린다
       { upTo: 10, mul: 1.00 },
       { upTo: 20, mul: 1.15 },
       { upTo: 30, mul: 1.35 },
-      { upTo: 999, mul: 1.60 },
+      { upTo: 999, mul: 1.55 },
     ],
     dropLean: 165,              // 맨 위가 이만큼 밀리면 떨어진다 (논리 px)
     slipSwayMul: 1.5,           // 미끄러질 때 흔들림 배수
@@ -63,7 +65,7 @@
     /* ---- 충돌로 떨어지는 재료 수 ---- */
     weakCollisionLoss: 1,
     mediumCollisionLoss: 2,
-    strongCollisionLoss: 4,
+    strongCollisionLoss: 3,
     wallScrapeLoss: 1,
     collisionKick: 2600,        // 충돌이 탑에 주는 흔들림 (논리 px/s^2)
     hitCooldown: 0.45,          // 같은 장애물에 연달아 맞지 않게 (초)
@@ -75,13 +77,15 @@
     /* ---- 카메라 ---- */
     playerY: 0.73,              // 플레이어가 화면 위에서 어디쯤인가
     cameraZoom: [               // 탑이 높아지면 조금씩 물러난다.
-      { upTo: 15, scale: 1.00 },   //  마지막 칸(0.80)은 '패티만 32단' 같은
-      { upTo: 22, scale: 0.95 },   //  가장 높은 경우(논리 1691px)까지
-      { upTo: 27, scale: 0.90 },   //  꼭대기가 잘리지 않게 잡은 값이다
-      { upTo: 31, scale: 0.85 },
+      { upTo: 15, scale: 1.00 },   //  마지막 칸(0.80)은 '패티만 28단' 같은
+      { upTo: 19, scale: 0.95 },   //  가장 높은 경우(논리 1710px)까지
+      { upTo: 23, scale: 0.90 },   //  꼭대기가 잘리지 않게 잡은 값이다
+      { upTo: 26, scale: 0.85 },
       { upTo: 999, scale: 0.80 },
     ],
     zoomEase: 3.2,
+    minZoom: 0.80,              // 이 아래로는 안 물러난다 — 캐릭터가 너무 작아지면
+                                //  조작이 어려워진다
     shakeTime: 0.18,            // 충돌 순간에만 아주 약하게
     shakeAmp: 14,
 
@@ -97,7 +101,7 @@
       { tier: "expert",  gap: 1180 },
       { tier: "endless", gap: 1050 },
     ],
-    riskRouteFrom: 200,         // 안전/재료 갈림길이 나오기 시작하는 거리(m)
+    riskRouteFrom: 170,         // 안전/재료 갈림길이 나오기 시작하는 거리(m)
 
     /* ---- 성능 울타리 ---- */
     maxFallen: 40,              // 떨어져 날아가는 재료 수 상한
@@ -112,8 +116,11 @@
   /* ============================================================
      그림 — image/ 안의 실제 파일. 파일명은 그대로 둔다(이중 확장자 포함).
      ============================================================ */
+  /* 파일명이 그대로라 브라우저·CDN 이 옛 그림을 쥐고 있을 수 있다.
+     그림을 갈아 끼울 때마다 이 날짜만 올리면 즉시 새 그림이 간다. */
+  const ASSET_VERSION = "20261006b";
   const ASSETS = {
-    player:    "image/player.png.png",
+    player:    "image/player.png.png?v=" + ASSET_VERSION,
     bunTop:    "image/ing-bun-top.png.png",
     bunBottom: "image/ing-bun-bottom.png.png",
     patty:     "image/ing-patty.png.png",
@@ -133,7 +140,8 @@
      l/t/r/b 는 사방의 투명 여백. 이 값이 없으면 파일마다 여백이 달라
      크기도 접지선도 제각각 어긋난다. 그림을 바꾸면 이 표도 다시 재야 한다. */
   const BOX = {
-    player:    { l: .015, t: .218, r: .016, b: .047, hand: .254 },
+    /* 새 컬러 캐릭터를 실측한 값 (930x1691). 손끝 .223, 머리 .200, 발밑 .879 */
+    player:    { l: .056, t: .200, r: .056, b: .121, hand: .223 },
     bunTop:    { l: .076, t: .086, r: .076, b: .105 },
     bunBottom: { l: .076, t: .327, r: .078, b: .108 },
     patty:     { l: .165, t: .196, r: .164, b: .169 },
@@ -150,21 +158,26 @@
   };
 
   /* 보이는 크기 — 원본 픽셀이 아니라 전부 논리 px 로 따로 잡는다 */
-  const PLAYER_VISUAL = { width: 220, offsetX: 0, offsetY: 0 };
-  const BURGER_W = 210;              // 기준 재료(1.0)의 보이는 폭
+  /* 캐릭터는 '햄버거를 실제로 들고 가는 사람' 으로 보여야 한다 — 전보다 14% 크게 */
+  const PLAYER_VISUAL = { width: 250, offsetX: 0, offsetY: 0 };
+  const BURGER_W = 226;              // 기준 재료(1.0)의 보이는 폭 (전보다 8% 크게)
   const BURGER_BASE_OFFSET_Y = 0;    // + 면 아래로, - 면 위로. 손과의 간격 조정용
+  /* 달리는 느낌 — 아주 조금만. 햄버거는 한 박자 늦게 따라와 '들려 있는' 느낌을 만든다 */
+  const RUN_BOB = 3.5;               // 캐릭터가 위아래로 흔들리는 폭 (논리 px)
+  const RUN_HZ = 4.6;                // 1초에 몇 번
+  const BURGER_LAG = 11;             // 햄버거가 따라오는 빠르기 (작으면 더 늦게)
 
   /* 재료마다 보이는 폭과 '쌓는 간격' 을 따로 둔다.
      그림 높이를 그대로 간격으로 쓰면 탑이 들쭉날쭉하거나 벌어진다.
      widthScale 은 BURGER_W 대비 '보이는 폭', stackStep 은 쌓는 간격이다. */
   const ING_VISUAL = {
-    bunTop:    { widthScale: 1.00, stackStep: 48, offsetY: 0 },
-    bunBottom: { widthScale: 0.98, stackStep: 34, offsetY: 0 },
-    patty:     { widthScale: 0.95, stackStep: 46, offsetY: 0 },
-    cheese:    { widthScale: 1.02, stackStep: 34, offsetY: 0 },
-    lettuce:   { widthScale: 1.05, stackStep: 40, offsetY: 0 },
-    tomato:    { widthScale: 0.93, stackStep: 46, offsetY: 0 },
-    pickle:    { widthScale: 0.88, stackStep: 30, offsetY: 0 },
+    bunTop:    { widthScale: 1.00, stackStep: 52, offsetY: 0 },
+    bunBottom: { widthScale: 0.98, stackStep: 37, offsetY: 0 },
+    patty:     { widthScale: 0.96, stackStep: 49, offsetY: 0 },
+    cheese:    { widthScale: 1.03, stackStep: 37, offsetY: 0 },
+    lettuce:   { widthScale: 1.06, stackStep: 43, offsetY: 0 },
+    tomato:    { widthScale: 0.93, stackStep: 49, offsetY: 0 },
+    pickle:    { widthScale: 0.88, stackStep: 32, offsetY: 0 },
   };
   const FALLING_SCALE = 0.90;        // 떨어지는 재료는 조금 작게
   const PICKUP_SCALE = 0.70;         // 길에 놓인 재료는 더 작게
@@ -315,6 +328,8 @@
     nextSpawn: 0,               // 다음 패턴을 놓을 월드 거리
     opening: 0,                 // 첫 10초 대본의 다음 순서
 
+    flyers: [],                 // 먹은 재료가 탑 위로 날아가는 중
+    bob: 0, bobLag: 0,          // 달리는 상하 흔들림 / 햄버거가 늦게 따라오는 양
     hop: 0, hopVel: 0,          // 과속방지턱에서 튀어오름
     slipLeft: 0,                // 미끄러지는 시간
     shake: 0,
@@ -325,10 +340,14 @@
     perfect: 0, perfectBest: 0, perfectHold: 0,
     got: 0, lost: 0, maxStack: 0,
     lastHit: -9,
-    best: 0,
+    pattern: "-",               // 지금 깔린 패턴 이름 (디버그)
+    best: 0, bestStack: 0,
     fps: 0,
   };
-  try { S.best = +(localStorage.getItem("ccojik_burgerrun_best") || 0) || 0; } catch (_) {}
+  try {
+    S.best = +(localStorage.getItem("ccojik_burgerrun_best") || 0) || 0;
+    S.bestStack = +(localStorage.getItem("ccojik_burgerrun_stack") || 0) || 0;
+  } catch (_) {}
 
   const cv = $("cv"), ctx = cv.getContext("2d");
   let W = 0, H = 0, dpr = 1, sc = 1;      // sc: 논리 px -> 화면 px
@@ -466,8 +485,26 @@
     else paintHud();
   }
 
+  /* 먹은 재료가 탑 위로 날아간다 — 순간이동하지 않게 한 박자 둔다 */
+  function flyTo(t, fromX, fromY) {
+    if (S.layers.length >= GAME_CONFIG.maxLayers) return false;
+    S.flyers.push({ t, x: fromX, y: fromY, life: 0, dur: 0.18 });
+    S.got++;
+    sfx("pickup"); buzz(8);
+    return true;
+  }
+  function stepFlyers(dt) {
+    for (let i = S.flyers.length - 1; i >= 0; i--) {
+      const f = S.flyers[i];
+      f.life += dt;
+      if (f.life >= f.dur) {
+        S.flyers.splice(i, 1);
+        addLayer(f.t, true);                       // 도착 — 탑에 합친다
+      }
+    }
+  }
   /* 재료를 얻는다 — 위에 얹히면서 짧게 커졌다 작아진다 */
-  function addLayer(t) {
+  function addLayer(t, fromFlyer) {
     if (S.layers.length >= GAME_CONFIG.maxLayers) return false;
     /* 위 번은 늘 맨 위에 있어야 보기 좋다 — 그 아래로 끼워 넣는다 */
     const L = newLayer(t);
@@ -475,9 +512,9 @@
     const top = S.layers[S.layers.length - 1];
     if (top && top.t === "bunTop") S.layers.splice(S.layers.length - 1, 0, L);
     else S.layers.push(L);
-    S.got++;
+    if (!fromFlyer) S.got++;                       // 날아온 것은 먹을 때 이미 셌다
     S.maxStack = Math.max(S.maxStack, S.layers.length);
-    sfx("pickup"); buzz(8);
+    if (fromFlyer) { sfx("pickup"); }
     paintHud();
     return true;
   }
@@ -704,7 +741,10 @@
       if (!S.nextSpawn) S.nextSpawn = S.scroll + 1400;
       while (S.nextSpawn < S.scroll + REF_H * 1.1) {
         const useRisk = S.dist >= C.riskRouteFrom && Math.random() < 0.22;
-        place(useRisk ? riskPattern() : pick(PATTERNS[tier()])(), S.nextSpawn);
+        const pool = PATTERNS[tier()];
+        const n = Math.floor(Math.random() * pool.length);
+        S.pattern = useRisk ? "risk" : tier() + "_" + (n + 1);
+        place(useRisk ? riskPattern() : pool[n](), S.nextSpawn);
         S.nextSpawn += spawnGap() * rnd(0.9, 1.15);
       }
     }
@@ -816,8 +856,8 @@
       if (K.item) {
         if (!e.hit && Math.abs(rel) < 70 && dx < e.hw + PLAYER_HW) {
           e.hit = true; e.taken = true;
-          addLayer(e.t);
-          say(ING[e.t].name + " +1");
+          /* 그 자리에서 탑 꼭대기로 날아간다 */
+          if (flyTo(e.t, e.x, -(e.wy - S.scroll))) say(ING[e.t].name + " +1");
         }
         continue;
       }
@@ -917,6 +957,10 @@
     S.x = clamp(S.x + S.vx * dt, -1, 1);
     if (S.slipLeft > 0) S.slipLeft -= dt;
 
+    /* 달리는 상하 흔들림 — 아주 조금만. 햄버거는 한 박자 늦게 따라온다. */
+    S.bob = Math.sin(performance.now() / 1000 * RUN_HZ * 6.283) * RUN_BOB;
+    S.bobLag += (S.bob - S.bobLag) * Math.min(1, dt * BURGER_LAG);
+
     /* 과속방지턱에서 튀어오른 높이 */
     if (S.hopVel || S.hop) {
       S.hopVel += 2600 * dt;
@@ -966,12 +1010,19 @@
     g.moveTo(-ROAD, top); g.lineTo(-ROAD, bot);
     g.moveTo(ROAD, top); g.lineTo(ROAD, bot);
     g.stroke();
-    /* 가운데 차선 — 아래로 흐르며 전진감을 만든다 */
-    const step = 300, len = 150;
+    /* 가운데 차선 — 아래로 흐르며 전진감을 만든다. 칸 사이를 좁게 두어
+       빠를수록 더 빨리 흐르는 것처럼 보이게 한다. */
+    const step = 260, len = 150;
     const off = S.scroll % step;
     g.fillStyle = "rgba(255,255,255,.72)";
     for (let y = top - step; y < bot + step; y += step) {
       g.fillRect(-18, y + off, 36, len);
+    }
+    /* 좌우 경계 안쪽 띠 — 도로 폭이 한눈에 보이게 */
+    g.fillStyle = "rgba(255,255,255,.28)";
+    for (let y = top - step; y < bot + step; y += step) {
+      g.fillRect(-ROAD + 26, y + off, 10, len);
+      g.fillRect(ROAD - 36, y + off, 10, len);
     }
   }
 
@@ -1207,6 +1258,18 @@
     }
   }
 
+  /* 먹은 재료가 탑 꼭대기로 날아가는 중 */
+  function drawFlyers(g) {
+    const px = S.x * MOVE_RANGE, top = -handY() - stackHeight() + S.bobLag;
+    for (const f of S.flyers) {
+      const k = clamp(f.life / f.dur, 0, 1);
+      const e = 1 - (1 - k) * (1 - k);             // 끝에서 느려진다
+      const x = f.x + (px - f.x) * e;
+      const y = f.y + (top - f.y) * e;
+      drawIng(g, f.t, x, y, PICKUP_SCALE + (1 - PICKUP_SCALE) * e, (1 - e) * 0.6);
+    }
+  }
+
   function drawFallen(g) {
     for (const f of S.fallen) {
       /* 그림자로 높이를 느끼게 — 높이 있을수록 작고 옅다 */
@@ -1315,7 +1378,9 @@
       "sway(top): " + topLean().toFixed(0) + " / " + GAME_CONFIG.dropLean,
       "player vx: " + S.vx.toFixed(2) + "  ax: " + S.ax.toFixed(1),
       "difficulty: " + tier(),
+      "pattern: " + S.pattern,
       "ents: " + S.ents.length + "  fallen: " + S.fallen.length,
+      "zoom: " + S.zoom.toFixed(3),
     ];
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.font = "600 11px monospace";
@@ -1337,9 +1402,11 @@
     const sorted = S.ents.slice().sort((a, b) => b.wy - a.wy);
     for (const e of sorted) drawEnt(g, e);
     const px = S.x * MOVE_RANGE;
-    shadow(g, px, 6, 58, 0.22);
-    drawPlayer(g, px, S.hop);
-    drawBurger(g, px, -handY() + S.hop);
+    shadow(g, px, 6, 62, 0.22);
+    drawPlayer(g, px, S.hop + S.bob);
+    /* 햄버거는 캐릭터보다 한 박자 늦게 따라온다 — 딱 붙은 물체로 안 보이게 */
+    drawBurger(g, px, -handY() + S.hop + S.bobLag);
+    drawFlyers(g);
     drawFallen(g);
     if (DEBUG_COLLISION) drawBoxes(g);
     if (DEBUG_ASSET) drawAnchors(g);
@@ -1359,12 +1426,14 @@
     stepWorld(dt);
     stepSway(dt);
     stepFallen(dt);
+    stepFlyers(dt);
     checkHits(dt);
     /* 카메라 — 탑이 높아지면 조금 물러난다 */
     S.zoomTo = 1;
     for (const z of GAME_CONFIG.cameraZoom) {
       if (S.layers.length <= z.upTo) { S.zoomTo = z.scale; break; }
     }
+    S.zoomTo = Math.max(GAME_CONFIG.minZoom, S.zoomTo);
     S.zoom += (S.zoomTo - S.zoom) * Math.min(1, dt * GAME_CONFIG.zoomEase);
     if (S.shake > 0) S.shake -= dt;
     if (S.msgLeft > 0) S.msgLeft -= dt;
@@ -1376,6 +1445,12 @@
     $("distNum").textContent = Math.floor(S.dist);
     $("stackNum").textContent = S.layers.length;
     $("stackBox").classList.toggle("low", S.layers.length <= 3);
+  }
+  /* 최고 기록 — 거리와 가장 높이 쌓은 층수, 둘만 둔다 */
+  function paintBest() {
+    const t = S.best + "m" + (S.bestStack ? " · " + S.bestStack + "단" : "");
+    $("bestStart").textContent = t;
+    $("bestEnd").textContent = t;
   }
 
   let last = 0, acc = 0, frames = 0;
@@ -1407,6 +1482,9 @@
     S.fallen.length = 0;
     S.ents.length = 0;
     S.nextSpawn = 0; S.opening = 0;
+    S.flyers.length = 0;
+    S.bob = 0; S.bobLag = 0;
+    S.pattern = "-";
     S.hop = 0; S.hopVel = 0; S.slipLeft = 0; S.shake = 0; S.slowmo = 0;
     S.zoom = 1; S.zoomTo = 1;
     S.msg = ""; S.msgLeft = 0;
@@ -1460,8 +1538,11 @@
       S.best = m;
       try { localStorage.setItem("ccojik_burgerrun_best", String(m)); } catch (_) {}
     }
-    $("bestEnd").textContent = S.best;
-    $("bestStart").textContent = S.best;
+    if (S.maxStack > S.bestStack) {
+      S.bestStack = S.maxStack;
+      try { localStorage.setItem("ccojik_burgerrun_stack", String(S.bestStack)); } catch (_) {}
+    }
+    paintBest();
     $("endOver").hidden = false;
   }
 
@@ -1591,7 +1672,7 @@
   $("againBtn").addEventListener("click", start);
   $("shareBtn").addEventListener("click", shareResult);
 
-  $("bestStart").textContent = S.best;
+  paintBest();
   paintHud();
   fitCanvas();
 
@@ -1615,6 +1696,7 @@
     ASSETS, BOX, IMGS, ING_VISUAL, OBSTACLE_VISUAL, PLAYER_VISUAL, BURGER_W,
     BURGER_BASE_OFFSET_Y, FALLING_SCALE, PICKUP_SCALE, DEBUG_ASSET,
     handY, gapHeight, stepOf, ingW, visHeight, drawHero, loadAssets,
+    ASSET_VERSION, RUN_BOB, RUN_HZ, BURGER_LAG, flyTo, paintBest,
     assetsReady: () => assetsReady,
   });
 })();

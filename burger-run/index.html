@@ -19,13 +19,14 @@
 
   <!-- ===== 상단: 거리 / 햄버거 층수 ===== -->
   <div class="top" id="top">
+    <!-- 라벨보다 숫자가 먼저 읽히게 — 작은 라벨 아래 큰 숫자 -->
     <div class="gauge">
       <span class="g-cap">거리</span>
-      <b class="g-num" id="distNum">0</b><span class="g-unit">m</span>
+      <span class="g-val"><b class="g-num" id="distNum">0</b><span class="g-unit">m</span></span>
     </div>
     <div class="gauge right" id="stackBox">
       <span class="g-cap">햄버거</span>
-      <b class="g-num" id="stackNum">14</b><span class="g-unit">단</span>
+      <span class="g-val"><b class="g-num" id="stackNum">14</b><span class="g-unit">단</span></span>
     </div>
   </div>
 
@@ -39,7 +40,7 @@
       <canvas class="hero" id="heroCv" width="300" height="560"></canvas>
       <p class="lead">좌우로 움직여 장애물을 피하세요</p>
       <button class="btn big" type="button" id="startBtn">시작하기</button>
-      <p class="best">최고 <span id="bestStart">0</span>m</p>
+      <p class="best">최고 <span id="bestStart">0m</span></p>
     </div>
 
     <!-- 결과 화면 -->
@@ -59,7 +60,7 @@
         <button class="btn big" type="button" id="againBtn">다시 도전</button>
         <button class="btn ghost" type="button" id="shareBtn">결과 공유</button>
       </div>
-      <p class="best">최고 <span id="bestEnd">0</span>m</p>
+      <p class="best">최고 <span id="bestEnd">0m</span></p>
     </div>
   </div>
 
