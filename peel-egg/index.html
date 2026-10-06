@@ -36,7 +36,12 @@
     <!-- 시작 화면 -->
     <div class="over" id="startOver">
       <h1 class="title">흰자 안 뜯고<br>깔 수 있어요?</h1>
-      <p class="lead">20초 안에<br>껍질만 깨끗하게 까세요</p>
+      <!-- 게임 방법 — 딱 세 줄. 화면 안내와 실제 판정이 같아야 한다. -->
+      <ol class="how">
+        <li><b>천천히</b> 문질러 금을 내세요</li>
+        <li><b>금 간 부분</b>을 다시 문질러 벗기세요</li>
+        <li><b>흰자</b>는 다시 문지르면 뜯겨요</li>
+      </ol>
       <img class="hero" src="egg-shell.png" alt="삶은 계란" />
       <button class="btn big" type="button" id="startBtn">시작하기</button>
       <p class="best">최고 <span id="bestStart">0</span>점</p>

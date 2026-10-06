@@ -148,6 +148,28 @@ body { display: flex; align-items: center; justify-content: center; }
   font-size: clamp(13px, min(4.2vw, 2.2vh), 19px);
   line-height: 1.45; color: var(--gray);
 }
+/* 게임 방법 세 줄 — 번호를 왼쪽에 붙여 눈이 ①②③ 순서를 먼저 잡게 한다 */
+.how {
+  list-style: none;
+  text-align: left;
+  display: flex; flex-direction: column; gap: clamp(3px, .7vh, 7px);
+  font-size: clamp(12.5px, min(4vw, 2.05vh), 18px);
+  line-height: 1.35; color: var(--gray);
+  counter-reset: how;
+}
+.how li {
+  counter-increment: how;
+  display: flex; gap: .45em; align-items: baseline;
+}
+.how li::before {
+  content: counter(how);
+  flex: 0 0 auto;
+  width: 1.5em; height: 1.5em;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: .82em;
+  color: var(--paper); background: var(--ink); border-radius: 50%;
+}
+.how b { color: var(--ink); font-weight: 800; }
 /* 시작 화면의 큰 계란 — 남는 세로를 다 먹는다 */
 .hero {
   flex: 1 1 0; min-height: 0;
@@ -232,6 +254,10 @@ body { display: flex; align-items: center; justify-content: center; }
 @media (max-height: 460px) {
   .lead { display: none; }
   .remark { display: none; }
+  .how { font-size: 12px; gap: 2px; }
+  .how li::before { width: 1.3em; height: 1.3em; }
+  /* 가로로 들면 계란 그림보다 '게임 방법' 이 먼저다 */
+  .hero { display: none; }
   .over { gap: clamp(4px, 1vh, 8px); }
   .score-big { font-size: clamp(28px, 10vh, 44px); }
   .result-egg { min-height: 72px; max-height: 30%; }
