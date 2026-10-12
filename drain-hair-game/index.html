@@ -47,14 +47,15 @@
       <p class="res-cap" id="resTitle">배수구 청소 완료!</p>
       <p class="new-rec" id="newRec" hidden>NEW RECORD!</p>
       <div class="result-art" id="resultArt"></div>
-      <p class="len-big" id="lenBig">0cm</p>
-      <p class="score-sub">뽑은 머리카락 · <span id="finalScore">0</span>점</p>
+      <div class="len-row">
+        <div><p class="len-cap">뽑은 머리카락</p><p class="len-big" id="rLength">0cm</p></div>
+        <div><p class="len-cap">한 줄로 최장</p><p class="len-big alt" id="rStreak">0cm</p></div>
+      </div>
+      <p class="score-sub"><span id="finalScore">0</span>점</p>
       <p class="grade" id="gradeLabel">제법 깔끔함</p>
       <p class="remark" id="remark"></p>
       <dl class="stats">
         <div><dt>청소율</dt><dd id="rClean">0%</dd></div>
-        <div class="key"><dt>총 제거 길이</dt><dd id="rLength">0cm</dd></div>
-        <div class="key"><dt>최장 연속</dt><dd id="rStreak">0cm</dd></div>
         <div><dt>끊김</dt><dd id="rBreak">0회</dd></div>
         <div><dt>걸린 시간</dt><dd id="rTime">0.0초</dd></div>
       </dl>

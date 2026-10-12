@@ -7,14 +7,20 @@
  *   결과가 되도록, 속도·거리 판정은 전부 이 논리 px 로 계산하고 마지막에
  *   한 번만 화면 크기로 환산한다.
  *
- * 머리카락 — 셋으로 나눠 관리한다
- *   activeHair   구멍에서 손끝까지 지금 당기고 있는 줄. 여덜 마디 감쇠
- *                스프링 사슬이고, 장력이 낮으면 늘어지고 높으면 곧게 펴진다.
- *   trail        이미 뽑아 낸 누적분. 구멍 아래에 뱀처럼 접혀 쌓이는 '한 줄'
- *                이다. 뽑은 길이에 따라 꼬리만 길어지므로 조각으로 안 보인다.
- *   bits         끊어질 때 튀는 짧은 파편 (아주 짧은 FX)
- *   둘(active + trail)은 구멍에서 만나고 같은 붓으로 그려서, 눈에는
- *   '배수구 안의 긴 머리카락 한 줄이 계속 나오는 중' 으로 보인다.
+ * 머리카락 — 끝까지 '한 가닥' 이다
+ *   한 가닥이 세 구간을 동시에 갖는다. 나누는 건 그리는 자리뿐이고,
+ *   논리적으로도 눈으로도 같은 줄이다.
+ *     (1) 구멍 안        아직 안 나온 구간 (안 보인다)
+ *     (2) 구멍 -> 손     지금 당기는 구간. 여덜 마디 감쇠 스프링 사슬이라
+ *                        장력이 낮으면 늘어지고 높으면 곧게 펴진다.
+ *     (3) 손 -> 바닥     손을 지나 아래로 늘어져 바닥에 겹겹이 쌓인 구간.
+ *                        자리는 '끝에서부터의 길이' 만으로 정해지므로,
+ *                        더 뽑아도 이미 놓인 데는 다시 안 움직인다.
+ *   그려 줄 때도 구멍에서 바닥 끝까지 beginPath 한 번으로 잇는다.
+ *   그래서 어디서도 끊긴 조각처럼 안 보인다.
+ *   끊어지면 그 가닥의 바닥 더미는 그 자리에 굳고(frozen), 새 가닥이
+ *   구멍에서 다시 나와 그 옆에 쌓이기 시작한다. 더미는 사라지지 않는다.
+ *   bits 는 끊어지는 순간에만 튀는 아주 짧은 파편 FX 다.
  *   PNG 는 끝·매듭·오염물·덩어리 같은 '부품' 으로만 쓴다.
  *
  * 장력
@@ -51,7 +57,10 @@
       sag: 150,                   // 장력이 0 일 때 늘어지는 정도 (논리 px)
       visMin: 150,                // 보이는 줄기의 최소 길이
       visMax: 720,                // 보이는 줄기의 최대 길이 — 화면 밖으로 안 나가게
-      visCm: 70,                  // 보이는 줄기가 나타내는 길이(cm)
+      visCm: 6,                   // 구멍에서 손까지의 구간이 나타내는 길이(cm).
+                                  // 이걸 넘는 만큼은 바닥에 쌓인다. 작게 잡아야
+                                  // 당기는 중에도 더미가 줄지 않고 계속 자란다
+                                  // (당기는 구간이 늘어나는 속도 < 새로 나오는 속도).
       cmPerPx: 0.018,             // 손끝이 1px 움직일 때 빠져나오는 길이(cm)
       /* 기준 길이. 290cm 짜리 판은 이 비율만큼 더 빨리 나온다 — 그래야
          긴 판이 '숫자만 큰 구경거리' 가 되고 '점수 깎이는 판' 이 안 된다. */
@@ -88,15 +97,21 @@
       largeKnot: 1.65, grime: 1.4, final: 1.8,
     },
 
-    /* ---- 뽑아 낸 머리카락이 쌓이는 자리 ---- 구멍 아래에 뱀처럼 접어 둔다 */
-    trail: {
-      pxPerCm: 15,                // 1cm 를 화면 몇 px 로 눕히나
-      width: 620,                 // 쌓이는 자리의 폭 (논리 px) — 화면이 좁으면 줄어든다
-      top: 330,                   // 구멍에서 이만큼 아래부터 쌓인다
-      rowGap: 46,                 // 한 번 왕복할 때 내려가는 깊이
-      maxDepth: 760,              // 이보다 더 내려가지 않는다 (화면 밖 방지)
-      wobble: 16,                 // 구불구불한 정도
-      lineW: 11,                  // 선 두께 (살아 있는 줄기보다 살짝 도톰)
+    /* ---- 손을 지나 바닥에 쌓이는 구간 ----
+       한 자리에서 좌우로 늘어지며 겹친다. 길어질수록 폭·두께가 자라므로
+       50cm 는 한 번 꺾인 S, 180cm 는 여덜 번 겹친 더미로 보인다. */
+    pile: {
+      pxPerCm: 22,                // 1cm 가 바닥에서 차지하는 길이(px)
+      anchorY: 860,               // 쌓이는 자리 (구멍에서 이만큼 아래)
+      ampMin: 90, ampMax: 410,    // 좌우로 늘어지는 폭 — 끝쪽은 좁고 뒤쪽은 넓다
+      depthMin: 40, depthMax: 165,// 위아래 두께
+      full: 2600,                 // 이만큼 쌓이면 폭·두께가 다 자란다(px)
+      period: 950,                // 한 번 좌우로 왕복하는 길이(px)
+      ratio: 0.618,               // 위아래 흔들림 비율 — 겹쳐도 같은 자리에 안 겹친다
+      drift: 0.012, driftMax: 90, // 쌓일수록 아주 조금씩 내려앉는다
+      lineW: 12,                  // 바닥에 누운 줄의 두께
+      sag: 90,                    // 손에서 바닥까지 늘어지며 처지는 정도
+      shift: 46,                  // 끊긴 뒤 새 더미가 비껴 앉는 거리
     },
 
     /* ---- 길이 돌파 연출 ---- */
@@ -325,6 +340,8 @@
     tipKind: "hairTipShort",
     nodes: [],                    // 사슬 마디 {x,y,vx,vy}
     bits: [],                     // 끊어질 때 튀는 짧은 파편
+    piles: [],                    // 바닥 더미. 마지막 것이 지금 뽑는 가닥이다.
+    activeLen: 0,                 // 구멍에서 손까지 당겨 나온 길이(cm)
     milestone: 0,                 // 다음에 알릴 돌파 길이의 번호
     popScale: 0,                  // 돌파했을 때 숫자가 커졌다 돌아온다
     grab: null,                   // 잡은 자리 {x,y}
@@ -537,29 +554,98 @@
   }
 
   /* ============================================================
-     이미 뽑아 낸 머리카락 — 구멍 아래에 뱀처럼 접어 쌓는다.
-     길이 u(cm) 를 넣으면 그 지점의 자리가 나온다. 뽑은 길이가 늘면 꼬리만
-     길어지므로, 쌓여도 '한 줄' 로 보이고 조각으로 보이지 않는다.
+     바닥에 쌓인 구간
      ============================================================ */
+  const PILE_STEP = 10;                          // 점 사이 간격(px)
+
   /* 쌓이는 자리의 폭 — 좁은 화면에서 밖으로 삐져나가지 않게 */
-  function trailW() {
-    const T = GAME_CONFIG.trail;
-    if (!W || !sc) return T.width;
-    return Math.max(300, Math.min(T.width, ((W / 2) / sc - 36) * 2));
+  function pileW() {
+    const T = GAME_CONFIG.pile;
+    if (!W || !sc) return T.ampMax;
+    return Math.max(T.ampMin + 60, Math.min(T.ampMax, (W / 2) / sc - 40));
   }
 
-  function trailPoint(u) {
-    const T = GAME_CONFIG.trail;
-    const wd = trailW();
-    const px = u * T.pxPerCm;                    // 눕힌 길이 (논리 px)
-    /* 좌우로 왕복하면서 천천히 내려간다. 끊어 붙인 게 아니라 하나의 사인
-       곡선이라, 접히는 자리에서도 꺾이지 않고 이어진다. */
-    const th = Math.PI * px / wd;                // 한 번 왕복이 2파이
-    const x = -(wd / 2) * Math.cos(th);
-    const y = Math.min(T.maxDepth, T.top + T.rowGap * th / Math.PI);
-    /* 구불구불하게 — 자리에 따라 정해지므로 프레임마다 흔들리지 않는다 */
-    const wob = Math.sin(px * 0.03) * T.wobble;
-    return { x: x + wob * 0.5, y: y + wob };
+  /* 사슬이 길어진 만큼 = 구멍에서 손까지 당겨 나온 길이(cm) */
+  function chainCm() {
+    const H = GAME_CONFIG.hair;
+    let len = 0;
+    for (let i = 1; i < S.nodes.length; i++) {
+      len += Math.hypot(S.nodes[i].x - S.nodes[i - 1].x,
+                        S.nodes[i].y - S.nodes[i - 1].y);
+    }
+    return Math.min(H.visCm, len / H.visMax * H.visCm);
+  }
+  /* 한 가닥 안에서는 줄지 않는다 (step 에서 올려만 준다) */
+  const activeCm = () => S.activeLen;
+
+  /* 새 가닥 — 끊어질 때마다 바닥 더미가 하나씩 늘어난다 */
+  function newPile() {
+    const T = GAME_CONFIG.pile;
+    const n = S.piles.length;
+    const k = Math.min(3, n);
+    S.piles.push({
+      got: 0,                                    // 이 가닥으로 뽑은 길이(cm)
+      ox: (n % 2 ? 1 : -1) * k * T.shift * 0.5,  // 앞 더미 옆으로 비껴 앉는다
+      oy: -k * T.shift * 0.42,
+      ph: n * 2.1,                               // 모양이 겹쳐 보이지 않게
+      pts: [], laid: 0, wAt: 0,                  // 놓아 둔 점 — 다시 안 움직인다
+      frozen: false, tip: null, tipRot: 0,
+    });
+    S.activeLen = 0;
+  }
+
+  /* 바닥에 누운 줄 위의 한 점. s 는 '끝(제일 먼저 나온 쪽)' 에서의 길이(px).
+     s 로만 정해지므로 더 뽑아도 이미 놓인 부분은 그대로다. */
+  function pilePoint(p, s) {
+    const T = GAME_CONFIG.pile;
+    const f = Math.min(1, s / T.full);           // 쌓일수록 넓고 두껍게 늘어진다
+    const A = T.ampMin + (pileW() - T.ampMin) * f;
+    const B = T.depthMin + (T.depthMax - T.depthMin) * f;
+    const th = s * (Math.PI * 2 / T.period) + p.ph;
+    return {
+      x: p.ox + A * Math.sin(th),
+      y: T.anchorY + p.oy + B * Math.sin(T.ratio * th + 0.7)
+         + Math.min(T.driftMax, s * T.drift),
+    };
+  }
+
+  /* 쌓인 줄의 점들 — 꼬리만 이어 붙이고 앞부분은 그대로 쓴다 */
+  function pilePts(p, lenPx) {
+    const w = pileW();
+    if (p.wAt !== w) { p.pts.length = 0; p.laid = 0; p.wAt = w; }
+    while (p.laid <= lenPx) {
+      p.pts.push(pilePoint(p, p.laid));
+      p.laid += PILE_STEP;
+    }
+    return p.pts;
+  }
+
+  /* 줄 위에서 '구멍에서 d cm 나온 자리'. 끊긴 뒤에도 그 가닥의 더미 위에
+     그대로 얹혀 있게 한다 — 매듭·오염물이 허공에 뜨지 않는다. */
+  function strandPoint(d) {
+    const T = GAME_CONFIG.pile;
+    const aCm = activeCm();
+    let rem = d;
+    for (let i = S.piles.length - 1; i >= 0; i--) {
+      const p = S.piles[i];
+      const mine = !p.frozen;
+      if (mine && rem <= aCm) {
+        const t = aCm > 0 ? clamp(rem / aCm, 0, 1) : 0;
+        const q = curvePoint(t);
+        return { x: q.x, y: q.y, t: t };
+      }
+      if (rem <= p.got || i === 0) {
+        const len = Math.max(0, mine ? p.got - aCm : p.got) * T.pxPerCm;
+        const pts = pilePts(p, len);
+        const s = Math.max(0, p.got - rem) * T.pxPerCm;
+        const k = clamp(Math.round(s / PILE_STEP), 0, pts.length - 1);
+        if (!pts.length) break;
+        return { x: pts[k].x, y: pts[k].y, t: 1 };
+      }
+      rem -= p.got;
+    }
+    const q = curvePoint(1);
+    return { x: q.x, y: q.y, t: 1 };
   }
 
   /* 사슬을 지나는 부드러운 곡선 위의 한 점 (0~1) */
@@ -641,6 +727,9 @@
       for (const b of H.streakBonus) { if (S.streak >= b.from) { rate *= b.mul; break; } }
       const add = feed * rate / S.resistance;
       S.extracted = Math.min(S.total, S.extracted + add);
+      /* 나온 만큼 지금 가닥의 바닥 더미가 길어진다 */
+      const cur = S.piles[S.piles.length - 1];
+      if (cur) cur.got += add;
       S.streak += add;
       S.streakBest = Math.max(S.streakBest, S.streak);
       checkMilestone();
@@ -724,7 +813,8 @@
     addFx("fxBreakHair", at, 300);
     S.shake = C.shake;
     buzz(40); sfx("break");
-    say("끊어졌다!", true);
+    /* 많이 뽑아 두고 끊었으면 그만큼 아깝게 알린다 */
+    say(S.streak >= 40 ? Math.floor(S.streak) + "cm 끊어졌다!" : "끊어졌다!", true);
     pullSound(false);
     cv.classList.remove("grabbing");
     /* 끊어진 쪽에서 짧은 파편이 튄다 (아주 짧은 FX) */
@@ -742,6 +832,11 @@
       n.vx += at.x / d * C.recoil * 0.1;
       n.vy += at.y / d * C.recoil * 0.1;
     }
+    /* 뽑던 가닥은 바닥에 그대로 굳고, 새 가닥이 구멍에서 다시 나온다.
+       더미는 사라지지 않는다 — 끊겨도 뽑아 둔 건 눈에 남아야 한다. */
+    const cur = S.piles[S.piles.length - 1];
+    if (cur) { cur.frozen = true; cur.tip = S.tipKind; cur.tipRot = rnd(-0.6, 0.6); }
+    newPile();
     S.extracted = Math.max(0, S.extracted - S.total * 0.03);
     S.grab = null; S.ptr = null;
     S.tension = 0; S.overTime = 0; S.overPull = 0;
@@ -849,6 +944,10 @@
 
     stepTension(dt);
     stepChain(dt);
+    /* 한 가닥 안에서는 절대 줄지 않는다. 사슬이 스프링이라 늘어짐이 펴질 때
+       손이 안 움직여도 길어지는데, 그게 바닥 더미를 되감아 보이게 한다.
+       덜어 둔 몇 cm 는 그 가닥이 끊길 때까지 손 쪽에 남는다. */
+    S.activeLen = Math.max(S.activeLen, chainCm());
     stepClog(dt);
     stepFx(dt);
     S.waterSpin += dt * (0.35 + S.clean / 100 * 1.4);
@@ -936,37 +1035,26 @@
 
   /* 이미 뽑아 낸 누적분 — 구멍에서 시작해 아래로 접혀 쌓인 한 줄.
      살아 있는 줄기와 같은 붓으로 구멍에서 이어 그려 한 가닥처럼 보이게 한다. */
-  function drawTrail(g) {
-    const T = GAME_CONFIG.trail;
-    const got = S.extracted;
-    if (got <= 0.5) return;
-    const stroke = (wd, col, alpha) => {
+  /* 끊겨 바닥에 굳은 더미들 — 사라지지 않고 계속 쌓여 보인다 */
+  function drawOldPiles(g) {
+    const T = GAME_CONFIG.pile;
+    for (const p of S.piles) {
+      if (!p.frozen || p.got <= 0.3) continue;
+      const pts = pilePts(p, p.got * T.pxPerCm);
+      if (pts.length < 2) continue;
       g.save();
-      g.globalAlpha = alpha === undefined ? 1 : alpha;
-      g.strokeStyle = col; g.lineWidth = wd;
       g.lineCap = "round"; g.lineJoin = "round";
-      g.beginPath();
-      /* 구멍 -> 쌓이는 자리 들머리. 한 줄로 이어 보이게 촘촘히 나눈다 */
-      const head = trailPoint(0);
-      g.moveTo(0, 0);
-      const LEAD = 8;
-      for (let i = 1; i <= LEAD; i++) {
-        const t = i / LEAD, m = 1 - t;
-        /* 2차 베지에 — 구멍에서 아래로 처졌다가 쌓이는 자리로 들어간다 */
-        g.lineTo(m * m * 0 + 2 * m * t * (head.x * 0.4) + t * t * head.x,
-                 m * m * 0 + 2 * m * t * (T.top * 0.45) + t * t * head.y);
+      for (const [wd, col, al] of [[T.lineW, "rgba(22,18,16,.74)", 1],
+                                   [T.lineW * 0.36, "rgba(104,86,74,.45)", 0.55]]) {
+        g.globalAlpha = al; g.strokeStyle = col; g.lineWidth = wd;
+        g.beginPath();
+        g.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y);
+        g.stroke();
       }
-      /* 쌓인 몸통 — 2cm 마다 한 점, 끊김 없이 한 줄로 */
-      const stepCm = 2;
-      for (let u = stepCm; u <= got; u += stepCm) {
-        const p = trailPoint(u);
-        g.lineTo(p.x, p.y);
-      }
-      g.stroke();
       g.restore();
-    };
-    stroke(T.lineW, "rgba(20,16,14,.82)");
-    stroke(T.lineW * 0.38, "rgba(104,86,74,.5)", 0.6);
+      if (p.tip) draw(g, p.tip, pts[0].x, pts[0].y, 150, { mode: "center", rot: p.tipRot });
+    }
   }
 
   /* 끊어져 튀는 짧은 파편 */
@@ -986,15 +1074,25 @@
     }
   }
 
-  /* 머리카락 줄기 — 긴 PNG 가 아니라 사슬을 지나는 곡선으로 그린다 */
-  function drawHair(g) {
+  /* 지금 뽑고 있는 한 가닥 — 구멍에서 바닥 끝까지 '한 번의 선' 으로 잇는다.
+     구멍 -> 손 (사슬) -> 늘어짐 -> 바닥에 쌓인 구간 순서로 한 path 다. */
+  function drawStrand(g) {
     const n = S.nodes.length;
     if (n < 2) return;
+    const T = GAME_CONFIG.pile;
     const taut = clamp(S.tension, 0, 1);
     /* 떨림 — 끊어질 것 같을 때만 눈에 보인다 */
     const shiver = taut > GAME_CONFIG.break.warningThreshold
       ? (taut - GAME_CONFIG.break.warningThreshold) * 26 : 0;
     const t = performance.now() / 1000;
+
+    const cur = S.piles[S.piles.length - 1];
+    const aCm = activeCm();
+    const len = Math.max(0, (cur ? cur.got : 0) - aCm) * T.pxPerCm;
+    const pts = cur && !cur.frozen ? pilePts(cur, len) : [];
+    const lay = pts.length > 1 ? Math.floor(len / PILE_STEP) : -1;
+    const hand = curvePoint(1);
+    const live = lay >= 1 ? pts[lay] : null;     // 바닥 줄의 '손 쪽' 끝
 
     const path = (wd, col, alpha) => {
       g.save();
@@ -1003,12 +1101,25 @@
       g.lineWidth = wd;
       g.lineCap = "round"; g.lineJoin = "round";
       g.beginPath();
+      /* (2) 구멍 -> 손 */
       const STEPS = 34;
       for (let i = 0; i <= STEPS; i++) {
         const p = curvePoint(i / STEPS);
         const sh = shiver * Math.sin(i * 1.7 + t * 42) * (i / STEPS);
-        const x = p.x + sh, y = p.y;
-        if (i) g.lineTo(x, y); else g.moveTo(x, y);
+        if (i) g.lineTo(p.x + sh, p.y); else g.moveTo(p.x + sh, p.y);
+      }
+      if (live) {
+        /* (3-a) 손을 지나 바닥으로 늘어지는 구간 */
+        const cx = (hand.x + live.x) / 2;
+        const cy = (hand.y + live.y) / 2 + T.sag;
+        const SG = 10;
+        for (let i = 1; i <= SG; i++) {
+          const u = i / SG, m = 1 - u;
+          g.lineTo(m * m * hand.x + 2 * m * u * cx + u * u * live.x,
+                   m * m * hand.y + 2 * m * u * cy + u * u * live.y);
+        }
+        /* (3-b) 바닥에 쌓인 구간 — 손 쪽에서 끝쪽으로 거슬러 간다 */
+        for (let i = lay - 1; i >= 0; i--) g.lineTo(pts[i].x, pts[i].y);
       }
       g.stroke();
       g.restore();
@@ -1016,22 +1127,24 @@
     /* 굵게 어둡게 한 번, 가늘게 밝게 한 번 — 가닥처럼 보이게 */
     path(13, "rgba(24,20,18,.92)");
     path(5, "rgba(96,80,70,.75)", 0.8);
-    /* 잡은 끝부분 */
-    const end = curvePoint(1);
-    const ang = Math.atan2(end.y - curvePoint(0.88).y, end.x - curvePoint(0.88).x);
-    draw(g, S.tipKind, end.x, end.y, 200, { mode: "center", rot: ang - Math.PI / 2 });
+
+    /* 가닥의 끝 — 바닥에 쌓였으면 그 끝에, 아직이면 손에 */
+    const endAt = live ? pts[0] : hand;
+    const prev = live ? pts[Math.min(2, lay)] : curvePoint(0.88);
+    const ang = Math.atan2(endAt.y - prev.y, endAt.x - prev.x);
+    draw(g, S.tipKind, endAt.x, endAt.y, live ? 160 : 200,
+      { mode: "center", rot: ang - Math.PI / 2 });
   }
 
-  /* 매듭·오염물 — 진행도에 따라 곡선을 타고 올라온다 */
+  /* 매듭·오염물 — 같은 줄에 걸려 함께 나오고, 나온 뒤에도 그 줄에 얹혀 있다 */
   function drawOnHair(g) {
     const prog = S.extracted / S.total;
-    const visCm = GAME_CONFIG.hair.visCm;
     const place = (item, key, w) => {
       if (prog < item.p) return;                 // 아직 구멍 안
-      const t = clamp((prog - item.p) * S.total / visCm, 0, 1);
-      const p = curvePoint(t);
+      const d = (prog - item.p) * S.total;       // 구멍에서 나온 길이(cm)
+      const p = strandPoint(d);
       draw(g, key, p.x + (item.offX || 0), p.y + (item.offY || 0), w,
-        { mode: "center", rot: item.rot + t * 0.6 });
+        { mode: "center", rot: item.rot + p.t * 0.6 });
     };
     for (const gr of S.grimes) place(gr, gr.kind, gr.w);
     for (const k of S.knots) place(k, k.kind, k.w);
@@ -1152,9 +1265,9 @@
     g.clearRect(0, 0, W, H);
     world(g);
     drawScene(g);
-    drawTrail(g);                                 // 이미 뽑은 누적분 (한 줄)
+    drawOldPiles(g);                              // 끊겨 굳은 더미들
     drawGrabHint(g);
-    drawHair(g);                                  // 지금 당기고 있는 줄
+    drawStrand(g);                                // 지금 뽑는 한 가닥 (구멍~바닥)
     drawBits(g);
     drawOnHair(g);
     drawClog(g);
@@ -1205,6 +1318,8 @@
     S.regrabLeft = 0;
     S.fx.length = 0;
     S.bits.length = 0;
+    S.piles.length = 0; newPile();
+    S.activeLen = 0;
     S.milestone = 0; S.popScale = 0;
     S.shake = 0; S.flash = 0;
     S.msg = ""; S.msgLeft = 0;
@@ -1260,7 +1375,6 @@
     $("remark").textContent = G.remark;
     $("rClean").textContent = Math.floor(S.clean) + "%";
     $("rLength").textContent = Math.floor(S.extracted) + "cm";
-    $("lenBig").textContent = Math.floor(S.extracted) + "cm";
     $("rStreak").textContent = Math.floor(S.streakBest) + "cm";
     $("rBreak").textContent = S.breaks + "회";
     $("rTime").textContent = S.elapsed.toFixed(1) + "초";
@@ -1434,9 +1548,10 @@
     ASSET_VERSION, DEBUG_GAME, REF_H, DRAIN_R, DRAIN_Y,
     start, timeOver, showResult, doBreak, doClear, release, buildHair, newTip,
     buildSegments,
-    resistanceNow, segmentName, curvePoint, trailPoint, trailW, topY, botY,
+    resistanceNow, segmentName, curvePoint, topY, botY,
+    pileW, pilePoint, pilePts, activeCm, chainCm, newPile, strandPoint, PILE_STEP,
     stepChain, stepTension, scoreOf,
-    checkMilestone, drawTrail, drawBits,
+    checkMilestone, drawStrand, drawOldPiles, drawBits,
     gradeFor, grabRadius, tipRest, addFx, snapResult, buildCard, shareResult,
     drawHero, paintBest, toLogical, visH, has, loadAssets,
     assetsReady: () => assetsReady,
