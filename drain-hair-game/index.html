@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport"
+  content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>꼬직 · 배수구 머리카락 뽑기</title>
+<meta property="og:type" content="website" />
+<meta property="og:title" content="꼬직 · 배수구 머리카락 뽑기" />
+<meta property="og:description" content="끊기지 않게 천천히 당겨보세요!" />
+<!-- 웹폰트: 숫자가 커서 획이 뭉치지 않는 쪽으로 (다른 꼬직 게임과 같은 폰트) -->
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+<link rel="stylesheet"
+  href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.css" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ===== 상단: 남은 시간 / 청소율 ===== -->
+  <div class="top" id="top">
+    <div class="gauge">
+      <span class="g-cap">남은 시간</span>
+      <span class="g-val"><b class="g-num" id="timeNum">00:45</b></span>
+    </div>
+    <div class="gauge right" id="cleanBox">
+      <span class="g-cap">청소율</span>
+      <span class="g-val"><b class="g-num" id="cleanNum">0</b><span class="g-unit">%</span></span>
+    </div>
+  </div>
+
+  <!-- ===== 게임판 ===== -->
+  <div class="stage" id="stage">
+    <canvas id="cv"></canvas>
+
+    <!-- 타이틀 -->
+    <div class="over" id="startOver">
+      <h1 class="title">배수구<br>머리카락 뽑기</h1>
+      <canvas class="hero" id="heroCv" width="420" height="420"></canvas>
+      <p class="lead">끊기지 않게<br>천천히 당겨보세요!</p>
+      <p class="best">BEST <span id="bestStart">-</span></p>
+      <button class="btn big" type="button" id="startBtn">뽑기 시작</button>
+    </div>
+
+    <!-- 결과 -->
+    <div class="over over-end" id="endOver" hidden>
+      <p class="res-cap" id="resTitle">배수구 청소 완료!</p>
+      <p class="new-rec" id="newRec" hidden>NEW RECORD!</p>
+      <div class="result-art" id="resultArt"></div>
+      <p class="score-big" id="finalScore">0</p>
+      <p class="grade" id="gradeLabel">제법 깔끔함</p>
+      <p class="remark" id="remark"></p>
+      <dl class="stats">
+        <div><dt>청소율</dt><dd id="rClean">0%</dd></div>
+        <div><dt>총 제거 길이</dt><dd id="rLength">0cm</dd></div>
+        <div><dt>최장 연속</dt><dd id="rStreak">0cm</dd></div>
+        <div><dt>끊김</dt><dd id="rBreak">0회</dd></div>
+        <div><dt>걸린 시간</dt><dd id="rTime">0.0초</dd></div>
+      </dl>
+      <div class="res-btns">
+        <button class="btn big" type="button" id="againBtn">다시 뽑기</button>
+        <button class="btn ghost" type="button" id="shareBtn">결과 공유</button>
+      </div>
+      <p class="best">BEST <span id="bestEnd">-</span></p>
+    </div>
+
+    <!-- 로딩 -->
+    <div class="over over-load" id="loadOver">
+      <p class="load-cap">LOADING</p>
+      <div class="load-bar"><div class="load-fill" id="loadFill"></div></div>
+    </div>
+  </div>
+
+  <div class="sig">ccojik</div>
+</div>
+
+<script src="app.js"></script>
+<script>window.SITE_ANALYTICS_PROJECT='ccojik-drain-hair';</script>
+<script src="../analytics.js"></script>
+</body>
+</html>

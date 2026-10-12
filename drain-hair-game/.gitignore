@@ -1,0 +1,5 @@
+# 원본 PNG 35장(합계 71MB)은 저장소에 올리지 않는다.
+# 게임은 assets/opt/ 의 WebP 사본(2.9MB)만 쓰고, 원본은 작업 폴더에 그대로 둔다.
+# 공개 저장소(GitHub Pages)에 71MB 를 영구히 남기지 않기 위한 선택이다.
+# 버전 관리에 넣고 싶으면 이 파일을 지우고 `git add -f assets/*.png` 하면 된다.
+assets/*.png
