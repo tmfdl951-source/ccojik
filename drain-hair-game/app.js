@@ -7,10 +7,15 @@
  *   결과가 되도록, 속도·거리 판정은 전부 이 논리 px 로 계산하고 마지막에
  *   한 번만 화면 크기로 환산한다.
  *
- * 머리카락
- *   줄기는 하나의 긴 그림이 아니다. 구멍(고정점)에서 손끝(잡은 점)까지
- *   이어진 여덜 개 마디의 감쇠 스프링 사슬이고, 장력이 낮으면 늘어지고
- *   높으면 곧게 펴진다. PNG 는 끝·매듭·오염물·덩어리 같은 '부품' 으로만 쓴다.
+ * 머리카락 — 셋으로 나눠 관리한다
+ *   activeHair   구멍에서 손끝까지 지금 당기고 있는 줄. 여덜 마디 감쇠
+ *                스프링 사슬이고, 장력이 낮으면 늘어지고 높으면 곧게 펴진다.
+ *   trail        이미 뽑아 낸 누적분. 구멍 아래에 뱀처럼 접혀 쌓이는 '한 줄'
+ *                이다. 뽑은 길이에 따라 꼬리만 길어지므로 조각으로 안 보인다.
+ *   bits         끊어질 때 튀는 짧은 파편 (아주 짧은 FX)
+ *   둘(active + trail)은 구멍에서 만나고 같은 붓으로 그려서, 눈에는
+ *   '배수구 안의 긴 머리카락 한 줄이 계속 나오는 중' 으로 보인다.
+ *   PNG 는 끝·매듭·오염물·덩어리 같은 '부품' 으로만 쓴다.
  *
  * 장력
  *   당기는 속도 x 그 구간의 저항 x 당기는 방향(결 대비 각도) 로 정한다.
@@ -47,7 +52,19 @@
       visMin: 150,                // 보이는 줄기의 최소 길이
       visMax: 720,                // 보이는 줄기의 최대 길이 — 화면 밖으로 안 나가게
       visCm: 70,                  // 보이는 줄기가 나타내는 길이(cm)
-      cmPerPx: 0.09,              // 손끝이 1px 움직일 때 빠져나오는 길이(cm)
+      cmPerPx: 0.018,             // 손끝이 1px 움직일 때 빠져나오는 길이(cm)
+      /* 기준 길이. 290cm 짜리 판은 이 비율만큼 더 빨리 나온다 — 그래야
+         긴 판이 '숫자만 큰 구경거리' 가 되고 '점수 깎이는 판' 이 안 된다. */
+      lenRef: 170,
+      /* 후반에는 같은 손놀림에 더 많이 나온다 — 숫자가 시원하게 올라가게.
+         초반 5~10초는 20~60cm, 중반 60~120cm, 후반 120cm+ 가 되도록 잡았다. */
+      lateBoost: 1.5,             // 끝에서 cmPerPx 가 (1+이만큼) 배가 된다
+      /* 끊지 않고 오래 당기면 조금 더 시원하게 — 길이 연출용 보정이다 */
+      streakBonus: [
+        { from: 140, mul: 1.15 },
+        { from: 80,  mul: 1.10 },
+        { from: 30,  mul: 1.05 },
+      ],
       retractOnRelease: 0.02,     // 손을 떼면 이 비율만큼 다시 들어간다
       regrabDelay: 0.3,           // 다시 잡을 수 있게 되기까지(초)
     },
@@ -71,6 +88,20 @@
       largeKnot: 1.65, grime: 1.4, final: 1.8,
     },
 
+    /* ---- 뽑아 낸 머리카락이 쌓이는 자리 ---- 구멍 아래에 뱀처럼 접어 둔다 */
+    trail: {
+      pxPerCm: 15,                // 1cm 를 화면 몇 px 로 눕히나
+      width: 620,                 // 쌓이는 자리의 폭 (논리 px) — 화면이 좁으면 줄어든다
+      top: 330,                   // 구멍에서 이만큼 아래부터 쌓인다
+      rowGap: 46,                 // 한 번 왕복할 때 내려가는 깊이
+      maxDepth: 760,              // 이보다 더 내려가지 않는다 (화면 밖 방지)
+      wobble: 16,                 // 구불구불한 정도
+      lineW: 11,                  // 선 두께 (살아 있는 줄기보다 살짝 도톰)
+    },
+
+    /* ---- 길이 돌파 연출 ---- */
+    milestones: [50, 100, 150, 180, 220, 260],
+
     /* ---- 잡는 자리 ---- 끊을수록 좁아진다 */
     grabRadius: 150,              // 기본 반지름 (논리 px)
     grabShrink: [1, 0.85, 0.7, 0.6],
@@ -88,13 +119,17 @@
 
   /* 한 판마다 똑같지 않게 — 다섯 가지 + 드물게 하나 */
   const PRESETS = [
-    { key: "NORMAL",     total: 150, knots: 2, grimes: 2, resMul: 1.00, clogAt: 0.88 },
+    { key: "NORMAL",     total: 170, knots: 2, grimes: 2, resMul: 1.00, clogAt: 0.88 },
     { key: "LONG",       total: 220, knots: 2, grimes: 3, resMul: 0.88, clogAt: 0.90 },
-    { key: "KNOTTY",     total: 160, knots: 4, grimes: 1, resMul: 1.00, clogAt: 0.88 },
-    { key: "GROSS",      total: 180, knots: 2, grimes: 5, resMul: 0.96, clogAt: 0.89 },
-    { key: "SHORT HARD", total: 120, knots: 2, grimes: 2, resMul: 1.18, clogAt: 0.86 },
+    { key: "KNOTTY",     total: 180, knots: 4, grimes: 1, resMul: 1.00, clogAt: 0.88 },
+    { key: "GROSS",      total: 200, knots: 2, grimes: 5, resMul: 0.96, clogAt: 0.89 },
+    { key: "SHORT HARD", total: 140, knots: 2, grimes: 2, resMul: 1.18, clogAt: 0.86 },
+    /* '이게 아직도 더 나온다고?' 를 맡는 프리셋 */
+    { key: "LONG LONG",  total: 245, knots: 3, grimes: 3, resMul: 0.95, clogAt: 0.90, bigClog: true },
   ];
-  const MEGA = { key: "MEGA CLOG", total: 200, knots: 3, grimes: 4, resMul: 1.05, clogAt: 0.80, mega: true };
+  /* 드물게 — 숏폼에서 제일 재미있는 쪽 */
+  const MEGA = { key: "MEGA HAIR", total: 290, knots: 4, grimes: 5, resMul: 1.06,
+                 clogAt: 0.86, mega: true, bigClog: true };
   const MEGA_CHANCE = 0.1;
 
   /* 등급 — 점수로 갈린다 */
@@ -289,6 +324,9 @@
     knots: [], grimes: [],        // 매듭·오염물
     tipKind: "hairTipShort",
     nodes: [],                    // 사슬 마디 {x,y,vx,vy}
+    bits: [],                     // 끊어질 때 튀는 짧은 파편
+    milestone: 0,                 // 다음에 알릴 돌파 길이의 번호
+    popScale: 0,                  // 돌파했을 때 숫자가 커졌다 돌아온다
     grab: null,                   // 잡은 자리 {x,y}
     outDir: { x: 0, y: 1 },       // 머리카락이 나오는 방향
     visLen: 0,
@@ -498,6 +536,32 @@
     S.visLen = Math.hypot(last.x, last.y);
   }
 
+  /* ============================================================
+     이미 뽑아 낸 머리카락 — 구멍 아래에 뱀처럼 접어 쌓는다.
+     길이 u(cm) 를 넣으면 그 지점의 자리가 나온다. 뽑은 길이가 늘면 꼬리만
+     길어지므로, 쌓여도 '한 줄' 로 보이고 조각으로 보이지 않는다.
+     ============================================================ */
+  /* 쌓이는 자리의 폭 — 좁은 화면에서 밖으로 삐져나가지 않게 */
+  function trailW() {
+    const T = GAME_CONFIG.trail;
+    if (!W || !sc) return T.width;
+    return Math.max(300, Math.min(T.width, ((W / 2) / sc - 36) * 2));
+  }
+
+  function trailPoint(u) {
+    const T = GAME_CONFIG.trail;
+    const wd = trailW();
+    const px = u * T.pxPerCm;                    // 눕힌 길이 (논리 px)
+    /* 좌우로 왕복하면서 천천히 내려간다. 끊어 붙인 게 아니라 하나의 사인
+       곡선이라, 접히는 자리에서도 꺾이지 않고 이어진다. */
+    const th = Math.PI * px / wd;                // 한 번 왕복이 2파이
+    const x = -(wd / 2) * Math.cos(th);
+    const y = Math.min(T.maxDepth, T.top + T.rowGap * th / Math.PI);
+    /* 구불구불하게 — 자리에 따라 정해지므로 프레임마다 흔들리지 않는다 */
+    const wob = Math.sin(px * 0.03) * T.wobble;
+    return { x: x + wob * 0.5, y: y + wob };
+  }
+
   /* 사슬을 지나는 부드러운 곡선 위의 한 점 (0~1) */
   function curvePoint(t) {
     const n = S.nodes.length;
@@ -569,10 +633,17 @@
     const after = Math.hypot(p.x, p.y);
     const feed = Math.max(0, after - before);
     if (feed > 0 && S.state !== ST.BREAK) {
-      const add = feed * GAME_CONFIG.hair.cmPerPx / S.resistance;
+      const H = GAME_CONFIG.hair;
+      /* 뒤로 갈수록 같은 손놀림에 더 많이 나온다 — 숫자가 시원하게 오른다 */
+      const prog = S.extracted / S.total;
+      let rate = H.cmPerPx * (1 + prog * H.lateBoost) * (S.total / H.lenRef);
+      /* 끊지 않고 오래 당기고 있으면 조금 더 */
+      for (const b of H.streakBonus) { if (S.streak >= b.from) { rate *= b.mul; break; } }
+      const add = feed * rate / S.resistance;
       S.extracted = Math.min(S.total, S.extracted + add);
       S.streak += add;
       S.streakBest = Math.max(S.streakBest, S.streak);
+      checkMilestone();
       if (Math.random() < 0.035) addFx("fxDroplet", curvePoint(0.6), 70);
     }
 
@@ -656,6 +727,15 @@
     say("끊어졌다!", true);
     pullSound(false);
     cv.classList.remove("grabbing");
+    /* 끊어진 쪽에서 짧은 파편이 튄다 (아주 짧은 FX) */
+    for (let i = 0; i < 5; i++) {
+      S.bits.push({
+        x: at.x, y: at.y,
+        vx: rnd(-520, 520), vy: rnd(-700, -160),
+        rot: rnd(0, 6.28), vr: rnd(-9, 9),
+        len: rnd(40, 110), life: 0.5,
+      });
+    }
     /* 끊어진 쪽은 손 방향으로 튕기고, 남은 쪽은 구멍으로 조금 들어간다 */
     const d = Math.hypot(at.x, at.y) || 1;
     for (const n of S.nodes) {
@@ -710,8 +790,29 @@
     for (let i = S.fx.length - 1; i >= 0; i--) {
       if ((S.fx[i].life -= dt) <= 0) S.fx.splice(i, 1);
     }
+    /* 끊어진 파편 — 중력에 떨어지며 짧게 사라진다 */
+    for (let i = S.bits.length - 1; i >= 0; i--) {
+      const b = S.bits[i];
+      b.vy += 2300 * dt;
+      b.x += b.vx * dt; b.y += b.vy * dt; b.rot += b.vr * dt;
+      if ((b.life -= dt) <= 0) S.bits.splice(i, 1);
+    }
+    if (S.popScale > 0) S.popScale = Math.max(0, S.popScale - dt * 3.4);
   }
   function say(text, bad) { S.msg = text; S.msgBad = !!bad; S.msgLeft = 0.45; }
+
+  /* 길이 돌파 — 숫자가 한 번 커졌다 돌아오고 짧게 알린다 */
+  function checkMilestone() {
+    const M = GAME_CONFIG.milestones;
+    while (S.milestone < M.length && S.extracted >= M[S.milestone]) {
+      const cm = M[S.milestone];
+      S.milestone++;
+      S.popScale = 1;
+      say(cm + "cm 돌파!");
+      addFx("fxPopClean", curvePoint(0.5), 180);
+      buzz(12);
+    }
+  }
   function banner(t, sub) { S.banner = t; S.bannerSub = sub || ""; S.bannerLeft = 0.9; }
 
   /* ============================================================
@@ -833,6 +934,58 @@
     }
   }
 
+  /* 이미 뽑아 낸 누적분 — 구멍에서 시작해 아래로 접혀 쌓인 한 줄.
+     살아 있는 줄기와 같은 붓으로 구멍에서 이어 그려 한 가닥처럼 보이게 한다. */
+  function drawTrail(g) {
+    const T = GAME_CONFIG.trail;
+    const got = S.extracted;
+    if (got <= 0.5) return;
+    const stroke = (wd, col, alpha) => {
+      g.save();
+      g.globalAlpha = alpha === undefined ? 1 : alpha;
+      g.strokeStyle = col; g.lineWidth = wd;
+      g.lineCap = "round"; g.lineJoin = "round";
+      g.beginPath();
+      /* 구멍 -> 쌓이는 자리 들머리. 한 줄로 이어 보이게 촘촘히 나눈다 */
+      const head = trailPoint(0);
+      g.moveTo(0, 0);
+      const LEAD = 8;
+      for (let i = 1; i <= LEAD; i++) {
+        const t = i / LEAD, m = 1 - t;
+        /* 2차 베지에 — 구멍에서 아래로 처졌다가 쌓이는 자리로 들어간다 */
+        g.lineTo(m * m * 0 + 2 * m * t * (head.x * 0.4) + t * t * head.x,
+                 m * m * 0 + 2 * m * t * (T.top * 0.45) + t * t * head.y);
+      }
+      /* 쌓인 몸통 — 2cm 마다 한 점, 끊김 없이 한 줄로 */
+      const stepCm = 2;
+      for (let u = stepCm; u <= got; u += stepCm) {
+        const p = trailPoint(u);
+        g.lineTo(p.x, p.y);
+      }
+      g.stroke();
+      g.restore();
+    };
+    stroke(T.lineW, "rgba(20,16,14,.82)");
+    stroke(T.lineW * 0.38, "rgba(104,86,74,.5)", 0.6);
+  }
+
+  /* 끊어져 튀는 짧은 파편 */
+  function drawBits(g) {
+    for (const b of S.bits) {
+      g.save();
+      g.globalAlpha = Math.min(1, b.life * 2.4);
+      g.translate(b.x, b.y);
+      g.rotate(b.rot);
+      g.strokeStyle = "rgba(20,16,14,.9)";
+      g.lineWidth = 7; g.lineCap = "round";
+      g.beginPath();
+      g.moveTo(-b.len / 2, 0);
+      g.quadraticCurveTo(0, b.len * 0.22, b.len / 2, 0);
+      g.stroke();
+      g.restore();
+    }
+  }
+
   /* 머리카락 줄기 — 긴 PNG 가 아니라 사슬을 지나는 곡선으로 그린다 */
   function drawHair(g) {
     const n = S.nodes.length;
@@ -889,7 +1042,7 @@
     if (S.extracted / S.total < S.preset.clogAt) return;
     const k = S.clogOut;
     const p = curvePoint(clamp(k * 0.8, 0, 0.8));
-    const w = (S.preset.mega ? 520 : 420) * (0.6 + k * 0.4);
+    const w = (S.preset.mega ? 540 : S.preset.bigClog ? 480 : 420) * (0.6 + k * 0.4);
     draw(g, "hairClogFinal", p.x, p.y, w, { mode: "center", rot: Math.sin(k * 3) * 0.12 });
   }
 
@@ -916,19 +1069,23 @@
     }
   }
 
-  /* 뽑은 길이 — 머리카락 근처에 작게 */
+  /* 뽑은 길이 — 상단 가운데 고정. 손끝을 따라다니면 흔들려서 읽기 나쁘다.
+     돌파했을 때만 잠깐 커진다. */
   function drawLength(g) {
     if (!playing() && S.state !== ST.CLEAR) return;
-    const end = curvePoint(1);
-    const size = 46;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const pop = 1 + S.popScale * 0.3;
+    const size = Math.max(22, Math.min(W * 0.085, H * 0.05)) * pop;
     g.save();
     g.font = "800 " + size + "px Pretendard, sans-serif";
     g.textAlign = "center"; g.textBaseline = "middle";
-    g.lineWidth = 10; g.strokeStyle = "rgba(255,255,255,.92)";
+    g.lineWidth = Math.max(5, size * 0.26);
+    g.strokeStyle = "rgba(255,255,255,.95)";
     const txt = Math.floor(S.extracted) + "cm";
-    g.strokeText(txt, end.x, end.y + 78);
-    g.fillStyle = "#1A1A16";
-    g.fillText(txt, end.x, end.y + 78);
+    const y = H * 0.085;
+    g.strokeText(txt, W / 2, y);
+    g.fillStyle = S.popScale > 0 ? "#1C9A46" : "#1A1A16";
+    g.fillText(txt, W / 2, y);
     g.restore();
   }
 
@@ -995,8 +1152,10 @@
     g.clearRect(0, 0, W, H);
     world(g);
     drawScene(g);
+    drawTrail(g);                                 // 이미 뽑은 누적분 (한 줄)
     drawGrabHint(g);
-    drawHair(g);
+    drawHair(g);                                  // 지금 당기고 있는 줄
+    drawBits(g);
     drawOnHair(g);
     drawClog(g);
     /* 10~11 광택과 물빛은 머리카락 위에 아주 옅게 */
@@ -1045,6 +1204,8 @@
     S.grab = null; S.ptr = null; S.ptrPrev = null;
     S.regrabLeft = 0;
     S.fx.length = 0;
+    S.bits.length = 0;
+    S.milestone = 0; S.popScale = 0;
     S.shake = 0; S.flash = 0;
     S.msg = ""; S.msgLeft = 0;
     S.banner = ""; S.bannerLeft = 0;
@@ -1099,6 +1260,7 @@
     $("remark").textContent = G.remark;
     $("rClean").textContent = Math.floor(S.clean) + "%";
     $("rLength").textContent = Math.floor(S.extracted) + "cm";
+    $("lenBig").textContent = Math.floor(S.extracted) + "cm";
     $("rStreak").textContent = Math.floor(S.streakBest) + "cm";
     $("rBreak").textContent = S.breaks + "회";
     $("rTime").textContent = S.elapsed.toFixed(1) + "초";
@@ -1110,7 +1272,7 @@
     box.appendChild(art);
     lastArt = art;
     lastInfo = { score: sc2.total, grade: G, clean: Math.floor(S.clean),
-                 length: Math.floor(S.extracted) };
+                 length: Math.floor(S.extracted), streak: Math.floor(S.streakBest) };
 
     if (rec) { S.bestScore = sc2.total; sfx("result"); }
     S.bestLength = Math.max(S.bestLength, Math.floor(S.extracted));
@@ -1171,11 +1333,13 @@
       const w = 620, h = lastArt.height / lastArt.width * w;
       g.drawImage(lastArt, 540 - w / 2, 290, w, h);
     }
-    const info = lastInfo || { score: 0, grade: GRADES[4], clean: 0, length: 0 };
-    g.font = "800 230px Pretendard, sans-serif";
-    g.fillText(info.score + "점", 540, 1010);
-    g.font = "800 54px Pretendard, sans-serif";
-    g.fillText("청소율 " + info.clean + "% · " + info.length + "cm", 540, 1090);
+    const info = lastInfo || { score: 0, grade: GRADES[4], clean: 0, length: 0, streak: 0 };
+    /* 길이를 제일 크게 — 공유 카드에서 제일 먼저 읽히는 숫자다 */
+    g.font = "800 190px Pretendard, sans-serif";
+    g.fillText(info.length + "cm", 540, 1000);
+    g.font = "800 50px Pretendard, sans-serif";
+    g.fillText(info.score + "점 · 청소율 " + info.clean + "% · 최장 " +
+      (info.streak || 0) + "cm", 540, 1082);
     g.font = "800 68px Pretendard, sans-serif";
     g.fillText(info.grade.title, 540, 1185);
     g.font = "800 44px Pretendard, sans-serif";
@@ -1269,7 +1433,10 @@
     S, GAME_CONFIG, PRESETS, MEGA, MEGA_CHANCE, GRADES, ST, BOX, IMGS, SFX, DIR,
     ASSET_VERSION, DEBUG_GAME, REF_H, DRAIN_R, DRAIN_Y,
     start, timeOver, showResult, doBreak, doClear, release, buildHair, newTip,
-    resistanceNow, segmentName, curvePoint, stepChain, stepTension, scoreOf,
+    buildSegments,
+    resistanceNow, segmentName, curvePoint, trailPoint, trailW, topY, botY,
+    stepChain, stepTension, scoreOf,
+    checkMilestone, drawTrail, drawBits,
     gradeFor, grabRadius, tipRest, addFx, snapResult, buildCard, shareResult,
     drawHero, paintBest, toLogical, visH, has, loadAssets,
     assetsReady: () => assetsReady,
