@@ -139,8 +139,65 @@
       .catch(() => { onStep(1); done(); });
   }
 
+  /* 에셋의 '보이는 부분' 테두리 — 알파를 실제로 재서 넣은 값이다.
+     투명 여백이 파일마다 달라서(최대 33%), 이게 없으면 파츠가 어긋나 붙는다. */
+  const BOX = {
+    "player/player-head":            { w: 1254, h: 1254, l: 0.163, t: 0.098, r: 0.163, b: 0.084 },
+    "player/player-torso":           { w: 1254, h: 1254, l: 0.180, t: 0.164, r: 0.179, b: 0.139 },
+    "player/player-arm-upper-left":  { w: 1254, h: 1254, l: 0.212, t: 0.184, r: 0.210, b: 0.177 },
+    "player/player-arm-upper-right": { w: 1254, h: 1254, l: 0.238, t: 0.190, r: 0.240, b: 0.202 },
+    "player/player-arm-lower-left":  { w: 1254, h: 1254, l: 0.148, t: 0.190, r: 0.147, b: 0.161 },
+    "player/player-arm-lower-right": { w: 1254, h: 1254, l: 0.174, t: 0.185, r: 0.175, b: 0.180 },
+    "unicycle/unicycle-wheel":       { w: 1254, h: 1254, l: 0.137, t: 0.144, r: 0.137, b: 0.126 },
+    "unicycle/unicycle-frame":       { w: 1086, h: 1448, l: 0.325, t: 0.104, r: 0.305, b: 0.102 },
+    "unicycle/unicycle-seat":        { w: 1536, h: 1024, l: 0.207, t: 0.331, r: 0.183, b: 0.282 },
+    "bowl/bowl-outer":               { w: 1448, h: 1086, l: 0.115, t: 0.246, r: 0.115, b: 0.191 },
+  };
+  /* 길쭉한 조각은 그림 안에서 비스듬히 누워 있다. 어깨->팔꿈치 선에 맞춰
+     돌려 붙이려면 '어느 방향으로 길고 그 길이가 얼마인지' 를 알아야 한다. */
+  const BONE = {
+    "player/player-arm-upper-left":  { a: 51.1, len: 918,  cx: 0.497, cy: 0.505 },
+    "player/player-arm-upper-right": { a: 55.7, len: 822,  cx: 0.495, cy: 0.484 },
+    "player/player-arm-lower-left":  { a: 40.6, len: 1088, cx: 0.481, cy: 0.544 },
+    "player/player-arm-lower-right": { a: 43.9, len: 1029, cx: 0.488, cy: 0.525 },
+    "unicycle/unicycle-frame":       { a: -88.8, len: 1152, cx: 0.496, cy: 0.535 },
+  };
+
+  /* 보이는 부분의 가로를 w 로 맞춰 (x,y) 에 놓는다. 투명 여백은 알아서 뺀다. */
+  function put(g, key, x, y, w, opt) {
+    const im = IMG[key], B = BOX[key];
+    if (!im || !B) return false;
+    const o = opt || {};
+    const full = w / (1 - B.l - B.r);                  // 그림 전체를 이만큼
+    const fullH = full * (B.h / B.w);
+    const ox = (B.l - B.r) / 2 * full;                 // 보이는 상자가 치우친 만큼
+    const oy = (B.t - B.b) / 2 * fullH;
+    g.save();
+    g.translate(x, y);
+    if (o.rot) g.rotate(o.rot);
+    if (o.alpha !== undefined) g.globalAlpha = o.alpha;
+    g.drawImage(im, -full / 2 - ox, -fullH / 2 - oy, full, fullH);
+    g.restore();
+    return true;
+  }
+  /* 뼈(두 점)에 맞춰 길쭉한 조각을 돌려 붙인다 */
+  function bone(g, key, x0, y0, x1, y1) {
+    const im = IMG[key], B = BOX[key], N = BONE[key];
+    if (!im || !B || !N) return false;
+    const dx = x1 - x0, dy = y1 - y0;
+    const k = (Math.hypot(dx, dy) || 1) / N.len;
+    g.save();
+    g.translate((x0 + x1) / 2, (y0 + y1) / 2);
+    g.rotate(Math.atan2(dy, dx) - N.a * RAD);          // 그림 축을 뼈에 맞춘다
+    g.scale(k, k);
+    g.drawImage(im, -N.cx * B.w, -N.cy * B.h, B.w, B.h);
+    g.restore();
+    return true;
+  }
+
   /* 그림이 있으면 그림, 없으면 fallback 도형. 자리와 크기는 둘이 같다. */
   function art(g, key, x, y, w, h, fallback) {
+    if (put(g, key, x, y, w)) return true;
     const im = IMG[key];
     if (im) { g.drawImage(im, x - w / 2, y - h / 2, w, h); return true; }
     if (fallback) fallback();
@@ -649,12 +706,16 @@
        playerRoot > head / torso / scarf / arm(upper,lower,hand) x2
                     / leg(thigh,shin,foot) x2 / unicycleRoot(frame,seat,wheel,pedal x2)
      ============================================================ */
-  const SKIN = "#F6D8B0", SKIN_D = "#DDBB92";
-  const COAT = "#3E6E8E", COAT_D = "#335B75";
-  const SLEEVE = "#5A8FB0", SLEEVE_D = "#48758F";   // 팔은 몸통보다 한 단 밝게
-  const PANT = "#4A5168", PANT_D = "#3B4154";       // 바퀴보다 밝아야 다리가 보인다
-  const SHOE = "#1C2130";
-  const REDC = "#D8382C", REDC_D = "#B52C22";
+  /* 참고 이미지(assets/ref)의 색을 그대로 쓴다 — 아직 도형으로 그리는
+     파츠가 들어온 3D 파츠와 따로 놀지 않게. */
+  const SKIN = "#F6E3C2", SKIN_D = "#E0CBA6";       // 크림빛 얼굴·손
+  const COAT = "#2E6BD4", COAT_D = "#2458B0";       // 파란 외투
+  const SLEEVE = "#3C7BE4", SLEEVE_D = "#2E62BC";
+  const PANT = "#55555F", PANT_D = "#43434C";       // 짙은 회색 바지 (틀보다 밝게)
+  const SHOE = "#6B4A32";                           // 갈색 신발
+  const REDC = "#E8463A", REDC_D = "#C3362C";       // 빨간 비니
+  const SCARF = "#F0862A", SCARF_D = "#D06E1C";     // 주황 목도리
+  const HEM = "#F5B82E";                            // 노란 밑단
 
   /* 입 자리 (플레이어 로컬) — 젓가락이 여기를 겨냥한다 */
   function mouthPoint() {
@@ -666,7 +727,7 @@
   function handPoint() {
     /* 그릇이 클수록 바깥·아래로 — 대야급이 얼굴을 덮지 않게 */
     const k = (S.preset.R - 108) / 70;
-    return { x: 186 + k * 26, y: -524 + k * 30 + S.eatLean * 16 };
+    return { x: 270 + k * 22, y: -452 + k * 26 + S.eatLean * 16 };
   }
   /* 그릇 테두리의 한쪽 끝 (그릇 로컬) */
   function bowlRim(side) {
@@ -688,7 +749,7 @@
     /* ---- unicycleRoot ---- */
     g.save();
     /* wheel */
-    drawPart(g, "unicycle/wheel", 0, -92, 184, 184, () => {
+    if (!put(g, "unicycle/unicycle-wheel", 0, -92, 190, { rot: S.wheelSpin })) (() => {
       chunk(g, ngon(0, -92, 92, 92, 11, S.wheelSpin), "#3C4258", "#323850");
       chunk(g, ngon(0, -92, 56, 56, 9, -S.wheelSpin), "#5A6480", "#4A5270");
       g.save(); g.translate(0, -92); g.rotate(S.wheelSpin);
@@ -700,15 +761,15 @@
       }
       g.restore();
       chunk(g, ngon(0, -92, 17, 17, 7, 0), "#8A93A6", null);
-    });
+    })();
     /* frame */
-    drawPart(g, "unicycle/frame", 0, -230, 54, 170, () => {
+    if (!bone(g, "unicycle/unicycle-frame", 0, -92, 0, -316)) {
       chunk(g, [[-26, -92], [26, -92], [17, -310], [-17, -310]], "#4A5370", "#3C4460");
-    });
+    }
     /* seat */
-    drawPart(g, "unicycle/seat", 0, -326, 148, 42, () => {
-      chunk(g, box(0, -326, 148, 40, 14), "#D8382C", "#B52C22");
-    });
+    if (!put(g, "unicycle/unicycle-seat", 0, -330, 160)) {
+      chunk(g, box(0, -326, 148, 40, 14), REDC, REDC_D);
+    }
     /* pedalLeft / pedalRight */
     const pa = S.wheelSpin;
     for (const sgn of [-1, 1]) {
@@ -720,36 +781,33 @@
     }
     g.restore();
 
-    /* ---- 다리 (thigh > shin > foot) — 페달을 따라 밟는다 ---- */
+    /* ---- 다리 (thigh > shin > foot) — 틀보다 앞에서 페달을 밟는다 ---- */
     for (const sgn of [-1, 1]) {
       const ph = S.wheelSpin + (sgn < 0 ? Math.PI : 0);
       const kx = sgn * 52, ky = -232 + Math.sin(ph) * 16;
       const fx = Math.cos(ph) * 64 * 0.75 + sgn * 18, fy = -92 + Math.sin(ph) * 60;
       drawPart(g, "player/thigh", (sgn * 36 + kx) / 2, (-330 + ky) / 2, 60, 120, () => {
-        chunk(g, [[sgn * 20, -336], [sgn * 62, -330], [kx + sgn * 16, ky], [kx - sgn * 12, ky]],
+        chunk(g, [[sgn * 16, -330], [sgn * 74, -324], [kx + sgn * 26, ky], [kx - sgn * 20, ky]],
           PANT, PANT_D);
       });
       drawPart(g, "player/shin", (kx + fx) / 2, (ky + fy) / 2, 46, 120, () => {
-        chunk(g, [[kx - sgn * 10, ky], [kx + sgn * 16, ky], [fx + sgn * 13, fy], [fx - sgn * 11, fy]],
+        chunk(g, [[kx - sgn * 18, ky], [kx + sgn * 24, ky], [fx + sgn * 19, fy], [fx - sgn * 17, fy]],
           PANT, PANT_D);
       });
       drawPart(g, "player/foot", fx + sgn * 10, fy + 8, 60, 28, () => {
-        chunk(g, box(fx + sgn * 10, fy + 8, 60, 28, 9), SHOE, "#111520");
-        chunk(g, box(fx + sgn * 10, fy + 19, 60, 8, 3), "#E8E8E8", "#C8C8C8");
+        chunk(g, box(fx + sgn * 12, fy + 8, 68, 32, 11), SHOE, "#54382A");
       });
     }
 
-    /* ---- torso ---- */
+    /* ---- torso ---- 그림에는 목도리까지 들어 있다 */
     const tx = lean * 16, ty = lean * -6;
-    drawPart(g, "player/torso", tx, -452 + ty, 210, 250, () => {
+    if (!put(g, "player/player-torso", tx, -450 + ty, 236)) {
       chunk(g, [[-96 + tx, -336], [96 + tx, -336], [86 + tx, -566 + ty], [-86 + tx, -566 + ty]],
         COAT, COAT_D);
-    });
-    /* scarf */
-    drawPart(g, "player/scarf", tx, -566 + ty, 180, 44, () => {
-      chunk(g, box(tx, -566 + ty, 180, 44, 14), REDC, REDC_D);
-      chunk(g, box(tx - 62 + sway * 3, -524 + ty, 40, 74, 10), REDC, REDC_D);
-    });
+      chunk(g, box(tx, -346, 192, 26, 8), HEM, HEM);              // 노란 밑단
+      chunk(g, box(tx, -566 + ty, 180, 44, 14), SCARF, SCARF_D);  // 목도리
+      chunk(g, box(tx - 62 + sway * 3, -524 + ty, 40, 74, 10), SCARF, SCARF_D);
+    }
 
     /* ---- 오른팔 (그릇 쪽) ---- 윗팔까지만. 아랫팔과 손은 그릇 위에 얹는다. */
     drawArm(g, 1, tx, ty, lean, true);
@@ -780,20 +838,21 @@
   }
 
   function drawArm(g, sgn, tx, ty, lean, upperOnly, lowerOnly) {
-    const sx = tx + sgn * 88, sy = -548 + ty;
+    /* 어깨는 몸통 그림의 바깥 가장자리쯤에 둔다. 안쪽에 두면 팔이 묻힌다. */
+    const sx = tx + sgn * 104, sy = -528 + ty;
     let ex, ey;                                          // 손 자리
     if (sgn > 0) {
       /* 그릇 한가운데가 아니라 '가까운 쪽 아래 테두리' 를 쥔다 — 그래야 보인다 */
       const h = handPoint();
       const a = S.bowlAngle * RAD;
-      const lx = -S.preset.R * 0.56, ly = S.preset.vis * 0.34;
+      const lx = -S.preset.R * 0.45, ly = S.preset.vis * 0.30;
       ex = h.x + tx + lx * Math.cos(a) - ly * Math.sin(a);
       ey = h.y + ty + lx * Math.sin(a) + ly * Math.cos(a);
     }
     else {
       /* 젓가락 손 — 가슴 -> 그릇 -> 입 -> 가슴. 세 자리를 이어 간다. */
       const h = handPoint();
-      const rest  = [tx - 136, ty - 500];                  // 가슴 옆
+      const rest  = [tx - 168, ty - 470];                  // 가슴 옆
       const dish  = [h.x - 62, h.y - 46];                  // 그릇 위
       const mp = mouthPoint();
       const mouth = [mp.x - 56, mp.y + 96];                // 턱 아래 — 젓가락만 입으로 올린다
@@ -807,19 +866,23 @@
       else               p = lerp(mouth, rest, ease((t - 0.62) / 0.38));
       ex = p[0]; ey = p[1];
     }
-    const mx = (sx + ex) / 2 + sgn * 26, my = (sy + ey) / 2 + 26;
-    if (!lowerOnly) drawPart(g, "player/arm-upper", (sx + mx) / 2, (sy + my) / 2, 48, 110, () => {
-      chunk(g, [[sx - 24, sy - 18], [sx + 24, sy - 18], [mx + 19, my], [mx - 19, my]],
-        SLEEVE, SLEEVE_D);
-    });
+    /* 팔꿈치 — 바깥·아래로 빼야 두 마디가 다 보인다 */
+    const mx = (sx + ex) / 2 + sgn * 42, my = (sy + ey) / 2 + 34;
+    const side = sgn < 0 ? "left" : "right";
+    if (!lowerOnly) {
+      if (!bone(g, "player/player-arm-upper-" + side, sx, sy, mx, my)) {
+        chunk(g, [[sx - 24, sy - 18], [sx + 24, sy - 18], [mx + 19, my], [mx - 19, my]],
+          SLEEVE, SLEEVE_D);
+      }
+    }
     if (upperOnly) return;
-    drawPart(g, "player/arm-lower", (mx + ex) / 2, (my + ey) / 2, 42, 110, () => {
+    if (!bone(g, "player/player-arm-lower-" + side, mx, my, ex, ey)) {
       chunk(g, [[mx - 19, my - 10], [mx + 19, my - 10], [ex + 16, ey], [ex - 16, ey]],
         SLEEVE, SLEEVE_D);
-      /* 소맷부리 — 팔이 어디서 끝나는지 보이게 */
-      chunk(g, box((mx + ex * 3) / 4, (my + ey * 3) / 4, 40, 16, 5), REDC, REDC_D);
-    });
-    drawPart(g, "player/hand", ex, ey, 46, 46, () => {
+      chunk(g, box((mx + ex * 3) / 4, (my + ey * 3) / 4, 40, 16, 5), HEM, HEM);
+    }
+    /* 손은 아직 그림이 없다 — 도형으로 */
+    drawPart(g, "player/player-hand", ex, ey, 46, 46, () => {
       chunk(g, ngon(ex, ey, 23, 23, 8, 0.3), SKIN, SKIN_D);
     });
 
@@ -851,11 +914,11 @@
     }
   }
 
-  /* 얼굴은 정해져 있다 — 빨간 비니, 빨간 코, 동그란 눈, 웃는 입 */
+  /* 얼굴은 정해져 있다 — 빨간 비니, 빨간 코, 동그란 눈, 웃는 입.
+     그림에는 비니까지 한 덩어리로 들어 있어서, 있으면 그것만 그린다. */
   function drawHead(g, x, y, lean) {
-    drawPart(g, "player/head", x, y, 216, 216, () => {
-      chunk(g, ngon(x, y, 108, 112, 12, 0.26), SKIN, SKIN_D);
-    });
+    if (put(g, "player/player-head", x, y - 56, 252)) return;
+    chunk(g, ngon(x, y, 108, 112, 12, 0.26), SKIN, SKIN_D);
     /* 볼 */
     g.fillStyle = "rgba(240,140,140,.45)";
     pathOf(g, ngon(x - 62, y + 26, 24, 16, 8, 0)); g.fill();
@@ -895,11 +958,23 @@
     g.rotate((S.bowlAngle - S.bikeAngle) * RAD);         // 그릇은 제 각도로 매달린다
 
     const R = P.R, D = P.vis;            // 그림은 보이는 깊이로
-    /* 그릇 안쪽 (사다리꼴) — 국물을 여기에 가둔다 */
-    const inner = [[-R, -D * 0.5], [R, -D * 0.5], [R * 0.66, D * 0.5], [-R * 0.66, D * 0.5]];
+    /* 그릇 안쪽 — 국물을 여기에 가둔다. 그림이 있으면 그림의 입 모양(타원),
+       없으면 도형 그릇의 사다리꼴. */
+    const real = has("bowl/bowl-outer");
+    let inner, surfTop, surfDepth, halfR;
+    if (real) {
+      /* 그림을 쟀을 때 입(흰 안쪽)이 보이는 상자에서 차지하는 자리 */
+      const vw = R * 2.2, vh = vw * (1086 * (1 - 0.246 - 0.191)) / (1448 * (1 - 0.115 - 0.115));
+      const cy = -vh / 2 + vh * 0.215, rx = vw * 0.40, ry = vh * 0.185;
+      inner = ngon(0, cy, rx, ry, 22, 0);
+      surfTop = cy - ry; surfDepth = ry * 2; halfR = rx;
+    } else {
+      inner = [[-R, -D * 0.5], [R, -D * 0.5], [R * 0.66, D * 0.5], [-R * 0.66, D * 0.5]];
+      surfTop = -D * 0.5; surfDepth = D; halfR = R;
+    }
 
     /* 바깥 */
-    if (!art(g, "bowl/bowl", 0, 0, R * 2.2, D * 1.6, null)) {
+    if (!put(g, "bowl/bowl-outer", 0, 0, R * 2.2)) {
       chunk(g, [[-R - 10, -D * 0.5], [R + 10, -D * 0.5], [R * 0.58, D * 0.56],
                 [-R * 0.58, D * 0.56]], "#F2F3F5", "#D5D8DE");
       /* 굽 */
@@ -911,32 +986,31 @@
     const lv = level();
     if (lv > 0.001) {
       const tilt = (S.soupAngle - S.bowlAngle) * RAD;    // 그릇에서 본 수면 기울기
-      /* 물리는 depth 로 재지만 그림은 vis 로 그린다. 둘의 비율로 옮긴다. */
-      const surf = -D * 0.5 + D * (1 - lv);              // 수면의 가운데 높이
-      const dy = R * Math.tan(clamp(tilt, -1.2, 1.2));   // 좌우 끝의 높이차
+      const surf = surfTop + surfDepth * (1 - lv);       // 수면의 가운데 높이
+      const dy = halfR * Math.tan(clamp(tilt, -1.2, 1.2)); // 좌우 끝의 높이차
       g.save();
       pathOf(g, inner); g.clip();
 
       /* 수면 아래 */
       g.beginPath();
-      const SEG = 12;
+      const SEG = 16;
       for (let i = 0; i <= SEG; i++) {
-        const u = i / SEG, x = -R + 2 * R * u;
+        const u = i / SEG, x = -halfR + 2 * halfR * u;
         const rip = Math.sin(u * 7 + S.elapsed * 7 + S.soupVel * 0.05) * Math.min(5, Math.abs(S.soupVel) * 0.12);
         const yy = surf + (u * 2 - 1) * dy + rip;
         if (i) g.lineTo(x, yy); else g.moveTo(x, yy);
       }
-      g.lineTo(R, D); g.lineTo(-R, D); g.closePath();
+      g.lineTo(halfR, surfTop + surfDepth * 2); g.lineTo(-halfR, surfTop + surfDepth * 2); g.closePath();
       g.fillStyle = "#D8381F"; g.fill();
       /* 기름빛 — 수면 바로 아래를 조금 밝게 */
       g.save(); g.clip();
       g.fillStyle = "rgba(255,150,60,.30)";
-      g.fillRect(-R, surf - Math.abs(dy) - 4, R * 2, 16 + Math.abs(dy) * 2);
+      g.fillRect(-halfR, surf - Math.abs(dy) - 4, halfR * 2, 16 + Math.abs(dy) * 2);
       g.restore();
 
       /* 건더기 — 수면에 떠 있고 수면과 같이 눕는다 */
       for (const it of S.ing) {
-        const x = it.u * R * 0.82;
+        const x = it.u * halfR * 0.82;
         const y = surf + it.u * dy + it.dep * D * 0.5
                 + Math.sin(S.elapsed * 3 + it.bob) * 3;
         g.save(); g.translate(x, y); g.rotate(tilt + it.rot);
@@ -946,14 +1020,14 @@
 
       /* 수면선 + 반짝임 */
       g.strokeStyle = "rgba(255,196,120,.75)"; g.lineWidth = 5;
-      g.beginPath(); g.moveTo(-R, surf - dy); g.lineTo(R, surf + dy); g.stroke();
+      g.beginPath(); g.moveTo(-halfR, surf - dy); g.lineTo(halfR, surf + dy); g.stroke();
       g.fillStyle = "rgba(255,255,255,.35)";
-      pathOf(g, ngon(-R * 0.3, surf - dy * 0.3 + 10, 26, 6, 7, 0)); g.fill();
+      pathOf(g, ngon(-halfR * 0.3, surf - dy * 0.3 + 10, 26, 6, 7, 0)); g.fill();
       g.restore();
     }
 
-    /* 테두리 — 국물보다 위에 */
-    if (!art(g, "bowl/bowl-rim", 0, -D * 0.5, R * 2.2, 26, null)) {
+    /* 테두리 — 그림에는 이미 들어 있다. 도형 그릇일 때만 따로 얹는다. */
+    if (!real) {
       chunk(g, box(0, -D * 0.5, R * 2.16, 22, 7), "#FFFFFF", "#DADDE4");
       chunk(g, box(0, -D * 0.5, R * 2.16, 8, 3), "#E24B3A", null);
     }
@@ -964,8 +1038,8 @@
       g.strokeStyle = "rgba(255,120,60," + (0.35 + S.overflow * 0.65).toFixed(2) + ")";
       g.lineWidth = 7; g.lineCap = "round";
       g.beginPath();
-      g.moveTo(-R * 1.06, -D * 0.5 - 10);
-      g.lineTo(R * 1.06, -D * 0.5 - 10);
+      g.moveTo(-halfR, surfTop - 12);
+      g.lineTo(halfR, surfTop - 12);
       g.stroke();
       g.restore();
     }
@@ -1335,6 +1409,7 @@
     spillOver, level, stepBike, stepBowl, stepSoup, stepSpill, stepEat,
     handPoint, bowlRim, choosePreset, fillIng, addFx, stepFx, say, paintHud, drawHero,
     snapResult, buildCard, shareResult, render, loadAssets, has, drawBowlHand, drawEatArm,
+    BOX, BONE, put, bone,
     posePaint, POSE,
   });
 })();

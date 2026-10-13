@@ -1,17 +1,25 @@
 {
-  "note": "실제로 넣은 파일만 files 에 적으세요. 적힌 것만 불러오고, 안 적힌 건 게임이 도형으로 그립니다. 없는 파일을 적으면 그것만 도형으로 떨어집니다.",
-  "expects": {
-    "ref": ["참고용 이미지 — 게임이 직접 쓰지 않습니다"],
-    "player": ["head", "beanie", "torso", "scarf", "arm-upper", "arm-lower", "hand",
-               "thigh", "shin", "foot", "chopsticks"],
-    "unicycle": ["frame", "seat", "wheel", "pedal"],
-    "bowl": ["bowl", "bowl-inner-mask", "bowl-rim"],
-    "ingredients": ["noodle", "bokchoy", "tofu-skin", "mushroom", "sausage",
-                    "quail-egg", "rice-cake", "ham"],
+  "note": "실제로 넣은 파일만 files 에 적습니다. 적힌 것만 불러오고, 안 적힌 자리는 게임이 도형으로 그립니다. ref 는 참고용이라 싣지 않습니다. 파일을 더 넣으면 files 에 줄만 추가하면 됩니다.",
+  "still_missing": {
+    "player": ["player-thigh", "player-shin", "player-foot", "player-hand", "player-chopsticks"],
+    "unicycle": ["unicycle-pedal"],
+    "bowl": ["bowl-inner-mask (없으면 그림의 입 모양을 타원으로 가늠해 씁니다)"],
+    "ingredients": ["noodle", "bokchoy", "tofu-skin", "mushroom", "sausage", "quail-egg", "rice-cake", "ham"],
     "background": ["sky", "building-far", "building-near", "road", "streetlight"],
-    "ui": [],
     "fx": ["drop", "splash", "pop"],
-    "result": ["result-good", "result-mid", "result-bad"]
+    "result": ["result-good", "result-mid", "result-bad"],
+    "ui": []
   },
-  "files": []
+  "files": [
+    "bowl/bowl-outer.png",
+    "player/player-arm-lower-left.png",
+    "player/player-arm-lower-right.png",
+    "player/player-arm-upper-left.png",
+    "player/player-arm-upper-right.png",
+    "player/player-head.png",
+    "player/player-torso.png",
+    "unicycle/unicycle-frame.png",
+    "unicycle/unicycle-seat.png",
+    "unicycle/unicycle-wheel.png"
+  ]
 }
