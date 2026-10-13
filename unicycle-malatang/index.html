@@ -31,16 +31,20 @@
     <p class="warn" id="warn" hidden>국물 쏟아진다!</p>
   </div>
 
-  <!-- ===== 하단: 좌우 보정 버튼. 먹기 버튼은 없다 ===== -->
+  <!-- ===== 하단: [왼쪽] [먹기] [오른쪽] ===== -->
   <div class="pad" id="pad">
-    <button class="key" type="button" id="keyL" aria-label="왼쪽으로 보정">
-      <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M30 10 L14 24 L30 38" /></svg>
+    <button class="key" type="button" id="keyL" aria-label="왼쪽으로 균형 잡기">
+      <img src="assets/ui/ui-btn-left.png" alt="" draggable="false" />
     </button>
-    <p class="pad-tip" id="padTip">가만히 있으면 알아서 한 입</p>
-    <button class="key" type="button" id="keyR" aria-label="오른쪽으로 보정">
-      <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M18 10 L34 24 L18 38" /></svg>
+    <button class="key eat" type="button" id="keyE" aria-label="한 입 먹기">
+      <img src="assets/ui/ui-btn-eat.png" alt="" draggable="false" />
+    </button>
+    <button class="key" type="button" id="keyR" aria-label="오른쪽으로 균형 잡기">
+      <img src="assets/ui/ui-btn-right.png" alt="" draggable="false" />
     </button>
   </div>
+  <p class="pad-tip" id="padTip">균형 잡고 가운데로 먹기</p>
+  <p class="keys">&#8592; &#8594; 균형 · SPACE 먹기</p>
 
   <!-- ===== 타이틀 ===== -->
   <div class="over over-start" id="startOver" hidden>
@@ -48,8 +52,8 @@
     <h1 class="t-main">외발자전거 타고<br />마라탕 먹기</h1>
     <canvas class="hero" id="heroCv" width="420" height="300"></canvas>
     <p class="lead">
-      좌우 버튼으로 중심만 잡으세요.<br />
-      멈춰 있으면 알아서 한 입 먹습니다.
+      좌우로 중심을 잡고,<br />
+      가운데 버튼으로 한 입씩 먹습니다.
     </p>
     <p class="best" id="bestStart">BEST -</p>
     <button class="btn big" type="button" id="startBtn">출발</button>

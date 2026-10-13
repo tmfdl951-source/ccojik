@@ -67,17 +67,19 @@
       warnAt: 0.55,                      // 넘치기까지 이만큼 남으면 경고
     },
 
-    /* 먹기 — 버튼이 없다. 조용해지면 알아서 먹는다. */
+    /* 먹기 — 가운데 버튼(또는 Space)을 눌러야만 먹는다. 저절로는 안 먹는다. */
     eat: {
-      cooldown: 0.7,                     // 한 입 먹고 다음 입까지
-      duration: 0.82,                    // 한 입에 걸리는 시간
+      cooldown: 0.75,                    // 한 입 먹고 다음 입까지
+      duration: 0.78,                    // 한 입에 걸리는 시간
       biteAt: 0.62,                      // 그 중 입에 넣는 시점 (0~1)
-      kick: 11,                          // 손 뻗을 때 그릇 쪽으로 쏠리는 충격 (도/s)
-      safeBike: 4.5,                     // 몸이 이보다 반듯해야
-      safeBowl: 4.5,                     // 그릇이 이보다 반듯해야
-      safeSlosh: 10,                     // 국물이 이보다 잔잔해야
       soupPerBite: 2.0,                  // 한 입에 줄어드는 국물 %
       minSoup: 8,                        // 이보다 적으면 더 못 먹는다
+      /* 지금 먹어도 되는지 — 셋 중 하나라도 넘으면 한 단계씩 나빠진다 */
+      safeBike: 4.5, safeBowl: 4.5, safeSlosh: 10,
+      riskBike: 11,  riskBowl: 11,  riskSlosh: 26,
+      /* 먹으면 흔들린다. 상태가 나쁠수록 더 흔들린다 — 이게 이 게임의 선택이다. */
+      kick:  { SAFE: 9,   WARN: 17,  RISK: 27 },   // 그릇 쪽으로 쏠리는 충격 (도/s)
+      slosh: { SAFE: 10,  WARN: 26,  RISK: 48 },   // 국물에 주는 충격
     },
 
     fx: { max: 26, life: 0.7 },
@@ -152,6 +154,13 @@
     "unicycle/unicycle-frame":       { w: 1086, h: 1448, l: 0.325, t: 0.104, r: 0.305, b: 0.102 },
     "unicycle/unicycle-seat":        { w: 1536, h: 1024, l: 0.207, t: 0.331, r: 0.183, b: 0.282 },
     "bowl/bowl-outer":               { w: 1448, h: 1086, l: 0.115, t: 0.246, r: 0.115, b: 0.191 },
+    "bowl/bowl-inner-mask":          { w: 1254, h: 1254, l: 0.048, t: 0.332, r: 0.047, b: 0.332 },
+    "bowl/soup-fill":                { w: 1254, h: 1254, l: 0.050, t: 0.365, r: 0.050, b: 0.321 },
+    "bowl/chopsticks":               { w: 1254, h: 1254, l: 0.093, t: 0.135, r: 0.119, b: 0.116 },
+    "bowl/ing-noodle":               { w: 1254, h: 1254, l: 0.359, t: 0.059, r: 0.321, b: 0.076 },
+    "background/bg-road":            { w: 1448, h: 1086, l: 0.000, t: 0.000, r: 0.000, b: 0.000 },
+    "background/bg-building-row-1":  { w: 1448, h: 1086, l: 0.016, t: 0.244, r: 0.000, b: 0.335 },
+    "fx/fx-soup-splash-small":       { w: 1254, h: 1254, l: 0.251, t: 0.286, r: 0.092, b: 0.319 },
   };
   /* 길쭉한 조각은 그림 안에서 비스듬히 누워 있다. 어깨->팔꿈치 선에 맞춰
      돌려 붙이려면 '어느 방향으로 길고 그 길이가 얼마인지' 를 알아야 한다. */
@@ -308,6 +317,9 @@
     overflow: 0,                         // 지금 테두리를 넘은 정도 (0~1)
 
     eating: false, eatT: 0, eatCool: 0, eatLean: 0, bitTaken: false,
+    eatPressed: false,                   // 이번 프레임에 먹기를 눌렀나
+    eatBand: "SAFE",                     // 지금 먹으면 어떻게 되나
+    eatFail: 0,                          // 위태롭게 먹었을 때 잠깐 띄우는 표시
     ing: [],
 
     calm: 0, calmBest: 0,                // 연속으로 안정했던 시간
@@ -367,7 +379,8 @@
     S.soupAngle = 0; S.soupVel = 0;
     S.input = 0; S.push = 0; S.heldL = S.heldR = false;
     S.amount = 100; S.bites = 0; S.spills = 0; S.spilling = 0; S.overflow = 0;
-    S.eating = false; S.eatT = 0; S.eatCool = 0.6; S.eatLean = 0; S.bitTaken = false;
+    S.eating = false; S.eatT = 0; S.eatCool = 0.5; S.eatLean = 0; S.bitTaken = false;
+    S.eatPressed = false; S.eatBand = "SAFE"; S.eatFail = 0;
     S.ing.length = 0; fillIng(9);
     S.calm = 0; S.calmBest = 0;
     S.bumpIn = rnd(1.0, 1.8); S.wheelSpin = 0; S.scroll = 0;
@@ -390,8 +403,8 @@
        급하게 눌렀다 떼면 반드시 지나친다. */
     S.push += (S.input - S.push) * Math.min(1, dt / B.ramp);
     acc += S.push * B.control;
-    /* 먹는 중에는 그릇 쪽(오른쪽)으로 손이 가서 중심이 쏠린다 */
-    if (S.eating) acc += CFG.eat.kick * 1.4;
+    /* 먹는 동안에는 손이 나가 있어서 계속 그릇 쪽으로 끌린다 */
+    if (S.eating) acc += CFG.eat.kick[S.eatBand] * 1.1;
     S.bikeVel += acc * dt;
     S.bikeVel -= S.bikeVel * B.damp * dt;
     S.bikeAngle += S.bikeVel * dt;
@@ -463,26 +476,42 @@
   /* ============================================================
      먹기 — 버튼이 없다. 조용해진 순간에만 저절로 일어난다.
      ============================================================ */
-  function canEat() {
+  /* 지금 먹으면 어떻게 되나 — 누르기 전에 버튼 색으로도 보여 준다 */
+  function eatBand() {
     const E = CFG.eat;
-    return S.state === ST.PLAY && !S.eating && S.eatCool <= 0
-        && S.amount > E.minSoup
-        && Math.abs(S.bikeAngle) < E.safeBike
-        && Math.abs(S.bowlAngle) < E.safeBowl
-        && Math.abs(S.soupVel) < E.safeSlosh
-        && S.overflow <= 0;
+    const a = Math.abs(S.bikeAngle), b = Math.abs(S.bowlAngle), v = Math.abs(S.soupVel);
+    if (a >= E.riskBike || b >= E.riskBowl || v >= E.riskSlosh || S.overflow > 0) return "RISK";
+    if (a >= E.safeBike || b >= E.safeBowl || v >= E.safeSlosh) return "WARN";
+    return "SAFE";
+  }
+  /* 먹을 수 있는 상태인가 — 균형과는 상관없다. 균형은 '결과' 를 바꿀 뿐이다. */
+  function canEat() {
+    return S.state === ST.PLAY && !S.eating && S.eatCool <= 0 && S.amount > CFG.eat.minSoup;
+  }
+
+  /* 플레이어가 먹기를 눌렀다. 한 번 누르면 한 입. */
+  function tryEat() {
+    if (!canEat()) return false;
+    const E = CFG.eat;
+    const band = eatBand();
+    S.eating = true; S.eatT = 0; S.bitTaken = false; S.eatBand = band;
+    /* 손을 뻗으면 중심이 그릇 쪽으로 쏠린다. 위태로울수록 더 세게. */
+    S.bikeVel += E.kick[band];
+    S.bowlVel += E.kick[band] * 0.55;
+    S.soupVel -= E.slosh[band];
+    if (band !== "SAFE") { S.shake = band === "RISK" ? 0.22 : 0.12; buzz(band === "RISK" ? 24 : 12); }
+    if (band === "RISK") { S.eatFail = 0.6; say("위험했다!"); sfx("warn"); }
+    sfx("button");
+    return true;
   }
 
   function stepEat(dt) {
     if (S.eatCool > 0) S.eatCool -= dt;
-    if (!S.eating) {
-      if (canEat()) {
-        S.eating = true; S.eatT = 0; S.bitTaken = false;
-        /* 손을 뻗는 순간 중심이 그릇 쪽으로 쏠린다 — 먹기가 곧 위험이다 */
-        S.bikeVel += CFG.eat.kick;
-        S.bowlVel += CFG.eat.kick * 0.5;
-      }
-    } else {
+    if (S.eatFail > 0) S.eatFail -= dt;
+    S.eatBand = S.eating ? S.eatBand : eatBand();
+    /* 눌린 것을 이 프레임에 한 번만 받아 준다 */
+    if (S.eatPressed) { S.eatPressed = false; tryEat(); }
+    if (S.eating) {
       S.eatT += dt / CFG.eat.duration;
       if (!S.bitTaken && S.eatT >= CFG.eat.biteAt) {
         S.bitTaken = true;
@@ -634,7 +663,22 @@
     }
   }
 
+  const CURB = -46;                       // 보도 턱이 놓이는 높이 (접지선 바로 위)
+  const SKYLINE = -210;                   // 보도 윗선 = 건물이 서는 바닥
+  /* 기울면 그릇이 멀리 나간다. 좁은 화면에서는 통째로 줄여 담는다. */
+  const fitScale = () => clamp(halfW() / 560, 0.70, 1);
+
   function drawCity(g) {
+    /* 그림이 있으면 보도 턱 위에 세워 가로로 이어 붙인다 */
+    if (has("background/bg-building-row-1")) {
+      const B = BOX["background/bg-building-row-1"];
+      const w = halfW() * 1.7;                                  // 한 장의 보이는 가로
+      const hv = w * (B.h * (1 - B.t - B.b)) / (B.w * (1 - B.l - B.r));
+      const off = -((S.scroll * 0.28) % w);
+      for (let i = -1; i <= 2; i++)
+        put(g, "background/bg-building-row-1", off + (i - 1) * w, SKYLINE - hv / 2, w);
+      return;
+    }
     const px = p => -((S.scroll * p) % 2600) ;
     /* 먼 건물 */
     g.save(); g.translate(px(0.12), 0);
@@ -681,6 +725,29 @@
 
   function drawRoad(g) {
     const b = botY();
+    if (has("background/bg-road")) {
+      const B = BOX["background/bg-road"];
+      const L = halfW() + 30;
+      /* 그림이 못 닿는 아래쪽까지 같은 아스팔트 색으로 먼저 깔아 둔다 */
+      chunk(g, [[-L, CURB], [L, CURB], [L, b], [-L, b]], "#343845", null);
+      const w = halfW() * 2.2;
+      const h = w * (B.h / B.w);
+      const off = -((S.scroll * 1.0) % w);
+      /* 그림의 세로 40% 지점이 보도 턱이다 — 그 줄을 CURB 에 맞춘다.
+         그 위쪽(먼 아스팔트)은 건물을 가리므로 잘라 낸다. */
+      g.save();
+      g.beginPath();
+      g.rect(-L, SKYLINE, L * 2, b - SKYLINE);
+      g.clip();
+      for (let i = -1; i <= 1; i++)
+        put(g, "background/bg-road", off + i * w, CURB - h * 0.40 + h / 2, w);
+      g.restore();
+      /* 바퀴가 땅에 닿는 자리 그림자 */
+      g.save(); g.globalAlpha = 0.4;
+      chunk(g, ngon(S.bikeAngle * 1.6, 8, 120, 16, 9, 0), "#0B0E15", null);
+      g.restore();
+      return;
+    }
     if (!art(g, "background/road", 0, b / 2, halfW() * 2.2, b, null)) {
       const L = halfW() + 20;
       /* 보도 -> 턱 -> 찻길 */
@@ -708,6 +775,27 @@
      ============================================================ */
   /* 참고 이미지(assets/ref)의 색을 그대로 쓴다 — 아직 도형으로 그리는
      파츠가 들어온 3D 파츠와 따로 놀지 않게. */
+  /* ---- 3/4 시점 ---- 화면 오른쪽을 살짝 바라보는 각도 */
+  const VIEW = {
+    turn: 0.34,              // 얼마나 돌아섰나 (0 정면 ~ 1 완전 측면)
+    wheelSquash: 0.76,       // 바퀴를 가로로 누르는 정도 (사선이라 타원으로 보인다)
+    cycleTilt: -0.075,       // 외발자전거가 사선으로 놓인 각도 (라디안)
+    headX: 34, headRot: 0.085,  // 머리를 앞(오른쪽)으로 밀고 살짝 돌린다
+    torsoX: 18, torsoRot: 0.09,
+    legSplit: 38,            // 앞다리와 뒷다리의 앞뒤 간격
+    backScale: 0.88,         // 뒤쪽 팔·다리를 이만큼 작게
+    backDark: 0.66,          // 뒤쪽은 이만큼 어둡게
+  };
+  /* 뒤쪽에 있는 것은 작고 어둡다 — 이게 깊이를 만든다 */
+  function behind(g, fn) {
+    g.save();
+    g.globalAlpha = VIEW.backDark;
+    g.translate(-VIEW.legSplit * 0.5, 0);
+    g.scale(VIEW.backScale, VIEW.backScale);
+    fn();
+    g.restore();
+  }
+
   const SKIN = "#F6E3C2", SKIN_D = "#E0CBA6";       // 크림빛 얼굴·손
   const COAT = "#2E6BD4", COAT_D = "#2458B0";       // 파란 외투
   const SLEEVE = "#3C7BE4", SLEEVE_D = "#2E62BC";
@@ -720,14 +808,15 @@
   /* 입 자리 (플레이어 로컬) — 젓가락이 여기를 겨냥한다 */
   function mouthPoint() {
     const lean = S.eatLean;
-    return { x: lean * 16 + lean * 10, y: -700 + lean * -6 + lean * 10 + 50 };
+    return { x: lean * 16 + VIEW.torsoX + lean * 10 + VIEW.headX,
+             y: -700 + lean * -6 + lean * 10 + 50 };
   }
 
   /* 그릇을 든 오른손의 자리 (플레이어 로컬 좌표) */
   function handPoint() {
     /* 그릇이 클수록 바깥·아래로 — 대야급이 얼굴을 덮지 않게 */
     const k = (S.preset.R - 108) / 70;
-    return { x: 270 + k * 22, y: -452 + k * 26 + S.eatLean * 16 };
+    return { x: 296 + k * 22, y: -448 + k * 26 + S.eatLean * 16 };
   }
   /* 그릇 테두리의 한쪽 끝 (그릇 로컬) */
   function bowlRim(side) {
@@ -746,10 +835,15 @@
     g.save();
     g.rotate(S.bikeAngle * RAD);                         // playerRoot
 
-    /* ---- unicycleRoot ---- */
+    /* ---- unicycleRoot ---- 사선으로 놓여 있다 */
     g.save();
-    /* wheel */
-    if (!put(g, "unicycle/unicycle-wheel", 0, -92, 190, { rot: S.wheelSpin })) (() => {
+    g.rotate(VIEW.cycleTilt);
+    /* wheel — 비스듬히 보므로 가로로 눌린 타원이다 */
+    g.save();
+    g.translate(0, -92);
+    g.scale(VIEW.wheelSquash, 1);
+    g.translate(0, 92);
+    if (!put(g, "unicycle/unicycle-wheel", 0, -92, 190 / VIEW.wheelSquash, { rot: S.wheelSpin })) (() => {
       chunk(g, ngon(0, -92, 92, 92, 11, S.wheelSpin), "#3C4258", "#323850");
       chunk(g, ngon(0, -92, 56, 56, 9, -S.wheelSpin), "#5A6480", "#4A5270");
       g.save(); g.translate(0, -92); g.rotate(S.wheelSpin);
@@ -762,6 +856,7 @@
       g.restore();
       chunk(g, ngon(0, -92, 17, 17, 7, 0), "#8A93A6", null);
     })();
+    g.restore();
     /* frame */
     if (!bone(g, "unicycle/unicycle-frame", 0, -92, 0, -316)) {
       chunk(g, [[-26, -92], [26, -92], [17, -310], [-17, -310]], "#4A5370", "#3C4460");
@@ -781,8 +876,8 @@
     }
     g.restore();
 
-    /* ---- 다리 (thigh > shin > foot) — 틀보다 앞에서 페달을 밟는다 ---- */
-    for (const sgn of [-1, 1]) {
+    /* ---- 다리 — 앞다리/뒷다리로 갈라 놓는다. 뒤쪽은 작고 어둡다. ---- */
+    const leg = (sgn) => {
       const ph = S.wheelSpin + (sgn < 0 ? Math.PI : 0);
       const kx = sgn * 52, ky = -232 + Math.sin(ph) * 16;
       const fx = Math.cos(ph) * 64 * 0.75 + sgn * 18, fy = -92 + Math.sin(ph) * 60;
@@ -797,11 +892,13 @@
       drawPart(g, "player/foot", fx + sgn * 10, fy + 8, 60, 28, () => {
         chunk(g, box(fx + sgn * 12, fy + 8, 68, 32, 11), SHOE, "#54382A");
       });
-    }
+    };
+    behind(g, () => leg(-1));                 // 뒷다리 먼저
+    g.save(); g.translate(VIEW.legSplit * 0.5, 0); leg(1); g.restore();
 
-    /* ---- torso ---- 그림에는 목도리까지 들어 있다 */
-    const tx = lean * 16, ty = lean * -6;
-    if (!put(g, "player/player-torso", tx, -450 + ty, 236)) {
+    /* ---- torso ---- 그림에는 목도리까지 들어 있다. 앞으로 조금 밀고 돌린다. */
+    const tx = lean * 16 + VIEW.torsoX, ty = lean * -6;
+    if (!put(g, "player/player-torso", tx, -450 + ty, 236, { rot: VIEW.torsoRot })) {
       chunk(g, [[-96 + tx, -336], [96 + tx, -336], [86 + tx, -566 + ty], [-86 + tx, -566 + ty]],
         COAT, COAT_D);
       chunk(g, box(tx, -346, 192, 26, 8), HEM, HEM);              // 노란 밑단
@@ -813,7 +910,7 @@
     drawArm(g, 1, tx, ty, lean, true);
 
     /* ---- head + beanie ---- */
-    const hx = tx + lean * 10, hy = -700 + ty + lean * 10;
+    const hx = tx + lean * 10 + VIEW.headX, hy = -700 + ty + lean * 10;
     drawHead(g, hx, hy, lean);
 
     g.restore();
@@ -823,16 +920,18 @@
   function drawBowlHand(g) {
     g.save();
     g.rotate(S.bikeAngle * RAD);
-    const lean = S.eatLean, tx = lean * 16, ty = lean * -6;
+    const lean = S.eatLean, tx = lean * 16 + VIEW.torsoX, ty = lean * -6;
     drawArm(g, 1, tx, ty, lean, false, true);
     g.restore();
   }
 
-  /* 젓가락 팔 — 머리 위에 그려야 입으로 가는 게 보인다 */
+  /* 젓가락 팔 — 머리 위에 그려야 입으로 가는 게 보인다.
+     몸 저편에 있는 팔이라 조금 작고 어둡게 (깊이). */
   function drawEatArm(g) {
     g.save();
     g.rotate(S.bikeAngle * RAD);
-    const lean = S.eatLean, tx = lean * 16, ty = lean * -6;
+    g.globalAlpha = 0.93;
+    const lean = S.eatLean, tx = lean * 16 + VIEW.torsoX, ty = lean * -6;
     drawArm(g, -1, tx, ty, lean);
     g.restore();
   }
@@ -900,15 +999,17 @@
         len = Math.min(126, Math.max(70, Math.hypot(mp.x - ex, mp.y - ey)));
       }
       g.rotate(ang2);
-      drawPart(g, "player/chopsticks", 0, -len / 2, 22, len, () => {
+      if (!put(g, "bowl/chopsticks", 0, -len / 2, len * 0.42)) {
         g.strokeStyle = "#D8B47A"; g.lineWidth = 8; g.lineCap = "round";
         g.beginPath(); g.moveTo(-8, 12); g.lineTo(-3, -len); g.stroke();
         g.beginPath(); g.moveTo(8, 12); g.lineTo(4, -len); g.stroke();
-      });
+      }
       /* 집은 건더기 */
       if (S.eating && S.eatT > 0.3 && S.eatT < CFG.eat.biteAt + 0.06 && S.ing.length) {
         const it = S.ing[0].t;
-        chunk(g, ngon(0, -len - 6, it.w * 0.5, it.h * 0.5, 7, 0.4), it.col, it.dark);
+        if (!put(g, "bowl/ing-noodle", 0, -len - 10, 54)) {
+          chunk(g, ngon(0, -len - 6, it.w * 0.5, it.h * 0.5, 7, 0.4), it.col, it.dark);
+        }
       }
       g.restore();
     }
@@ -917,7 +1018,7 @@
   /* 얼굴은 정해져 있다 — 빨간 비니, 빨간 코, 동그란 눈, 웃는 입.
      그림에는 비니까지 한 덩어리로 들어 있어서, 있으면 그것만 그린다. */
   function drawHead(g, x, y, lean) {
-    if (put(g, "player/player-head", x, y - 56, 252)) return;
+    if (put(g, "player/player-head", x, y - 56, 252, { rot: VIEW.headRot })) return;
     chunk(g, ngon(x, y, 108, 112, 12, 0.26), SKIN, SKIN_D);
     /* 볼 */
     g.fillStyle = "rgba(240,140,140,.45)";
@@ -965,8 +1066,9 @@
     if (real) {
       /* 그림을 쟀을 때 입(흰 안쪽)이 보이는 상자에서 차지하는 자리 */
       const vw = R * 2.2, vh = vw * (1086 * (1 - 0.246 - 0.191)) / (1448 * (1 - 0.115 - 0.115));
-      const cy = -vh / 2 + vh * 0.215, rx = vw * 0.40, ry = vh * 0.185;
-      inner = ngon(0, cy, rx, ry, 22, 0);
+      /* bowl-inner-mask 를 재 보니 입이 가로:세로 = 2.69 다. 그 비율에 맞춘다. */
+      const cy = -vh / 2 + vh * 0.235, rx = vw * 0.40, ry = rx / 2.69 * (vw / vh) * (vh / vw);
+      inner = ngon(0, cy, rx, rx / 2.69, 22, 0);
       surfTop = cy - ry; surfDepth = ry * 2; halfR = rx;
     } else {
       inner = [[-R, -D * 0.5], [R, -D * 0.5], [R * 0.66, D * 0.5], [-R * 0.66, D * 0.5]];
@@ -1077,7 +1179,8 @@
       const a = clamp(f.life / CFG.fx.life, 0, 1);
       g.save(); g.globalAlpha = a;
       if (f.kind === "drop") {
-        chunk(g, ngon(f.x, f.y, f.r, f.r * 1.25, 7, f.rot), "#D8381F", "#B32C17");
+        if (!put(g, "fx/fx-soup-splash-small", f.x, f.y, f.r * 7, { rot: f.rot * 0.2 }))
+          chunk(g, ngon(f.x, f.y, f.r, f.r * 1.25, 7, f.rot), "#D8381F", "#B32C17");
       } else if (f.kind === "pop") {
         g.globalAlpha = a * 0.9;
         g.fillStyle = "#FFCE1F";
@@ -1120,6 +1223,7 @@
       "soupAmount " + S.amount.toFixed(1),
       "push       " + S.push.toFixed(2),
       "eatCool    " + S.eatCool.toFixed(2),
+      "eatBand    " + S.eatBand + (S.eating ? " (먹는 중)" : ""),
       "balanceDng " + (Math.abs(S.bikeAngle) / CFG.bike.maxAngle).toFixed(2),
       "overflow   " + S.overflow.toFixed(2),
       "fps        " + S.fps.toFixed(0),
@@ -1141,11 +1245,16 @@
     drawSky(g);
     drawCity(g);
     drawRoad(g);
+    /* 캐릭터와 그릇은 한 덩어리로 — 좁은 화면에서는 같이 줄어든다 */
+    g.save();
+    const k = fitScale();
+    g.scale(k, k);
     drawPlayer(g);
     drawBowl(g);
     drawBowlHand(g);                              // 그릇을 쥔 손은 그릇 위에
     drawEatArm(g);                                // 젓가락 팔은 머리 위에
     drawFx(g);
+    g.restore();
     drawMsg(g);
     if (DEBUG_MODE) drawDebug(g);
   }
@@ -1153,7 +1262,7 @@
   /* ============================================================
      HUD — 숫자가 바뀔 때만 DOM 을 건드린다
      ============================================================ */
-  const hud = { t: -1, b: -1, s: -1, warn: null, tip: null };
+  const hud = { t: -1, b: -1, s: -1, warn: null, band: null };
   function paintHud(force) {
     const t = Math.ceil(S.left);
     if (force || t !== hud.t) {
@@ -1174,14 +1283,21 @@
       $("warn").hidden = !warn;
       if (warn) { sfx("warn"); buzz(8); }     // 뜨는 순간에만
     }
-    const tip = S.eating ? "eat" : S.state === ST.PLAY && S.eatCool <= 0 ? "ready" : "";
-    if (force || tip !== hud.tip) {
-      hud.tip = tip;
-      const el = $("padTip");
-      el.textContent = tip === "eat" ? "먹는 중 — 중심 조심!"
-                     : tip === "ready" ? "조용하면 바로 한 입"
-                     : "가만히 있으면 알아서 한 입";
-      el.classList.toggle("eat", tip === "eat");
+    /* 먹기 버튼은 지금 먹으면 어떻게 되는지를 색으로 알려 준다 */
+    const band = S.state === ST.PLAY ? (S.eating ? "EATING"
+                 : S.eatCool > 0 ? "WAIT" : S.eatBand) : "";
+    if (force || band !== hud.band) {
+      hud.band = band;
+      const el = $("keyE");
+      el.classList.toggle("warn", band === "WARN");
+      el.classList.toggle("risk", band === "RISK");
+      el.classList.toggle("wait", band === "WAIT" || band === "EATING");
+      const t = $("padTip");
+      t.textContent = band === "EATING" ? "먹는 중 — 중심 조심!"
+                    : band === "RISK" ? "지금 먹으면 쏟는다"
+                    : band === "WARN" ? "조금 흔들린다"
+                    : "균형 잡고 가운데로 먹기";
+      t.classList.toggle("eat", band === "RISK" || band === "WARN");
     }
   }
 
@@ -1202,7 +1318,19 @@
     el.addEventListener("pointerleave", () => hold(side, false));
     el.addEventListener("contextmenu", e => e.preventDefault());
   }
-  /* 화면 좌우 절반을 눌러도 된다 — 버튼이 작은 폰에서 */
+  /* 가운데 먹기 버튼 — 탭할 때마다 한 입 */
+  function pressEat() {
+    if (S.state !== ST.PLAY) return;
+    S.eatPressed = true;
+    $("keyE").classList.add("on");
+  }
+  $("keyE").addEventListener("pointerdown", e => { e.preventDefault(); pressEat(); });
+  $("keyE").addEventListener("pointerup", e => { e.preventDefault(); $("keyE").classList.remove("on"); });
+  $("keyE").addEventListener("pointercancel", () => $("keyE").classList.remove("on"));
+  $("keyE").addEventListener("pointerleave", () => $("keyE").classList.remove("on"));
+  $("keyE").addEventListener("contextmenu", e => e.preventDefault());
+
+  /* 화면 좌우 절반을 눌러도 균형은 잡힌다 — 먹기는 버튼으로만 */
   cv.addEventListener("pointerdown", e => {
     e.preventDefault();
     hold(e.clientX < cv.getBoundingClientRect().left + W / 2 ? -1 : 1, true);
@@ -1210,14 +1338,24 @@
   cv.addEventListener("pointerup", () => { hold(-1, false); hold(1, false); });
   cv.addEventListener("pointercancel", () => { hold(-1, false); hold(1, false); });
   addEventListener("keydown", e => {
-    if (e.key === "ArrowLeft" || e.key === "a") hold(-1, true);
-    if (e.key === "ArrowRight" || e.key === "d") hold(1, true);
+    const k = e.key;
+    if (k === "ArrowLeft" || k === "a" || k === "A") hold(-1, true);
+    if (k === "ArrowRight" || k === "d" || k === "D") hold(1, true);
+    if (k === " " || k === "Spacebar") {
+      e.preventDefault();
+      if (e.repeat) return;              // 누르고 있어도 한 번만 — 연속 먹기 금지
+      pressEat();
+    }
   });
   addEventListener("keyup", e => {
-    if (e.key === "ArrowLeft" || e.key === "a") hold(-1, false);
-    if (e.key === "ArrowRight" || e.key === "d") hold(1, false);
+    const k = e.key;
+    if (k === "ArrowLeft" || k === "a" || k === "A") hold(-1, false);
+    if (k === "ArrowRight" || k === "d" || k === "D") hold(1, false);
+    if (k === " " || k === "Spacebar") $("keyE").classList.remove("on");
   });
-  addEventListener("blur", () => { hold(-1, false); hold(1, false); });
+  addEventListener("blur", () => {
+    hold(-1, false); hold(1, false); $("keyE").classList.remove("on");
+  });
 
   /* ============================================================
      결과
@@ -1405,11 +1543,11 @@
   /* 검사용 — 바깥에서 속을 들여다본다 */
   window.__malatang = () => ({
     S, CFG, PRESETS, GRADES, ING, ST, IMG, SFX, DEBUG_MODE, REF_H, GROUND,
-    start, step, fall, endRun, showResult, scoreOf, gradeFor, canEat,
+    start, step, fall, endRun, showResult, scoreOf, gradeFor, canEat, eatBand, tryEat, pressEat,
     spillOver, level, stepBike, stepBowl, stepSoup, stepSpill, stepEat,
     handPoint, bowlRim, choosePreset, fillIng, addFx, stepFx, say, paintHud, drawHero,
     snapResult, buildCard, shareResult, render, loadAssets, has, drawBowlHand, drawEatArm,
-    BOX, BONE, put, bone,
+    BOX, BONE, put, bone, VIEW, fitScale, CURB, SKYLINE,
     posePaint, POSE,
   });
 })();

@@ -1,17 +1,57 @@
 {
-  "note": "실제로 넣은 파일만 files 에 적습니다. 적힌 것만 불러오고, 안 적힌 자리는 게임이 도형으로 그립니다. ref 는 참고용이라 싣지 않습니다. 파일을 더 넣으면 files 에 줄만 추가하면 됩니다.",
+  "note": "실제로 넣은 파일만 files 에 적습니다. 적힌 것만 캔버스가 불러오고, 안 적힌 자리는 도형으로 그립니다. ref 는 참고용, ui 버튼은 HTML 의 img 라서 여기 안 적습니다.",
   "still_missing": {
-    "player": ["player-thigh", "player-shin", "player-foot", "player-hand", "player-chopsticks"],
-    "unicycle": ["unicycle-pedal"],
-    "bowl": ["bowl-inner-mask (없으면 그림의 입 모양을 타원으로 가늠해 씁니다)"],
-    "ingredients": ["noodle", "bokchoy", "tofu-skin", "mushroom", "sausage", "quail-egg", "rice-cake", "ham"],
-    "background": ["sky", "building-far", "building-near", "road", "streetlight"],
-    "fx": ["drop", "splash", "pop"],
-    "result": ["result-good", "result-mid", "result-bad"],
+    "player": [
+      "player-thigh",
+      "player-shin",
+      "player-foot",
+      "player-hand",
+      "player-chopsticks"
+    ],
+    "unicycle": [
+      "unicycle-pedal"
+    ],
+    "bowl": [
+      "bowl-inner-mask (없으면 그림의 입 모양을 타원으로 가늠해 씁니다)"
+    ],
+    "ingredients": [
+      "noodle",
+      "bokchoy",
+      "tofu-skin",
+      "mushroom",
+      "sausage",
+      "quail-egg",
+      "rice-cake",
+      "ham"
+    ],
+    "background": [
+      "sky",
+      "building-far",
+      "building-near",
+      "road",
+      "streetlight"
+    ],
+    "fx": [
+      "drop",
+      "splash",
+      "pop"
+    ],
+    "result": [
+      "result-good",
+      "result-mid",
+      "result-bad"
+    ],
     "ui": []
   },
   "files": [
+    "background/bg-building-row-1.png",
+    "background/bg-road.png",
+    "bowl/bowl-inner-mask.png",
     "bowl/bowl-outer.png",
+    "bowl/chopsticks.png",
+    "bowl/ing-noodle.png",
+    "bowl/soup-fill.png",
+    "fx/fx-soup-splash-small.png",
     "player/player-arm-lower-left.png",
     "player/player-arm-lower-right.png",
     "player/player-arm-upper-left.png",
