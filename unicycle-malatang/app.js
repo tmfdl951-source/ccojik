@@ -184,6 +184,7 @@
     g.save();
     g.translate(x, y);
     if (o.rot) g.rotate(o.rot);
+    if (o.sx) g.scale(o.sx, 1);                        // 돌아선 만큼 가로로 눌러서
     if (o.alpha !== undefined) g.globalAlpha = o.alpha;
     g.drawImage(im, -full / 2 - ox, -fullH / 2 - oy, full, fullH);
     g.restore();
@@ -744,7 +745,7 @@
       g.restore();
       /* 바퀴가 땅에 닿는 자리 그림자 */
       g.save(); g.globalAlpha = 0.4;
-      chunk(g, ngon(S.bikeAngle * 1.6, 8, 120, 16, 9, 0), "#0B0E15", null);
+      chunk(g, ngon(VIEW.offX + S.bikeAngle * 1.6, 8, 126, 17, 9, 0), "#0B0E15", null);
       g.restore();
       return;
     }
@@ -785,7 +786,29 @@
     legSplit: 38,            // 앞다리와 뒷다리의 앞뒤 간격
     backScale: 0.88,         // 뒤쪽 팔·다리를 이만큼 작게
     backDark: 0.66,          // 뒤쪽은 이만큼 어둡게
+    /* 돌아선 몸은 가로로 좁아 보인다. 정면으로 그려진 그림을 눌러서 쓴다. */
+    squash: 0.86,            // 머리·몸통의 가로 압축
+    farShade: 0.22,          // 저편(왼쪽) 면에 얹는 그늘 (몸통에만)
+    bodyFwd: 16,             // 몸이 바퀴보다 앞으로 나간 거리
+    offX: -40,               // 전체를 왼쪽으로 — 그릇 쪽에 자리를 준다
+    farArm: 0.84,            // 저편 팔은 짧아 보인다 (원근 단축)
   };
+
+  /* 둥근 면의 저편에 얹는 그늘 — 돌아선 것처럼 보이게 하는 값싼 수법 */
+  function farShade(g, x, y, w, h) {
+    g.save();
+    g.beginPath();
+    g.ellipse(x, y, w / 2, h / 2, 0, 0, 6.2832);
+    g.clip();
+    g.fillStyle = "#16203A";
+    /* 바깥에서 안으로 갈수록 옅어지는 띠 — 한 줄로 자르면 솔기가 보인다 */
+    const N = 10, band = w * 0.52 / N;
+    for (let i = 0; i < N; i++) {
+      g.globalAlpha = VIEW.farShade * (1 - i / N) * (1 - i / N);
+      g.fillRect(x - w / 2 + i * band, y - h / 2, band + 1, h);
+    }
+    g.restore();
+  }
   /* 뒤쪽에 있는 것은 작고 어둡다 — 이게 깊이를 만든다 */
   function behind(g, fn) {
     g.save();
@@ -808,7 +831,7 @@
   /* 입 자리 (플레이어 로컬) — 젓가락이 여기를 겨냥한다 */
   function mouthPoint() {
     const lean = S.eatLean;
-    return { x: lean * 16 + VIEW.torsoX + lean * 10 + VIEW.headX,
+    return { x: lean * 16 + VIEW.torsoX + VIEW.bodyFwd + lean * 10 + VIEW.headX,
              y: -700 + lean * -6 + lean * 10 + 50 };
   }
 
@@ -833,6 +856,7 @@
     const sway = Math.sin(S.wheelSpin * 2) * 1.4;        // 페달 밟는 좌우 흔들림
 
     g.save();
+    g.translate(VIEW.offX, 0);                           // 전체를 조금 왼쪽으로
     g.rotate(S.bikeAngle * RAD);                         // playerRoot
 
     /* ---- unicycleRoot ---- 사선으로 놓여 있다 */
@@ -897,8 +921,11 @@
     g.save(); g.translate(VIEW.legSplit * 0.5, 0); leg(1); g.restore();
 
     /* ---- torso ---- 그림에는 목도리까지 들어 있다. 앞으로 조금 밀고 돌린다. */
-    const tx = lean * 16 + VIEW.torsoX, ty = lean * -6;
-    if (!put(g, "player/player-torso", tx, -450 + ty, 236, { rot: VIEW.torsoRot })) {
+    const tx = lean * 16 + VIEW.torsoX + VIEW.bodyFwd, ty = lean * -6;
+    if (put(g, "player/player-torso", tx, -450 + ty, 236,
+            { rot: VIEW.torsoRot, sx: VIEW.squash })) {
+      farShade(g, tx, -450 + ty, 236 * VIEW.squash, 258);
+    } else {
       chunk(g, [[-96 + tx, -336], [96 + tx, -336], [86 + tx, -566 + ty], [-86 + tx, -566 + ty]],
         COAT, COAT_D);
       chunk(g, box(tx, -346, 192, 26, 8), HEM, HEM);              // 노란 밑단
@@ -919,8 +946,9 @@
   /* 그릇을 쥔 손 — 그릇 위에 얹어야 '들고 있다' 로 보인다 */
   function drawBowlHand(g) {
     g.save();
+    g.translate(VIEW.offX, 0);
     g.rotate(S.bikeAngle * RAD);
-    const lean = S.eatLean, tx = lean * 16 + VIEW.torsoX, ty = lean * -6;
+    const lean = S.eatLean, tx = lean * 16 + VIEW.torsoX + VIEW.bodyFwd, ty = lean * -6;
     drawArm(g, 1, tx, ty, lean, false, true);
     g.restore();
   }
@@ -929,9 +957,10 @@
      몸 저편에 있는 팔이라 조금 작고 어둡게 (깊이). */
   function drawEatArm(g) {
     g.save();
+    g.translate(VIEW.offX, 0);
     g.rotate(S.bikeAngle * RAD);
     g.globalAlpha = 0.93;
-    const lean = S.eatLean, tx = lean * 16 + VIEW.torsoX, ty = lean * -6;
+    const lean = S.eatLean, tx = lean * 16 + VIEW.torsoX + VIEW.bodyFwd, ty = lean * -6;
     drawArm(g, -1, tx, ty, lean);
     g.restore();
   }
@@ -965,7 +994,12 @@
       else               p = lerp(mouth, rest, ease((t - 0.62) / 0.38));
       ex = p[0]; ey = p[1];
     }
-    /* 팔꿈치 — 바깥·아래로 빼야 두 마디가 다 보인다 */
+    /* 팔꿈치 — 바깥·아래로 빼야 두 마디가 다 보인다.
+       저편(젓가락) 팔은 원근 단축으로 어깨 쪽으로 당겨 짧아 보이게 한다. */
+    if (sgn < 0) {
+      ex = sx + (ex - sx) * VIEW.farArm;
+      ey = sy + (ey - sy) * VIEW.farArm;
+    }
     const mx = (sx + ex) / 2 + sgn * 42, my = (sy + ey) / 2 + 34;
     const side = sgn < 0 ? "left" : "right";
     if (!lowerOnly) {
@@ -1007,7 +1041,7 @@
       /* 집은 건더기 */
       if (S.eating && S.eatT > 0.3 && S.eatT < CFG.eat.biteAt + 0.06 && S.ing.length) {
         const it = S.ing[0].t;
-        if (!put(g, "bowl/ing-noodle", 0, -len - 10, 54)) {
+        if (!put(g, "bowl/ing-noodle", 0, -len - 4, 38)) {
           chunk(g, ngon(0, -len - 6, it.w * 0.5, it.h * 0.5, 7, 0.4), it.col, it.dark);
         }
       }
@@ -1018,7 +1052,10 @@
   /* 얼굴은 정해져 있다 — 빨간 비니, 빨간 코, 동그란 눈, 웃는 입.
      그림에는 비니까지 한 덩어리로 들어 있어서, 있으면 그것만 그린다. */
   function drawHead(g, x, y, lean) {
-    if (put(g, "player/player-head", x, y - 56, 252, { rot: VIEW.headRot })) return;
+    if (put(g, "player/player-head", x, y - 56, 252,
+            { rot: VIEW.headRot, sx: VIEW.squash })) {
+      return;                                    /* 얼굴엔 그늘을 안 얹는다 */
+    }
     chunk(g, ngon(x, y, 108, 112, 12, 0.26), SKIN, SKIN_D);
     /* 볼 */
     g.fillStyle = "rgba(240,140,140,.45)";
@@ -1054,6 +1091,7 @@
     const P = S.preset;
     const h = handPoint();
     g.save();
+    g.translate(VIEW.offX, 0);
     g.rotate(S.bikeAngle * RAD);
     g.translate(h.x, h.y);
     g.rotate((S.bowlAngle - S.bikeAngle) * RAD);         // 그릇은 제 각도로 매달린다
