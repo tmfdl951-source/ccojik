@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport"
+  content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>꼬직 · 외발자전거 타고 마라탕 먹기</title>
+<meta property="og:type" content="website" />
+<meta property="og:title" content="꼬직 · 외발자전거 타고 마라탕 먹기" />
+<meta property="og:description" content="자전거도 살리고 국물도 지키고 먹기까지. 몇 입 드실래요?" />
+<!-- 웹폰트: 숫자가 커서 획이 뭉치지 않는 쪽으로 (다른 꼬직 게임과 같은 폰트) -->
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+<link rel="stylesheet"
+  href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.css" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ===== 상단: 시간 / 먹은 입 / 남은 마라탕 ===== -->
+  <div class="top">
+    <div class="gauge"><span class="g-cap">시간</span><span class="g-num" id="timeNum">45</span></div>
+    <div class="gauge"><span class="g-cap">먹은 입</span><span class="g-num" id="biteNum">0</span></div>
+    <div class="gauge"><span class="g-cap">마라탕</span><span class="g-num" id="soupNum">100</span></div>
+  </div>
+
+  <!-- ===== 게임판 ===== -->
+  <div class="stage">
+    <canvas id="cv"></canvas>
+    <!-- 국물 경고 — 위험할 때만 띄운다 -->
+    <p class="warn" id="warn" hidden>국물 쏟아진다!</p>
+  </div>
+
+  <!-- ===== 하단: 좌우 보정 버튼. 먹기 버튼은 없다 ===== -->
+  <div class="pad" id="pad">
+    <button class="key" type="button" id="keyL" aria-label="왼쪽으로 보정">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M30 10 L14 24 L30 38" /></svg>
+    </button>
+    <p class="pad-tip" id="padTip">가만히 있으면 알아서 한 입</p>
+    <button class="key" type="button" id="keyR" aria-label="오른쪽으로 보정">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M18 10 L34 24 L18 38" /></svg>
+    </button>
+  </div>
+
+  <!-- ===== 타이틀 ===== -->
+  <div class="over over-start" id="startOver" hidden>
+    <p class="t-sub">꼬직</p>
+    <h1 class="t-main">외발자전거 타고<br />마라탕 먹기</h1>
+    <canvas class="hero" id="heroCv" width="420" height="300"></canvas>
+    <p class="lead">
+      좌우 버튼으로 중심만 잡으세요.<br />
+      멈춰 있으면 알아서 한 입 먹습니다.
+    </p>
+    <p class="best" id="bestStart">BEST -</p>
+    <button class="btn big" type="button" id="startBtn">출발</button>
+  </div>
+
+  <!-- ===== 결과 ===== -->
+  <div class="over over-end" id="endOver" hidden>
+    <p class="res-cap" id="resTitle">외발 마라탕 종료!</p>
+    <p class="res-why" id="resWhy">시간 종료</p>
+    <p class="new-rec" id="newRec" hidden>NEW RECORD!</p>
+    <div class="result-art" id="resultArt"></div>
+    <div class="big-row">
+      <div><p class="big-cap">먹은 양</p><p class="big-num" id="rBite">0입</p></div>
+      <div><p class="big-cap">남은 국물</p><p class="big-num alt" id="rSoup">0%</p></div>
+    </div>
+    <p class="grade" id="gradeLabel">그래도 배는 찼다</p>
+    <p class="remark" id="remark"></p>
+    <dl class="stats">
+      <div><dt>버틴 시간</dt><dd id="rTime">0.0초</dd></div>
+      <div><dt>최장 안정</dt><dd id="rCalm">0.0초</dd></div>
+      <div><dt>쏟은 횟수</dt><dd id="rSpill">0회</dd></div>
+      <div><dt>그릇</dt><dd id="rBowl">보통</dd></div>
+    </dl>
+    <div class="res-btns">
+      <button class="btn big" type="button" id="againBtn">다시 타기</button>
+      <button class="btn ghost" type="button" id="shareBtn">결과 공유</button>
+    </div>
+    <p class="best" id="bestEnd">BEST -</p>
+  </div>
+
+  <!-- ===== 로딩 ===== -->
+  <div class="over over-load" id="loadOver">
+    <p class="load-cap">LOADING</p>
+    <div class="load-bar"><div class="load-fill" id="loadFill"></div></div>
+  </div>
+
+</div>
+<script>window.SITE_ANALYTICS_PROJECT='ccojik-unicycle-malatang';</script>
+<script src="../analytics.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

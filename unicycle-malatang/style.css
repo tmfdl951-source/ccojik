@@ -1,0 +1,239 @@
+/* ===== 꼬직 · 외발자전거 타고 마라탕 먹기 =====
+ * 밤거리가 배경이라 판 자체가 어둡다. UI 는 위아래로 얇게 깔고 가운데를 비운다.
+ * 세로 치수는 전부 화면 높이에 비례 — 1080x1920 부터 작은 폰까지 한 화면.
+ * 금지: 이모지, 과한 그림자·글로우·그라데이션 */
+:root {
+  --ink:   #1A1A16;
+  --paper: #FFFFFF;
+  --wall:  #11141C;    /* 바깥 바탕 — 밤 */
+  --night: #1B2030;    /* 게임판 바탕 */
+  --red:   #DA2B2B;
+  --green: #1C9A46;
+  --gray:  #6E7678;
+  --point: #FFCE1F;
+  --soup:  #D8381F;    /* 마라탕 국물 */
+
+  --f: "Pretendard", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%;
+  background: var(--wall);
+  color: var(--ink);
+  font-family: var(--f);
+  -webkit-user-select: none; user-select: none;
+  overflow: hidden;                 /* 페이지가 통째로 밀리지 않게 */
+  overscroll-behavior: none;        /* 당겨서 새로고침 차단 */
+  touch-action: none;               /* 버튼을 꾹 눌러도 화면이 안 끌리게 */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+body { display: flex; align-items: center; justify-content: center; }
+
+/* PC 에서도 가운데 세로 영역 */
+.app {
+  position: relative;
+  width: min(520px, 100vw);
+  height: 100dvh;
+  background: var(--night);
+  border-left: 4px solid #000;
+  border-right: 4px solid #000;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: calc(env(safe-area-inset-top) + 6px) 0 calc(env(safe-area-inset-bottom) + 6px);
+}
+
+/* ============================================================
+   상단 계기
+   ============================================================ */
+.top {
+  flex: 0 0 auto;
+  display: flex; justify-content: space-around; align-items: flex-end;
+  padding: 0 clamp(8px, 3vw, 18px);
+  color: var(--paper);
+}
+.gauge { display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.g-cap {
+  font-size: clamp(9px, min(2.8vw, 1.4vh), 13px);
+  letter-spacing: .1em; color: #8A93A6; font-weight: 700;
+}
+.g-num {
+  font-size: clamp(20px, min(6.4vw, 3.2vh), 34px);
+  font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.g-num.hot { color: var(--red); }
+
+/* ============================================================
+   게임판
+   ============================================================ */
+.stage { position: relative; flex: 1 1 auto; min-height: 0; }
+#cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+.warn {
+  position: absolute; left: 50%; top: 11%;
+  transform: translateX(-50%);
+  padding: 4px 14px;
+  background: var(--red); color: #fff;
+  font-weight: 800; letter-spacing: .04em;
+  font-size: clamp(12px, min(4vw, 2vh), 18px);
+  border-radius: 999px;
+  animation: blink .5s steps(2, end) infinite;
+}
+@keyframes blink { 50% { opacity: .35; } }
+
+/* ============================================================
+   하단 조작 — 좌우 두 개뿐. 먹기 버튼은 만들지 않는다.
+   ============================================================ */
+.pad {
+  flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: clamp(6px, 2vw, 14px);
+  padding: clamp(5px, 1.4vh, 12px) clamp(10px, 4vw, 22px) 0;
+}
+.key {
+  flex: 0 0 auto;
+  width: clamp(72px, 22vw, 108px);
+  height: clamp(54px, min(16vw, 8vh), 80px);
+  background: #2B3348; color: var(--paper);
+  border: 3px solid #000; border-radius: 16px;
+  display: grid; place-items: center;
+  cursor: pointer;
+}
+.key svg { width: 54%; height: 54%; fill: none; stroke: currentColor; stroke-width: 6;
+           stroke-linecap: round; stroke-linejoin: round; }
+.key.on { background: var(--point); color: var(--ink); transform: translateY(2px); }
+.pad-tip {
+  flex: 1 1 auto; text-align: center;
+  color: #8A93A6; font-weight: 700; line-height: 1.35;
+  font-size: clamp(10px, min(3.2vw, 1.6vh), 14px);
+}
+.pad-tip.eat { color: var(--point); }
+
+/* ============================================================
+   덮개 공통
+   ============================================================ */
+.over {
+  position: absolute; inset: 0; z-index: 5;
+  background: var(--night);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: clamp(5px, 1.3vh, 12px);
+  padding: clamp(12px, 3vh, 26px) clamp(14px, 5vw, 30px);
+  text-align: center;
+  color: var(--paper);
+}
+.over[hidden] { display: none; }
+
+.btn {
+  font-family: var(--f); font-weight: 800;
+  border: 3px solid #000; border-radius: 14px;
+  cursor: pointer;
+  padding: clamp(9px, 1.8vh, 15px) clamp(18px, 6vw, 34px);
+  font-size: clamp(15px, min(4.6vw, 2.4vh), 21px);
+  background: var(--point); color: var(--ink);
+}
+.btn.big { width: 100%; max-width: 360px; }
+.btn.ghost { background: transparent; color: var(--paper); border-color: #46506B; }
+.btn:disabled { opacity: .45; cursor: default; }
+
+.best { color: #8A93A6; font-weight: 700;
+        font-size: clamp(11px, min(3.4vw, 1.7vh), 15px); }
+
+/* ---- 타이틀 ---- */
+.t-sub { color: var(--point); font-weight: 800; letter-spacing: .3em;
+         font-size: clamp(11px, min(3.4vw, 1.7vh), 15px); }
+.t-main { font-weight: 800; line-height: 1.18;
+          font-size: clamp(23px, min(7.6vw, 3.9vh), 40px); }
+.hero { width: min(76%, 320px); height: auto; }
+.lead { color: #AEB6C6; line-height: 1.5;
+        font-size: clamp(12px, min(3.9vw, 2vh), 17px); }
+
+/* ---- 결과 ---- */
+.over-end { justify-content: flex-start; gap: clamp(4px, 1vh, 10px); }
+.res-cap { color: var(--point); font-weight: 800; letter-spacing: .06em;
+           font-size: clamp(13px, min(4.2vw, 2.2vh), 19px); }
+.res-why { color: var(--red); font-weight: 800;
+           font-size: clamp(12px, min(3.8vw, 1.9vh), 17px); }
+.new-rec {
+  font-weight: 800; letter-spacing: .08em; color: var(--point);
+  font-size: clamp(15px, min(5vw, 2.6vh), 23px);
+  animation: recIn .32s cubic-bezier(.2, 1.6, .4, 1) 1, blink .7s steps(2, end) .32s infinite;
+}
+@keyframes recIn { from { transform: scale(.4); opacity: 0; } }
+
+.result-art {
+  flex: 1 1 0;
+  min-height: clamp(70px, 15vh, 160px);
+  max-height: 28%;
+  width: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
+.result-art canvas { max-width: 100%; max-height: 100%; width: auto; height: auto; }
+
+/* 먹은 양과 남은 국물 — 결과에서 제일 먼저 읽히는 두 숫자 */
+.big-row {
+  width: 100%;
+  display: flex; align-items: flex-end; justify-content: center;
+  gap: clamp(16px, 6vw, 44px);
+}
+.big-row > div { display: flex; flex-direction: column; align-items: center; }
+.big-cap { font-weight: 800; letter-spacing: .04em; color: #8A93A6;
+           font-size: clamp(10px, min(3vw, 1.5vh), 14px); }
+.big-num { font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.02;
+           font-size: clamp(31px, min(10.5vw, 5.4vh), 60px); }
+.big-num.alt { color: var(--point); }
+
+.grade { font-weight: 800; line-height: 1.2;
+         font-size: clamp(16px, min(5.2vw, 2.7vh), 26px); }
+.remark { color: #8A93A6; line-height: 1.4; max-width: 22em;
+          font-size: clamp(12px, min(3.8vw, 1.9vh), 17px); }
+
+.stats {
+  width: 100%; max-width: 330px;
+  display: flex; flex-direction: column; gap: clamp(1px, .4vh, 4px);
+  font-size: clamp(12px, min(3.7vw, 1.9vh), 17px);
+  color: #8A93A6;
+}
+.stats div { display: flex; justify-content: space-between; gap: 12px; }
+.stats dd { color: var(--paper); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.res-btns { width: 100%; max-width: 360px;
+            display: flex; flex-direction: column; gap: clamp(5px, 1vh, 9px); }
+
+/* ---- 로딩 ---- */
+.over-load { gap: clamp(8px, 2vh, 18px); }
+.load-cap { font-weight: 800; letter-spacing: .22em; color: #8A93A6;
+            font-size: clamp(13px, min(4vw, 2.1vh), 18px); }
+.load-bar { width: min(62%, 260px); height: 10px; background: #2B3348;
+            border: 3px solid #000; border-radius: 999px; overflow: hidden; }
+.load-fill { width: 0%; height: 100%; background: var(--point); transition: width .12s linear; }
+
+/* ============================================================
+   좁은 화면 / 낮은 화면
+   ============================================================ */
+@media (max-height: 640px) {
+  .over-end { gap: clamp(3px, .8vh, 7px); }
+  .result-art { min-height: 62px; max-height: 22%; }
+  .hero { width: min(60%, 240px); }
+}
+
+/* 아주 낮은 화면(가로로 든 휴대폰) — 설명부터 접는다. 버튼은 반드시 남긴다. */
+@media (max-height: 460px) {
+  .lead, .remark, .hero, .pad-tip { display: none; }
+  .over { gap: clamp(4px, 1vh, 8px); }
+  .big-num { font-size: clamp(24px, 8vh, 38px); }
+  .result-art { min-height: 50px; max-height: 20%; }
+  .stats { flex-direction: row; flex-wrap: wrap; justify-content: center;
+           gap: 4px 14px; max-width: none; }
+  .stats div { gap: 5px; }
+  .res-btns { flex-direction: row; max-width: none; }
+  .btn { padding: clamp(7px, 1.4vh, 12px) clamp(14px, 4vw, 26px); }
+  .key { height: clamp(44px, 14vh, 60px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::after, *::before { animation: none !important; transition-duration: .01ms !important; }
+}

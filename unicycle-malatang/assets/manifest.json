@@ -1,0 +1,17 @@
+{
+  "note": "실제로 넣은 파일만 files 에 적으세요. 적힌 것만 불러오고, 안 적힌 건 게임이 도형으로 그립니다. 없는 파일을 적으면 그것만 도형으로 떨어집니다.",
+  "expects": {
+    "ref": ["참고용 이미지 — 게임이 직접 쓰지 않습니다"],
+    "player": ["head", "beanie", "torso", "scarf", "arm-upper", "arm-lower", "hand",
+               "thigh", "shin", "foot", "chopsticks"],
+    "unicycle": ["frame", "seat", "wheel", "pedal"],
+    "bowl": ["bowl", "bowl-inner-mask", "bowl-rim"],
+    "ingredients": ["noodle", "bokchoy", "tofu-skin", "mushroom", "sausage",
+                    "quail-egg", "rice-cake", "ham"],
+    "background": ["sky", "building-far", "building-near", "road", "streetlight"],
+    "ui": [],
+    "fx": ["drop", "splash", "pop"],
+    "result": ["result-good", "result-mid", "result-bad"]
+  },
+  "files": []
+}
