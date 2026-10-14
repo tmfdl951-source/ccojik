@@ -17,29 +17,12 @@
 <body>
 <div class="app" id="app">
 
-  <!-- ===== 상단: 점수 / 콤보 / 시간 + 미터 두 줄 ===== -->
-  <div class="top">
-    <div class="gauge"><span class="g-cap">점수</span><span class="g-num" id="scoreNum">0</span></div>
-    <div class="gauge"><span class="g-cap">콤보</span><span class="g-num combo" id="comboNum">0</span></div>
-    <div class="gauge"><span class="g-cap">시간</span><span class="g-num" id="timeNum">45</span></div>
-  </div>
-  <!-- 기울기와 국물량 — 위험하면 빨개진다 -->
-  <div class="meters">
-    <div class="meter tilt" id="tiltMeter">
-      <span class="m-cap">기울기</span>
-      <div class="m-bar"><i class="m-mid"></i><i class="m-pin" id="tiltPin"></i></div>
-    </div>
-    <div class="meter" id="soupMeter">
-      <span class="m-cap">국물 <b id="soupNum">100</b></span>
-      <div class="m-bar"><i class="m-fill" id="soupFill"></i></div>
-    </div>
-  </div>
+  <!-- ===== 상단: 점수 하나만. 원작처럼 화면을 비운다. ===== -->
+  <p class="score-tag" id="scoreNum">0</p>
 
   <!-- ===== 게임판 ===== -->
   <div class="stage">
     <canvas id="cv"></canvas>
-    <!-- 국물 경고 — 위험할 때만 띄운다 -->
-    <p class="warn" id="warn" hidden>국물 쏟아진다!</p>
   </div>
 
   <!-- ===== 하단: [왼쪽] [먹기] [오른쪽] ===== -->
@@ -54,7 +37,6 @@
       <img src="assets/ui/ui-btn-right.png" alt="" draggable="false" />
     </button>
   </div>
-  <p class="pad-tip" id="padTip">균형 잡고 가운데로 먹기</p>
   <p class="keys">&#8592; &#8594; 균형 · SPACE 먹기</p>
 
   <!-- ===== 타이틀 ===== -->
@@ -62,11 +44,7 @@
     <p class="t-sub">꼬직</p>
     <h1 class="t-main">외발자전거 타고<br />마라탕 먹기</h1>
     <canvas class="hero" id="heroCv" width="420" height="300"></canvas>
-    <p class="lead">
-      좌우로 중심을 잡고,<br />
-      가운데 버튼으로 한 입씩 먹습니다.
-    </p>
-    <p class="pick-cap">그릇 고르기</p>
+    <p class="lead">좌우로 중심 잡고 가운데로 먹기</p>
     <div class="picks" id="picks">
       <button class="pick" type="button" data-lv="0">
         <span class="p-name">커피</span><span class="p-sub">쉬움</span>
@@ -88,21 +66,9 @@
     <p class="res-why" id="resWhy">시간 종료</p>
     <p class="new-rec" id="newRec" hidden>NEW RECORD!</p>
     <div class="result-art" id="resultArt"></div>
-    <p class="big-cap">점수</p>
     <p class="score-huge" id="rScore">0</p>
-    <div class="big-row">
-      <div><p class="big-cap">먹은 양</p><p class="big-num" id="rBite">0입</p></div>
-      <div><p class="big-cap">남은 국물</p><p class="big-num alt" id="rSoup">0%</p></div>
-    </div>
-    <p class="grade" id="gradeLabel">그래도 배는 찼다</p>
+    <p class="big-num" id="rBite">0입</p>
     <p class="remark" id="remark"></p>
-    <dl class="stats">
-      <div><dt>버틴 시간</dt><dd id="rTime">0.0초</dd></div>
-      <div><dt>최장 안정</dt><dd id="rCalm">0.0초</dd></div>
-      <div><dt>쏟은 횟수</dt><dd id="rSpill">0회</dd></div>
-      <div><dt>최고 콤보</dt><dd id="rCombo">0</dd></div>
-      <div><dt>그릇</dt><dd id="rBowl">보통</dd></div>
-    </dl>
     <div class="res-btns">
       <button class="btn big" type="button" id="againBtn">다시 타기</button>
       <button class="btn ghost" type="button" id="shareBtn">결과 공유</button>

@@ -49,28 +49,19 @@ body { display: flex; align-items: center; justify-content: center; }
 /* ============================================================
    상단 계기
    ============================================================ */
-.top {
+/* 점수 하나만 — 구석에 작게 */
+.score-tag {
   flex: 0 0 auto;
-  display: flex; justify-content: space-around; align-items: flex-end;
-  padding: 0 clamp(8px, 3vw, 18px);
-  color: var(--paper);
+  padding: 0 clamp(10px, 4vw, 20px);
+  text-align: right;
+  color: #9AA3B6; font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(14px, min(4.4vw, 2.2vh), 22px);
+  line-height: 1.1;
 }
-.gauge { display: flex; flex-direction: column; align-items: center; line-height: 1; }
-.g-cap {
-  font-size: clamp(9px, min(2.8vw, 1.4vh), 13px);
-  letter-spacing: .1em; color: #8A93A6; font-weight: 700;
-}
-.g-num {
-  font-size: clamp(20px, min(6.4vw, 3.2vh), 34px);
-  font-weight: 800; font-variant-numeric: tabular-nums;
-}
-.g-num.hot { color: var(--red); }
-.g-num.combo { color: var(--point); }
-.g-num.combo.off { color: #4A5265; }
 
-/* ============================================================
-   기울기 / 국물량 미터 — 위험하면 빨개진다
-   ============================================================ */
+/* (기울기·국물 미터는 뺐다 — 원작처럼 플레이 화면을 비운다) */
+/*
 .meters {
   flex: 0 0 auto;
   display: flex; gap: clamp(8px, 3vw, 18px);
@@ -99,6 +90,7 @@ body { display: flex; align-items: center; justify-content: center; }
           background: var(--soup); border-radius: 999px; }
 .meter.warn .m-fill { background: var(--point); }
 .meter.risk .m-fill { background: var(--red); }
+*/
 
 /* ============================================================
    게임판
@@ -106,16 +98,6 @@ body { display: flex; align-items: center; justify-content: center; }
 .stage { position: relative; flex: 1 1 auto; min-height: 0; }
 #cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
-.warn {
-  position: absolute; left: 50%; top: 11%;
-  transform: translateX(-50%);
-  padding: 4px 14px;
-  background: var(--red); color: #fff;
-  font-weight: 800; letter-spacing: .04em;
-  font-size: clamp(12px, min(4vw, 2vh), 18px);
-  border-radius: 999px;
-  animation: blink .5s steps(2, end) infinite;
-}
 @keyframes blink { 50% { opacity: .35; } }
 
 /* ============================================================
@@ -148,13 +130,6 @@ body { display: flex; align-items: center; justify-content: center; }
 .key.eat.risk img { filter: drop-shadow(0 0 9px var(--red)) saturate(1.4); }
 .key.eat.wait { opacity: .45; }
 
-.pad-tip {
-  flex: 0 0 auto; text-align: center;
-  color: #8A93A6; font-weight: 700; line-height: 1.3;
-  font-size: clamp(10px, min(3.2vw, 1.6vh), 14px);
-  padding: clamp(2px, .5vh, 5px) 0 0;
-}
-.pad-tip.eat { color: var(--point); }
 /* 키보드 안내 — 손가락으로 하는 화면에서는 감춘다 */
 .keys {
   text-align: center; color: #5A6376; font-weight: 700; letter-spacing: .04em;
@@ -251,8 +226,7 @@ body { display: flex; align-items: center; justify-content: center; }
 .big-cap { font-weight: 800; letter-spacing: .04em; color: #8A93A6;
            font-size: clamp(10px, min(3vw, 1.5vh), 14px); }
 .big-num { font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.02;
-           font-size: clamp(31px, min(10.5vw, 5.4vh), 60px); }
-.big-num.alt { color: var(--point); }
+           font-size: clamp(22px, min(7vw, 3.6vh), 38px); color: #AEB6C6; }
 .score-huge {
   font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1;
   font-size: clamp(44px, min(15vw, 7.6vh), 92px);
@@ -295,7 +269,7 @@ body { display: flex; align-items: center; justify-content: center; }
 
 /* 아주 낮은 화면(가로로 든 휴대폰) — 설명부터 접는다. 버튼은 반드시 남긴다. */
 @media (max-height: 460px) {
-  .lead, .remark, .hero, .pad-tip, .keys { display: none; }
+  .lead, .remark, .hero, .keys { display: none; }
   .over { gap: clamp(4px, 1vh, 8px); }
   .big-num { font-size: clamp(24px, 8vh, 38px); }
   .score-huge { font-size: clamp(32px, 11vh, 52px); }

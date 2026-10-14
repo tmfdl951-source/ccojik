@@ -376,7 +376,7 @@
   };
 
   /* 소리 — 파일이 아직 없다. 자리와 호출만 만들어 둔다. */
-  const SFX = { button: null, warn: null, spill: null, bite: null,
+  const SFX = { button: null, spill: null, bite: null,
                 nice: null, fall: null, over: null, result: null };
   const sfxAt = {};
   function sfx(k) {
@@ -767,6 +767,22 @@
   }
 
   const CURB = -46;                       // 보도 턱이 놓이는 높이 (접지선 바로 위)
+
+  /* 배경 한 줄을 가로로 무한히 잇는다. 한 장 걸러 좌우를 뒤집어서, 그림의
+     비스듬한 선이 이음매에서 서로 맞물리게 한다 (그냥 이으면 계단이 진다). */
+  function tileRow(g, key, w, y, speed, n) {
+    const span = w * 2;                                  // 뒤집은 한 쌍이 한 주기
+    const off = -(((S.scroll * speed) % span) + span) % span;
+    for (let i = -1; i <= (n || 2); i++) {
+      const x = off + i * w;
+      const flip = ((i % 2) + 2) % 2 === 1;
+      g.save();
+      g.translate(x, 0);
+      if (flip) g.scale(-1, 1);
+      put(g, key, 0, y, w);
+      g.restore();
+    }
+  }
   const SKYLINE = -210;                   // 보도 윗선 = 건물이 서는 바닥
   /* 기울면 그릇이 멀리 나간다. 좁은 화면에서는 통째로 줄여 담는다. */
   const fitScale = () => clamp(halfW() / 560, 0.70, 1);
@@ -777,9 +793,7 @@
       const B = BOX["background/bg-building-row-1"];
       const w = halfW() * 1.7;                                  // 한 장의 보이는 가로
       const hv = w * (B.h * (1 - B.t - B.b)) / (B.w * (1 - B.l - B.r));
-      const off = -((S.scroll * 0.28) % w);
-      for (let i = -1; i <= 2; i++)
-        put(g, "background/bg-building-row-1", off + (i - 1) * w, SKYLINE - hv / 2, w);
+      tileRow(g, "background/bg-building-row-1", w, SKYLINE - hv / 2, 0.28, 3);
       return;
     }
     const px = p => -((S.scroll * p) % 2600) ;
@@ -831,19 +845,18 @@
     if (has("background/bg-road")) {
       const B = BOX["background/bg-road"];
       const L = halfW() + 30;
-      /* 그림이 못 닿는 아래쪽까지 같은 아스팔트 색으로 먼저 깔아 둔다 */
-      chunk(g, [[-L, CURB], [L, CURB], [L, b], [-L, b]], "#343845", null);
       const w = halfW() * 2.2;
       const h = w * (B.h / B.w);
-      const off = -((S.scroll * 1.0) % w);
+      const imgBot = CURB - h * 0.40 + h;                // 그림이 닿는 아래 끝
+      /* 그림이 못 닿는 아래쪽은 그림 맨 아래와 같은 색으로 이어 깐다 */
+      chunk(g, [[-L, imgBot - 2], [L, imgBot - 2], [L, b], [-L, b]], "#2C2D39", null);
       /* 그림의 세로 40% 지점이 보도 턱이다 — 그 줄을 CURB 에 맞춘다.
          그 위쪽(먼 아스팔트)은 건물을 가리므로 잘라 낸다. */
       g.save();
       g.beginPath();
       g.rect(-L, SKYLINE, L * 2, b - SKYLINE);
       g.clip();
-      for (let i = -1; i <= 1; i++)
-        put(g, "background/bg-road", off + i * w, CURB - h * 0.40 + h / 2, w);
+      tileRow(g, "background/bg-road", w, CURB - h * 0.40 + h / 2, 1.0, 2);
       g.restore();
       /* 바퀴가 땅에 닿는 자리 그림자 */
       g.save(); g.globalAlpha = 0.4;
@@ -1484,45 +1497,13 @@
   /* ============================================================
      HUD — 숫자가 바뀔 때만 DOM 을 건드린다
      ============================================================ */
-  const hud = { t: -1, b: -1, s: -1, c: -1, sc: -1, warn: null, band: null, tilt: -9, soupBar: -9 };
+  const hud = { sc: -1, band: null };
+  /* 플레이 화면에 남는 건 점수 하나와 먹기 버튼 색뿐이다.
+     원작처럼 비워 두려고 미터·시간·콤보·경고 배너를 전부 뺐다.
+     (점수와 콤보는 계속 계산된다 — 결과 화면에서 쓴다) */
   function paintHud(force) {
-    const t = Math.ceil(S.left);
-    if (force || t !== hud.t) {
-      hud.t = t;
-      $("timeNum").textContent = t;
-      $("timeNum").classList.toggle("hot", t <= CFG.hotAt);
-    }
     if (force || S.score !== hud.sc) { hud.sc = S.score; $("scoreNum").textContent = S.score; }
-    if (force || S.combo !== hud.c) {
-      hud.c = S.combo;
-      $("comboNum").textContent = S.combo;
-      $("comboNum").classList.toggle("off", S.combo === 0);
-    }
-    const s = Math.round(S.amount);
-    if (force || s !== hud.s) {
-      hud.s = s;
-      $("soupNum").textContent = s;
-      $("soupFill").style.width = clamp(s, 0, 100) + "%";
-      const m = $("soupMeter");
-      m.classList.toggle("risk", s <= 20);
-      m.classList.toggle("warn", s > 20 && s <= 45);
-    }
-    /* 기울기 바늘 — 가운데가 수직, 양 끝이 전복각 */
-    const tp = Math.round(clamp(S.bikeAngle / CFG.bike.maxAngle, -1, 1) * 50);
-    if (force || tp !== hud.tilt) {
-      hud.tilt = tp;
-      $("tiltPin").style.left = (50 + tp) + "%";
-      const a = Math.abs(S.bikeAngle), m = $("tiltMeter");
-      m.classList.toggle("risk", a >= CFG.eat.riskBike);
-      m.classList.toggle("warn", a >= CFG.eat.safeBike && a < CFG.eat.riskBike);
-    }
-    const warn = S.state === ST.PLAY && (S.overflow > 0 || spillOver() > -CFG.soup.warnAt * 0.22);
-    if (force || warn !== hud.warn) {
-      hud.warn = warn;
-      $("warn").hidden = !warn;
-      if (warn) { sfx("warn"); buzz(8); }     // 뜨는 순간에만
-    }
-    /* 먹기 버튼은 지금 먹으면 어떻게 되는지를 색으로 알려 준다 */
+    /* 먹기 버튼이 지금 먹으면 어떻게 되는지를 색으로 알려 준다 */
     const band = S.state === ST.PLAY ? (S.eating ? "EATING"
                  : S.eatCool > 0 ? "WAIT" : S.eatBand) : "";
     if (force || band !== hud.band) {
@@ -1531,12 +1512,6 @@
       el.classList.toggle("warn", band === "WARN");
       el.classList.toggle("risk", band === "RISK");
       el.classList.toggle("wait", band === "WAIT" || band === "EATING");
-      const t = $("padTip");
-      t.textContent = band === "EATING" ? "먹는 중 — 중심 조심!"
-                    : band === "RISK" ? "지금 먹으면 쏟는다"
-                    : band === "WARN" ? "조금 흔들린다"
-                    : "균형 잡고 가운데로 먹기";
-      t.classList.toggle("eat", band === "RISK" || band === "WARN");
     }
   }
 
@@ -1621,16 +1596,9 @@
 
     $("resWhy").textContent = S.why;
     $("rScore").textContent = S.score;
-    $("rCombo").textContent = S.comboBest;
     $("newRec").hidden = !rec;
-    $("rBite").textContent = S.bites + "입";
-    $("rSoup").textContent = Math.round(S.amount) + "%";
-    $("gradeLabel").textContent = G.title;
+    $("rBite").textContent = S.bites + "입 먹음";
     $("remark").textContent = pick(G.says);
-    $("rTime").textContent = S.elapsed.toFixed(1) + "초";
-    $("rCalm").textContent = S.calmBest.toFixed(1) + "초";
-    $("rSpill").textContent = S.spills + "회";
-    $("rBowl").textContent = S.preset.label;
 
     const artc = snapResult();
     const bx = $("resultArt");
@@ -1638,6 +1606,7 @@
     lastArt = artc;
     lastInfo = { bites: S.bites, soup: Math.round(S.amount), grade: G,
                  time: S.elapsed.toFixed(1), score: S.score };
+    void G;
 
     if (rec) { S.best = sc2.total; sfx("result"); }
     S.bestBite = Math.max(S.bestBite, S.bites);
@@ -1820,6 +1789,6 @@
     handPoint, bowlRim, choosePreset, fillIng, addFx, stepFx, say, paintHud, drawHero,
     snapResult, buildCard, shareResult, render, loadAssets, has, drawBowlHand,
     BOX, BONE, put, bone, VIEW, fitScale, CURB, SKYLINE,
-    posePaint, POSE, PART, DEPTH, drawEatTool, drawNeck, drawShoulder,
+    posePaint, POSE, PART, DEPTH, drawEatTool, drawNeck, drawShoulder, tileRow,
   });
 })();
