@@ -17,11 +17,22 @@
 <body>
 <div class="app" id="app">
 
-  <!-- ===== 상단: 시간 / 먹은 입 / 남은 마라탕 ===== -->
+  <!-- ===== 상단: 점수 / 콤보 / 시간 + 미터 두 줄 ===== -->
   <div class="top">
+    <div class="gauge"><span class="g-cap">점수</span><span class="g-num" id="scoreNum">0</span></div>
+    <div class="gauge"><span class="g-cap">콤보</span><span class="g-num combo" id="comboNum">0</span></div>
     <div class="gauge"><span class="g-cap">시간</span><span class="g-num" id="timeNum">45</span></div>
-    <div class="gauge"><span class="g-cap">먹은 입</span><span class="g-num" id="biteNum">0</span></div>
-    <div class="gauge"><span class="g-cap">마라탕</span><span class="g-num" id="soupNum">100</span></div>
+  </div>
+  <!-- 기울기와 국물량 — 위험하면 빨개진다 -->
+  <div class="meters">
+    <div class="meter tilt" id="tiltMeter">
+      <span class="m-cap">기울기</span>
+      <div class="m-bar"><i class="m-mid"></i><i class="m-pin" id="tiltPin"></i></div>
+    </div>
+    <div class="meter" id="soupMeter">
+      <span class="m-cap">국물 <b id="soupNum">100</b></span>
+      <div class="m-bar"><i class="m-fill" id="soupFill"></i></div>
+    </div>
   </div>
 
   <!-- ===== 게임판 ===== -->
@@ -55,6 +66,18 @@
       좌우로 중심을 잡고,<br />
       가운데 버튼으로 한 입씩 먹습니다.
     </p>
+    <p class="pick-cap">그릇 고르기</p>
+    <div class="picks" id="picks">
+      <button class="pick" type="button" data-lv="0">
+        <span class="p-name">커피</span><span class="p-sub">쉬움</span>
+      </button>
+      <button class="pick on" type="button" data-lv="1">
+        <span class="p-name">마라탕</span><span class="p-sub">보통</span>
+      </button>
+      <button class="pick" type="button" data-lv="2">
+        <span class="p-name">마라탕 가득</span><span class="p-sub">어려움</span>
+      </button>
+    </div>
     <p class="best" id="bestStart">BEST -</p>
     <button class="btn big" type="button" id="startBtn">출발</button>
   </div>
@@ -65,6 +88,8 @@
     <p class="res-why" id="resWhy">시간 종료</p>
     <p class="new-rec" id="newRec" hidden>NEW RECORD!</p>
     <div class="result-art" id="resultArt"></div>
+    <p class="big-cap">점수</p>
+    <p class="score-huge" id="rScore">0</p>
     <div class="big-row">
       <div><p class="big-cap">먹은 양</p><p class="big-num" id="rBite">0입</p></div>
       <div><p class="big-cap">남은 국물</p><p class="big-num alt" id="rSoup">0%</p></div>
@@ -75,6 +100,7 @@
       <div><dt>버틴 시간</dt><dd id="rTime">0.0초</dd></div>
       <div><dt>최장 안정</dt><dd id="rCalm">0.0초</dd></div>
       <div><dt>쏟은 횟수</dt><dd id="rSpill">0회</dd></div>
+      <div><dt>최고 콤보</dt><dd id="rCombo">0</dd></div>
       <div><dt>그릇</dt><dd id="rBowl">보통</dd></div>
     </dl>
     <div class="res-btns">

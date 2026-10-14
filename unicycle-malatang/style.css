@@ -65,6 +65,40 @@ body { display: flex; align-items: center; justify-content: center; }
   font-weight: 800; font-variant-numeric: tabular-nums;
 }
 .g-num.hot { color: var(--red); }
+.g-num.combo { color: var(--point); }
+.g-num.combo.off { color: #4A5265; }
+
+/* ============================================================
+   기울기 / 국물량 미터 — 위험하면 빨개진다
+   ============================================================ */
+.meters {
+  flex: 0 0 auto;
+  display: flex; gap: clamp(8px, 3vw, 18px);
+  padding: clamp(3px, .8vh, 7px) clamp(10px, 4vw, 22px) 0;
+}
+.meter { flex: 1 1 0; display: flex; flex-direction: column; gap: 2px; }
+.m-cap {
+  font-size: clamp(8px, min(2.5vw, 1.25vh), 11px);
+  letter-spacing: .08em; color: #8A93A6; font-weight: 700;
+}
+.m-cap b { color: var(--paper); font-variant-numeric: tabular-nums; }
+.m-bar {
+  position: relative; height: clamp(7px, 1.4vh, 12px);
+  background: #232A3C; border-radius: 999px; overflow: hidden;
+}
+.m-mid { position: absolute; left: 50%; top: 0; width: 2px; height: 100%;
+         background: #46506B; transform: translateX(-1px); }
+/* 기울기는 가운데 기준 바늘 */
+.m-pin { position: absolute; top: 0; left: 50%; width: 14%; height: 100%;
+         background: var(--green); border-radius: 999px;
+         transform: translateX(-50%); }
+.meter.warn .m-pin { background: var(--point); }
+.meter.risk .m-pin { background: var(--red); }
+/* 국물은 차오르는 막대 */
+.m-fill { position: absolute; left: 0; top: 0; height: 100%; width: 100%;
+          background: var(--soup); border-radius: 999px; }
+.meter.warn .m-fill { background: var(--point); }
+.meter.risk .m-fill { background: var(--red); }
 
 /* ============================================================
    게임판
@@ -152,6 +186,24 @@ body { display: flex; align-items: center; justify-content: center; }
   background: var(--point); color: var(--ink);
 }
 .btn.big { width: 100%; max-width: 360px; }
+
+/* ---- 난이도 세 개 ---- */
+.pick-cap { color: #8A93A6; font-weight: 800; letter-spacing: .1em;
+            font-size: clamp(10px, min(3vw, 1.5vh), 13px); }
+.picks { display: flex; gap: clamp(7px, 2.6vw, 14px); width: 100%;
+         max-width: 360px; justify-content: center; }
+.pick {
+  flex: 1 1 0; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: clamp(7px, 1.5vh, 13px) 2px;
+  background: #222A3E; color: #AEB6C6;
+  border: 3px solid #000; border-radius: 16px;
+  font-family: var(--f);
+}
+.pick .p-name { font-weight: 800; font-size: clamp(11px, min(3.4vw, 1.7vh), 15px); }
+.pick .p-sub { font-size: clamp(9px, min(2.7vw, 1.35vh), 12px); color: #6E7891; }
+.pick.on { background: var(--point); color: var(--ink); }
+.pick.on .p-sub { color: #6b5a12; }
 .btn.ghost { background: transparent; color: var(--paper); border-color: #46506B; }
 .btn:disabled { opacity: .45; cursor: default; }
 
@@ -201,6 +253,11 @@ body { display: flex; align-items: center; justify-content: center; }
 .big-num { font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.02;
            font-size: clamp(31px, min(10.5vw, 5.4vh), 60px); }
 .big-num.alt { color: var(--point); }
+.score-huge {
+  font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1;
+  font-size: clamp(44px, min(15vw, 7.6vh), 92px);
+  color: var(--point);
+}
 
 .grade { font-weight: 800; line-height: 1.2;
          font-size: clamp(16px, min(5.2vw, 2.7vh), 26px); }
@@ -241,6 +298,8 @@ body { display: flex; align-items: center; justify-content: center; }
   .lead, .remark, .hero, .pad-tip, .keys { display: none; }
   .over { gap: clamp(4px, 1vh, 8px); }
   .big-num { font-size: clamp(24px, 8vh, 38px); }
+  .score-huge { font-size: clamp(32px, 11vh, 52px); }
+  .meters { display: none; }
   .result-art { min-height: 50px; max-height: 20%; }
   .stats { flex-direction: row; flex-wrap: wrap; justify-content: center;
            gap: 4px 14px; max-width: none; }

@@ -41,7 +41,7 @@
       control: 110,                      // 버튼 한쪽을 누를 때 밀어 주는 힘 (도/s^2)
       ramp: 0.16,                        // 누른 힘이 다 실리기까지 (초). 몸이 기우는 데
                                          // 시간이 걸려야 보정이 넘친다 — 이게 손맛이다
-      gravity: 5.4,                      // 넘어지려는 힘 (g/L, 1/s^2)
+      gravity: 4.8,                      // 넘어지려는 힘 (g/L, 1/s^2)
       damp: 1.3,                         // 각속도 감쇠
       maxAngle: 38,                      // 이보다 기울면 전복
       bump: 22,                          // 노면 턱 한 번의 충격 (도/s)
@@ -72,13 +72,15 @@
       cooldown: 0.75,                    // 한 입 먹고 다음 입까지
       duration: 0.78,                    // 한 입에 걸리는 시간
       biteAt: 0.62,                      // 그 중 입에 넣는 시점 (0~1)
+      gap: [0.22, 0.58],                 // 이 구간에는 균형 보정이 안 먹는다.
+                                         // 손이 그릇·젓가락에 가 있는 동안이다.
       soupPerBite: 2.0,                  // 한 입에 줄어드는 국물 %
       minSoup: 8,                        // 이보다 적으면 더 못 먹는다
       /* 지금 먹어도 되는지 — 셋 중 하나라도 넘으면 한 단계씩 나빠진다 */
       safeBike: 4.5, safeBowl: 4.5, safeSlosh: 10,
       riskBike: 11,  riskBowl: 11,  riskSlosh: 26,
       /* 먹으면 흔들린다. 상태가 나쁠수록 더 흔들린다 — 이게 이 게임의 선택이다. */
-      kick:  { SAFE: 9,   WARN: 17,  RISK: 27 },   // 그릇 쪽으로 쏠리는 충격 (도/s)
+      kick:  { SAFE: 6,   WARN: 12,  RISK: 19 },   // 그릇 쪽으로 쏠리는 충격 (도/s)
       slosh: { SAFE: 10,  WARN: 26,  RISK: 48 },   // 국물에 주는 충격
     },
 
@@ -86,23 +88,47 @@
     sfxGap: 70,                          // 같은 소리가 겹쳐 터지지 않게 (ms)
   };
 
-  /* 그릇 프리셋 — 판마다 뽑는다. 크고 가득 찰수록 어렵다. */
+  /* 그릇 — 시작 화면에서 고른다. 크고 가득 찰수록 어렵다.
+     레퍼런스처럼 커피(쉬움) / 마라탕(보통) / 마라탕 가득(어려움) 셋. */
   const PRESETS = [
     /* depth 는 '넘치기 계산' 용 머리 공간이고, vis 는 '그림' 깊이다.
        둘을 한 값으로 쓰면 쏟기를 맞출 때 그릇이 쟁반처럼 납작해진다.
        넘치기 시작하는 수면차: 작은 그릇 12도 / 보통 7도 / 큰 5도 / 대야 4도 */
-    { key: "EASY",   label: "작은 그릇", w: 0.20, R: 108, depth: 64, vis: 96,  fill: 0.66, wobble: 0.78, spill: 1.00 },
-    { key: "NORMAL", label: "보통 그릇", w: 0.45, R: 128, depth: 72, vis: 112, fill: 0.78, wobble: 1.00, spill: 1.00 },
-    { key: "HARD",   label: "큰 그릇",   w: 0.25, R: 150, depth: 80, vis: 130, fill: 0.86, wobble: 1.22, spill: 1.15 },
-    { key: "CRAZY",  label: "대야급",    w: 0.10, R: 178, depth: 96, vis: 152, fill: 0.88, wobble: 1.45, spill: 1.30 },
+    { key: "COFFEE", label: "커피",        R: 92,  depth: 56, vis: 88,  fill: 0.60, wobble: 0.74, spill: 0.82, cup: true },
+    { key: "NORMAL", label: "마라탕",      R: 128, depth: 72, vis: 112, fill: 0.78, wobble: 1.00, spill: 1.00 },
+    { key: "FULL",   label: "마라탕 가득", R: 160, depth: 84, vis: 138, fill: 0.90, wobble: 1.30, spill: 1.24 },
   ];
 
+  let LEVEL = 1;                         // 고른 난이도 (0 커피 / 1 보통 / 2 가득)
+
+  /* 등급과 한줄평 — 같은 등급에서도 멘트는 그때그때 다르게 고른다 */
   const GRADES = [
-    { min: 85, title: "S  외발 마라탕 장인",   remark: "이 사람 원래 이렇게 먹고 다닙니다." },
-    { min: 70, title: "A  국물 한 방울도 아깝다", remark: "거의 안 흘렸어요. 손목이 좋으시네." },
-    { min: 52, title: "B  그래도 배는 찼다",   remark: "흘린 건 흘린 거고 먹은 건 먹은 거죠." },
-    { min: 32, title: "C  반은 먹고 반은 바닥에", remark: "바닥 닦을 사람 생각도 좀..." },
-    { min: 0,  title: "D  그냥 앉아서 드세요", remark: "자전거는 두고 가시는 게 맞습니다." },
+    { min: 85, title: "S  외발 마라탕 장인", says: [
+      "마라탕 외발자전거 부문 명장",
+      "국물 한 방울도 안 흘림",
+      "이 사람 원래 이렇게 먹고 다닙니다",
+    ] },
+    { min: 70, title: "A  거의 안 흘렸다", says: [
+      "손목이 좋으시네요",
+      "국물 아까운 줄 아는 사람",
+      "다음엔 가득으로 가시죠",
+    ] },
+    { min: 52, title: "B  그럭저럭 먹었다", says: [
+      "그럭저럭 먹었습니다",
+      "흘린 건 흘린 거고 먹은 건 먹은 거죠",
+      "배는 찼으니 됐습니다",
+    ] },
+    { min: 32, title: "C  반은 먹고 반은 쏟음", says: [
+      "반은 먹고 반은 쏟음",
+      "바닥 닦을 사람 생각도 좀",
+      "그릇을 좀 작은 걸로 바꿔보세요",
+    ] },
+    { min: 0,  title: "D  그냥 앉아서 드세요", says: [
+      "출발하자마자 자빠짐",
+      "마라탕은 바닥이 다 드셨습니다",
+      "균형감각 환불 요청",
+      "자전거는 두고 가시는 게 맞습니다",
+    ] },
   ];
 
   /* 마라탕 건더기 — 그릇 안에 떠 있고, 한 입마다 하나씩 사라진다 */
@@ -318,6 +344,8 @@
     overflow: 0,                         // 지금 테두리를 넘은 정도 (0~1)
 
     eating: false, eatT: 0, eatCool: 0, eatLean: 0, bitTaken: false,
+    combo: 0, comboBest: 0,              // 안 쏟고 이어 먹은 수
+    score: 0,                            // 쌓인 점수 (콤보가 붙는다)
     eatPressed: false,                   // 이번 프레임에 먹기를 눌렀나
     eatBand: "SAFE",                     // 지금 먹으면 어떻게 되나
     eatFail: 0,                          // 위태롭게 먹었을 때 잠깐 띄우는 표시
@@ -350,11 +378,7 @@
   /* ============================================================
      판 차리기
      ============================================================ */
-  function choosePreset() {
-    let r = Math.random(), acc = 0;
-    for (const p of PRESETS) { acc += p.w; if (r < acc) return p; }
-    return PRESETS[1];
-  }
+  const choosePreset = () => PRESETS[clamp(LEVEL, 0, PRESETS.length - 1)];
 
   /* 건더기를 그릇에 띄운다. 자리는 그릇 안쪽 반지름 기준 비율이다. */
   function fillIng(n) {
@@ -382,6 +406,7 @@
     S.amount = 100; S.bites = 0; S.spills = 0; S.spilling = 0; S.overflow = 0;
     S.eating = false; S.eatT = 0; S.eatCool = 0.5; S.eatLean = 0; S.bitTaken = false;
     S.eatPressed = false; S.eatBand = "SAFE"; S.eatFail = 0;
+    S.combo = 0; S.comboBest = 0; S.score = 0;
     S.ing.length = 0; fillIng(9);
     S.calm = 0; S.calmBest = 0;
     S.bumpIn = rnd(1.0, 1.8); S.wheelSpin = 0; S.scroll = 0;
@@ -400,9 +425,12 @@
     /* 역진자 — 기울수록 더 기운다. 가만두면 반드시 넘어진다. */
     let acc = B.gravity * Math.sin(S.bikeAngle * RAD) * DEG;
     /* 버튼 — 왼쪽(-1)을 누르면 왼쪽으로 기운다.
-       누른 힘이 바로 실리지 않는다. 몸이 기우는 데 시간이 걸리니까
-       급하게 눌렀다 떼면 반드시 지나친다. */
-    S.push += (S.input - S.push) * Math.min(1, dt / B.ramp);
+       누른 힘이 바로 실리지 않는다. 몸이 기우는 데 시간이 걸리니
+       급하게 눌렀다 떼면 반드시 지나친다.
+       먹는 동안에는 손이 그릇·젓가락에 가 있어서 보정이 안 먹는다 —
+       이게 이 게임의 딜레마다. 먹는 0.78초가 그대로 빈틈이 된다. */
+    const want = eatGap() ? 0 : S.input;
+    S.push += (want - S.push) * Math.min(1, dt / B.ramp);
     acc += S.push * B.control;
     /* 먹는 동안에는 손이 나가 있어서 계속 그릇 쪽으로 끌린다 */
     if (S.eating) acc += CFG.eat.kick[S.eatBand] * 1.1;
@@ -412,7 +440,8 @@
 
     /* 노면 턱 — 뒤로 갈수록 자주, 그릇이 클수록 세게 */
     if (S.state === ST.PLAY) {
-      S.bumpIn -= dt * (1 + S.elapsed / CFG.duration * 0.6);
+      /* 먹느라 손을 뗀 동안에는 턱이 오지 않는다 — 그건 운이지 실력이 아니다 */
+      if (!eatGap()) S.bumpIn -= dt * (1 + S.elapsed / CFG.duration * 0.6);
       if (S.bumpIn <= 0) {
         const k = B.bump * S.preset.wobble * rnd(0.6, 1.1);
         S.bikeVel += (Math.random() < 0.5 ? -1 : 1) * k;
@@ -465,7 +494,10 @@
     /* 수면이 +(시계방향)로 기울면 왼쪽이 높아져 왼쪽 테두리를 먼저 넘는다 */
     const side = (S.soupAngle - S.bowlAngle) > 0 ? -1 : 1;
     S.amount = Math.max(0, S.amount - over * CFG.soup.spillRate * S.preset.spill * dt);
-    if (S.spilling <= 0) { S.spills++; sfx("spill"); buzz(18); }
+    if (S.spilling <= 0) {
+      S.spills++; sfx("spill"); buzz(18);
+      S.combo = 0;                      // 쏟으면 콤보가 끊긴다
+    }
     S.spilling = 0.35;
     /* 테두리 넘어가는 자리에서 방울이 떨어진다 */
     if (S.fx.length < CFG.fx.max && Math.random() < 0.55) {
@@ -477,6 +509,13 @@
   /* ============================================================
      먹기 — 버튼이 없다. 조용해진 순간에만 저절로 일어난다.
      ============================================================ */
+  /* 먹느라 손이 떠 있는 동안인가 — 이때는 좌우 버튼이 안 먹는다 */
+  function eatGap() {
+    if (!S.eating) return false;
+    const G = CFG.eat.gap;
+    return S.eatT >= G[0] && S.eatT <= G[1];
+  }
+
   /* 지금 먹으면 어떻게 되나 — 누르기 전에 버튼 색으로도 보여 준다 */
   function eatBand() {
     const E = CFG.eat;
@@ -517,6 +556,10 @@
       if (!S.bitTaken && S.eatT >= CFG.eat.biteAt) {
         S.bitTaken = true;
         S.bites++;
+        /* 콤보 — 안 쏟고 이어 먹을수록 한 입이 커진다 */
+        S.combo++;
+        if (S.combo > S.comboBest) S.comboBest = S.combo;
+        S.score += Math.round(10 * (1 + Math.min(S.combo - 1, 9) * 0.15));
         S.amount = Math.max(0, S.amount - CFG.eat.soupPerBite);
         if (S.ing.length) S.ing.splice((Math.random() * S.ing.length) | 0, 1);
         if (S.ing.length < 4) fillIng(9);
@@ -616,7 +659,7 @@
      점수
      ============================================================ */
   function scoreOf() {
-    const bite = S.bites * 2.4;
+    const bite = S.bites * 2.4 + S.score * 0.12;
     const soup = clamp(S.amount, 0, 100) * 0.26;
     const time = S.elapsed / CFG.duration * 14;
     const calm = Math.min(S.calmBest, 14) * 0.8;
@@ -1339,7 +1382,7 @@
   /* ============================================================
      HUD — 숫자가 바뀔 때만 DOM 을 건드린다
      ============================================================ */
-  const hud = { t: -1, b: -1, s: -1, warn: null, band: null };
+  const hud = { t: -1, b: -1, s: -1, c: -1, sc: -1, warn: null, band: null, tilt: -9, soupBar: -9 };
   function paintHud(force) {
     const t = Math.ceil(S.left);
     if (force || t !== hud.t) {
@@ -1347,12 +1390,29 @@
       $("timeNum").textContent = t;
       $("timeNum").classList.toggle("hot", t <= CFG.hotAt);
     }
-    if (force || S.bites !== hud.b) { hud.b = S.bites; $("biteNum").textContent = S.bites; }
+    if (force || S.score !== hud.sc) { hud.sc = S.score; $("scoreNum").textContent = S.score; }
+    if (force || S.combo !== hud.c) {
+      hud.c = S.combo;
+      $("comboNum").textContent = S.combo;
+      $("comboNum").classList.toggle("off", S.combo === 0);
+    }
     const s = Math.round(S.amount);
     if (force || s !== hud.s) {
       hud.s = s;
       $("soupNum").textContent = s;
-      $("soupNum").classList.toggle("hot", s <= 30);
+      $("soupFill").style.width = clamp(s, 0, 100) + "%";
+      const m = $("soupMeter");
+      m.classList.toggle("risk", s <= 20);
+      m.classList.toggle("warn", s > 20 && s <= 45);
+    }
+    /* 기울기 바늘 — 가운데가 수직, 양 끝이 전복각 */
+    const tp = Math.round(clamp(S.bikeAngle / CFG.bike.maxAngle, -1, 1) * 50);
+    if (force || tp !== hud.tilt) {
+      hud.tilt = tp;
+      $("tiltPin").style.left = (50 + tp) + "%";
+      const a = Math.abs(S.bikeAngle), m = $("tiltMeter");
+      m.classList.toggle("risk", a >= CFG.eat.riskBike);
+      m.classList.toggle("warn", a >= CFG.eat.safeBike && a < CFG.eat.riskBike);
     }
     const warn = S.state === ST.PLAY && (S.overflow > 0 || spillOver() > -CFG.soup.warnAt * 0.22);
     if (force || warn !== hud.warn) {
@@ -1446,11 +1506,13 @@
     const rec = sc2.total > S.best;
 
     $("resWhy").textContent = S.why;
+    $("rScore").textContent = S.score;
+    $("rCombo").textContent = S.comboBest;
     $("newRec").hidden = !rec;
     $("rBite").textContent = S.bites + "입";
     $("rSoup").textContent = Math.round(S.amount) + "%";
     $("gradeLabel").textContent = G.title;
-    $("remark").textContent = G.remark;
+    $("remark").textContent = pick(G.says);
     $("rTime").textContent = S.elapsed.toFixed(1) + "초";
     $("rCalm").textContent = S.calmBest.toFixed(1) + "초";
     $("rSpill").textContent = S.spills + "회";
@@ -1461,7 +1523,7 @@
     bx.innerHTML = ""; bx.appendChild(artc);
     lastArt = artc;
     lastInfo = { bites: S.bites, soup: Math.round(S.amount), grade: G,
-                 time: S.elapsed.toFixed(1) };
+                 time: S.elapsed.toFixed(1), score: S.score };
 
     if (rec) { S.best = sc2.total; sfx("result"); }
     S.bestBite = Math.max(S.bestBite, S.bites);
@@ -1569,7 +1631,7 @@
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, w, h);
     const keep = S.preset;
-    S.preset = PRESETS[1];
+    S.preset = PRESETS[clamp(LEVEL, 0, PRESETS.length - 1)];
     posePaint(g, w, h);
     S.preset = keep;
   }
@@ -1593,6 +1655,21 @@
   /* ============================================================
      시작
      ============================================================ */
+  /* 난이도 — 시작 화면에서 고른다 (커피 / 마라탕 / 마라탕 가득) */
+  function paintPicks() {
+    const bs = $("picks").children;
+    for (let i = 0; i < bs.length; i++) bs[i].classList.toggle("on", i === LEVEL);
+    drawHero();                              // 고른 그릇으로 타이틀 그림을 다시
+  }
+  for (const b2 of $("picks").children) {
+    b2.addEventListener("click", () => {
+      LEVEL = +b2.getAttribute("data-lv") || 0;
+      try { localStorage.setItem("ccojik_malatang_lv", String(LEVEL)); } catch (_) {}
+      sfx("button");
+      paintPicks();
+    });
+  }
+
   $("startBtn").addEventListener("click", () => { sfx("button"); start(false); });
   $("againBtn").addEventListener("click", () => { sfx("button"); start(true); });
   $("shareBtn").addEventListener("click", shareResult);
@@ -1600,6 +1677,8 @@
   try {
     S.best = +(localStorage.getItem("ccojik_malatang_score") || 0);
     S.bestBite = +(localStorage.getItem("ccojik_malatang_bite") || 0);
+    const lv = localStorage.getItem("ccojik_malatang_lv");
+    if (lv !== null) LEVEL = clamp(+lv, 0, PRESETS.length - 1);
   } catch (_) {}
 
   $("startBtn").disabled = true;
@@ -1611,7 +1690,7 @@
       $("startBtn").disabled = false;
       fitCanvas();
       paintBest();
-      drawHero();
+      paintPicks();
       paintHud(true);
     }
   );
@@ -1621,6 +1700,8 @@
   window.__malatang = () => ({
     S, CFG, PRESETS, GRADES, ING, ST, IMG, SFX, DEBUG_MODE, REF_H, GROUND,
     start, step, fall, endRun, showResult, scoreOf, gradeFor, canEat, eatBand, tryEat, pressEat,
+    eatGap,
+    setLevel: v => { LEVEL = v; }, getLevel: () => LEVEL,
     spillOver, level, stepBike, stepBowl, stepSoup, stepSpill, stepEat,
     handPoint, bowlRim, choosePreset, fillIng, addFx, stepFx, say, paintHud, drawHero,
     snapResult, buildCard, shareResult, render, loadAssets, has, drawBowlHand,
