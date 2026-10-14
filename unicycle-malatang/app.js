@@ -33,20 +33,22 @@
      설정 — 손맛에 관계된 숫자는 전부 여기 있다
      ============================================================ */
   const CFG = {
-    duration: 45,                        // 한 판 (초)
-    hotAt: 10,                           // 남은 시간이 이보다 적으면 빨갛게
+    /* 시간 제한은 없다 — 그릇을 다 비우거나 넘어질 때까지다 (원작과 같다) */
 
-    /* 외발자전거 — 역진자. 안 밀면 기울어진 쪽으로 더 기운다. */
+    /* 외발자전거 — 바퀴 위에 세운 막대(역진자). 원작의 숫자를 그대로 쓴다.
+       th 가 몸의 기울기(라디안, 오른쪽이 +), w 가 그 속도.
+       x, v 는 바퀴의 자리와 속도. 버튼은 바퀴만 가속하고 몸은 반동으로 기운다. */
     bike: {
-      control: 110,                      // 버튼 한쪽을 누를 때 밀어 주는 힘 (도/s^2)
-      ramp: 0.16,                        // 누른 힘이 다 실리기까지 (초). 몸이 기우는 데
-                                         // 시간이 걸려야 보정이 넘친다 — 이게 손맛이다
-      gravity: 4.8,                      // 넘어지려는 힘 (g/L, 1/s^2)
-      damp: 1.3,                         // 각속도 감쇠
-      maxAngle: 38,                      // 이보다 기울면 전복
-      bump: 22,                          // 노면 턱 한 번의 충격 (도/s)
-      bumpGap: [0.7, 1.6],               // 턱이 오는 간격 (초)
-      lean: 0.55,                        // 기울어진 쪽으로 자전거가 굴러가는 정도
+      G: 3.5,        // 넘어지려는 힘 (무게÷키). 클수록 빨리 넘어간다
+      A: 3.2,        // 버튼이 바퀴를 가속하는 힘 (m/s^2)
+      AL: 1.0,       // 바퀴의 가속이 몸 기울기에 먹히는 비율 (1÷키)
+      VMAX: 2.2,     // 바퀴 최고 속도 (m/s). 여기 붙으면 그 쪽으론 더 못 민다
+      ROLL: 0.05,    // 구름 저항
+      ARM: 0.5,      // 젓가락을 입으로 올릴 때 중심이 뒤로 가는 양
+      D: 0.2,        // 몸 흔들림이 잦아드는 정도 (작을수록 여운이 남는다)
+      FALL: 1.1,     // 이보다 기울면 넘어진다 (라디안 = 63도)
+      GUST: 0.4,     // 노면이 늘 흔드는 세기
+      GUSTT: 0.5,    // 흔들리는 방향이 바뀌는 간격 (초)
     },
 
     /* 그릇 — bikeAngle 을 용수철로 뒤따라간다 */
@@ -67,6 +69,15 @@
       warnAt: 0.55,                      // 넘치기까지 이만큼 남으면 경고
     },
 
+    /* 뜨거움 — 원작의 '앗 뜨거'. 한 입마다 확률로 데이고, 데면 몸이 튄다.
+       먹을수록 뜨거움이 쌓여(BURN) 델 확률이 올라가고, 시간이 지나면 식는다(COOL). */
+    heat: {
+      HOT: 0.25,     // 식었을 때 델 확률
+      BURN: 0.22,    // 한 입마다 쌓이는 뜨거움
+      COOL: 0.45,    // 1초에 식는 양
+      JOLT: 0.8,     // 데었을 때 몸이 튀는 세기
+    },
+
     /* 먹기 — 가운데 버튼(또는 Space)을 눌러야만 먹는다. 저절로는 안 먹는다. */
     eat: {
       cooldown: 0.10,                    // 한 입 먹고 다음 입까지 (아주 짧게)
@@ -75,7 +86,8 @@
       buffer: 0.30,                      // 누른 것을 이만큼 들고 있다가 되는 즉시 먹는다.
                                          // 조금 빨리 눌러도 삼켜지지 않게.
       gap: [0.14, 0.74],                 // 이 구간에는 균형 보정이 둔해진다
-      gapPower: 0.55,                    // 그동안 보정이 먹히는 비율 (0 이면 완전 차단)
+      gapPower: 1,                       // 원작은 먹는 동안에도 입력을 막지 않는다.
+                                         // 불리한 건 ARM(팔 무게) 이 물리로 만든다.
       soupPerBite: 0.9,                  // 한 입에 줄어드는 국물 %
       minSoup: 8,                        // 이보다 적으면 더 못 먹는다
       /* 지금 먹어도 되는지 — 셋 중 하나라도 넘으면 한 단계씩 나빠진다 */
@@ -99,17 +111,24 @@
     sfxGap: 70,                          // 같은 소리가 겹쳐 터지지 않게 (ms)
   };
 
-  /* 그릇 — 시작 화면에서 고른다. 크고 가득 찰수록 어렵다.
-     레퍼런스처럼 커피(쉬움) / 마라탕(보통) / 마라탕 가득(어려움) 셋. */
+  /* 그릇 — 시작 화면에서 고른다. 원작처럼 '먹어야 할 입 수' 와 물리값이 같이 바뀐다.
+     원작 수치: 커피 N10 / 라면 N16(기본) / 전골 N20. 뒤로 갈수록 빨리 넘어가고
+     팔 반동·흔들림·뜨거움이 세진다. */
   const PRESETS = [
-    /* depth 는 '넘치기 계산' 용 머리 공간이고, vis 는 '그림' 깊이다.
-       둘을 한 값으로 쓰면 쏟기를 맞출 때 그릇이 쟁반처럼 납작해진다.
-       넘치기 시작하는 수면차: 작은 그릇 12도 / 보통 7도 / 큰 5도 / 대야 4도 */
-    /* grav 은 CFG.bike.gravity 에 곱한다 — 큰 그릇일수록 더 잘 넘어간다 */
-    { key: "COFFEE", label: "커피",        R: 92,  depth: 56, vis: 88,  fill: 0.60, wobble: 0.70, spill: 0.82, grav: 0.88, cup: true },
-    { key: "NORMAL", label: "마라탕",      R: 128, depth: 72, vis: 112, fill: 0.78, wobble: 1.00, spill: 1.00, grav: 1.00 },
-    { key: "FULL",   label: "마라탕 가득", R: 160, depth: 84, vis: 138, fill: 0.90, wobble: 1.34, spill: 1.24, grav: 1.16 },
+    { key: "COFFEE", label: "커피",        R: 92,  depth: 56, vis: 88,  fill: 0.60, spill: 0.82, cup: true,
+      N: 10, over: { G: 2.2, D: 0.35, ARM: 0.25, GUST: 0.2 }, heat: { JOLT: 0.5, HOT: 0.20 } },
+    { key: "NORMAL", label: "마라탕",      R: 128, depth: 72, vis: 112, fill: 0.70, spill: 0.90,
+      N: 16, over: { G: 3.0 }, heat: {} },
+    { key: "FULL",   label: "마라탕 가득", R: 160, depth: 84, vis: 138, fill: 0.78, spill: 1.05,
+      N: 20, over: { G: 3.4, ARM: 0.55, GUST: 0.45 }, heat: { JOLT: 0.9, HOT: 0.30, BURN: 0.26 } },
   ];
+  /* 고른 단계의 값을 섞어 둔 것 — 매 프레임 쓰는 값이라 미리 만들어 둔다 */
+  let BK = {}, HT = {}, NEED = 16;
+  function applyLevel(pre) {
+    BK = Object.assign({}, CFG.bike, pre.over || {});
+    HT = Object.assign({}, CFG.heat, pre.heat || {});
+    NEED = pre.N;
+  }
 
   let LEVEL = 1;                         // 고른 난이도 (0 커피 / 1 보통 / 2 가득)
 
@@ -340,10 +359,14 @@
   const S = {
     state: ST.TITLE,
     preset: PRESETS[1],
-    left: CFG.duration, elapsed: 0,
+    elapsed: 0, cleared: false,
     readyLeft: 0, goLeft: 0,
 
-    bikeAngle: 0, bikeVel: 0,
+    th: 0, w: 0,                         // 몸 기울기(라디안)와 그 속도
+    wx: 0, wv: 0,                        // 바퀴의 자리와 속도 (m)
+    gust: 0, gustTo: 0,                  // 노면이 흔드는 힘
+    burn: 0, hot: 0,                     // 쌓인 뜨거움 / 지금 덴 상태
+    bikeAngle: 0, bikeVel: 0,            // 위 둘을 도 단위로 (그리기·판정용)
     bowlAngle: 0, bowlVel: 0, bowlAcc: 0,
     soupAngle: 0, soupVel: 0,
 
@@ -412,8 +435,11 @@
     S.preset = choosePreset();
     S.state = skipReady ? ST.PLAY : ST.READY;
     S.readyLeft = 0.5; S.goLeft = 0.4;
-    S.left = CFG.duration; S.elapsed = 0;
-    S.bikeAngle = rnd(-1.2, 1.2); S.bikeVel = 0;
+    S.elapsed = 0; S.cleared = false;
+    applyLevel(S.preset);
+    S.th = rnd(-0.02, 0.02); S.w = 0; S.wx = 0; S.wv = 0;
+    S.gust = 0; S.gustTo = 0; S.burn = 0; S.hot = 0;
+    S.bikeAngle = S.th * DEG; S.bikeVel = 0;
     S.bowlAngle = 0; S.bowlVel = 0; S.bowlAcc = 0;
     S.soupAngle = 0; S.soupVel = 0;
     S.input = 0; S.push = 0; S.heldL = S.heldR = false;
@@ -435,39 +461,36 @@
   /* ============================================================
      물리 — 몸 -> 그릇 -> 국물 순으로 전해진다
      ============================================================ */
+  /* 몸은 바퀴 위에 세운 막대다. 버튼은 '바퀴' 만 가속하고, 몸은 그 반동으로 기운다.
+     오른쪽을 누르면 바퀴가 왼쪽으로 나가고 몸이 오른쪽으로 기운다.
+     바퀴가 최고 속도에 붙으면 그 쪽으로는 더 못 민다 — 그때부터는 못 세운다. */
   function stepBike(dt) {
-    const B = CFG.bike;
-    /* 역진자 — 기울수록 더 기운다. 가만두면 반드시 넘어진다. */
-    /* 그릇이 클수록 넘어지려는 힘도 세다 */
-    let acc = B.gravity * (S.preset.grav || 1) * Math.sin(S.bikeAngle * RAD) * DEG;
-    /* 버튼 — 왼쪽(-1)을 누르면 왼쪽으로 기운다.
-       누른 힘이 바로 실리지 않는다. 몸이 기우는 데 시간이 걸리니
-       급하게 눌렀다 떼면 반드시 지나친다.
-       먹는 동안에는 손이 그릇·젓가락에 가 있어서 보정이 안 먹는다 —
-       이게 이 게임의 딜레마다. 먹는 0.78초가 그대로 빈틈이 된다. */
-    const want = S.input * (eatGap() ? CFG.eat.gapPower : 1);
-    S.push += (want - S.push) * Math.min(1, dt / B.ramp);
-    acc += S.push * B.control;
-    /* 먹는 동안에는 손이 나가 있어서 계속 그릇 쪽으로 끌린다 */
-    if (S.eating) acc += CFG.eat.kick[S.eatBand] * 1.1;
-    S.bikeVel += acc * dt;
-    S.bikeVel -= S.bikeVel * B.damp * dt;
-    S.bikeAngle += S.bikeVel * dt;
+    /* 노면 — 가끔 방향이 바뀌는 흔들림을 부드럽게 잇는다 */
+    if (Math.random() < dt / BK.GUSTT) S.gustTo = rnd(-1, 1) * BK.GUST;
+    S.gust += (S.gustTo - S.gust) * Math.min(1, dt * 4);
 
-    /* 노면 턱 — 뒤로 갈수록 자주, 그릇이 클수록 세게 */
-    if (S.state === ST.PLAY) {
-      /* 먹느라 손을 뗀 동안에는 턱이 오지 않는다 — 그건 운이지 실력이 아니다 */
-      if (!eatGap()) S.bumpIn -= dt * (1 + S.elapsed / CFG.duration * 0.6);
-      if (S.bumpIn <= 0) {
-        const k = B.bump * S.preset.wobble * rnd(0.6, 1.1);
-        S.bikeVel += (Math.random() < 0.5 ? -1 : 1) * k;
-        S.bumpIn = rnd(B.bumpGap[0], B.bumpGap[1]);
-        addFx("bump", 0, -14, 0);
-      }
-    }
-    /* 기울어진 쪽으로 바퀴가 굴러간다 — 배경이 그만큼 흐른다 */
-    S.wheelSpin += (2.6 + S.bikeAngle * B.lean * 0.08) * dt;
-    S.scroll += (170 + S.bikeAngle * 6) * dt;
+    /* 바퀴 — 먹는 동안에는 손이 떠 있어 미는 힘이 둔해진다 */
+    const push = S.input * (eatGap() ? CFG.eat.gapPower : 1);
+    let a = -BK.A * push;
+    if ((S.wv >= BK.VMAX && a > 0) || (S.wv <= -BK.VMAX && a < 0)) a = 0;   // 최고 속도에 붙었다
+    a -= BK.ROLL * S.wv;
+    S.wv = clamp(S.wv + a * dt, -BK.VMAX, BK.VMAX);
+    S.wx += S.wv * dt;
+
+    /* 몸 — 중력 + 노면 + 젓가락을 올리는 팔 + 바퀴 가속의 반동 */
+    const arm = S.eating ? Math.sin(Math.PI * Math.min(1, S.eatT / 0.72)) : 0;
+    const acc = S.gust + BK.G * Math.sin(S.th) - BK.ARM * arm * Math.cos(S.th)
+              - a * BK.AL * Math.cos(S.th) - BK.D * S.w;
+    S.w += acc * dt;
+    S.th += S.w * dt;
+
+    /* 그리기·판정은 도 단위를 본다 */
+    S.bikeAngle = S.th * DEG;
+    S.bikeVel = S.w * DEG;
+
+    /* 바퀴가 구르는 만큼 배경이 흐르고 페달이 돈다 (반지름 0.3m) */
+    S.wheelSpin += S.wv * dt / 0.3;
+    S.scroll += (150 + S.wv * 90) * dt;
   }
 
   function stepBowl(dt) {
@@ -542,7 +565,8 @@
   }
   /* 먹을 수 있는 상태인가 — 균형과는 상관없다. 균형은 '결과' 를 바꿀 뿐이다. */
   function canEat() {
-    return S.state === ST.PLAY && !S.eating && S.eatCool <= 0 && S.amount > CFG.eat.minSoup;
+    return S.state === ST.PLAY && !S.eating && S.eatCool <= 0
+        && S.amount > CFG.eat.minSoup && S.bites < NEED;
   }
 
   /* 플레이어가 먹기를 눌렀다. 한 번 누르면 한 입. */
@@ -565,6 +589,8 @@
 
   function stepEat(dt) {
     if (S.eatCool > 0) S.eatCool -= dt;
+    S.hot = Math.max(0, S.hot - dt / 1.2);
+    S.burn = Math.max(0, S.burn - dt * HT.COOL);
     S.eatBand = S.eating ? S.eatBand : eatBand();
     /* 누른 것을 바로 버리지 않고 잠깐 들고 있는다 — 조금 빨리 눌러도 먹히게 */
     if (S.eatPressed) { S.eatPressed = false; S.eatBuf = CFG.eat.buffer; }
@@ -583,10 +609,23 @@
         S.score += Math.round(10 * (1 + Math.min(S.combo - 1, 9) * 0.15));
         S.amount = Math.max(0, S.amount - CFG.eat.soupPerBite);
         if (S.ing.length) S.ing.splice((Math.random() * S.ing.length) | 0, 1);
+        /* 앗 뜨거 — 확률로 데고, 데면 몸이 홱 튄다. 먹을수록 더 잘 덴다. */
+        if (Math.random() < Math.min(0.9, HT.HOT + S.burn * 0.6)) {
+          S.hot = 1;
+          S.w += (Math.random() < 0.5 ? -1 : 1) * HT.JOLT *
+                 (0.5 + S.burn * 0.6) * rnd(0.8, 1.2);
+          say("앗 뜨거");
+          buzz(14);
+        }
+        S.burn = Math.min(1.5, S.burn + HT.BURN);
         if (S.ing.length < 4) fillIng(9);
         addFx("pop", 0, -720, 0);
         sfx("bite"); buzz(10);
-        if (S.bites % 5 === 0) { say(S.bites + "입!"); sfx("nice"); }
+        if (S.bites >= NEED) {                 // 다 비웠다
+          S.cleared = true;
+          sfx("nice");
+          return endRun("다 비웠다");
+        }
       }
       if (S.eatT >= 1) { S.eating = false; S.eatT = 0; S.eatCool = CFG.eat.cooldown; }
     }
@@ -634,6 +673,7 @@
     if (S.state === ST.FALL) {
       if (S.topple) {
         const T = CFG.topple;
+        S.th = S.bikeAngle * RAD; S.w = S.bikeVel * RAD;
         /* 기운 쪽으로만 넘어간다 — 반대로 돌아가거나 한 바퀴 구르지 않는다 */
         S.bikeVel += T.push * S.fallDir * dt;
         S.bikeAngle += S.bikeVel * dt;
@@ -664,7 +704,6 @@
     }
     if (S.state !== ST.PLAY) return;
 
-    S.left = Math.max(0, S.left - dt);
     S.elapsed += dt;
 
     stepBike(dt);
@@ -684,13 +723,9 @@
     if (S.msgLeft > 0) S.msgLeft -= dt;
 
     /* ---- 끝나는 세 가지 ---- */
-    if (Math.abs(S.bikeAngle) >= CFG.bike.maxAngle) return fall("자전거가 넘어졌다");
-    if (S.amount <= CFG.eat.minSoup) {
-      /* 쏟아서 비었나, 먹어서 비었나 — 쪽이 다르면 하는 말도 달라야 한다 */
-      const ate = S.bites * CFG.eat.soupPerBite;
-      return endRun(ate > 100 - CFG.eat.minSoup - ate ? "그릇을 다 비웠다" : "국물이 다 쏟아졌다");
-    }
-    if (S.left <= 0) return endRun("시간 종료");
+    if (Math.abs(S.th) >= BK.FALL) return fall("넘어졌다");
+    if (S.amount <= CFG.eat.minSoup) return endRun("국물을 다 쏟았다");
+
   }
 
   function fall(why) {
@@ -714,18 +749,21 @@
   /* ============================================================
      점수
      ============================================================ */
-  /* 등급용 0~100 점수. 화면에 보이는 S.score(콤보가 붙는 점수) 와는 따로다.
-     한 입이 0.56초라 45초에 최대 80입까지 나오므로 입 수의 몫을 낮게 잡는다. */
+  /* 원작과 같다. 다 비웠으면 '걸린 시간', 못 비웠으면 '먹은 비율'.
+     그리고 등급을 매길 0~100 값을 따로 둔다 (다 비웠으면 빠를수록 높다). */
   function scoreOf() {
-    const bite = Math.min(S.bites, 70) * 0.50;          // 최대 35
-    const soup = clamp(S.amount, 0, 100) * 0.22;        // 최대 22
-    const time = S.elapsed / CFG.duration * 18;         // 최대 18
-    const calm = Math.min(S.calmBest, 14) * 0.60;       // 최대 8.4
-    const combo = Math.min(S.comboBest, 20) * 0.80;     // 최대 16
-    /* 쏟은 건 손해로 남아야 한다. 안 그러면 먹기만 하면 만점이 된다. */
-    const mess = S.spills * 1.1;
-    const total = Math.round(clamp(bite + soup + time + calm + combo - mess, 0, 100));
-    return { bite, soup, time, calm, combo, mess, total };
+    const pct = Math.round(S.bites / NEED * 100);
+    if (S.cleared) {
+      /* 다 비웠다 — 빠를수록 좋다. 30초면 100, 90초면 40 쯤. */
+      const total = Math.round(clamp(100 - Math.max(0, S.elapsed - 30) * 1.0, 40, 100));
+      return { cleared: true, pct: 100, secs: S.elapsed, total };
+    }
+    return { cleared: false, pct, secs: S.elapsed, total: Math.round(pct * 0.9) };
+  }
+  /* 화면에 보여 줄 한 줄 */
+  function scoreText() {
+    const r = scoreOf();
+    return r.cleared ? r.secs.toFixed(1) + "초" : r.pct + "%";
   }
   const gradeFor = t => GRADES.find(g => t >= g.min) || GRADES[GRADES.length - 1];
 
@@ -1452,7 +1490,9 @@
       "push       " + S.push.toFixed(2),
       "eatCool    " + S.eatCool.toFixed(2),
       "eatBand    " + S.eatBand + (S.eating ? " (먹는 중)" : ""),
-      "balanceDng " + (Math.abs(S.bikeAngle) / CFG.bike.maxAngle).toFixed(2),
+      "balanceDng " + (Math.abs(S.th) / BK.FALL).toFixed(2),
+      "wheelV     " + S.wv.toFixed(2) + " / " + BK.VMAX,
+      "burn       " + S.burn.toFixed(2),
       "overflow   " + S.overflow.toFixed(2),
       "fps        " + S.fps.toFixed(0),
     ];
@@ -1502,7 +1542,9 @@
      원작처럼 비워 두려고 미터·시간·콤보·경고 배너를 전부 뺐다.
      (점수와 콤보는 계속 계산된다 — 결과 화면에서 쓴다) */
   function paintHud(force) {
-    if (force || S.score !== hud.sc) { hud.sc = S.score; $("scoreNum").textContent = S.score; }
+    /* 원작처럼 '몇 입 중 몇 입' 만 보여 준다 */
+    const n = S.bites;
+    if (force || n !== hud.sc) { hud.sc = n; $("scoreNum").textContent = n + " / " + NEED; }
     /* 먹기 버튼이 지금 먹으면 어떻게 되는지를 색으로 알려 준다 */
     const band = S.state === ST.PLAY ? (S.eating ? "EATING"
                  : S.eatCool > 0 ? "WAIT" : S.eatBand) : "";
@@ -1595,9 +1637,10 @@
     const rec = sc2.total > S.best;
 
     $("resWhy").textContent = S.why;
-    $("rScore").textContent = S.score;
+    $("rScore").textContent = scoreText();
     $("newRec").hidden = !rec;
-    $("rBite").textContent = S.bites + "입 먹음";
+    $("rBite").textContent = S.cleared
+      ? NEED + "입 다 먹음" : S.bites + " / " + NEED + "입";
     $("remark").textContent = pick(G.says);
 
     const artc = snapResult();
@@ -1782,9 +1825,10 @@
   /* 검사용 — 바깥에서 속을 들여다본다 */
   window.__malatang = () => ({
     S, CFG, PRESETS, GRADES, ING, ST, IMG, SFX, DEBUG_MODE, REF_H, GROUND,
-    start, step, fall, endRun, showResult, scoreOf, gradeFor, canEat, eatBand, tryEat, pressEat,
+    start, step, fall, endRun, showResult, scoreOf, scoreText, gradeFor, canEat, eatBand, tryEat, pressEat,
     eatGap,
     setLevel: v => { LEVEL = v; }, getLevel: () => LEVEL,
+    applyLevel, getNeed: () => NEED, getBK: () => BK, getHT: () => HT,
     spillOver, level, stepBike, stepBowl, stepSoup, stepSpill, stepEat,
     handPoint, bowlRim, choosePreset, fillIng, addFx, stepFx, say, paintHud, drawHero,
     snapResult, buildCard, shareResult, render, loadAssets, has, drawBowlHand,
