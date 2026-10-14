@@ -25,18 +25,8 @@
     <canvas id="cv"></canvas>
   </div>
 
-  <!-- ===== 하단: [왼쪽] [먹기] [오른쪽] ===== -->
-  <div class="pad" id="pad">
-    <button class="key" type="button" id="keyL" aria-label="왼쪽으로 균형 잡기">
-      <img src="assets/ui/ui-btn-left.png" alt="" draggable="false" />
-    </button>
-    <button class="key eat" type="button" id="keyE" aria-label="한 입 먹기">
-      <img src="assets/ui/ui-btn-eat.png" alt="" draggable="false" />
-    </button>
-    <button class="key" type="button" id="keyR" aria-label="오른쪽으로 균형 잡기">
-      <img src="assets/ui/ui-btn-right.png" alt="" draggable="false" />
-    </button>
-  </div>
+  <!-- 조작 버튼은 원작처럼 캔버스 안 아래쪽에 그린다 (app.js drawPads).
+       HTML 로 두면 화면이 짧을 때 잘려 안 보인다. -->
   <p class="keys">&#8592; &#8594; 균형 · SPACE 먹기</p>
 
   <!-- ===== 타이틀 ===== -->

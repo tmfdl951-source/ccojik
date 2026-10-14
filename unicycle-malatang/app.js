@@ -163,6 +163,10 @@
       puddle: [0.16, 0.52],              // 웅덩이 반지름 = (앞 + 뒤*남은비율) m
     },
 
+    /* 아래에 고정된 세 버튼 — 원작은 캔버스 안에 그린다.
+       원작 값: y = H-118, x = W의 17/50/83%, 반지름 58 (먹기 80). */
+    pad: { r: [30, 58], big: 1.38, side: 0.17, up: 0.052, dim: 0.74 },
+
     fx: { max: 26, life: 0.7 },
     sfxGap: 70,                          // 같은 소리가 겹쳐 터지지 않게 (ms)
   };
@@ -274,6 +278,9 @@
     "background/bg-road":            { w: 1448, h: 1086, l: 0.000, t: 0.000, r: 0.000, b: 0.000 },
     "background/bg-building-row-1":  { w: 1448, h: 1086, l: 0.016, t: 0.244, r: 0.000, b: 0.335 },
     "fx/fx-soup-splash-small":       { w: 1254, h: 1254, l: 0.251, t: 0.286, r: 0.092, b: 0.319 },
+    "ui/ui-btn-left":                { w: 1254, h: 1254, l: 0.120, t: 0.128, r: 0.125, b: 0.122 },
+    "ui/ui-btn-eat":                 { w: 1254, h: 1254, l: 0.124, t: 0.138, r: 0.125, b: 0.113 },
+    "ui/ui-btn-right":               { w: 1254, h: 1254, l: 0.135, t: 0.137, r: 0.138, b: 0.140 },
   };
   /* 길쭉한 조각은 그림 안에서 비스듬히 누워 있다. 어깨->팔꿈치 선에 맞춰
      돌려 붙이려면 '어느 방향으로 길고 그 길이가 얼마인지' 를 알아야 한다. */
@@ -1086,6 +1093,9 @@
   /* 머리가 앉는 높이. 턱이 깃 안으로 들어가도록 — 맨살 목이 길게 안 보이게. */
   const HEAD_Y = -676;
   const LEG_TOP = -336;                 // 외투 밑단 — 허벅지는 여기서 나온다
+  /* 팔 — 마디 길이가 정해져 있다. 손이 어디 있든 이 길이는 안 변한다.
+     어깨는 몸통 그림의 양 끝(±101*squash) 에 걸치게 둔다. */
+  const ARM = { up: 106, fore: 100, sho: 86, shoY: -520 };
   /* 앞은 크고 또렷, 뒤는 작고 어둡다 */
   const DEPTH = {
     frontLeg: { k: 1.06, a: 1 },
@@ -1093,6 +1103,30 @@
     frontArm: { k: 1.00, a: 1 },
     backArm:  { k: 0.91, a: 0.88 },
   };
+  /* 어깨(a)에서 손(b)까지, 길이가 l1·l2 인 두 마디로 닿는 팔꿈치 자리.
+     두 원(어깨 반지름 l1, 손 반지름 l2)의 교점이다. side 가 어느 쪽 교점인지. */
+  function ik2(ax, ay, bx, by, l1, l2, side) {
+    const dx = bx - ax, dy = by - ay;
+    const L = Math.hypot(dx, dy) || 0.001;
+    const ux = dx / L, uy = dy / L;
+    /* 너무 멀면 쭉 펴고, 너무 가까우면 접힌 채로 둔다 (교점이 없어지지 않게) */
+    const d = clamp(L, Math.abs(l1 - l2) + 1, (l1 + l2) - 1);
+    const a = (l1 * l1 - l2 * l2 + d * d) / (2 * d);
+    const h = Math.sqrt(Math.max(0, l1 * l1 - a * a));
+    return { x: ax + ux * a - uy * h * side, y: ay + uy * a + ux * h * side };
+  }
+
+  /* 깊이 보정을 '그 자리' 기준으로 — 원점 기준으로 줄이면 조각이 끌려 내려온다 */
+  function atDepthAt(g, x, y, d, fn) {
+    g.save();
+    g.translate(x, y);
+    g.scale(d.k, d.k);
+    g.translate(-x, -y);
+    g.globalAlpha *= d.a;
+    fn();
+    g.restore();
+  }
+
   function atDepth(g, x, d, fn) {
     g.save();
     g.translate(x, 0);
@@ -1233,8 +1267,9 @@
 
     /* ---- 6. 뒷팔(젓가락 쪽) ---- 몸통보다 뒤. 젓가락만 나중에 얹는다.
        상완 앞에 어깨를 얹어 팔-몸통 틈을 덮는다. */
-    atDepth(g, 0, DEPTH.backArm, () => {
-      drawShoulder(g, PART.backArm - 69 + lean * 10, -526 + ty, 1);
+    const shB = armPts(-1, tx, ty, lean);
+    atDepthAt(g, shB.sx, shB.sy, DEPTH.backArm, () => {
+      drawShoulder(g, shB.sx, shB.sy, 1);
       drawArm(g, -1, tx, ty, lean, false, false, true);
     });
 
@@ -1260,7 +1295,8 @@
 
     /* ---- 9. 앞팔(그릇 쪽) ---- 윗팔까지. 아랫팔·손은 그릇 위에 얹는다.
        여기도 어깨를 먼저 얹는다 — 앞어깨는 몸통 바깥이라 틈이 제일 크다. */
-    drawShoulder(g, PART.frontArm + 38 + lean * 10, -526 + ty, 1.08);
+    const shF = armPts(1, tx, ty, lean);
+    drawShoulder(g, shF.sx, shF.sy, 1.08);
     drawArm(g, 1, tx, ty, lean, true);
 
     g.restore();
@@ -1375,14 +1411,17 @@
        마디 길이는 '넘어지는 순간의 자세' 로 재면 안 된다. 그릇 쥔 손은
        팔꿈치 바로 옆에 있어서 아랫팔이 20px 짜리로 잡힌다.
        제 길이를 정해 주고, 무르게(k 0.3) 매어 펴지는 게 보이게 한다. */
-    const UP = 118, FORE = 124;
+    const UP = ARM.up, FORE = ARM.fore;
     for (const sg of [-1, 1]) {
       const A = armPts(sg, tx, ty, lean);
       const k = sg < 0 ? DEPTH.backArm.k : DEPTH.frontArm.k;
       const n = sg < 0 ? "B" : "F";
-      P("sho" + n,  A.sx * k, A.sy * k, 0.80, 34, 0.5);
-      P("elb" + n,  A.mx * k, A.my * k, 1.80, 22, 1.7);
-      P("hand" + n, A.ex * k, A.ey * k, 2.20, 20, 2.0);
+      /* 깊이 보정은 어깨 기준이다 — 어깨는 그대로, 나머지만 어깨 쪽으로 당겨진다 */
+      const dp = (x, y) => [A.sx + (x - A.sx) * k, A.sy + (y - A.sy) * k];
+      const e2 = dp(A.mx, A.my), h2 = dp(A.ex, A.ey);
+      P("sho" + n,  A.sx, A.sy, 0.80, 34, 0.5);
+      P("elb" + n,  e2[0], e2[1], 1.80, 22, 1.7);
+      P("hand" + n, h2[0], h2[1], 2.20, 20, 2.0);
       B("chest", "sho" + n);
       B("hip", "sho" + n, 0.6);
       B("sho" + n, "elb" + n, 0.3, UP * k);
@@ -1732,19 +1771,20 @@
     g.save();
     g.translate(VIEW.offX, 0);
     g.rotate(S.bikeAngle * RAD);
-    g.globalAlpha = DEPTH.backArm.a;
     const lean = S.eatLean, tx = PART.torso + lean * 16, ty = lean * -6;
-    g.translate(PART.backArm * 0, 0);
-    g.scale(DEPTH.backArm.k, DEPTH.backArm.k);
-    drawArm(g, -1, tx, ty, lean, false, false, false, true);   // 젓가락만
+    const sh = armPts(-1, tx, ty, lean);
+    atDepthAt(g, sh.sx, sh.sy, DEPTH.backArm, () => {
+      drawArm(g, -1, tx, ty, lean, false, false, false, true);   // 젓가락만
+    });
     g.restore();
   }
 
   /* 팔 한 짝의 세 자리 — 어깨, 팔꿈치, 손. 그리기도 ragdoll 도 이걸 쓴다. */
   function armPts(sgn, tx, ty, lean) {
-    /* 어깨도 앞뒤가 다르다 — 앞팔은 +40, 뒷팔은 -9 에서 나온다 */
-    const sx = (sgn > 0 ? PART.frontArm + 64 : PART.backArm - 64) + lean * 10;
-    const sy = -528 + ty;
+    /* 어깨는 몸통 양 끝에 붙는다. 몸통 한가운데(tx) 에서 좌우로 같은 거리.
+       앞뒤 차이는 PART 가 아니라 '어느 쪽 끝이냐' 로 낸다. */
+    const sx = tx + sgn * ARM.sho + lean * 10;
+    const sy = ARM.shoY + ty;
     let ex, ey;                                          // 손 자리
     if (sgn > 0) {
       /* 그릇 한가운데가 아니라 '가까운 쪽 아래 테두리' 를 쥔다 — 그래야 보인다 */
@@ -1785,8 +1825,9 @@
       ex = sx + (ex - sx) * VIEW.farArm;
       ey = sy + (ey - sy) * VIEW.farArm;
     }
-    const mx = (sx + ex) / 2 + sgn * 42, my = (sy + ey) / 2 + 34;
-    return { sx, sy, mx, my, ex, ey };
+    /* 팔꿈치는 두 마디가 손에 닿도록 푼다 — 가운데를 찍으면 아랫팔이 찌그러진다 */
+    const el = ik2(sx, sy, ex, ey, ARM.up, ARM.fore, sgn);
+    return { sx, sy, mx: el.x, my: el.y, ex, ey };
   }
 
   function drawArm(g, sgn, tx, ty, lean, upperOnly, lowerOnly, noTool, toolOnly) {
@@ -2109,7 +2150,74 @@
     /* 아직 날아다니는 것들은 캐릭터 앞에 */
     if (S.crash) drawCrash(g, true);
     drawMsg(g);
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);   // 버튼은 흔들려서는 안 된다
+    drawPads(g);
     if (DEBUG_MODE) drawDebug(g);
+  }
+
+  /* ============================================================
+     조작 버튼 — 원작처럼 그림 안 아래쪽에 고정. 늘 보인다.
+     ============================================================ */
+  /* 화면(= CSS px) 기준 자리. 좁은 폰에서도 손가락이 닿는 크기로 줄인다. */
+  function pads() {
+    const C = CFG.pad, w = W, h = H;      // W·H 는 이미 CSS px 다 (world 가 dpr 을 곱한다)
+    const r = clamp(Math.min(w * 0.125, h * 0.072), C.r[0], C.r[1]);
+    const y = h - r - h * C.up;
+    return [
+      { id: "left",  x: w * C.side,       y: y,            r: r },
+      { id: "eat",   x: w * 0.5,          y: y - r * 0.08, r: r * C.big },
+      { id: "right", x: w * (1 - C.side), y: y,            r: r },
+    ];
+  }
+  /* 화면을 세로 3등분 — 어느 열을 눌러도 그 버튼이다 (원작 padAt) */
+  function padAt(u) { return u < 1 / 3 ? "left" : u > 2 / 3 ? "right" : "eat"; }
+
+  const padShown = () => S.state === ST.PLAY || S.state === ST.GO;
+
+  function drawPads(g) {
+    if (!padShown()) return;
+    for (const p of pads()) {
+      const on = p.id === "eat" ? (S.eating || S.eatBuf > 0)
+               : p.id === "left" ? S.heldL : S.heldR;
+      g.save();
+      g.globalAlpha = on ? 1 : CFG.pad.dim;
+      if (p.id === "eat" && !S.eating && S.eatCool > 0) g.globalAlpha = CFG.pad.dim * 0.55;
+      const y = p.y + (on ? 3 : 0);
+      if (!put(g, "ui/ui-btn-" + p.id, p.x, y, p.r * 2)) {
+        /* 그림이 없으면 원작처럼 도형으로 — 깨진 그림을 만들지 않는다 */
+        g.beginPath(); g.arc(p.x, y, p.r, 0, 6.2832);
+        g.fillStyle = on ? "rgba(255,255,255,.55)" : "rgba(255,255,255,.22)";
+        g.fill();
+        g.lineWidth = 4; g.strokeStyle = "rgba(255,255,255,.8)"; g.stroke();
+        g.fillStyle = "#fff";
+        if (p.id === "eat") {
+          g.font = "800 " + Math.round(p.r * 0.46) + "px Pretendard, sans-serif";
+          g.textAlign = "center"; g.textBaseline = "middle";
+          g.fillText("먹기", p.x, y);
+        } else {
+          const sg = p.id === "left" ? -1 : 1;
+          g.beginPath();
+          g.moveTo(p.x + sg * p.r * 0.42, y);
+          g.lineTo(p.x - sg * p.r * 0.24, y - p.r * 0.42);
+          g.lineTo(p.x - sg * p.r * 0.24, y + p.r * 0.42);
+          g.closePath(); g.fill();
+        }
+      }
+      /* 먹는 중이면 테두리로 진행을 보여 준다 (원작과 같다) */
+      if (p.id === "eat" && S.eating) {
+        g.beginPath();
+        g.arc(p.x, y, p.r + 5, -Math.PI / 2, -Math.PI / 2 + 6.2832 * clamp(S.eatT, 0, 1));
+        g.strokeStyle = "#FFF"; g.lineWidth = 5; g.lineCap = "round"; g.stroke();
+      }
+      /* 지금 먹으면 어떻게 되는지 — 테두리 색으로만 (화면을 안 어지럽히게) */
+      if (p.id === "eat" && !S.eating && S.eatCool <= 0 &&
+          (S.eatBand === "WARN" || S.eatBand === "RISK")) {
+        g.beginPath(); g.arc(p.x, y, p.r + 5, 0, 6.2832);
+        g.strokeStyle = S.eatBand === "RISK" ? "#E8463A" : "#F5B82E";
+        g.lineWidth = 4; g.stroke();
+      }
+      g.restore();
+    }
   }
 
   /* ============================================================
@@ -2123,16 +2231,7 @@
     /* 원작처럼 '몇 입 중 몇 입' 만 보여 준다 */
     const n = S.bites;
     if (force || n !== hud.sc) { hud.sc = n; $("scoreNum").textContent = n + " / " + NEED; }
-    /* 먹기 버튼이 지금 먹으면 어떻게 되는지를 색으로 알려 준다 */
-    const band = S.state === ST.PLAY ? (S.eating ? "EATING"
-                 : S.eatCool > 0 ? "WAIT" : S.eatBand) : "";
-    if (force || band !== hud.band) {
-      hud.band = band;
-      const el = $("keyE");
-      el.classList.toggle("warn", band === "WARN");
-      el.classList.toggle("risk", band === "RISK");
-      el.classList.toggle("wait", band === "WAIT" || band === "EATING");
-    }
+    /* 먹기 버튼 색은 캔버스가 직접 그린다 (drawPads) — DOM 을 안 건드린다 */
   }
 
   /* ============================================================
@@ -2142,35 +2241,25 @@
   function hold(side, on) {
     if (side < 0) S.heldL = on; else S.heldR = on;
     setInput();
-    (side < 0 ? $("keyL") : $("keyR")).classList.toggle("on", on);
     if (on) sfx("button");
-  }
-  for (const [el, side] of [[$("keyL"), -1], [$("keyR"), 1]]) {
-    el.addEventListener("pointerdown", e => { e.preventDefault(); el.setPointerCapture?.(e.pointerId); hold(side, true); });
-    el.addEventListener("pointerup", e => { e.preventDefault(); hold(side, false); });
-    el.addEventListener("pointercancel", () => hold(side, false));
-    el.addEventListener("pointerleave", () => hold(side, false));
-    el.addEventListener("contextmenu", e => e.preventDefault());
   }
   /* 가운데 먹기 버튼 — 탭할 때마다 한 입 */
   function pressEat() {
     if (S.state !== ST.PLAY) return;
     S.eatPressed = true;
-    $("keyE").classList.add("on");
   }
-  $("keyE").addEventListener("pointerdown", e => { e.preventDefault(); pressEat(); });
-  $("keyE").addEventListener("pointerup", e => { e.preventDefault(); $("keyE").classList.remove("on"); });
-  $("keyE").addEventListener("pointercancel", () => $("keyE").classList.remove("on"));
-  $("keyE").addEventListener("pointerleave", () => $("keyE").classList.remove("on"));
-  $("keyE").addEventListener("contextmenu", e => e.preventDefault());
 
-  /* 화면 좌우 절반을 눌러도 균형은 잡힌다 — 먹기는 버튼으로만.
-     캔버스가 잡은 쪽만 캔버스가 푼다. 그러지 않으면 버튼을 누른 채로
-     화면을 건드렸다 뗐을 때 버튼까지 같이 풀려 입력이 씹힌다. */
+  /* 원작처럼 화면을 세로 3등분한다 — 왼쪽 열 / 가운데(먹기) / 오른쪽 열.
+     버튼 동그라미를 정확히 안 눌러도 그 열이면 먹힌다. */
   const cvHold = new Map();                            // pointerId -> 어느 쪽
   cv.addEventListener("pointerdown", e => {
     e.preventDefault();
-    const side = e.clientX < cv.getBoundingClientRect().left + W / 2 ? -1 : 1;
+    if (!padShown()) return;
+    const r = cv.getBoundingClientRect();
+    const id = padAt((e.clientX - r.left) / (r.width || 1));
+    if (id === "eat") { pressEat(); return; }
+    const side = id === "left" ? -1 : 1;
+    cv.setPointerCapture?.(e.pointerId);
     cvHold.set(e.pointerId, side);
     hold(side, true);
   });
@@ -2196,11 +2285,11 @@
     const k = e.key;
     if (k === "ArrowLeft" || k === "a" || k === "A") hold(-1, false);
     if (k === "ArrowRight" || k === "d" || k === "D") hold(1, false);
-    if (k === " " || k === "Spacebar") $("keyE").classList.remove("on");
+
   });
   addEventListener("blur", () => {
     cvHold.clear();
-    hold(-1, false); hold(1, false); $("keyE").classList.remove("on");
+    hold(-1, false); hold(1, false);
   });
 
   /* ============================================================
@@ -2415,5 +2504,7 @@
     startCrash, stepCrash, drawCrash, bowlWorld,
     startRag, stepRag, drawRag, armPts, legPts, LEG_TOP, HEAD_Y,
     startDone, stepDone, drinkPose, drinkRot, gulpRot,
+    pads, padAt, drawPads, padShown,
+    getW: () => W, getH: () => H,
   });
 })();

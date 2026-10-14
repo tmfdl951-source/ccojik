@@ -1,5 +1,5 @@
 {
-  "note": "실제로 넣은 파일만 files 에 적습니다. 적힌 것만 캔버스가 불러오고, 안 적힌 자리는 도형으로 그립니다. ref 는 참고용, ui 버튼은 HTML 의 img 라서 여기 안 적습니다.",
+  "note": "실제로 넣은 파일만 files 에 적습니다. 적힌 것만 캔버스가 불러오고, 안 적힌 자리는 도형으로 그립니다. ref 는 참고용이라 안 적습니다.",
   "still_missing": {
     "player": [
       "player-thigh",
@@ -60,6 +60,9 @@
     "player/player-torso.png",
     "unicycle/unicycle-frame.png",
     "unicycle/unicycle-seat.png",
+    "ui/ui-btn-eat.png",
+    "ui/ui-btn-left.png",
+    "ui/ui-btn-right.png",
     "unicycle/unicycle-wheel.png"
   ]
 }
