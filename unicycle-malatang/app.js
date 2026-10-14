@@ -108,6 +108,22 @@
       hold: 0.55,                        // 누운 채로 잠깐 멈췄다가 결과로
     },
 
+    /* 다 비웠을 때 — 그릇째 들고 마신다. 원작 "done" 단계의 초를 그대로 썼다. */
+    done: {
+      lift: 0.5,                         // 여기까지 들어 올린다
+      hold: 1.3,                         // 여기까지 들고 마신다
+      back: 1.7,                         // 여기까지 내린다
+      say: 1.8,                          // "잘 먹었습니다"
+      over: 3.4,                         // 결과 화면
+      near: 0.74,                        // 그릇의 어느 쪽 테두리를 입에 대나 (R 의 배수)
+      below: 8,                          // 입보다 이만큼 아래에 댄다 (px)
+      tilt: [0.85, 0.55],                // 기울기 = lift*(앞 + 뒤*drink) rad
+      nod: 14,                           // 꿀꺽거리는 빠르기
+      head: [0.34, 0.09],                // 고개 젖힘 (rad) — 원작 0.22+0.07 보다 크게.
+                                         // 우리는 옆에서 보니 더 젖혀야 들이켜 보인다
+      drain: [0.45, 1.15],               // 이 사이에 국물이 바닥난다 (초)
+    },
+
     /* 넘어진 몸 — 점과 막대로 만든 ragdoll. 아래 startRag 설명 참고. */
     rag: {
       h: 1 / 120,                        // 푸는 간격 (고정이어야 안 튄다)
@@ -393,7 +409,7 @@
   /* ============================================================
      상태
      ============================================================ */
-  const ST = { TITLE: "TITLE", READY: "READY", GO: "GO", PLAY: "PLAY",
+  const ST = { TITLE: "TITLE", READY: "READY", GO: "GO", PLAY: "PLAY", DONE: "DONE",
                FALL: "FALL", OVER: "OVER", RESULT: "RESULT" };
 
   const S = {
@@ -432,6 +448,7 @@
     topple: false, fallDir: 1, landed: 0,   // 넘어지는 중인가 / 어느 쪽으로 / 몇 번 닿았나
     crash: null,                         // 날아간 그릇·흩어진 건더기·튄 국물
     rag: null, ragT: 0, toppleT: 0,      // 꺾여 쓰러지는 몸 / 남은 시간 / 카메라
+    doneT: 0, saidDone: false, doneSoup: 0,   // 다 비우고 들이켜는 동안
     fx: [], shake: 0, flash: 0,
     msg: "", msgLeft: 0, msgSmall: false,
     why: "",                             // 끝난 이유
@@ -494,6 +511,7 @@
     S.bumpIn = rnd(1.0, 1.8); S.wheelSpin = 0; S.scroll = 0;
     S.topple = false; S.fallDir = 1; S.landed = 0; S.crash = null;
     S.rag = null; S.ragT = 0; S.toppleT = 0;
+    S.doneT = 0; S.saidDone = false;
     S.fx.length = 0; S.shake = 0; S.flash = 0;
     S.msg = ""; S.msgLeft = 0; S.msgSmall = false; S.why = "";
     $("startOver").hidden = true; $("endOver").hidden = true;
@@ -664,11 +682,7 @@
         if (S.ing.length < 4) fillIng(9);
         addFx("pop", 0, -720, 0);
         sfx("bite"); buzz(10);
-        if (S.bites >= NEED) {                 // 다 비웠다
-          S.cleared = true;
-          sfx("nice");
-          return endRun("다 비웠다");
-        }
+        if (S.bites >= NEED) return startDone();   // 다 비웠다 — 이제 들이켠다
       }
       if (S.eatT >= 1) { S.eating = false; S.eatT = 0; S.eatCool = CFG.eat.cooldown; }
     }
@@ -747,6 +761,7 @@
       if ((S.goLeft -= dt) <= 0) showResult();
       return;
     }
+    if (S.state === ST.DONE) { stepDone(dt); return; }
     if (S.state !== ST.PLAY) return;
 
     S.elapsed += dt;
@@ -786,6 +801,71 @@
     startCrash();                                    // 그릇이 손을 떠난다
     say("넘어졌다!");
   }
+  /* ============================================================
+     다 비웠다 — 그릇째 들고 국물을 마신다 (원작 "done" 단계)
+     ============================================================ */
+  function startDone() {
+    S.cleared = true;
+    S.why = "다 비웠다";
+    S.state = ST.DONE;
+    S.doneT = 0; S.saidDone = false; S.doneSoup = S.amount;
+    S.eating = false; S.eatT = 0; S.eatBuf = 0;
+    S.ing.length = 0;                     // 건더기는 다 먹었다. 이제 국물만 남았다
+    say("국물까지!");
+    sfx("nice"); buzz([20, 40, 20]);
+  }
+
+  /* 지금 얼마나 들어 올렸나 / 얼마나 기울였나 / 꿀꺽거리나 */
+  function drinkPose() {
+    if (S.state !== ST.DONE) return ZERO_DRINK;
+    const D = CFG.done, t = S.doneT;
+    const ease = u => u * u * (3 - 2 * u);
+    const lift = t < D.lift ? ease(t / D.lift)
+               : t < D.hold ? 1
+               : t < D.back ? 1 - ease((t - D.hold) / (D.back - D.hold)) : 0;
+    const drink = t < D.lift ? 0 : Math.min(1, (t - D.lift) / (D.hold - D.lift));
+    return { lift, drink, gulp: (t >= D.lift && t < D.hold) ? lift : 0 };
+  }
+  const ZERO_DRINK = { lift: 0, drink: 0, gulp: 0 };
+  /* 그릇이 입 쪽으로 기운 각 (라디안). 화면은 시계방향이 +라 음수로 기운다. */
+  function drinkRot() {
+    const d = drinkPose();
+    return -d.lift * (CFG.done.tilt[0] + CFG.done.tilt[1] * d.drink);
+  }
+  /* 꿀꺽거리며 고개를 젖히는 각 */
+  function gulpRot() {
+    const d = drinkPose();
+    if (!d.gulp) return 0;
+    const D = CFG.done;
+    return -d.gulp * (D.head[0] + Math.max(0, Math.sin(S.doneT * D.nod)) * D.head[1]);
+  }
+
+  function stepDone(dt) {
+    const D = CFG.done;
+    S.doneT += dt;
+    /* 균형은 이제 안 본다 — 몸이 저절로 펴지고 속도만 줄어든다 */
+    S.th += (0 - S.th) * Math.min(1, dt * 4);
+    S.w = 0;
+    S.wv *= 1 - Math.min(1, dt * 2);
+    S.wx += S.wv * dt;
+    S.bikeAngle = S.th * DEG; S.bikeVel = 0;
+    S.wheelSpin += S.wv * dt / 0.3;
+    S.scroll += (150 + S.wv * 90) * dt;
+    S.eatLean += (0 - S.eatLean) * Math.min(1, dt * 8);
+    /* 마시는 동안 국물이 바닥난다 */
+    const u = (S.doneT - D.drain[0]) / (D.drain[1] - D.drain[0]);
+    if (u > 0) S.amount = Math.max(0, S.doneSoup * (1 - Math.min(1, u)));
+    stepBowl(dt); stepSoup(dt); stepFx(dt);
+    if (S.shake > 0) S.shake -= dt;
+    if (S.msgLeft > 0) S.msgLeft -= dt;
+    if (!S.saidDone && S.doneT >= D.say) {
+      S.saidDone = true;
+      say("잘 먹었습니다"); S.msgLeft = 1.4;
+      sfx("result");
+    }
+    if (S.doneT >= D.over) showResult();
+  }
+
   function endRun(why) {
     S.why = why; S.state = ST.FALL; S.goLeft = 0.6;
     S.topple = false;                                    // 서서 끝난다
@@ -1057,7 +1137,13 @@
     /* 그릇이 클수록 바깥·아래로 — 대야급이 얼굴을 덮지 않게 */
     const k = (S.preset.R - 108) / 70;
     /* 그릇은 몸통(-48) 보다 한참 앞(+230) 이다 — 앞으로 내민 자세 */
-    return { x: PART.bowl + k * 22, y: -448 + k * 26 + S.eatLean * 16 };
+    const base = { x: PART.bowl + k * 22, y: -448 + k * 26 + S.eatLean * 16 };
+    const d = drinkPose();                // 다 비우면 입에 대고 들이켠다
+    if (!d.lift) return base;
+    const m = mouthPoint(), D = CFG.done;
+    const tx2 = m.x + S.preset.R * D.near, ty2 = m.y + D.below;
+    return { x: base.x + (tx2 - base.x) * d.lift,
+             y: base.y + (ty2 - base.y) * d.lift };
   }
   /* 그릇 테두리의 한쪽 끝 (그릇 로컬) */
   function bowlRim(side) {
@@ -1152,8 +1238,16 @@
       drawArm(g, -1, tx, ty, lean, false, false, true);
     });
 
-    /* ---- 7. 머리 ---- 몸통보다 조금 앞 */
-    drawHead(g, PART.head + lean * 10, HEAD_Y + ty + lean * 10, lean);
+    /* ---- 7. 머리 ---- 몸통보다 조금 앞. 다 비우면 젖히고 꿀꺽꿀꺽. */
+    const hx = PART.head + lean * 10, hy = HEAD_Y + ty + lean * 10;
+    const gz = gulpRot();
+    if (gz) {
+      g.save(); g.translate(hx, hy); g.rotate(gz);
+      drawHead(g, 0, 0, lean);
+      g.restore();
+    } else {
+      drawHead(g, hx, hy, lean);
+    }
 
     /* ---- 8. 앞다리 ---- 몸통보다 앞이다. 다만 외투 밑단 위로는 안 나온다.
        (명세의 깊이 순서는 지키되, 허벅지가 외투 위에 얹히면 판때기로 보인다) */
@@ -1660,6 +1754,13 @@
       ex = h.x + tx + lx * Math.cos(a) - ly * Math.sin(a);
       ey = h.y + ty + lx * Math.sin(a) + ly * Math.cos(a);
     }
+    else if (S.state === ST.DONE) {
+      /* 다 비웠으면 저편 손도 그릇에 보탠다 — 두 손으로 받쳐 들이켠다 */
+      const h = handPoint(), a = (S.bowlAngle - S.bikeAngle) * RAD + drinkRot();
+      const lx = S.preset.R * 0.40, ly = S.preset.vis * 0.12;
+      ex = h.x + tx + lx * Math.cos(a) - ly * Math.sin(a);
+      ey = h.y + ty + lx * Math.sin(a) + ly * Math.cos(a);
+    }
     else {
       /* 젓가락 손 — 가슴 -> 그릇 -> 입 -> 가슴. 세 자리를 이어 간다. */
       const h = handPoint();
@@ -1783,7 +1884,8 @@
     g.translate(VIEW.offX, 0);
     g.rotate(S.bikeAngle * RAD);
     g.translate(h.x, h.y);
-    g.rotate((S.bowlAngle - S.bikeAngle) * RAD);         // 그릇은 제 각도로 매달린다
+    const dr = drinkRot();                               // 마실 때 기울이는 각
+    g.rotate((S.bowlAngle - S.bikeAngle) * RAD + dr);    // 그릇은 제 각도로 매달린다
 
     const R = P.R, D = P.vis;            // 그림은 보이는 깊이로
     /* 그릇 안쪽 — 국물을 여기에 가둔다. 그림이 있으면 그림의 입 모양(타원),
@@ -1814,7 +1916,8 @@
     /* ---- 국물 ---- */
     const lv = level();
     if (lv > 0.001) {
-      const tilt = (S.soupAngle - S.bowlAngle) * RAD;    // 그릇에서 본 수면 기울기
+      /* 그릇을 기울여도 수면은 세상 기준으로 누워 있어야 한다 */
+      const tilt = (S.soupAngle - S.bowlAngle) * RAD - dr;  // 그릇에서 본 수면 기울기
       const surf = surfTop + surfDepth * (1 - lv);       // 수면의 가운데 높이
       const dy = halfR * Math.tan(clamp(tilt, -1.2, 1.2)); // 좌우 끝의 높이차
       g.save();
@@ -2311,5 +2414,6 @@
     posePaint, POSE, PART, DEPTH, drawEatTool, drawNeck, drawShoulder, tileRow,
     startCrash, stepCrash, drawCrash, bowlWorld,
     startRag, stepRag, drawRag, armPts, legPts, LEG_TOP, HEAD_Y,
+    startDone, stepDone, drinkPose, drinkRot, gulpRot,
   });
 })();
