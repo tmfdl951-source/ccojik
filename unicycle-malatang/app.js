@@ -38,11 +38,11 @@
 
     /* 외발자전거 — 역진자. 안 밀면 기울어진 쪽으로 더 기운다. */
     bike: {
-      control: 135,                      // 버튼 한쪽을 누를 때 밀어 주는 힘 (도/s^2)
-      ramp: 0.07,                        // 누른 힘이 다 실리기까지 (초). 몸이 기우는 데
+      control: 110,                      // 버튼 한쪽을 누를 때 밀어 주는 힘 (도/s^2)
+      ramp: 0.16,                        // 누른 힘이 다 실리기까지 (초). 몸이 기우는 데
                                          // 시간이 걸려야 보정이 넘친다 — 이게 손맛이다
-      gravity: 3.8,                      // 넘어지려는 힘 (g/L, 1/s^2)
-      damp: 1.6,                         // 각속도 감쇠 — 보정 뒤 덜 출렁이고 잘 멎는다
+      gravity: 4.8,                      // 넘어지려는 힘 (g/L, 1/s^2)
+      damp: 1.3,                         // 각속도 감쇠
       maxAngle: 38,                      // 이보다 기울면 전복
       bump: 22,                          // 노면 턱 한 번의 충격 (도/s)
       bumpGap: [0.7, 1.6],               // 턱이 오는 간격 (초)
@@ -361,7 +361,7 @@
     eatBuf: 0,                           // 눌러 둔 먹기가 남아 있는 시간
     eatPressed: false,                   // 이번 프레임에 먹기를 눌렀나
     eatBand: "SAFE",                     // 지금 먹으면 어떻게 되나
-    eatFail: 0,                          // 위태롭게 먹었을 때 잠깐 띄우는 표시
+
     ing: [],
 
     calm: 0, calmBest: 0,                // 연속으로 안정했던 시간
@@ -419,7 +419,7 @@
     S.input = 0; S.push = 0; S.heldL = S.heldR = false;
     S.amount = 100; S.bites = 0; S.spills = 0; S.spilling = 0; S.overflow = 0;
     S.eating = false; S.eatT = 0; S.eatCool = 0.5; S.eatLean = 0; S.bitTaken = false;
-    S.eatPressed = false; S.eatBuf = 0; S.eatBand = "SAFE"; S.eatFail = 0;
+    S.eatPressed = false; S.eatBuf = 0; S.eatBand = "SAFE";
     S.combo = 0; S.comboBest = 0; S.score = 0;
     S.ing.length = 0; fillIng(9);
     S.calm = 0; S.calmBest = 0;
@@ -555,17 +555,16 @@
     S.bikeVel += E.kick[band];
     S.bowlVel += E.kick[band] * 0.55;
     S.soupVel -= E.slosh[band];
-    /* 흔들림은 절반 아래로. 손해는 점수·국물로 주고, 화면 소란은 줄인다. */
-    if (band !== "SAFE") { S.shake = band === "RISK" ? 0.10 : 0.05; buzz(band === "RISK" ? 16 : 8); }
-    /* 문구는 정말 위험할 때만, 그것도 작게. WARN 은 버튼 테두리로만 알린다. */
-    if (band === "RISK") { S.eatFail = 0.6; say("위험했다", false, true); sfx("warn"); }
+    /* 먹기로는 화면을 흔들지 않고 문구도 띄우지 않는다 (원작에 없다).
+       휘청이는 건 위에서 준 kick / slosh 가 물리로 만들어 낸다.
+       S.shake 는 이제 넘어질 때만 쓴다. */
+    if (band !== "SAFE") buzz(band === "RISK" ? 16 : 8);
     sfx("button");
     return true;
   }
 
   function stepEat(dt) {
     if (S.eatCool > 0) S.eatCool -= dt;
-    if (S.eatFail > 0) S.eatFail -= dt;
     S.eatBand = S.eating ? S.eatBand : eatBand();
     /* 누른 것을 바로 버리지 않고 잠깐 들고 있는다 — 조금 빨리 눌러도 먹히게 */
     if (S.eatPressed) { S.eatPressed = false; S.eatBuf = CFG.eat.buffer; }
@@ -906,6 +905,8 @@
     torso: -48, backLeg: -31, head: -18, backArm: -9,
     frontLeg: 13, wheel: 35, frontArm: 40, bowl: 230,
   };
+  /* 머리가 앉는 높이. 턱이 깃 안으로 들어가도록 — 맨살 목이 길게 안 보이게. */
+  const HEAD_Y = -676;
   /* 앞은 크고 또렷, 뒤는 작고 어둡다 */
   const DEPTH = {
     frontLeg: { k: 1.06, a: 1 },
@@ -949,7 +950,7 @@
   /* 입 자리 (플레이어 로컬) — 젓가락이 여기를 겨냥한다 */
   function mouthPoint() {
     const lean = S.eatLean;
-    return { x: PART.head + lean * 10, y: -700 + lean * -6 + lean * 10 + 50 };
+    return { x: PART.head + lean * 10, y: HEAD_Y + lean * -6 + lean * 10 + 50 };
   }
 
   /* 그릇을 든 오른손의 자리 (플레이어 로컬 좌표) */
@@ -970,7 +971,8 @@
   function drawPart(g, key, x, y, w, h, fallback) { art(g, key, x, y, w, h, fallback); }
 
   /* 그리는 차례 = 깊이. 뒤 -> 앞 으로만 간다.
-       1 뒷다리  2 바퀴  3 틀·안장·페달  4 몸통  5 뒷팔  6 머리  7 앞다리  8 앞팔
+       1 뒷다리  2 바퀴  3 틀·안장·페달  4 목  5 몸통  6 어깨+뒷팔  7 머리
+       8 앞다리  9 어깨+앞팔
      (그 다음은 render 에서: 9 그릇  10 젓가락  11 그릇 쥔 손) */
   function drawPlayer(g) {
     const lean = S.eatLean;
@@ -1028,7 +1030,10 @@
       chunk(g, box(seatX, -326, 148, 40, 14), REDC, REDC_D);
     }
 
-    /* ---- 4. 몸통 ---- 제일 뒤쪽 x. 가로로 눌러 돌아선 폭으로. */
+    /* ---- 4. 목 ---- 몸통보다 먼저. 깃 구멍으로 비치는 자리를 메꾼다. */
+    drawNeck(g, tx, ty, PART.head + lean * 10, HEAD_Y + ty + lean * 10);
+
+    /* ---- 5. 몸통 ---- 제일 뒤쪽 x. 가로로 눌러 돌아선 폭으로. */
     if (put(g, "player/player-torso", tx, -450 + ty, 236,
             { rot: VIEW.torsoRot, sx: VIEW.squash })) {
       farShade(g, tx, -450 + ty, 236 * VIEW.squash, 258);
@@ -1040,13 +1045,17 @@
       chunk(g, box(tx - 62 + sway * 3, -524 + ty, 40, 74, 10), SCARF, SCARF_D);
     }
 
-    /* ---- 5. 뒷팔(젓가락 쪽) ---- 몸통보다 뒤. 젓가락만 나중에 얹는다. */
-    atDepth(g, 0, DEPTH.backArm, () => drawArm(g, -1, tx, ty, lean, false, false, true));
+    /* ---- 6. 뒷팔(젓가락 쪽) ---- 몸통보다 뒤. 젓가락만 나중에 얹는다.
+       상완 앞에 어깨를 얹어 팔-몸통 틈을 덮는다. */
+    atDepth(g, 0, DEPTH.backArm, () => {
+      drawShoulder(g, PART.backArm - 69 + lean * 10, -526 + ty, 1);
+      drawArm(g, -1, tx, ty, lean, false, false, true);
+    });
 
-    /* ---- 6. 머리 ---- 몸통보다 조금 앞 */
-    drawHead(g, PART.head + lean * 10, -700 + ty + lean * 10, lean);
+    /* ---- 7. 머리 ---- 몸통보다 조금 앞 */
+    drawHead(g, PART.head + lean * 10, HEAD_Y + ty + lean * 10, lean);
 
-    /* ---- 7. 앞다리 ---- 몸통보다 앞이다. 다만 외투 밑단 위로는 안 나온다.
+    /* ---- 8. 앞다리 ---- 몸통보다 앞이다. 다만 외투 밑단 위로는 안 나온다.
        (명세의 깊이 순서는 지키되, 허벅지가 외투 위에 얹히면 판때기로 보인다) */
     g.save();
     g.beginPath();
@@ -1055,10 +1064,33 @@
     atDepth(g, PART.frontLeg, DEPTH.frontLeg, () => leg(g, 1));
     g.restore();
 
-    /* ---- 8. 앞팔(그릇 쪽) ---- 윗팔까지. 아랫팔·손은 그릇 위에 얹는다. */
+    /* ---- 9. 앞팔(그릇 쪽) ---- 윗팔까지. 아랫팔·손은 그릇 위에 얹는다.
+       여기도 어깨를 먼저 얹는다 — 앞어깨는 몸통 바깥이라 틈이 제일 크다. */
+    drawShoulder(g, PART.frontArm + 38 + lean * 10, -526 + ty, 1.08);
     drawArm(g, 1, tx, ty, lean, true);
 
     g.restore();
+  }
+
+  /* 목 — 머리와 몸통을 잇는다. 몸통 그림의 깃 가운데가 뚫려 있어서
+     몸통보다 먼저 그려야 깃이 목을 감싸는 모양이 된다.
+     위는 턱 안쪽(머리에 가려지는 데)까지, 아래는 깃 한참 안쪽까지 넉넉히. */
+  function drawNeck(g, tx, ty, hx, hy) {
+    const top = hy + 30;                 // 턱보다 위 — 머리가 덮어 준다
+    const bot = -512 + ty;               // 깃 안쪽까지만
+    const wt = 92, wb = 120;
+    chunk(g, [[hx - wt / 2, top], [hx + wt / 2, top],
+              [tx + wb / 2, bot], [tx - wb / 2, bot]], SKIN, SKIN_D);
+    /* 턱 밑 그늘 — 목이 머리 안으로 들어가 보이게 */
+    g.save();
+    g.globalAlpha = 0.18;
+    chunk(g, ngon(hx, hy + 44, wt * 0.46, 13, 9, 0), "#8A6A44", null);
+    g.restore();
+  }
+
+  /* 어깨 — 상완이 몸통에 붙는 자리를 외투색으로 메꾼다 */
+  function drawShoulder(g, x, y, k) {
+    chunk(g, ngon(x, y, 38 * k, 36 * k, 10, 0.3), COAT, COAT_D);
   }
 
   /* 다리 한 짝 — 페달 위상만 sgn 으로 다르다. 자리와 크기는 바깥에서 준다. */
@@ -1537,13 +1569,24 @@
   $("keyE").addEventListener("pointerleave", () => $("keyE").classList.remove("on"));
   $("keyE").addEventListener("contextmenu", e => e.preventDefault());
 
-  /* 화면 좌우 절반을 눌러도 균형은 잡힌다 — 먹기는 버튼으로만 */
+  /* 화면 좌우 절반을 눌러도 균형은 잡힌다 — 먹기는 버튼으로만.
+     캔버스가 잡은 쪽만 캔버스가 푼다. 그러지 않으면 버튼을 누른 채로
+     화면을 건드렸다 뗐을 때 버튼까지 같이 풀려 입력이 씹힌다. */
+  const cvHold = new Map();                            // pointerId -> 어느 쪽
   cv.addEventListener("pointerdown", e => {
     e.preventDefault();
-    hold(e.clientX < cv.getBoundingClientRect().left + W / 2 ? -1 : 1, true);
+    const side = e.clientX < cv.getBoundingClientRect().left + W / 2 ? -1 : 1;
+    cvHold.set(e.pointerId, side);
+    hold(side, true);
   });
-  cv.addEventListener("pointerup", () => { hold(-1, false); hold(1, false); });
-  cv.addEventListener("pointercancel", () => { hold(-1, false); hold(1, false); });
+  const cvUp = e => {
+    const side = cvHold.get(e.pointerId);
+    if (side === undefined) return;
+    cvHold.delete(e.pointerId);
+    hold(side, false);
+  };
+  cv.addEventListener("pointerup", cvUp);
+  cv.addEventListener("pointercancel", cvUp);
   addEventListener("keydown", e => {
     const k = e.key;
     if (k === "ArrowLeft" || k === "a" || k === "A") hold(-1, true);
@@ -1561,6 +1604,7 @@
     if (k === " " || k === "Spacebar") $("keyE").classList.remove("on");
   });
   addEventListener("blur", () => {
+    cvHold.clear();
     hold(-1, false); hold(1, false); $("keyE").classList.remove("on");
   });
 
@@ -1776,6 +1820,6 @@
     handPoint, bowlRim, choosePreset, fillIng, addFx, stepFx, say, paintHud, drawHero,
     snapResult, buildCard, shareResult, render, loadAssets, has, drawBowlHand,
     BOX, BONE, put, bone, VIEW, fitScale, CURB, SKYLINE,
-    posePaint, POSE, PART, DEPTH, drawEatTool,
+    posePaint, POSE, PART, DEPTH, drawEatTool, drawNeck, drawShoulder,
   });
 })();
