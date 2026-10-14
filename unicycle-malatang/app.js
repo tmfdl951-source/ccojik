@@ -100,11 +100,28 @@
 
     /* 넘어짐 — 한 바퀴 구르지 않는다. 옆으로 툭 눕는다. */
     topple: {
+      pan: 345, lift: 40, shrink: 0.25,   // 누운 몸을 화면에 담는 보정
       lie: 88,                           // 다 누웠을 때의 각도
       push: 300,                         // 넘어가는 가속 (도/s^2)
       bounce: 0.26,                      // 땅에 닿고 튕기는 정도
       stop: 55,                          // 이보다 느려지면 그대로 멎는다
       hold: 0.55,                        // 누운 채로 잠깐 멈췄다가 결과로
+    },
+
+    /* 넘어질 때 쏟아지는 것들 — 원작 scene.js 의 숫자를 px 로 옮겼다 */
+    crash: {
+      M: 307,                            // 1m 가 몇 px 인가 (바퀴 반지름 0.3m = 92px)
+      g: 9.8,                            // 중력 (m/s^2). 아래에서 M 을 곱해 쓴다
+      bowlAway: [760, 840],              // 그릇이 떨어질 자리 (손에서 px, 기운 쪽으로)
+                                         // 원작은 속도(1.4/-1.1 m/s)로 던지지만, 옆에서
+                                         // 보는 2D 에선 누운 몸과 같은 줄에 떨어져 얼굴을
+                                         // 덮는다. 몸길이 밖으로 보내려고 자리를 정한다.
+      bowlVy: 4.0,                       // 위로 뜨는 속도. 높이 떠야 머리 위로 넘어간다
+                                         // (낮게 날리면 얼굴을 가로질러 지나간다)
+      bowlSpin: 5,                       // 구르는 속도 (rad/s)
+      bounce: 0.5,                       // 건더기가 바닥에서 한 번 튀는 정도
+      drops: 26,                         // 국물 방울 최대 개수
+      puddle: [0.16, 0.52],              // 웅덩이 반지름 = (앞 + 뒤*남은비율) m
     },
 
     fx: { max: 26, life: 0.7 },
@@ -390,6 +407,7 @@
     calm: 0, calmBest: 0,                // 연속으로 안정했던 시간
     bumpIn: 1.2, wheelSpin: 0, scroll: 0,
     topple: false, fallDir: 1, landed: 0,   // 넘어지는 중인가 / 어느 쪽으로 / 몇 번 닿았나
+    crash: null,                         // 날아간 그릇·흩어진 건더기·튄 국물
     fx: [], shake: 0, flash: 0,
     msg: "", msgLeft: 0, msgSmall: false,
     why: "",                             // 끝난 이유
@@ -450,7 +468,7 @@
     S.ing.length = 0; fillIng(9);
     S.calm = 0; S.calmBest = 0;
     S.bumpIn = rnd(1.0, 1.8); S.wheelSpin = 0; S.scroll = 0;
-    S.topple = false; S.fallDir = 1; S.landed = 0;
+    S.topple = false; S.fallDir = 1; S.landed = 0; S.crash = null;
     S.fx.length = 0; S.shake = 0; S.flash = 0;
     S.msg = ""; S.msgLeft = 0; S.msgSmall = false; S.why = "";
     $("startOver").hidden = true; $("endOver").hidden = true;
@@ -696,6 +714,7 @@
           }
         }
       }
+      stepCrash(dt);
       stepBowl(dt); stepSoup(dt); stepFx(dt);
       if (S.shake > 0) S.shake -= dt;
       if (S.msgLeft > 0) S.msgLeft -= dt;
@@ -731,12 +750,13 @@
   function fall(why) {
     S.why = why; S.state = ST.FALL;
     /* 눕는 데 걸리는 시간 + 누운 채로 잠깐 */
-    S.goLeft = 0.75 + CFG.topple.hold;
+    S.goLeft = 0.75 + CFG.topple.hold + 0.5;
     S.topple = true;
     S.fallDir = Math.sign(S.bikeAngle) || 1;
     S.landed = 0;
     S.bikeVel = Math.abs(S.bikeVel) * S.fallDir;        // 넘어가는 쪽으로 정리
     S.shake = 0.3; sfx("fall"); buzz([30, 40, 60]);
+    startCrash();                                    // 그릇이 손을 떠난다
     say("넘어졌다!");
   }
   function endRun(why) {
@@ -1162,6 +1182,161 @@
     });
   }
 
+  /* ============================================================
+     개박살 — 넘어지는 순간 그릇이 손을 떠난다
+     ============================================================ */
+  /* 그릇이 지금 세상 어디에 있나 (플레이어 변환을 그대로 따라간다) */
+  function bowlWorld() {
+    const h = handPoint(), a = S.bikeAngle * RAD;
+    return {
+      x: VIEW.offX + h.x * Math.cos(a) - h.y * Math.sin(a),
+      y: h.x * Math.sin(a) + h.y * Math.cos(a),
+    };
+  }
+
+  function startCrash() {
+    const C = CFG.crash, M = C.M;
+    const at = bowlWorld();
+    const dir = S.fallDir;
+    const left = clamp(S.amount / 100, 0, 1);        // 남아 있던 국물
+    const vy = -C.bowlVy;                            // 화면은 위가 음수
+    const hang = 2 * C.bowlVy / C.g;                 // 떠 있는 시간 (s)
+    const away = dir * rnd(C.bowlAway[0], C.bowlAway[1]);
+    const vx = (away / hang) / C.M + S.wv * 0.15;    // 목표 자리에 닿는 속도
+                                                     // (달리던 속도는 살짝만 보탠다.
+                                                     //  많이 보태면 목표가 무너진다)
+    const bits = [], drops = [];
+
+    /* 남은 건더기가 전부 흩어진다 — 기운 쪽으로 쏠리되 제각각 */
+    for (const it of S.ing) {
+      bits.push({
+        t: it.t, x: at.x + rnd(-30, 30), y: at.y + rnd(-20, 10),
+        vx: (dir * rnd(0.15, 0.95) + rnd(-0.5, 0.5)) * M,
+        vy: -rnd(0.6, 2.4) * M,
+        rot: rnd(0, 6.28), vr: rnd(-30, 30), down: false,
+      });
+    }
+    /* 국물 방울 — 남은 양에 비례해서 많이 튄다 */
+    const n = Math.round(C.drops * (0.25 + 0.75 * left));
+    for (let i = 0; i < n; i++) {
+      drops.push({
+        x: at.x + rnd(-36, 36), y: at.y - 24,
+        vx: (dir * rnd(0.1, 1.05) + rnd(-0.6, 0.6)) * M,
+        vy: -rnd(0.5, 2.6) * M,
+        r: rnd(7, 15), down: false,
+      });
+    }
+    S.crash = {
+      bowl: { x: at.x, y: at.y, vx: vx * M, vy: vy * M,
+              rot: 0, vr: dir > 0 ? -C.bowlSpin : C.bowlSpin, down: false },
+      bits, drops, left, puddleT: -1, px: 0, dir,
+    };
+    S.ing.length = 0;
+    sfx("spill");
+  }
+
+  function stepCrash(dt) {
+    const c = S.crash;
+    if (!c) return;
+    const C = CFG.crash, G = C.g * C.M;
+    const floor = 6;                                 // 바닥(접지선보다 살짝 아래)
+
+    /* 그릇 — 포물선을 그리다 바닥에 눕는다 */
+    const b = c.bowl;
+    if (!b.down) {
+      b.vy += G * dt;
+      b.x += b.vx * dt; b.y += b.vy * dt;
+      b.rot += b.vr * dt;
+      if (b.y >= floor) {
+        b.y = floor; b.down = true; b.vx = 0; b.vy = 0; b.vr = 0;
+        /* 반바퀴 단위로 스냅하되 늘 홀수 배 — 반드시 엎어진 채로 멎는다 */
+        const half = b.rot / Math.PI;
+        b.rot = Math.PI * (2 * Math.round((half - 1) / 2) + 1);
+        c.puddleT = 0; c.px = b.x;                       // 여기서 웅덩이가 번진다
+        S.shake = Math.max(S.shake, 0.14);
+        buzz(22);
+      }
+    }
+    /* 건더기 — 한 번 튀고 멎는다 */
+    for (const o of c.bits) {
+      if (o.down) continue;
+      o.vy += G * dt;
+      o.x += o.vx * dt; o.y += o.vy * dt; o.rot += o.vr * dt;
+      if (o.y >= floor) {
+        o.y = floor;
+        if (Math.abs(o.vy) > 120) { o.vy = -o.vy * C.bounce; o.vx *= 0.6; o.vr *= 0.4; }
+        else { o.down = true; o.vy = 0; o.vx = 0; o.vr = 0; }
+      }
+    }
+    /* 국물 방울 — 바닥에 닿으면 납작한 자국이 된다 */
+    for (const d of c.drops) {
+      if (d.down) continue;
+      d.vy += G * dt;
+      d.x += d.vx * dt; d.y += d.vy * dt;
+      if (d.y >= floor) { d.y = floor; d.down = true; }
+    }
+    /* 웅덩이 — 번지다 멎는다 */
+    if (c.puddleT >= 0) c.puddleT += dt;
+  }
+
+  /* front=false : 바닥에 멎은 것들 (캐릭터 뒤)
+     front=true  : 아직 날아다니는 것들 (캐릭터 앞) */
+  function drawCrash(g, front) {
+    const c = S.crash;
+    if (!c) return;
+    const C = CFG.crash;
+    g.save();
+    toppleCam(g);                             // 캐릭터와 똑같은 카메라
+    /* 웅덩이가 제일 아래 */
+    if (!front && c.puddleT >= 0) {
+      const r = (C.puddle[0] + C.puddle[1] * c.left) * C.M *
+                (1 - Math.exp(-c.puddleT * 3));
+      g.save();
+      g.globalAlpha = 0.92;
+      /* 그릇 밑에만 있으면 쓰러진 몸에 가린다 — 앞쪽(아래)으로 흘러나오게 */
+      chunk(g, ngon(c.px - c.dir * r * 0.5, 96, r * 1.45, r * 0.38, 18, 0.4), "#B2411B", null);
+      g.globalAlpha = 0.82;
+      chunk(g, ngon(c.px - c.dir * r * 1.25, 150, r * 0.7, r * 0.2, 12, 1.1), "#C44B20", null);
+      g.restore();
+    }
+    /* 바닥에 눌어붙은 국물 자국 */
+    for (const d of c.drops) {
+      if (!d.down || front) continue;
+      g.save(); g.globalAlpha = 0.85;
+      chunk(g, ngon(d.x, d.y + 2, d.r * 2.6, d.r * 0.4, 9, 0), "#B5431D", null);
+      g.restore();
+    }
+    /* 흩어진 건더기 */
+    for (const o of c.bits) {
+      if (o.down === front) continue;
+      g.save();
+      g.translate(o.x, o.y);
+      g.rotate(o.rot);
+      drawIng(g, o.t);
+      g.restore();
+    }
+    /* 날아가는 국물 방울 */
+    for (const d of c.drops) {
+      if (d.down || !front) continue;
+      if (!put(g, "fx/fx-soup-splash-small", d.x, d.y, d.r * 6, { rot: d.x * 0.01 }))
+        chunk(g, ngon(d.x, d.y, d.r, d.r * 1.2, 7, 0), "#D8381F", "#B32C17");
+    }
+    /* 그릇 — 뒤집혀 구른다 */
+    const b = c.bowl;
+    const P2 = S.preset;
+    if (b.down === front) { g.restore(); return; }
+    g.save();
+    g.translate(b.x, b.y - P2.vis * 0.3);
+    g.rotate(b.rot);
+    if (!put(g, "bowl/bowl-outer", 0, 0, P2.R * 2.2)) {
+      chunk(g, [[-P2.R - 10, -P2.vis * 0.5], [P2.R + 10, -P2.vis * 0.5],
+                [P2.R * 0.58, P2.vis * 0.56], [-P2.R * 0.58, P2.vis * 0.56]],
+        "#F2F3F5", "#D5D8DE");
+    }
+    g.restore();
+    g.restore();
+  }
+
   /* 그릇을 쥔 손 — 그릇 위에 얹어야 '들고 있다' 로 보인다 */
   function drawBowlHand(g) {
     g.save();
@@ -1502,6 +1677,18 @@
     g.restore();
   }
 
+  /* 누우면 가로로 길어진다 — 그만큼 당겨서 화면에 담는 카메라.
+     캐릭터도 쏟아진 것들도 이걸 똑같이 쓴다. 안 그러면 서로 어긋나 보인다. */
+  function toppleCam(g) {
+    let k = fitScale();
+    if (S.topple) {
+      const p = Math.min(1, Math.abs(S.bikeAngle) / CFG.topple.lie);
+      g.translate(-S.fallDir * p * CFG.topple.pan, -p * CFG.topple.lift);
+      k *= 1 - p * CFG.topple.shrink;
+    }
+    g.scale(k, k);
+  }
+
   function render() {
     if (!W || !H) return;
     const g = ctx;
@@ -1513,23 +1700,22 @@
     drawSky(g);
     drawCity(g);
     drawRoad(g);
+    /* 바닥에 멎은 것들은 캐릭터 뒤에 깐다 (엎어진 그릇이 얼굴을 덮지 않게) */
+    if (S.crash) drawCrash(g, false);
     /* 캐릭터와 그릇은 한 덩어리로 — 좁은 화면에서는 같이 줄어든다 */
     g.save();
-    let k = fitScale();
-    if (S.topple) {
-      /* 누우면 가로로 길어진다 — 그만큼 당겨서 화면에 담는다 */
-      const p = Math.min(1, Math.abs(S.bikeAngle) / CFG.topple.lie);
-      g.translate(-S.fallDir * p * 300, -p * 40);
-      k *= 1 - p * 0.18;
-    }
-    g.scale(k, k);
+    toppleCam(g);
     /* 9 그릇 -> 10 젓가락 -> 11 그릇 쥔 손. 뒤에서 앞으로만 간다. */
     drawPlayer(g);
-    drawBowl(g);
-    drawEatTool(g);
-    drawBowlHand(g);
+    if (!S.crash) {
+      drawBowl(g);
+      drawEatTool(g);
+      drawBowlHand(g);
+    }
     drawFx(g);
     g.restore();
+    /* 아직 날아다니는 것들은 캐릭터 앞에 */
+    if (S.crash) drawCrash(g, true);
     drawMsg(g);
     if (DEBUG_MODE) drawDebug(g);
   }
@@ -1834,5 +2020,6 @@
     snapResult, buildCard, shareResult, render, loadAssets, has, drawBowlHand,
     BOX, BONE, put, bone, VIEW, fitScale, CURB, SKYLINE,
     posePaint, POSE, PART, DEPTH, drawEatTool, drawNeck, drawShoulder, tileRow,
+    startCrash, stepCrash, drawCrash, bowlWorld,
   });
 })();
