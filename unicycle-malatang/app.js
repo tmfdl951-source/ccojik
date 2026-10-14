@@ -38,11 +38,11 @@
 
     /* 외발자전거 — 역진자. 안 밀면 기울어진 쪽으로 더 기운다. */
     bike: {
-      control: 110,                      // 버튼 한쪽을 누를 때 밀어 주는 힘 (도/s^2)
-      ramp: 0.16,                        // 누른 힘이 다 실리기까지 (초). 몸이 기우는 데
+      control: 135,                      // 버튼 한쪽을 누를 때 밀어 주는 힘 (도/s^2)
+      ramp: 0.07,                        // 누른 힘이 다 실리기까지 (초). 몸이 기우는 데
                                          // 시간이 걸려야 보정이 넘친다 — 이게 손맛이다
-      gravity: 4.8,                      // 넘어지려는 힘 (g/L, 1/s^2)
-      damp: 1.3,                         // 각속도 감쇠
+      gravity: 3.8,                      // 넘어지려는 힘 (g/L, 1/s^2)
+      damp: 1.6,                         // 각속도 감쇠 — 보정 뒤 덜 출렁이고 잘 멎는다
       maxAngle: 38,                      // 이보다 기울면 전복
       bump: 22,                          // 노면 턱 한 번의 충격 (도/s)
       bumpGap: [0.7, 1.6],               // 턱이 오는 간격 (초)
@@ -105,9 +105,10 @@
     /* depth 는 '넘치기 계산' 용 머리 공간이고, vis 는 '그림' 깊이다.
        둘을 한 값으로 쓰면 쏟기를 맞출 때 그릇이 쟁반처럼 납작해진다.
        넘치기 시작하는 수면차: 작은 그릇 12도 / 보통 7도 / 큰 5도 / 대야 4도 */
-    { key: "COFFEE", label: "커피",        R: 92,  depth: 56, vis: 88,  fill: 0.60, wobble: 0.74, spill: 0.82, cup: true },
-    { key: "NORMAL", label: "마라탕",      R: 128, depth: 72, vis: 112, fill: 0.78, wobble: 1.00, spill: 1.00 },
-    { key: "FULL",   label: "마라탕 가득", R: 160, depth: 84, vis: 138, fill: 0.90, wobble: 1.30, spill: 1.24 },
+    /* grav 은 CFG.bike.gravity 에 곱한다 — 큰 그릇일수록 더 잘 넘어간다 */
+    { key: "COFFEE", label: "커피",        R: 92,  depth: 56, vis: 88,  fill: 0.60, wobble: 0.70, spill: 0.82, grav: 0.88, cup: true },
+    { key: "NORMAL", label: "마라탕",      R: 128, depth: 72, vis: 112, fill: 0.78, wobble: 1.00, spill: 1.00, grav: 1.00 },
+    { key: "FULL",   label: "마라탕 가득", R: 160, depth: 84, vis: 138, fill: 0.90, wobble: 1.34, spill: 1.24, grav: 1.16 },
   ];
 
   let LEVEL = 1;                         // 고른 난이도 (0 커피 / 1 보통 / 2 가득)
@@ -367,7 +368,7 @@
     bumpIn: 1.2, wheelSpin: 0, scroll: 0,
     topple: false, fallDir: 1, landed: 0,   // 넘어지는 중인가 / 어느 쪽으로 / 몇 번 닿았나
     fx: [], shake: 0, flash: 0,
-    msg: "", msgLeft: 0,
+    msg: "", msgLeft: 0, msgSmall: false,
     why: "",                             // 끝난 이유
 
     best: 0, bestBite: 0,
@@ -425,7 +426,7 @@
     S.bumpIn = rnd(1.0, 1.8); S.wheelSpin = 0; S.scroll = 0;
     S.topple = false; S.fallDir = 1; S.landed = 0;
     S.fx.length = 0; S.shake = 0; S.flash = 0;
-    S.msg = ""; S.msgLeft = 0; S.why = "";
+    S.msg = ""; S.msgLeft = 0; S.msgSmall = false; S.why = "";
     $("startOver").hidden = true; $("endOver").hidden = true;
     paintHud(true);
     if (skipReady) { S.state = ST.PLAY; say("GO!"); }
@@ -437,7 +438,8 @@
   function stepBike(dt) {
     const B = CFG.bike;
     /* 역진자 — 기울수록 더 기운다. 가만두면 반드시 넘어진다. */
-    let acc = B.gravity * Math.sin(S.bikeAngle * RAD) * DEG;
+    /* 그릇이 클수록 넘어지려는 힘도 세다 */
+    let acc = B.gravity * (S.preset.grav || 1) * Math.sin(S.bikeAngle * RAD) * DEG;
     /* 버튼 — 왼쪽(-1)을 누르면 왼쪽으로 기운다.
        누른 힘이 바로 실리지 않는다. 몸이 기우는 데 시간이 걸리니
        급하게 눌렀다 떼면 반드시 지나친다.
@@ -553,8 +555,10 @@
     S.bikeVel += E.kick[band];
     S.bowlVel += E.kick[band] * 0.55;
     S.soupVel -= E.slosh[band];
-    if (band !== "SAFE") { S.shake = band === "RISK" ? 0.22 : 0.12; buzz(band === "RISK" ? 24 : 12); }
-    if (band === "RISK") { S.eatFail = 0.6; say("위험했다!"); sfx("warn"); }
+    /* 흔들림은 절반 아래로. 손해는 점수·국물로 주고, 화면 소란은 줄인다. */
+    if (band !== "SAFE") { S.shake = band === "RISK" ? 0.10 : 0.05; buzz(band === "RISK" ? 16 : 8); }
+    /* 문구는 정말 위험할 때만, 그것도 작게. WARN 은 버튼 테두리로만 알린다. */
+    if (band === "RISK") { S.eatFail = 0.6; say("위험했다", false, true); sfx("warn"); }
     sfx("button");
     return true;
   }
@@ -610,7 +614,10 @@
       if ((f.life -= dt) <= 0) S.fx.splice(i, 1);
     }
   }
-  function say(t) { S.msg = t; S.msgLeft = 0.7; }
+  function say(text, bad, small) {
+    S.msg = text; S.msgLeft = small ? 0.45 : 0.7; S.msgSmall = !!small;
+    void bad;
+  }
 
   /* ============================================================
      한 프레임
@@ -1372,14 +1379,17 @@
     if (!S.msg || S.msgLeft <= 0) return;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.save();
-    g.globalAlpha = Math.min(1, S.msgLeft * 3);
-    const size = Math.max(20, Math.min(W * 0.1, H * 0.052));
+    const sm = S.msgSmall;
+    g.globalAlpha = Math.min(1, S.msgLeft * 3) * (sm ? 0.72 : 1);
+    const size = sm ? Math.max(13, Math.min(W * 0.05, H * 0.026))
+                    : Math.max(20, Math.min(W * 0.1, H * 0.052));
     g.font = "800 " + size + "px Pretendard, sans-serif";
     g.textAlign = "center"; g.textBaseline = "middle";
-    g.lineWidth = Math.max(5, size * 0.24); g.strokeStyle = "rgba(0,0,0,.65)";
-    g.strokeText(S.msg, W / 2, H * 0.3);
-    g.fillStyle = "#FFCE1F";
-    g.fillText(S.msg, W / 2, H * 0.3);
+    g.lineWidth = Math.max(4, size * 0.24); g.strokeStyle = "rgba(0,0,0,.5)";
+    const y = sm ? H * 0.22 : H * 0.3;
+    g.strokeText(S.msg, W / 2, y);
+    g.fillStyle = sm ? "#FFB84D" : "#FFCE1F";
+    g.fillText(S.msg, W / 2, y);
     g.restore();
   }
 
