@@ -108,6 +108,29 @@
       hold: 0.55,                        // 누운 채로 잠깐 멈췄다가 결과로
     },
 
+    /* 넘어진 몸 — 점과 막대로 만든 ragdoll. 아래 startRag 설명 참고. */
+    rag: {
+      h: 1 / 120,                        // 푸는 간격 (고정이어야 안 튄다)
+      iter: 9,                           // 막대 맞추기 반복 — 많을수록 뻣뻣
+      air: 0.994,                        // 공기 저항
+      mu: 0.55,                          // 바닥 마찰
+      bounce: 0.16,                      // 바닥에서 튕기는 정도
+      grav: 0.72,                        // 중력을 이만큼만 — 다 보이게 천천히
+      wobble: 520,                       // 처음 속도에 섞는 흔들림 (px/s)
+                                         // 이것 때문에 매번 다르게 꺾인다
+      twist: [0.75, 1.7],                // 판마다 넘어가는 기세가 다르다
+      slip: [0.30, 0.78],                // 판마다 바닥이 미끄러운 정도가 다르다
+      armFold: [0.34, 0.92],             // 이번 판에 팔꿈치가 접힌 정도 (쭉 편 길이의 몇 배)
+      legFold: [0.42, 0.95],             // 무릎 쪽. 좌우 따로 뽑아 한쪽만 접히게 한다
+      jointK: 0.26,                      // 그 접힘을 얼마나 세게 붙드나 (무를수록 흐물)
+      neckFold: [0.66, 0.99],            // 이번 판에 고개가 꺾인 정도
+      neck: 55,                          // 머리가 몸통에서 꺾이는 한계 (도)
+      face: 72,                          // 얼굴이 똑바로에서 돌아갈 수 있는 한계 (도)
+                                         // 옆으로 누운 데까지만. 거꾸로는 망가져 보인다
+      sink: 0.84,                        // 바닥에 묻히는 정도 (0=안 묻힘)
+      camT: 0.45,                        // 카메라가 다 당겨지는 데 걸리는 시간
+    },
+
     /* 넘어질 때 쏟아지는 것들 — 원작 scene.js 의 숫자를 px 로 옮겼다 */
     crash: {
       M: 307,                            // 1m 가 몇 px 인가 (바퀴 반지름 0.3m = 92px)
@@ -408,6 +431,7 @@
     bumpIn: 1.2, wheelSpin: 0, scroll: 0,
     topple: false, fallDir: 1, landed: 0,   // 넘어지는 중인가 / 어느 쪽으로 / 몇 번 닿았나
     crash: null,                         // 날아간 그릇·흩어진 건더기·튄 국물
+    rag: null, ragT: 0, toppleT: 0,      // 꺾여 쓰러지는 몸 / 남은 시간 / 카메라
     fx: [], shake: 0, flash: 0,
     msg: "", msgLeft: 0, msgSmall: false,
     why: "",                             // 끝난 이유
@@ -469,6 +493,7 @@
     S.calm = 0; S.calmBest = 0;
     S.bumpIn = rnd(1.0, 1.8); S.wheelSpin = 0; S.scroll = 0;
     S.topple = false; S.fallDir = 1; S.landed = 0; S.crash = null;
+    S.rag = null; S.ragT = 0; S.toppleT = 0;
     S.fx.length = 0; S.shake = 0; S.flash = 0;
     S.msg = ""; S.msgLeft = 0; S.msgSmall = false; S.why = "";
     $("startOver").hidden = true; $("endOver").hidden = true;
@@ -714,7 +739,8 @@
           }
         }
       }
-      stepCrash(dt);
+      stepRag(dt); stepCrash(dt);
+      S.toppleT = Math.min(1, S.toppleT + dt / CFG.rag.camT);
       stepBowl(dt); stepSoup(dt); stepFx(dt);
       if (S.shake > 0) S.shake -= dt;
       if (S.msgLeft > 0) S.msgLeft -= dt;
@@ -756,6 +782,7 @@
     S.landed = 0;
     S.bikeVel = Math.abs(S.bikeVel) * S.fallDir;        // 넘어가는 쪽으로 정리
     S.shake = 0.3; sfx("fall"); buzz([30, 40, 60]);
+    startRag();                                      // 몸이 꺾이기 시작한다
     startCrash();                                    // 그릇이 손을 떠난다
     say("넘어졌다!");
   }
@@ -978,6 +1005,7 @@
   };
   /* 머리가 앉는 높이. 턱이 깃 안으로 들어가도록 — 맨살 목이 길게 안 보이게. */
   const HEAD_Y = -676;
+  const LEG_TOP = -336;                 // 외투 밑단 — 허벅지는 여기서 나온다
   /* 앞은 크고 또렷, 뒤는 작고 어둡다 */
   const DEPTH = {
     frontLeg: { k: 1.06, a: 1 },
@@ -1046,6 +1074,7 @@
        8 앞다리  9 어깨+앞팔
      (그 다음은 render 에서: 9 그릇  10 젓가락  11 그릇 쥔 손) */
   function drawPlayer(g) {
+    if (S.rag) { drawRag(g); return; }               // 꺾여 쓰러지는 중
     const lean = S.eatLean;
     const sway = Math.sin(S.wheelSpin * 2) * 1.4;        // 페달 밟는 좌우 흔들림
     const tx = PART.torso + lean * 16, ty = lean * -6;
@@ -1164,13 +1193,31 @@
     chunk(g, ngon(x, y, 38 * k, 36 * k, 10, 0.3), COAT, COAT_D);
   }
 
-  /* 다리 한 짝 — 페달 위상만 sgn 으로 다르다. 자리와 크기는 바깥에서 준다. */
+  /* 다리 한 짝의 세 자리 — 골반, 무릎, 발. atDepth 의 자리/크기까지 먹인
+     리그 좌표로 돌려준다. 그려야 할 때도 ragdoll 을 세울 때도 이걸 쓴다. */
+  function legPts(sgn) {
+    const ph = S.wheelSpin + (sgn < 0 ? Math.PI : 0);
+    const D = sgn < 0 ? DEPTH.backLeg : DEPTH.frontLeg;
+    const ox = sgn < 0 ? PART.backLeg : PART.frontLeg;
+    const m = (x, y) => ({ x: ox + x * D.k, y: y * D.k });
+    return {
+      hip:  m(sgn * 45, LEG_TOP / D.k),      // 깊이 보정을 되돌려 밑단에 딱 맞춘다
+      knee: m(sgn * 52, -232 + Math.sin(ph) * 16),
+      foot: m(Math.cos(ph) * 64 * 0.75 + sgn * 18, -92 + Math.sin(ph) * 60),
+      k: D.k,
+    };
+  }
+
+  /* 다리 한 짝 — 페달 위상만 sgn 으로 다르다. 자리와 크기는 바깥에서 준다.
+     허벅지 위끝은 외투 밑단보다 위로 올린다. 깊이 보정(atDepth) 이 y 까지
+     줄여 버려서, 그냥 두면 밑단과 다리 사이가 떠 보인다. */
   function leg(g, sgn) {
     const ph = S.wheelSpin + (sgn < 0 ? Math.PI : 0);
     const kx = sgn * 52, ky = -232 + Math.sin(ph) * 16;
     const fx = Math.cos(ph) * 64 * 0.75 + sgn * 18, fy = -92 + Math.sin(ph) * 60;
-    drawPart(g, "player/player-thigh", (sgn * 36 + kx) / 2, (-330 + ky) / 2, 60, 120, () => {
-      chunk(g, [[sgn * 16, -330], [sgn * 74, -324], [kx + sgn * 26, ky], [kx - sgn * 20, ky]],
+    const top = LEG_TOP / (sgn < 0 ? DEPTH.backLeg.k : DEPTH.frontLeg.k);
+    drawPart(g, "player/player-thigh", (sgn * 36 + kx) / 2, (top + ky) / 2, 60, 120, () => {
+      chunk(g, [[sgn * 16, top], [sgn * 74, top + 6], [kx + sgn * 26, ky], [kx - sgn * 20, ky]],
         PANT, PANT_D);
     });
     drawPart(g, "player/player-shin", (kx + fx) / 2, (ky + fy) / 2, 46, 120, () => {
@@ -1180,6 +1227,242 @@
     drawPart(g, "player/player-foot", fx + sgn * 10, fy + 8, 60, 28, () => {
       chunk(g, box(fx + sgn * 12, fy + 8, 68, 32, 11), SHOE, "#54382A");
     });
+  }
+
+  /* ============================================================
+     꺾여 쓰러지기 — 매번 다르게 넘어진다
+     원작(ichirin-nabe)은 CANNON 으로 몸통·머리·허벅지·정강이·윗팔·아랫팔을
+     관절로 이어 쓰러뜨린다. 라이브러리를 못 쓰니 같은 뼈대를 점과 막대로
+     만든다. 점을 중력으로 떨어뜨리고 막대 길이를 여러 번 맞춰 주면(Verlet)
+     관절이 저절로 접힌다. 처음 속도에 흔들림을 섞어 매번 다르게 꺾인다.
+     ============================================================ */
+  function startRag() {
+    const R = CFG.rag;
+    const lean = S.eatLean;
+    const tx = PART.torso + lean * 16, ty = lean * -6;
+    const a = S.bikeAngle * RAD, ca = Math.cos(a), sa = Math.sin(a);
+    const w = S.w * rnd(R.twist[0], R.twist[1]);    // 넘어가던 각속도 (rad/s)
+    const pt = {}, bar = [];
+
+    /* 리그 좌표를 세상 좌표로 옮기고, 돌던 기세를 그대로 물려준다.
+       v = ω × r  (r 은 바퀴 접지점에서 그 점까지) */
+    function P(name, x, y, im, rad, jit) {
+      const wx = VIEW.offX + x * ca - y * sa, wy = x * sa + y * ca;
+      const j = jit === undefined ? 1 : jit;
+      const vx = -w * wy + rnd(-R.wobble, R.wobble) * j;
+      const vy = w * (wx - VIEW.offX) + rnd(-R.wobble, R.wobble) * j * 0.6;
+      pt[name] = { x: wx, y: wy, px: wx - vx * R.h, py: wy - vy * R.h, im, r: rad };
+      return pt[name];
+    }
+    /* 막대 — m:0 은 길이를 지키고, m:1 은 '이보다 가까워지지 마라' 만 지킨다
+       (무릎·팔꿈치가 반대로 꺾여 사라지지 않게 하는 버팀목).
+       len 을 주면 그 길이로, 안 주면 지금 벌어진 만큼을 쉬는 길이로 삼는다. */
+    function B(n1, n2, k, len, m) {
+      const p = pt[n1], q = pt[n2];
+      bar.push({ a: p, b: q, k: k || 1, m: m || 0,
+                 d: len === undefined ? Math.hypot(p.x - q.x, p.y - q.y) : len });
+    }
+    /* 관절이 이번 판에 굳을 자리. 꽉 매면 인형극, 아주 풀면 다 펴진다 */
+    const fold = (n1, n2, len) => B(n1, n2, R.jointK, len, 0);
+
+    /* ---- 몸통·머리 ---- 등뼈와 목이 제일 굵은 막대다 */
+    P("hip",   tx, LEG_TOP + ty, 0.11, 66, 0.35);
+    P("chest", tx, -556 + ty,    0.13, 74, 0.35);
+    P("head",  PART.head + lean * 10, HEAD_Y + ty + lean * 10, 0.52, 112, 0.35);
+    B("hip", "chest", 0.9);
+    B("chest", "head", 0.9);
+    /* 고개도 관절이다 — 판마다 다르게 꺾인 채로 굳는다.
+       너무 풀면 얼굴이 가슴 밑으로 말려 들어가므로 0.66 아래로는 안 간다. */
+    const hh = Math.hypot(pt.hip.x - pt.head.x, pt.hip.y - pt.head.y);
+    B("hip", "head", R.jointK, hh * rnd(R.neckFold[0], R.neckFold[1]));
+    B("hip", "head", 0.8, hh * 0.6, 1);           // 그래도 이보다 더는 안 접힌다
+
+    /* ---- 팔 둘 ----
+       마디 길이는 '넘어지는 순간의 자세' 로 재면 안 된다. 그릇 쥔 손은
+       팔꿈치 바로 옆에 있어서 아랫팔이 20px 짜리로 잡힌다.
+       제 길이를 정해 주고, 무르게(k 0.3) 매어 펴지는 게 보이게 한다. */
+    const UP = 118, FORE = 124;
+    for (const sg of [-1, 1]) {
+      const A = armPts(sg, tx, ty, lean);
+      const k = sg < 0 ? DEPTH.backArm.k : DEPTH.frontArm.k;
+      const n = sg < 0 ? "B" : "F";
+      P("sho" + n,  A.sx * k, A.sy * k, 0.80, 34, 0.5);
+      P("elb" + n,  A.mx * k, A.my * k, 1.80, 22, 1.7);
+      P("hand" + n, A.ex * k, A.ey * k, 2.20, 20, 2.0);
+      B("chest", "sho" + n);
+      B("hip", "sho" + n, 0.6);
+      B("sho" + n, "elb" + n, 0.3, UP * k);
+      B("elb" + n, "hand" + n, 0.3, FORE * k);
+      fold("sho" + n, "hand" + n, (UP + FORE) * k * rnd(R.armFold[0], R.armFold[1]));
+    }
+
+    /* ---- 다리 둘 ---- 이쪽 마디는 자세와 상관없이 제 길이로 잡힌다 */
+    for (const sg of [-1, 1]) {
+      const L = legPts(sg);
+      const n = sg < 0 ? "B" : "F";
+      P("lhip" + n, L.hip.x, L.hip.y, 0.70, 34, 0.4);
+      P("knee" + n, L.knee.x, L.knee.y, 1.45, 26, 1.5);
+      P("foot" + n, L.foot.x, L.foot.y, 1.75, 24, 1.7);
+      B("hip", "lhip" + n);
+      B("chest", "lhip" + n, 0.5);
+      B("lhip" + n, "knee" + n);
+      B("knee" + n, "foot" + n);
+      const th = Math.hypot(L.hip.x - L.knee.x, L.hip.y - L.knee.y);
+      const sh = Math.hypot(L.knee.x - L.foot.x, L.knee.y - L.foot.y);
+      fold("lhip" + n, "foot" + n, (th + sh) * rnd(R.legFold[0], R.legFold[1]));
+    }
+
+    /* ---- 외발자전거 ---- 원작도 따로 구르는 몸이다 */
+    P("wheel", PART.wheel, -92, 0.7, 92, 1.2);
+    P("seat", PART.torso + 22, -330, 0.7, 24, 1.2);
+    B("wheel", "seat");
+
+    S.rag = { pt, bar, spin: S.wv / 0.3, t: 0, mu: rnd(R.slip[0], R.slip[1]) };
+    S.ragT = 0;
+  }
+
+  function stepRag(dt) {
+    const R = S.rag;
+    if (!R) return;
+    const C = CFG.rag, G = CFG.crash.g * CFG.crash.M * C.grav;
+    R.t += dt;
+    R.spin *= 0.97;                                   // 바퀴가 천천히 멎는다
+    S.ragT = Math.min(S.ragT + dt, C.h * 5);          // 밀린 시간은 조금만 따라잡는다
+    while (S.ragT >= C.h) { S.ragT -= C.h; ragSolve(C, G); }
+  }
+
+  function ragSolve(C, G) {
+    const R = S.rag, pt = R.pt, gh = G * C.h * C.h;
+    /* 1. 떨어뜨린다 (Verlet) */
+    for (const k in pt) {
+      const p = pt[k];
+      const vx = (p.x - p.px) * C.air, vy = (p.y - p.py) * C.air;
+      p.px = p.x; p.py = p.y;
+      p.x += vx; p.y += vy + gh;
+    }
+    /* 2. 막대 길이를 맞춘다 — 반복할수록 관절이 야물어진다 */
+    for (let it = 0; it < C.iter; it++) {
+      for (const c of R.bar) {
+        const dx = c.b.x - c.a.x, dy = c.b.y - c.a.y;
+        const L = Math.hypot(dx, dy) || 0.01;
+        if (c.m === 1 && L >= c.d) continue;
+        const sum = c.a.im + c.b.im;
+        if (sum <= 0) continue;
+        const f = (L - c.d) / L * c.k;
+        const ta = c.a.im / sum, tb = c.b.im / sum;
+        c.a.x += dx * f * ta; c.a.y += dy * f * ta;
+        c.b.x -= dx * f * tb; c.b.y -= dy * f * tb;
+      }
+      /* 3. 바닥 — 조각마다 제 두께가 있다 */
+      for (const k in pt) {
+        const p = pt[k];
+        const y = 6 - p.r * C.sink;                     // 조각 두께만큼 띄운다
+        if (p.y > y) {
+          const vx = p.x - p.px, vy = p.y - p.py;
+          p.y = y;
+          p.py = p.y + vy * C.bounce;                 // 살짝 튕기고
+          p.px = p.x - vx * (1 - R.mu);               // 끌리며 멎는다
+        }
+      }
+    }
+  }
+
+  /* 두 점을 잇는 통통한 마디. 끝마다 둥근 이음매를 얹어 틈을 없앤다. */
+  function limb(g, a, b, w0, w1, col, dark) {
+    const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1;
+    const nx = -dy / L, ny = dx / L;
+    chunk(g, [[a.x + nx * w0 / 2, a.y + ny * w0 / 2],
+              [b.x + nx * w1 / 2, b.y + ny * w1 / 2],
+              [b.x - nx * w1 / 2, b.y - ny * w1 / 2],
+              [a.x - nx * w0 / 2, a.y - ny * w0 / 2]], col, dark);
+    chunk(g, ngon(a.x, a.y, w0 / 2, w0 / 2, 9, 0.3), col, dark);
+    chunk(g, ngon(b.x, b.y, w1 / 2, w1 / 2, 9, 0.3), col, dark);
+  }
+  const ragAng = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
+
+  function drawRag(g) {
+    const p = S.rag.pt;
+
+    /* ---- 외발자전거 ---- 몸과 따로 구른다 */
+    const fa = ragAng(p.wheel, p.seat) + Math.PI / 2;
+    if (!bone(g, "unicycle/unicycle-frame", p.wheel.x, p.wheel.y, p.seat.x, p.seat.y)) {
+      limb(g, p.wheel, p.seat, 52, 34, "#4A5370", "#3C4460");
+    }
+    if (!put(g, "unicycle/unicycle-seat", p.seat.x, p.seat.y, 160, { rot: fa })) {
+      chunk(g, box(p.seat.x, p.seat.y, 148, 40, 14), REDC, REDC_D);
+    }
+    if (!put(g, "unicycle/unicycle-wheel", p.wheel.x, p.wheel.y, 190, { rot: S.rag.spin })) {
+      chunk(g, ngon(p.wheel.x, p.wheel.y, 92, 92, 11, S.rag.spin), "#3C4258", "#323850");
+      chunk(g, ngon(p.wheel.x, p.wheel.y, 17, 17, 7, 0), "#8A93A6", null);
+    }
+
+    /* ---- 뒷다리 ---- 몸통보다 먼저 (앞다리는 몸통 뒤에 그리면 안 보인다) */
+    ragLeg(g, p, "B", DEPTH.backLeg);
+
+    /* ---- 목 ---- 몸통과 머리 둘 다 이 위에 얹혀 틈이 안 생긴다 */
+    limb(g, p.chest, p.head, 104, 86, SKIN, SKIN_D);
+
+    /* ---- 몸통 ---- */
+    const ta = ragAng(p.hip, p.chest) + Math.PI / 2;
+    const mid = { x: (p.hip.x + p.chest.x) / 2, y: (p.hip.y + p.chest.y) / 2 };
+    if (!put(g, "player/player-torso", mid.x, mid.y, 236, { rot: ta, sx: VIEW.squash })) {
+      limb(g, p.hip, p.chest, 192, 180, COAT, COAT_D);
+    }
+
+    /* ---- 앞다리 ---- 몸통 앞. 허벅지는 골반에서 조금 내려 시작해
+       외투 위에 판때기처럼 얹히지 않게 한다. */
+    ragLeg(g, p, "F", DEPTH.frontLeg);
+
+    /* ---- 뒷팔 ---- */
+    ragArm(g, p, "B", DEPTH.backArm);
+
+    /* ---- 머리 ---- 목은 그렇게까지 안 꺾인다. 몸통에서 ±55도 안으로 묶는다.
+       (안 묶으면 바닥에 눕는 순간 얼굴이 거꾸로 뒤집힌다) */
+    const na = ragAng(p.chest, p.head) + Math.PI / 2;
+    const lim = CFG.rag.neck * RAD;
+    let d = na - ta;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    const fl = CFG.rag.face * RAD;
+    g.save();
+    g.translate(p.head.x, p.head.y);
+    g.rotate(clamp(ta + clamp(d, -lim, lim), -fl, fl));
+    drawHead(g, 0, 0, 0);
+    g.restore();
+
+    /* ---- 앞팔 ---- */
+    ragArm(g, p, "F", DEPTH.frontArm);
+  }
+
+  function ragLeg(g, p, n, d) {
+    const hip = p["lhip" + n], knee = p["knee" + n], foot = p["foot" + n];
+    /* 허벅지 위끝을 골반에서 무릎 쪽으로 조금 내린다 (외투 안에서 나온 것처럼) */
+    const u = n === "F" ? 0.22 : 0;
+    const top = { x: hip.x + (knee.x - hip.x) * u, y: hip.y + (knee.y - hip.y) * u };
+    g.save(); g.globalAlpha *= d.a;
+    limb(g, top, knee, 58 * d.k, 48 * d.k, PANT, PANT_D);
+    limb(g, knee, foot, 46 * d.k, 38 * d.k, PANT, PANT_D);
+    g.save();
+    g.translate(foot.x, foot.y);
+    g.rotate(ragAng(knee, foot) - Math.PI / 2);
+    chunk(g, box(0, 6, 68 * d.k, 32 * d.k, 11), SHOE, "#54382A");
+    g.restore();
+    g.restore();
+  }
+
+  function ragArm(g, p, n, d) {
+    const sho = p["sho" + n], elb = p["elb" + n], hand = p["hand" + n];
+    const side = n === "B" ? "left" : "right";
+    g.save(); g.globalAlpha *= d.a;
+    chunk(g, ngon(sho.x, sho.y, 40 * d.k, 38 * d.k, 10, 0.3), COAT, COAT_D);
+    if (!bone(g, "player/player-arm-upper-" + side, sho.x, sho.y, elb.x, elb.y)) {
+      limb(g, sho, elb, 48 * d.k, 40 * d.k, SLEEVE, SLEEVE_D);
+    }
+    if (!bone(g, "player/player-arm-lower-" + side, elb.x, elb.y, hand.x, hand.y)) {
+      limb(g, elb, hand, 38 * d.k, 32 * d.k, SLEEVE, SLEEVE_D);
+    }
+    chunk(g, ngon(hand.x, hand.y, 23 * d.k, 23 * d.k, 8, 0.3), SKIN, SKIN_D);
+    g.restore();
   }
 
   /* ============================================================
@@ -1363,7 +1646,8 @@
     g.restore();
   }
 
-  function drawArm(g, sgn, tx, ty, lean, upperOnly, lowerOnly, noTool, toolOnly) {
+  /* 팔 한 짝의 세 자리 — 어깨, 팔꿈치, 손. 그리기도 ragdoll 도 이걸 쓴다. */
+  function armPts(sgn, tx, ty, lean) {
     /* 어깨도 앞뒤가 다르다 — 앞팔은 +40, 뒷팔은 -9 에서 나온다 */
     const sx = (sgn > 0 ? PART.frontArm + 64 : PART.backArm - 64) + lean * 10;
     const sy = -528 + ty;
@@ -1401,6 +1685,11 @@
       ey = sy + (ey - sy) * VIEW.farArm;
     }
     const mx = (sx + ex) / 2 + sgn * 42, my = (sy + ey) / 2 + 34;
+    return { sx, sy, mx, my, ex, ey };
+  }
+
+  function drawArm(g, sgn, tx, ty, lean, upperOnly, lowerOnly, noTool, toolOnly) {
+    const { sx, sy, mx, my, ex, ey } = armPts(sgn, tx, ty, lean);
     const side = sgn < 0 ? "left" : "right";
     if (!toolOnly && !lowerOnly) {
       if (!bone(g, "player/player-arm-upper-" + side, sx, sy, mx, my)) {
@@ -1682,7 +1971,7 @@
   function toppleCam(g) {
     let k = fitScale();
     if (S.topple) {
-      const p = Math.min(1, Math.abs(S.bikeAngle) / CFG.topple.lie);
+      const p = S.toppleT;
       g.translate(-S.fallDir * p * CFG.topple.pan, -p * CFG.topple.lift);
       k *= 1 - p * CFG.topple.shrink;
     }
@@ -2021,5 +2310,6 @@
     BOX, BONE, put, bone, VIEW, fitScale, CURB, SKYLINE,
     posePaint, POSE, PART, DEPTH, drawEatTool, drawNeck, drawShoulder, tileRow,
     startCrash, stepCrash, drawCrash, bowlWorld,
+    startRag, stepRag, drawRag, armPts, legPts, LEG_TOP, HEAD_Y,
   });
 })();
