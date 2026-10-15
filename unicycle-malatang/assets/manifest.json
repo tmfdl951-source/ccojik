@@ -1,34 +1,27 @@
 {
   "note": "실제로 넣은 파일만 files 에 적습니다. 적힌 것만 캔버스가 불러오고, 안 적힌 자리는 도형으로 그립니다. ref 는 참고용이라 안 적습니다.",
   "still_missing": {
-    "player": [
-      "player-thigh",
-      "player-shin",
-      "player-foot",
-      "player-hand",
-      "player-chopsticks"
-    ],
-    "unicycle": [
-      "unicycle-pedal"
-    ],
-    "bowl": [
-      "bowl-inner-mask (없으면 그림의 입 모양을 타원으로 가늠해 씁니다)"
-    ],
+    "player": [],
+    "unicycle": [],
+    "bowl": [],
     "ingredients": [
-      "noodle",
-      "bokchoy",
-      "tofu-skin",
-      "mushroom",
-      "sausage",
-      "quail-egg",
-      "rice-cake",
-      "ham"
+      "ing-egg",
+      "ing-bamboo-shoot",
+      "ing-meat",
+      "ing-bokchoy",
+      "ing-mushroom",
+      "ing-tofu-skin",
+      "ing-sausage",
+      "ing-quail-egg",
+      "ing-ricecake",
+      "ing-luncheon-meat"
+    ],
+    "food-lift": [
+      "food-lift-ricecake"
     ],
     "background": [
       "sky",
       "building-far",
-      "building-near",
-      "road",
       "streetlight"
     ],
     "fx": [
@@ -40,8 +33,7 @@
       "result-good",
       "result-mid",
       "result-bad"
-    ],
-    "ui": []
+    ]
   },
   "files": [
     "background/bg-building-row-1.png",
@@ -49,20 +41,39 @@
     "bowl/bowl-inner-mask.png",
     "bowl/bowl-outer.png",
     "bowl/chopsticks.png",
+    "bowl/food-lift-bokchoy.png",
+    "bowl/food-lift-meat.png",
+    "bowl/food-lift-noodle.png",
+    "bowl/food-lift-sausage.png",
+    "bowl/ing-fishcake.png",
+    "bowl/ing-green-onion.png",
+    "bowl/ing-narutomaki.png",
     "bowl/ing-noodle.png",
+    "bowl/ing-seaweed.png",
     "bowl/soup-fill.png",
     "fx/fx-soup-splash-small.png",
     "player/player-arm-lower-left.png",
     "player/player-arm-lower-right.png",
     "player/player-arm-upper-left.png",
     "player/player-arm-upper-right.png",
+    "player/player-foot-left.png",
+    "player/player-foot-right.png",
+    "player/player-hand-left.png",
+    "player/player-hand-right.png",
     "player/player-head.png",
+    "player/player-scarf.png",
+    "player/player-shin-left.png",
+    "player/player-shin-right.png",
+    "player/player-thigh-left.png",
+    "player/player-thigh-right.png",
     "player/player-torso.png",
-    "unicycle/unicycle-frame.png",
-    "unicycle/unicycle-seat.png",
     "ui/ui-btn-eat.png",
     "ui/ui-btn-left.png",
     "ui/ui-btn-right.png",
+    "unicycle/unicycle-frame.png",
+    "unicycle/unicycle-pedal-left.png",
+    "unicycle/unicycle-pedal-right.png",
+    "unicycle/unicycle-seat.png",
     "unicycle/unicycle-wheel.png"
   ]
 }
