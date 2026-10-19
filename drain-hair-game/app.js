@@ -133,7 +133,17 @@
     },
 
     /* ---- 길이 돌파 연출 ---- */
-    milestones: [50, 100, 150, 180, 220, 260],
+    /* 한 줄로 안 끊고 여기까지 오면 한 번 알린다. 총 길이가 아니라 '지금
+       이어진 길이' 가 기준이다 — 끊어 모은 200cm 는 쳐 주지 않는다.
+       한 번 잡아 끌 수 있는 거리는 30cm 남짓이라, 100cm 부터는 손을 놓지
+       않고 안팎으로 왕복해 뽑아야 닿는다. 그래서 셋뿐이다. */
+    milestones: [
+      { cm: 100, sub: "이게 아직도 나온다고?" },
+      { cm: 150, sub: "아직도 안 끊겼다" },
+      { cm: 200, sub: "전설의 머리카락" },
+    ],
+    /* 다음 목표 사다리 */
+    targets: [10, 20, 30, 50, 75, 100, 150, 200, 300],
 
     /* ---- 잡는 자리 ---- 끊을수록 좁아진다 */
     grabRadius: 150,              // 기본 반지름 (논리 px)
@@ -193,6 +203,8 @@
 
   /* 디버그 — 배포는 false */
   const DEBUG_GAME = false;
+  /* 브라우저에 남는 기록 한 칸 */
+  const BEST_KEY = "drainHairBestLongestPull";
   /* 클리어 연출이 순서대로 도는지 콘솔로 확인한다. 확인이 끝나면 false 로. */
   const CLEAR_LOG = true;
 
@@ -405,7 +417,7 @@
     piles: [],                    // 가닥들. 마지막 것이 지금 뽑는 가닥이다.
     mound: null,                  // 바닥에 쌓인 높이 (칸마다)
     tailT: 0,                     // 손 아래 줄을 푸는 데 밀린 시간
-    milestone: 0,                 // 다음에 알릴 돌파 길이의 번호
+    msDone: [],                   // 이번 판에 이미 알린 마일스톤 (한 판에 한 번)
     popScale: 0,                  // 돌파했을 때 숫자가 커졌다 돌아온다
     grab: null,                   // 잡은 자리 {x,y}
     outDir: { x: 0, y: 1 },       // 머리카락이 나오는 방향
@@ -426,7 +438,7 @@
     /* 연출 */
     fx: [], shake: 0, flash: 0,
     msg: "", msgLeft: 0, msgBad: false,
-    banner: "", bannerLeft: 0,
+    banner: "", bannerSub: "", bannerLeft: 0, bannerFull: 0.9,
     cleared: false,               // 한 번 치웠으면 계속 치워진 채로 둔다
     clearT: 0,                    // 배수 연출이 시작되고 지난 시간(초)
     /* 빨려 내려가는 물 한 겹 — 작아지고, 돌고, 옅어진다 */
@@ -436,12 +448,12 @@
     clogOut: 0,                   // 최종 덩어리가 빠져나온 정도 0~1
 
     /* 최고 기록 */
-    bestLength: 0, bestClean: 0,   // 점수는 안 센다 — 길이가 기록이다
+    /* 겨루는 기록은 하나다 — 한 줄로 안 끊고 뽑은 최장 길이 */
+    bestStreak: 0,
     fps: 0,
   };
   try {
-    S.bestLength = +(localStorage.getItem("ccojik_drain_length") || 0) || 0;
-    S.bestClean = +(localStorage.getItem("ccojik_drain_clean") || 0) || 0;
+    S.bestStreak = +(localStorage.getItem(BEST_KEY) || 0) || 0;
   } catch (_) {}
 
   const cv = $("cv"), ctx = cv.getContext("2d");
@@ -1107,8 +1119,7 @@
     /* CLEAR_DRAIN -> CLEAN_FADE -> RESULT */
     if (S.state === ST.CLEAR_DRAIN && S.clearT >= C.drain) {
       S.state = ST.CLEAN_FADE;
-      banner("시원하게 뚫렸다!", "");
-      S.bannerLeft = 0.7;
+      banner("시원하게 뚫렸다!", "", 0.7);
       sfx("result");
       clearLog("CLEAR_DRAIN complete");
       clearLog("CLEAN_FADE start");
@@ -1141,19 +1152,40 @@
   }
   function say(text, bad) { S.msg = text; S.msgBad = !!bad; S.msgLeft = 0.45; }
 
-  /* 길이 돌파 — 숫자가 한 번 커졌다 돌아오고 짧게 알린다 */
+  /* 한 줄로 여기까지 왔다 — 지금 이어진 길이(S.streak)가 기준이다.
+     한 판에 한 번씩만, 끊었다 다시 넘어도 다시 뜨지 않는다.
+     가운데 큰 숫자는 '총 뽑은 길이' 라 돌파 수와 다를 수 있어서 '한 줄' 을
+     앞에 붙였다. */
   function checkMilestone() {
-    const M = GAME_CONFIG.milestones;
-    while (S.milestone < M.length && S.extracted >= M[S.milestone]) {
-      const cm = M[S.milestone];
-      S.milestone++;
+    for (const m of GAME_CONFIG.milestones) {
+      if (S.streak < m.cm || S.msDone.indexOf(m.cm) >= 0) continue;
+      S.msDone.push(m.cm);
       S.popScale = 1;
-      say(cm + "cm 돌파!");
+      banner("한 줄 " + m.cm + "cm 돌파!", m.sub, 0.75);
       addFx("fxPopClean", curvePoint(0.5), 180);
-      buzz(12);
+      buzz(m.cm >= 200 ? 24 : 12);
+      sfx("knot_release");
     }
   }
-  function banner(t, sub) { S.banner = t; S.bannerSub = sub || ""; S.bannerLeft = 0.9; }
+  function banner(t, sub, dur) {
+    S.banner = t; S.bannerSub = sub || "";
+    S.bannerFull = dur || 0.9; S.bannerLeft = S.bannerFull;
+  }
+
+  /* 다음 목표 — 지금 기록 바로 위 칸 */
+  function getNextTarget(bestCm) {
+    for (const t of GAME_CONFIG.targets) if (bestCm < t) return t;
+    return Math.ceil(bestCm / 100) * 100 + 100;
+  }
+  /* 다시 해 볼 만한 한 줄 */
+  function ctaFor(best, cur, isBest) {
+    if (!isBest && best > cur) return "BEST까지 " + Math.round(best - cur) + "cm";
+    const t = getNextTarget(best);
+    if (t <= 100) return "이번엔 " + t + "cm 도전";
+    if (t <= 150) return t + "cm까지 가볼까요?";
+    if (t <= 200) return t + "cm 벽에 도전";
+    return "다음 목표 " + t + "cm";
+  }
 
   /* ============================================================
      진행
@@ -1586,19 +1618,34 @@
       g.fillText(S.msg, W / 2, y);
       g.restore();
     }
-    let big = "";
+    let big = "", sub = "";
     if (S.state === ST.READY) big = "READY";
-    else if (S.bannerLeft > 0) big = S.banner;
+    else if (S.bannerLeft > 0) { big = S.banner; sub = S.bannerSub; }
     if (big) {
-      const size = Math.max(24, Math.min(W * 0.12, H * 0.07));
+      /* 한 번 커졌다 돌아오고, 떴다 사라진다 (0 -> 1 -> 0) */
+      const k = S.state === ST.READY ? 0.5
+        : clamp(1 - S.bannerLeft / Math.max(0.01, S.bannerFull), 0, 1);
+      const a = S.state === ST.READY ? 1
+        : clamp(Math.min(k / 0.16, (1 - k) / 0.26), 0, 1);
+      const pop = 1 + Math.sin(clamp(k / 0.45, 0, 1) * Math.PI) * 0.12;
+      const size = Math.max(24, Math.min(W * 0.12, H * 0.07)) * pop;
+      const y = H * 0.38;
       g.save();
-      g.globalAlpha = S.state === ST.READY ? 1 : Math.min(1, S.bannerLeft * 3);
+      g.globalAlpha = a;
       g.font = "800 " + size + "px Pretendard, sans-serif";
       g.lineWidth = Math.max(5, size * 0.26);
       g.strokeStyle = "rgba(255,255,255,.95)";
-      g.strokeText(big, W / 2, H * 0.38);
-      g.fillStyle = big === "CLEAR!" ? "#1C9A46" : "#1A1A16";
-      g.fillText(big, W / 2, H * 0.38);
+      g.strokeText(big, W / 2, y);
+      g.fillStyle = "#1A1A16";
+      g.fillText(big, W / 2, y);
+      if (sub) {
+        const s2 = size * 0.42;
+        g.font = "800 " + s2 + "px Pretendard, sans-serif";
+        g.lineWidth = Math.max(4, s2 * 0.3);
+        g.strokeText(sub, W / 2, y + size * 0.78);
+        g.fillStyle = "#4A5A5E";
+        g.fillText(sub, W / 2, y + size * 0.78);
+      }
       g.restore();
     }
   }
@@ -1694,7 +1741,7 @@
     S.mound = new Float64Array(MOUND_BINS);
     newPile();
 
-    S.milestone = 0; S.popScale = 0;
+    S.msDone.length = 0; S.popScale = 0;
     S.shake = 0; S.flash = 0;
     S.msg = ""; S.msgLeft = 0;
     S.banner = ""; S.bannerLeft = 0;
@@ -1727,7 +1774,12 @@
     const length = Math.round(S.extracted);
     const streak = Math.round(S.streakBest);
     const clean = Math.round(clamp(S.clean, 0, 100));
-    const rec = length > S.bestLength;
+    /* 겨루는 건 한 줄 최장이다 */
+    const prevBest = S.bestStreak;
+    const rec = streak > prevBest;
+    if (rec) S.bestStreak = streak;
+    const best = S.bestStreak;
+    const next = getNextTarget(best);
 
     $("resTitle").textContent = cleared ? "배수구 청소 완료!" : "시간 종료!";
     $("resTitle").classList.toggle("fail", !cleared);
@@ -1735,6 +1787,9 @@
     $("rLength").textContent = length + "cm";
     $("rStreak").textContent = streak + "cm";
     $("rClean").textContent = clean + "%";
+    $("rBest").textContent = best + "cm";
+    $("rNext").textContent = next + "cm";
+    $("rCta").textContent = ctaFor(best, streak, rec);
 
     const art = snapResult(clean);
     const box = $("resultArt");
@@ -1742,14 +1797,9 @@
     art.className = "result-art-cv";
     box.appendChild(art);
     lastArt = art;
-    lastInfo = { length, streak, clean };
+    lastInfo = { length, streak, clean, best, next };
 
-    S.bestLength = Math.max(S.bestLength, length);
-    S.bestClean = Math.max(S.bestClean, clean);
-    try {
-      localStorage.setItem("ccojik_drain_length", String(S.bestLength));
-      localStorage.setItem("ccojik_drain_clean", String(S.bestClean));
-    } catch (_) {}
+    try { localStorage.setItem(BEST_KEY, String(S.bestStreak)); } catch (_) {}
     paintBest();
     sfx("result");
     $("endOver").hidden = false;
@@ -1772,9 +1822,15 @@
     return c;
   }
 
-  /* 시작 화면의 BEST — 점수를 안 세니 제일 길게 뽑은 길이가 기록이다 */
+  /* 시작 화면의 BEST — 한 줄로 제일 길게 뽑은 길이가 기록이다 */
   function paintBest() {
-    $("bestStart").textContent = S.bestLength ? S.bestLength + "cm" : "-";
+    $("bestStart").textContent = S.bestStreak ? S.bestStreak + "cm" : "-";
+  }
+  /* 개발용 — 기록을 지운다 (화면에 버튼은 없다) */
+  function resetBestLongestPull() {
+    S.bestStreak = 0;
+    try { localStorage.removeItem(BEST_KEY); } catch (_) {}
+    paintBest();
   }
 
   /* ============================================================
@@ -1800,16 +1856,19 @@
       const w = 620, h = lastArt.height / lastArt.width * w;
       g.drawImage(lastArt, 540 - w / 2, 290, w, h);
     }
-    const info = lastInfo || { clean: 0, length: 0, streak: 0 };
+    const info = lastInfo || { clean: 0, length: 0, streak: 0, best: 0, next: 10 };
     /* 길이를 제일 크게 — 공유 카드에서 제일 먼저 읽히는 숫자다 */
     g.font = "800 190px Pretendard, sans-serif";
     g.fillText(info.length + "cm", 540, 1000);
     g.font = "800 52px Pretendard, sans-serif";
     g.fillText("총 " + info.length + "cm 뽑았습니다!", 540, 1088);
     g.font = "800 46px Pretendard, sans-serif";
-    g.fillText("한 줄 최장 " + info.streak + "cm · 청소율 " + info.clean + "%", 540, 1158);
+    g.fillText("한 줄 최장 " + info.streak + "cm · 청소율 " + info.clean + "%", 540, 1152);
     g.font = "800 44px Pretendard, sans-serif";
-    g.fillText("꼬직", 540, 1272);
+    g.fillStyle = "#4A5A5E";
+    g.fillText("다음 목표 " + info.next + "cm", 540, 1216);
+    g.fillStyle = "#1A1A16";
+    g.fillText("꼬직", 540, 1280);
     return c;
   }
 
@@ -1939,6 +1998,7 @@
     grabRadius, tipRest, addFx, snapResult, buildCard, shareResult,
     isCoarse: () => coarse, setCoarse: v2 => { coarse = v2; },
     drawHero, paintBest, toLogical, visH, has, loadAssets, render,
+    getNextTarget, ctaFor, checkMilestone, resetBestLongestPull, BEST_KEY,
     openHow, closeHow, howOpen: () => showHowToPlay,
     assetsReady: () => assetsReady,
   });

@@ -63,15 +63,24 @@
     <!-- 결과 -->
     <div class="over over-end" id="endOver" hidden>
       <p class="res-cap" id="resTitle">배수구 청소 완료!</p>
-      <p class="new-rec" id="newRec" hidden>NEW RECORD!</p>
       <div class="result-art" id="resultArt"></div>
       <!-- 세 숫자만 남긴다. 제일 먼저 읽혀야 하는 건 총 길이다. -->
       <p class="len-cap">총 뽑은 머리카락</p>
       <p class="len-hero" id="rLength">0cm</p>
       <div class="len-row">
-        <div><p class="len-cap">한 줄로 최장</p><p class="len-big alt" id="rStreak">0cm</p></div>
+        <div>
+          <p class="len-cap">한 줄로 최장</p>
+          <p class="len-big alt" id="rStreak">0cm</p>
+          <p class="new-rec" id="newRec" hidden>NEW BEST!</p>
+        </div>
         <div><p class="len-cap">청소율</p><p class="len-big" id="rClean">0%</p></div>
       </div>
+      <!-- 다시 할 이유 — 내 기록과 바로 위 목표 -->
+      <dl class="rec">
+        <div><dt>BEST 한 줄</dt><dd id="rBest">-</dd></div>
+        <div><dt>다음 목표</dt><dd id="rNext">-</dd></div>
+      </dl>
+      <p class="rec-cta" id="rCta"></p>
       <div class="res-btns">
         <button class="btn big" type="button" id="againBtn">다시 뽑기</button>
         <button class="btn ghost" type="button" id="shareBtn">결과 공유</button>

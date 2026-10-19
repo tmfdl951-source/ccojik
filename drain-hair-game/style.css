@@ -214,8 +214,8 @@ body { display: flex; align-items: center; justify-content: center; }
 }
 .res-cap.fail { color: var(--red); }
 .new-rec {
-  font-weight: 800; letter-spacing: .08em;
-  font-size: clamp(15px, min(5vw, 2.6vh), 23px);
+  font-weight: 800; letter-spacing: .06em;
+  font-size: clamp(11px, min(3.6vw, 1.9vh), 16px);
   color: var(--red);
   animation: recIn .32s cubic-bezier(.2, 1.6, .4, 1) 1, rec .7s steps(2, end) .32s infinite;
 }
@@ -255,6 +255,28 @@ body { display: flex; align-items: center; justify-content: center; }
   font-size: clamp(31px, min(10.5vw, 5.4vh), 60px); line-height: 1.02;
 }
 .len-big.alt { color: var(--green); }
+
+/* 기록 칸 — 이번 판 숫자와 구분되게 선 하나 긋고 작게 */
+.rec {
+  width: 100%; max-width: 320px;
+  margin-top: clamp(2px, .6vh, 6px);
+  padding-top: clamp(4px, .9vh, 9px);
+  border-top: 3px solid var(--ink);
+  display: flex; justify-content: center; gap: clamp(18px, 7vw, 46px);
+  font-size: clamp(11px, min(3.4vw, 1.8vh), 15px);
+  color: var(--gray);
+}
+.rec div { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.rec dt { font-weight: 700; letter-spacing: .03em; }
+.rec dd {
+  color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums;
+  font-size: clamp(17px, min(5.4vw, 2.8vh), 26px); line-height: 1.1;
+}
+/* 다시 할 이유 한 줄 — 버튼 바로 위 */
+.rec-cta {
+  font-weight: 800; color: var(--point-ink, var(--ink));
+  font-size: clamp(12px, min(3.8vw, 2vh), 17px);
+}
 
 .res-btns {
   width: 100%; max-width: 360px;
@@ -301,6 +323,8 @@ body { display: flex; align-items: center; justify-content: center; }
   .over { gap: clamp(4px, 1vh, 8px); }
   .len-hero { font-size: clamp(34px, 12vh, 54px); }
   .len-big { font-size: clamp(24px, 8vh, 38px); }
+  .rec { margin-top: 0; padding-top: 4px; }
+  .rec dd { font-size: clamp(15px, 5.6vh, 22px); }
   .result-art { min-height: 56px; max-height: 22%; }
   .res-btns { flex-direction: row; max-width: none; }
   .btn { padding: clamp(7px, 1.4vh, 12px) clamp(14px, 4vw, 26px); }
