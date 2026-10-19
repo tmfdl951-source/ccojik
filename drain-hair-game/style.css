@@ -23,6 +23,7 @@ html, body {
   color: var(--ink);
   font-family: var(--f);
   -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;      /* 길게 눌러도 메뉴가 안 뜨게 */
   overflow: hidden;                 /* 페이지가 통째로 밀리지 않게 */
   overscroll-behavior: none;        /* 당겨서 새로고침 차단 */
   word-break: keep-all;             /* 한글이 단어 중간에서 안 끊기게 */
@@ -34,6 +35,11 @@ body { display: flex; align-items: center; justify-content: center; }
   position: relative;
   width: min(520px, 100vw);
   height: 100dvh;
+  /* 머리카락을 끄는 동안 페이지가 밀리거나 당겨서 새로고침되면 안 된다.
+     #cv 에만 걸면 덮개(.over)나 HUD 를 짚고 끌 때가 새는데, 여기 한 겹
+     더 두면 그 길이 막힌다. 버튼은 .btn 에서 manipulation 으로 되돌린다. */
+  touch-action: none;
+  overscroll-behavior: contain;
   background: var(--paper);
   border-left: 4px solid var(--ink);
   border-right: 4px solid var(--ink);
@@ -41,6 +47,8 @@ body { display: flex; align-items: center; justify-content: center; }
   display: flex; flex-direction: column;
   gap: clamp(5px, 1.1vh, 11px);
   padding: clamp(8px, 1.6vh, 16px) clamp(8px, 2.6vw, 16px);
+  /* 노치와 홈 인디케이터 — 화면 여백이 없는 기기에서는 0 이라 안 밀린다 */
+  padding-top: calc(clamp(8px, 1.6vh, 16px) + env(safe-area-inset-top, 0px));
   padding-bottom: calc(clamp(8px, 1.6vh, 16px) + env(safe-area-inset-bottom, 0px));
 }
 
@@ -80,6 +88,8 @@ body { display: flex; align-items: center; justify-content: center; }
   flex: 1 1 auto; min-height: 0; position: relative;
   border: 4px solid var(--ink); background: var(--tile);
   overflow: hidden;
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 #cv {
   position: absolute; inset: 0; width: 100%; height: 100%;
@@ -269,6 +279,19 @@ body { display: flex; align-items: center; justify-content: center; }
 @media (max-height: 640px) {
   .over-end { gap: clamp(3px, .8vh, 7px); }
   .result-art { min-height: 70px; max-height: 25%; }
+}
+
+/* 가로로 들었을 때 한 줄 — 막지 않고 알려만 준다 */
+.turn-tip {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 8;
+  padding: 3px 0 calc(3px + env(safe-area-inset-bottom, 0px));
+  background: var(--ink); color: var(--paper);
+  font-size: 11px; font-weight: 700; text-align: center; letter-spacing: .02em;
+  pointer-events: none;
+  display: none;
+}
+@media (max-height: 460px) and (orientation: landscape) {
+  .turn-tip { display: block; }
 }
 
 /* 아주 낮은 화면(가로로 든 휴대폰) — 설명부터 접는다. 버튼은 반드시 남긴다. */

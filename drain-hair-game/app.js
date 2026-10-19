@@ -139,6 +139,15 @@
     grabRadius: 150,              // 기본 반지름 (논리 px)
     grabShrink: [1, 0.85, 0.7, 0.6],
 
+    /* ---- 손가락 ----
+       보이는 머리카락은 얇게 두고 잡히는 범위만 넓힌다. 손가락은 끝을 가리기도
+       해서, 터치일 때는 짚은 자리보다 조금 위를 잡은 것으로 친다. 잡는 자리와
+       당기는 자리를 같은 값으로 옮기므로 물리는 어긋나지 않는다. */
+    touch: {
+      grabMul: 1.5,               // 터치면 잡히는 반지름이 이만큼 넓어진다
+      lift: 26,                   // 손가락 위로 이만큼(화면 px) 올려 잡는다
+    },
+
     /* ---- 연출 ---- */
     fxTime: 0.34,                 // FX 한 장이 보이는 시간(초)
     maxFx: 10,
@@ -187,8 +196,12 @@
   /* 클리어 연출이 순서대로 도는지 콘솔로 확인한다. 확인이 끝나면 false 로. */
   const CLEAR_LOG = true;
 
-  /* 논리 좌표계 */
+  /* 논리 좌표계.
+     배율은 높이로 잡는다 — 그래야 데스크탑과 모바일의 화면 구성이 같다.
+     다만 아주 좁고 긴 판(가로/세로 < 0.45)에서는 배수구가 폭을 넘으므로
+     그때만 폭으로도 묶는다. 흔한 비율에서는 걸리지 않는다. */
   const REF_H = 1920;
+  const REF_W = 860;
   const DRAIN_R = 380;            // 배수구 반지름 (논리 px)
   const DRAIN_Y = -210;           // 배수구 중심이 화면 가운데서 얼마나 위인가
 
@@ -440,7 +453,7 @@
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     W = Math.round(r.width); H = Math.round(r.height);
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-    sc = H / REF_H;
+    sc = Math.min(H / REF_H, W / REF_W);
     return true;
   }
   addEventListener("resize", fitCanvas);
@@ -530,7 +543,8 @@
   }
   const grabRadius = () => {
     const g = GAME_CONFIG;
-    return g.grabRadius * g.grabShrink[Math.min(g.grabShrink.length - 1, S.breaks)];
+    return g.grabRadius * g.grabShrink[Math.min(g.grabShrink.length - 1, S.breaks)]
+      * (coarse ? g.touch.grabMul : 1);
   };
   /* 끝부분이 쉬고 있는 자리 — 구멍에서 조금 나온 상태 */
   function tipRest() {
@@ -797,9 +811,18 @@
   /* ============================================================
      손 입력 — 포인터 하나로 마우스·터치를 함께 받는다
      ============================================================ */
+  /* 마우스인가 손가락인가. 처음엔 기기에 물어보고, 그 뒤로는 실제로 들어온
+     이벤트를 따른다 (태블릿에 마우스를 꽂는 경우가 있다). */
+  let coarse = false;
+  try { coarse = !!(matchMedia && matchMedia("(pointer: coarse)").matches); } catch (_) {}
+
+  /* 화면 좌표 -> 논리 좌표. 캔버스가 CSS 로 늘어나 있어도 getBoundingClientRect
+     기준이라 어긋나지 않는다. 터치면 손가락 위쪽을 짚은 것으로 친다. */
   function pos(e) {
     const r = cv.getBoundingClientRect();
-    return toLogical(e.clientX - r.left, e.clientY - r.top);
+    const lift = e && e.pointerType && e.pointerType !== "mouse"
+      ? GAME_CONFIG.touch.lift : 0;
+    return toLogical(e.clientX - r.left, e.clientY - r.top - lift);
   }
   const playing = () => [ST.SEARCHING, ST.GRABBED, ST.PULLING, ST.TENSION,
                          ST.REGRAB, ST.FINAL_CLOG].includes(S.state);
@@ -807,6 +830,7 @@
   const clearing = () => S.state === ST.CLEAR_DRAIN || S.state === ST.CLEAN_FADE;
 
   cv.addEventListener("pointerdown", e => {
+    if (e.pointerType) coarse = e.pointerType !== "mouse";
     if (!playing()) return;
     e.preventDefault();
     const p = pos(e);
@@ -1904,7 +1928,7 @@
   /* 검사용으로만 들여다본다 */
   window.__drain = () => ({
     S, GAME_CONFIG, PRESETS, MEGA, MEGA_CHANCE, ST, BOX, IMGS, SFX, DIR,
-    ASSET_VERSION, DEBUG_GAME, REF_H, DRAIN_R, DRAIN_Y,
+    ASSET_VERSION, DEBUG_GAME, REF_H, REF_W, DRAIN_R, DRAIN_Y,
     start, timeOver, showResult, doBreak, doClear, release, buildHair, newTip,
     stepClear, suckK, cleanK, swallowK, clearing, drawClearFx, CLEAR_ART,
     buildSegments,
@@ -1913,6 +1937,7 @@
     stepChain, stepTension,
     checkMilestone, drawStrand, drawOldPiles, drawBits,
     grabRadius, tipRest, addFx, snapResult, buildCard, shareResult,
+    isCoarse: () => coarse, setCoarse: v2 => { coarse = v2; },
     drawHero, paintBest, toLogical, visH, has, loadAssets, render,
     openHow, closeHow, howOpen: () => showHowToPlay,
     assetsReady: () => assetsReady,
