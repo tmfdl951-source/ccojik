@@ -139,26 +139,6 @@
     grabRadius: 150,              // 기본 반지름 (논리 px)
     grabShrink: [1, 0.85, 0.7, 0.6],
 
-    /* ---- 채점 (100점) ---- */
-    /* ---- 채점 (100점) ----
-       이 게임이 묻는 건 '끊지 않고 얼마나 길게 뽑았나' 다. 그래서 한 줄로
-       최장이 절반을 가져간다. 청소율은 거들 뿐이고, 끊으면 깎인다.
-       (예전엔 청소 50 / 끊김 25 / 시간 15 / 연속 10 이라 묻는 것과
-        재는 것이 달랐다. 짧게 여러 번 끊어 뽑아도 점수가 높았다.) */
-    score: {
-      /* 눈금은 실제로 나오는 값에 맞춰 둔다.
-         한 번 잡으면 구멍에서 visMax(720px) 까지밖에 못 끄니, 잡았다 놓기를
-         되풀이하는 손놀림으로는 한 줄에 30cm 남짓이 끝이다. 200cm 를 만점으로
-         두면 50점짜리 칸이 8점짜리 칸이 되어 윗 등급이 아무도 못 받는 칸이 됐다.
-         손을 놓지 않고 안팎으로 왕복하면 한 줄이 90cm 넘게 이어지므로,
-         '안 놓고 계속 뽑는' 손놀림이 만점을 가져가게 90 으로 잡았다. */
-      longest: 50, longestAt: 90,
-      /* 합계는 한 판에서 뽑아야 할 양이 천장이다 (cleanTargetCm). */
-      total: 25,   totalAt: 195,
-      clean: 20,                     // 청소율 1% 당 0.2점
-      breakPenalty: 2,               // 한 번 끊길 때마다 -2점
-    },
-
     /* ---- 연출 ---- */
     fxTime: 0.34,                 // FX 한 장이 보이는 시간(초)
     maxFx: 10,
@@ -180,19 +160,6 @@
   const MEGA = { key: "MEGA HAIR", total: 290, knots: 4, grimes: 5, resMul: 1.06,
                  clogAt: 0.86, mega: true, bigClog: true };
   const MEGA_CHANCE = 0.1;
-
-  /* 등급 — 점수로 갈린다 */
-  /* 점수대가 바뀌어서 칸도 다시 잡았다. 새 공식은 몫의 합이 95라 만점이 95고,
-     판 길이가 140~290cm 라 "한 줄 200cm" 만점은 긴 판에서나 닿는다.
-     그래서 95/85/70/50 을 그대로 두면 위 두 칸이 아무도 못 받는 칸이 된다.
-     실제로 나오는 값에 맞춰 내렸다 (180cm 를 한 번에 뽑으면 78점). */
-  const GRADES = [
-    { min: 78, title: "배수구 구조대",        remark: "이 정도면 기사님입니다." },
-    { min: 60, title: "한 번에 쑤욱",          remark: "손맛 좀 아시네요." },
-    { min: 42, title: "제법 깔끔함",           remark: "물이 내려가긴 합니다." },
-    { min: 24, title: "아직 뭐가 남아있는데?", remark: "다시 한 번 들여다보세요." },
-    { min: 0,  title: "그냥 업체 부르세요",    remark: "더 건드리면 큰일 납니다." },
-  ];
 
   /* 디버그 — 배포는 false */
   const DEBUG_GAME = false;
@@ -408,13 +375,10 @@
     clogOut: 0,                   // 최종 덩어리가 빠져나온 정도 0~1
 
     /* 최고 기록 */
-    bestScore: 0, bestLength: 0, bestClean: 0,
+    bestLength: 0, bestClean: 0,   // 점수는 안 센다 — 길이가 기록이다
     fps: 0,
   };
   try {
-    /* 점수 공식이 바뀌어서 옛 기록과는 견줄 수 없다. 칸을 새로 판다
-       (길이·청소율은 잰 값 그대로라 그대로 쓴다). */
-    S.bestScore = +(localStorage.getItem("ccojik_drain_score_v2") || 0) || 0;
     S.bestLength = +(localStorage.getItem("ccojik_drain_length") || 0) || 0;
     S.bestClean = +(localStorage.getItem("ccojik_drain_clean") || 0) || 0;
   } catch (_) {}
@@ -1454,56 +1418,34 @@
     setTimeout(() => showResult(false), 600);
   }
 
-  const gradeFor = n => GRADES.find(g => n >= g.min) || GRADES[GRADES.length - 1];
-
-  function scoreOf() {
-    const C = GAME_CONFIG.score;
-    const cleared = S.clean >= 100;
-    /* 한 줄로 최장 — 제일 큰 몫. cm 로 바로 잰다 (판 길이에 안 묶인다). */
-    const streak = C.longest * clamp(S.streakBest / C.longestAt, 0, 1);
-    const length = C.total * clamp(S.extracted / C.totalAt, 0, 1);
-    const clean = C.clean * clamp(S.clean / 100, 0, 1);
-    const brk = -(S.breaks * C.breakPenalty);
-    return {
-      total: clamp(Math.round(streak + length + clean + brk), 0, 100),
-      streak, length, clean, brk, cleared,
-    };
-  }
-
   let lastArt = null, lastInfo = null;
   function showResult(cleared) {
     if (S.state === ST.RESULT) return;
     S.state = ST.RESULT;
-    const sc2 = scoreOf();
-    const G = gradeFor(sc2.total);
-    const rec = sc2.total > S.bestScore;
+    /* 보여 주는 건 세 숫자뿐이다 — 얼마나 뽑았나 / 한 줄로 얼마나 / 얼마나 치웠나 */
+    const length = Math.round(S.extracted);
+    const streak = Math.round(S.streakBest);
+    const clean = Math.round(clamp(S.clean, 0, 100));
+    const rec = length > S.bestLength;
 
     $("resTitle").textContent = cleared ? "배수구 청소 완료!" : "시간 종료!";
     $("resTitle").classList.toggle("fail", !cleared);
     $("newRec").hidden = !rec;
-    $("finalScore").textContent = sc2.total;
-    $("gradeLabel").textContent = G.title;
-    $("remark").textContent = G.remark;
-    $("rClean").textContent = Math.floor(S.clean) + "%";
-    $("rLength").textContent = Math.floor(S.extracted) + "cm";
-    $("rStreak").textContent = Math.floor(S.streakBest) + "cm";
-    $("rBreak").textContent = S.breaks + "회";
-    $("rTime").textContent = S.elapsed.toFixed(1) + "초";
+    $("rLength").textContent = length + "cm";
+    $("rStreak").textContent = streak + "cm";
+    $("rClean").textContent = clean + "%";
 
-    const art = snapResult(sc2.total);
+    const art = snapResult(clean);
     const box = $("resultArt");
     box.innerHTML = "";
     art.className = "result-art-cv";
     box.appendChild(art);
     lastArt = art;
-    lastInfo = { score: sc2.total, grade: G, clean: Math.floor(S.clean),
-                 length: Math.floor(S.extracted), streak: Math.floor(S.streakBest) };
+    lastInfo = { length, streak, clean };
 
-    if (rec) { S.bestScore = sc2.total; sfx("result"); }
-    S.bestLength = Math.max(S.bestLength, Math.floor(S.extracted));
-    S.bestClean = Math.max(S.bestClean, Math.floor(S.clean));
+    S.bestLength = Math.max(S.bestLength, length);
+    S.bestClean = Math.max(S.bestClean, clean);
     try {
-      localStorage.setItem("ccojik_drain_score_v2", String(S.bestScore));
       localStorage.setItem("ccojik_drain_length", String(S.bestLength));
       localStorage.setItem("ccojik_drain_clean", String(S.bestClean));
     } catch (_) {}
@@ -1512,16 +1454,16 @@
     $("endOver").hidden = false;
   }
 
-  /* 결과 그림 — 성공도에 따라 다른 PNG */
-  function snapResult(score) {
+  /* 결과 그림 — 청소율에 따라 다른 PNG (예전엔 점수로 골랐다) */
+  function snapResult(clean) {
     const c = document.createElement("canvas");
     c.width = 560; c.height = 560;
     const g = c.getContext("2d");
     g.imageSmoothingEnabled = true;
     try { g.imageSmoothingQuality = "high"; } catch (_) {}
     g.translate(280, 280);
-    const key = score >= 85 ? "resultDrainClean"
-              : score >= 50 ? "resultClogPile" : "resultDrainDirty";
+    const key = clean >= 85 ? "resultDrainClean"
+              : clean >= 50 ? "resultClogPile" : "resultDrainDirty";
     if (!draw(g, key, 0, 0, 480, { mode: "center" })) {
       g.fillStyle = "#8A8A82";
       g.beginPath(); g.ellipse(0, 0, 220, 220, 0, 0, 7); g.fill();
@@ -1529,10 +1471,9 @@
     return c;
   }
 
+  /* 시작 화면의 BEST — 점수를 안 세니 제일 길게 뽑은 길이가 기록이다 */
   function paintBest() {
-    const t = S.bestScore ? S.bestScore + "점 · " + S.bestLength + "cm" : "-";
-    $("bestStart").textContent = t;
-    $("bestEnd").textContent = t;
+    $("bestStart").textContent = S.bestLength ? S.bestLength + "cm" : "-";
   }
 
   /* ============================================================
@@ -1553,20 +1494,19 @@
     g.textAlign = "center"; g.fillStyle = "#1A1A16";
     g.font = "800 62px Pretendard, sans-serif";
     g.fillText("배수구 머리카락", 540, 150);
-    g.fillText("몇 점?", 540, 228);
+    g.fillText("뽑기", 540, 228);
     if (lastArt) {
       const w = 620, h = lastArt.height / lastArt.width * w;
       g.drawImage(lastArt, 540 - w / 2, 290, w, h);
     }
-    const info = lastInfo || { score: 0, grade: GRADES[4], clean: 0, length: 0, streak: 0 };
+    const info = lastInfo || { clean: 0, length: 0, streak: 0 };
     /* 길이를 제일 크게 — 공유 카드에서 제일 먼저 읽히는 숫자다 */
     g.font = "800 190px Pretendard, sans-serif";
     g.fillText(info.length + "cm", 540, 1000);
-    g.font = "800 50px Pretendard, sans-serif";
-    g.fillText(info.score + "점 · 청소율 " + info.clean + "% · 최장 " +
-      (info.streak || 0) + "cm", 540, 1082);
-    g.font = "800 68px Pretendard, sans-serif";
-    g.fillText(info.grade.title, 540, 1185);
+    g.font = "800 52px Pretendard, sans-serif";
+    g.fillText("총 " + info.length + "cm 뽑았습니다!", 540, 1088);
+    g.font = "800 46px Pretendard, sans-serif";
+    g.fillText("한 줄 최장 " + info.streak + "cm · 청소율 " + info.clean + "%", 540, 1158);
     g.font = "800 44px Pretendard, sans-serif";
     g.fillText("꼬직", 540, 1272);
     return c;
@@ -1686,15 +1626,15 @@
 
   /* 검사용으로만 들여다본다 */
   window.__drain = () => ({
-    S, GAME_CONFIG, PRESETS, MEGA, MEGA_CHANCE, GRADES, ST, BOX, IMGS, SFX, DIR,
+    S, GAME_CONFIG, PRESETS, MEGA, MEGA_CHANCE, ST, BOX, IMGS, SFX, DIR,
     ASSET_VERSION, DEBUG_GAME, REF_H, DRAIN_R, DRAIN_Y,
     start, timeOver, showResult, doBreak, doClear, release, buildHair, newTip,
     buildSegments,
     resistanceNow, segmentName, curvePoint, topY, botY,
     activeCm, chainCm, newPile, strandPoint, stepTail, floorAt, SEG, MOUND_BINS,
-    stepChain, stepTension, scoreOf,
+    stepChain, stepTension,
     checkMilestone, drawStrand, drawOldPiles, drawBits,
-    gradeFor, grabRadius, tipRest, addFx, snapResult, buildCard, shareResult,
+    grabRadius, tipRest, addFx, snapResult, buildCard, shareResult,
     drawHero, paintBest, toLogical, visH, has, loadAssets, render,
     openHow, closeHow, howOpen: () => showHowToPlay,
     assetsReady: () => assetsReady,
