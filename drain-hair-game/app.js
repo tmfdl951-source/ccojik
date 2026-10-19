@@ -57,10 +57,9 @@
       sag: 150,                   // 장력이 0 일 때 늘어지는 정도 (논리 px)
       visMin: 150,                // 보이는 줄기의 최소 길이
       visMax: 720,                // 보이는 줄기의 최대 길이 — 화면 밖으로 안 나가게
-      visCm: 6,                   // 구멍에서 손까지의 구간이 나타내는 길이(cm).
-                                  // 이걸 넘는 만큼은 바닥에 쌓인다. 작게 잡아야
-                                  // 당기는 중에도 더미가 줄지 않고 계속 자란다
-                                  // (당기는 구간이 늘어나는 속도 < 새로 나오는 속도).
+      /* visCm 은 걷어 냈다 — 구멍~손 구간의 길이는 이제 그리는 자(pxPerCm)로
+         바로 잰다. 예전엔 이 값을 넘는 만큼이 곧장 바닥으로 갔다. */
+
       cmPerPx: 0.018,             // 손끝이 1px 움직일 때 빠져나오는 길이(cm)
       /* 기준 길이. 290cm 짜리 판은 이 비율만큼 더 빨리 나온다 — 그래야
          긴 판이 '숫자만 큰 구경거리' 가 되고 '점수 깎이는 판' 이 안 된다. */
@@ -101,17 +100,26 @@
        한 자리에서 좌우로 늘어지며 겹친다. 길어질수록 폭·두께가 자라므로
        50cm 는 한 번 꺾인 S, 180cm 는 여덜 번 겹친 더미로 보인다. */
     pile: {
-      pxPerCm: 22,                // 1cm 가 바닥에서 차지하는 길이(px)
-      anchorY: 860,               // 쌓이는 자리 (구멍에서 이만큼 아래)
-      ampMin: 90, ampMax: 410,    // 좌우로 늘어지는 폭 — 끝쪽은 좁고 뒤쪽은 넓다
-      depthMin: 40, depthMax: 165,// 위아래 두께
-      full: 2600,                 // 이만큼 쌓이면 폭·두께가 다 자란다(px)
-      period: 950,                // 한 번 좌우로 왕복하는 길이(px)
-      ratio: 0.618,               // 위아래 흔들림 비율 — 겹쳐도 같은 자리에 안 겹친다
-      drift: 0.012, driftMax: 90, // 쌓일수록 아주 조금씩 내려앉는다
-      lineW: 12,                  // 바닥에 누운 줄의 두께
-      sag: 90,                    // 손에서 바닥까지 늘어지며 처지는 정도
-      shift: 46,                  // 끊긴 뒤 새 더미가 비껴 앉는 거리
+      /* 1cm 가 몇 px 인가. 손끝이 1px 움직일 때 나오는 길이(cmPerPx)의 역수로
+         잡는다. 그래야 당기는 만큼 줄이 자라고, 늘어진 만큼만 바닥에 닿는다.
+         (예전엔 22 였다. 손은 1px 가는데 줄은 0.4px 만 자라서 늘 팽팽했고,
+          남는 길이는 곧바로 바닥에 직선으로 그려졌다.) */
+      pxPerCm: 55,
+      anchorY: 860,               // 바닥 (구멍에서 이만큼 아래)
+      /* 손에 매달린 줄 — 중력으로 떨어뜨리고 마디 길이를 맞춘다 */
+      grav: 2600,                 // px/s^2
+      h: 1 / 120,                 // 푸는 간격 (고정이어야 안 튄다)
+      iter: 8,                    // 마디 맞추기 반복
+      air: 0.992,                 // 공기 저항
+      mu: 0.55,                   // 바닥 마찰 — 닿으면 그 자리에 눌러앉는다
+      bounce: 0.1,
+      moundGain: 0.5,             // 한 점이 처음 가라앉을 때 쌓이는 높이(px)
+      moundMax: 320,              // 더 이상 안 쌓인다
+      feed: 12,                   // 한 프레임에 손에서 나올 수 있는 마디 수
+      repose: 16,                 // 옆 칸과 이만큼 넘게 차이 나면 흘러내린다(px)
+      slide: 0.06,                // 비탈에서 옆으로 미끄러지는 정도
+      lineW: 12,                  // 줄 두께
+      shift: 46,
     },
 
     /* ---- 길이 돌파 연출 ---- */
@@ -340,8 +348,9 @@
     tipKind: "hairTipShort",
     nodes: [],                    // 사슬 마디 {x,y,vx,vy}
     bits: [],                     // 끊어질 때 튀는 짧은 파편
-    piles: [],                    // 바닥 더미. 마지막 것이 지금 뽑는 가닥이다.
-    activeLen: 0,                 // 구멍에서 손까지 당겨 나온 길이(cm)
+    piles: [],                    // 가닥들. 마지막 것이 지금 뽑는 가닥이다.
+    mound: null,                  // 바닥에 쌓인 높이 (칸마다)
+    tailT: 0,                     // 손 아래 줄을 푸는 데 밀린 시간
     milestone: 0,                 // 다음에 알릴 돌파 길이의 번호
     popScale: 0,                  // 돌파했을 때 숫자가 커졌다 돌아온다
     grab: null,                   // 잡은 자리 {x,y}
@@ -554,93 +563,167 @@
   }
 
   /* ============================================================
-     바닥에 쌓인 구간
-     ============================================================ */
-  const PILE_STEP = 10;                          // 점 사이 간격(px)
+     손 아래로 늘어진 구간 — 같은 머리카락이 이어진 것이다
 
-  /* 쌓이는 자리의 폭 — 좁은 화면에서 밖으로 삐져나가지 않게 */
-  function pileW() {
+     예전에는 '구멍~손' 이 나타낼 수 있는 길이(visCm)를 넘는 만큼을
+     곧바로 바닥에 그렸다. 그래서 끝이 바닥에 닿기도 전에 아래쪽에
+     긴 직선이 먼저 생겼고, '길이 수치를 보여 주는 선' 처럼 보였다.
+
+     이제는 손에 매달린 줄을 중력으로 떨어뜨린다(Verlet).
+     바닥에 닿은 점만 그 자리에 눌러앉고, 닿기 전에는 바닥에 아무것도
+     안 그린다. 쌓이는 모양은 '이미 쌓인 높이(mound)' 위에 얹히면서 생긴다.
+     ============================================================ */
+  /* 켜면 뿌리·끝·바닥선·줄의 점을 겹쳐 그린다. 끝이 어디까지인지,
+     바닥 쌓임이 언제 시작되는지 눈으로 보려고. */
+  const DEBUG_HAIR = false;
+
+  const SEG = 18;                                // 줄 마디 길이(px)
+
+  /* 쌓인 높이 — 바닥을 가로로 나눠 얼마나 쌓였는지 센다 */
+  const MOUND_BINS = 48, MOUND_W = 28;           // 칸 수 / 칸 너비(px)
+  function moundBin(x) {
+    return clamp(Math.round(x / MOUND_W) + (MOUND_BINS >> 1), 0, MOUND_BINS - 1);
+  }
+  function floorAt(x) {
     const T = GAME_CONFIG.pile;
-    if (!W || !sc) return T.ampMax;
-    return Math.max(T.ampMin + 60, Math.min(T.ampMax, (W / 2) / sc - 40));
+    return T.anchorY - (S.mound ? S.mound[moundBin(x)] : 0);
+  }
+  /* 너무 가파르면 옆으로 흘러내린다 (모래가 쌓이는 각도와 같은 이치).
+     이게 없으면 한 자리에 탑처럼 쌓이고 좌우로 안 퍼진다. */
+  function moundRelax() {
+    if (!S.mound) return;
+    const T = GAME_CONFIG.pile, m = S.mound;
+    for (let i = 0; i < MOUND_BINS - 1; i++) {
+      const d = m[i] - m[i + 1];
+      if (Math.abs(d) <= T.repose) continue;
+      const mv = (Math.abs(d) - T.repose) * 0.5 * Math.sign(d);
+      m[i] -= mv; m[i + 1] += mv;
+    }
   }
 
-  /* 사슬이 길어진 만큼 = 구멍에서 손까지 당겨 나온 길이(cm) */
+  function moundAdd(x, h) {
+    if (!S.mound) return;
+    const T = GAME_CONFIG.pile;
+    const b = moundBin(x);
+    for (let d = -2; d <= 2; d++) {
+      const i = b + d;
+      if (i < 0 || i >= MOUND_BINS) continue;
+      S.mound[i] = Math.min(T.moundMax, S.mound[i] + h * (d === 0 ? 1 : d === 1 || d === -1 ? 0.5 : 0.2));
+    }
+  }
+
+  /* 구멍에서 손까지가 나타내는 길이(cm) — 그리는 자와 같은 자 */
   function chainCm() {
-    const H = GAME_CONFIG.hair;
+    const T = GAME_CONFIG.pile;
     let len = 0;
     for (let i = 1; i < S.nodes.length; i++) {
       len += Math.hypot(S.nodes[i].x - S.nodes[i - 1].x,
                         S.nodes[i].y - S.nodes[i - 1].y);
     }
-    return Math.min(H.visCm, len / H.visMax * H.visCm);
+    return len / T.pxPerCm;
   }
-  /* 한 가닥 안에서는 줄지 않는다 (step 에서 올려만 준다) */
-  const activeCm = () => S.activeLen;
+  const activeCm = () => chainCm();
 
-  /* 새 가닥 — 끊어질 때마다 바닥 더미가 하나씩 늘어난다 */
+  /* 새 가닥 — 끊어질 때마다 앞 가닥은 바닥에 굳고 새 줄이 시작된다 */
   function newPile() {
-    const T = GAME_CONFIG.pile;
-    const n = S.piles.length;
-    const k = Math.min(3, n);
     S.piles.push({
       got: 0,                                    // 이 가닥으로 뽑은 길이(cm)
-      ox: (n % 2 ? 1 : -1) * k * T.shift * 0.5,  // 앞 더미 옆으로 비껴 앉는다
-      oy: -k * T.shift * 0.42,
-      ph: n * 2.1,                               // 모양이 겹쳐 보이지 않게
-      pts: [], laid: 0, wAt: 0,                  // 놓아 둔 점 — 다시 안 움직인다
+      pts: [],                                   // 손 아래 줄. 0 번이 손 쪽, 끝이 머리카락 끝.
+      live: 1,                                   // 아직 떨어지는 중인 점의 수 (앞쪽부터)
       frozen: false, tip: null, tipRot: 0,
     });
-    S.activeLen = 0;
+    S.tailT = 0;
   }
 
-  /* 바닥에 누운 줄 위의 한 점. s 는 '끝(제일 먼저 나온 쪽)' 에서의 길이(px).
-     s 로만 정해지므로 더 뽑아도 이미 놓인 부분은 그대로다. */
-  function pilePoint(p, s) {
+  /* ---- 한 걸음 ---- 손에 매달린 줄을 떨어뜨리고 마디 길이를 맞춘다 */
+  function tailSolve(cur, hand, h) {
     const T = GAME_CONFIG.pile;
-    const f = Math.min(1, s / T.full);           // 쌓일수록 넓고 두껍게 늘어진다
-    const A = T.ampMin + (pileW() - T.ampMin) * f;
-    const B = T.depthMin + (T.depthMax - T.depthMin) * f;
-    const th = s * (Math.PI * 2 / T.period) + p.ph;
-    return {
-      x: p.ox + A * Math.sin(th),
-      y: T.anchorY + p.oy + B * Math.sin(T.ratio * th + 0.7)
-         + Math.min(T.driftMax, s * T.drift),
-    };
-  }
-
-  /* 쌓인 줄의 점들 — 꼬리만 이어 붙이고 앞부분은 그대로 쓴다 */
-  function pilePts(p, lenPx) {
-    const w = pileW();
-    if (p.wAt !== w) { p.pts.length = 0; p.laid = 0; p.wAt = w; }
-    while (p.laid <= lenPx) {
-      p.pts.push(pilePoint(p, p.laid));
-      p.laid += PILE_STEP;
+    const pts = cur.pts;
+    if (pts.length < 2) return;
+    const g = T.grav * h * h;
+    /* 손에서 가까운 쪽(앞)만 움직인다 — 이미 바닥에 가라앉은 뒤쪽은 안 흔든다.
+       새 점은 손 쪽에 들어오므로 앞이 '아직 떨어지는 중' 이다. */
+    const hi = Math.min(pts.length, Math.max(2, cur.live));
+    for (let i = 1; i < hi; i++) {
+      const p = pts[i];
+      const vx = (p.x - p.px) * T.air, vy = (p.y - p.py) * T.air;
+      p.px = p.x; p.py = p.y;
+      p.x += vx; p.y += vy + g;
     }
-    return p.pts;
+    pts[0].x = hand.x; pts[0].y = hand.y; pts[0].px = hand.x; pts[0].py = hand.y;
+    for (let it = 0; it < T.iter; it++) {
+      for (let i = 0; i < Math.min(hi, pts.length - 1); i++) {
+        const a = pts[i], b = pts[i + 1];
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const L = Math.hypot(dx, dy) || 0.01;
+        const f = (L - SEG) / L;
+        if (i === 0) { b.x -= dx * f; b.y -= dy * f; continue; }  // 0 번은 손에 매였다
+        if (i + 1 >= hi) { a.x += dx * f; a.y += dy * f; continue; } // 뒤는 가라앉았다
+        a.x += dx * f * 0.5; a.y += dy * f * 0.5;
+        b.x -= dx * f * 0.5; b.y -= dy * f * 0.5;
+      }
+      pts[0].x = hand.x; pts[0].y = hand.y;
+      /* 바닥 — 이미 쌓인 높이 위에 얹힌다 */
+      for (let i = 1; i < hi; i++) {
+        const p = pts[i];
+        const fy = floorAt(p.x);
+        if (p.y <= fy) continue;
+        const vx = p.x - p.px, vy = p.y - p.py;
+        p.y = fy;
+        p.py = p.y + vy * T.bounce;
+        p.px = p.x - vx * (1 - T.mu);
+        /* 비탈이면 낮은 쪽으로 흘러내린다 */
+        const sl = floorAt(p.x - MOUND_W) - floorAt(p.x + MOUND_W);
+        p.x += sl * T.slide;
+        if (it === T.iter - 1 && !p.laid) { p.laid = true; moundAdd(p.x, T.moundGain); }
+      }
+    }
   }
 
-  /* 줄 위에서 '구멍에서 d cm 나온 자리'. 끊긴 뒤에도 그 가닥의 더미 위에
-     그대로 얹혀 있게 한다 — 매듭·오염물이 허공에 뜨지 않는다. */
+  function stepTail(dt) {
+    const T = GAME_CONFIG.pile;
+    const cur = S.piles[S.piles.length - 1];
+    if (!cur || cur.frozen) return;
+    const hand = curvePoint(1);
+    /* 손 아래에 남아 있어야 할 길이 = 뽑은 길이 - 구멍~손 구간 */
+    const want = Math.max(0, cur.got - chainCm()) * T.pxPerCm;
+    const need = Math.max(0, Math.round(want / SEG));
+    /* 길이는 '손 쪽' 에서만 넣고 뺀다. 이미 떨어진 끝은 그대로 둔다. */
+    /* 한 프레임에 들어오는 양을 묶어 둔다 — 한꺼번에 쏟으면 손에 뭉친다 */
+    let guard = 0;
+    while (cur.pts.length < need + 1 && guard++ < T.feed) {
+      cur.pts.unshift({ x: hand.x, y: hand.y, px: hand.x, py: hand.y });
+      cur.live++;
+    }
+    while (cur.pts.length > need + 1 && cur.pts.length > 1) { cur.pts.shift(); cur.live--; }
+    /* 가라앉은 점은 이제 안 움직인다 */
+    cur.live = Math.min(Math.max(1, cur.live), cur.pts.length);
+    while (cur.live > 1 && cur.pts[cur.live - 1].laid) cur.live--;
+    if (cur.pts.length) { cur.pts[0].x = hand.x; cur.pts[0].y = hand.y; }
+    moundRelax();
+    S.tailT = Math.min(S.tailT + dt, T.h * 5);
+    while (S.tailT >= T.h) { S.tailT -= T.h; tailSolve(cur, hand, T.h); }
+  }
+
+  /* 줄 위에서 '구멍에서 d cm 나온 자리'. 구멍~손 구간을 먼저 쓰고,
+     그 뒤는 손 아래 줄을 따라 간다. 끊긴 가닥에서도 같은 식으로 찾는다. */
   function strandPoint(d) {
     const T = GAME_CONFIG.pile;
-    const aCm = activeCm();
     let rem = d;
     for (let i = S.piles.length - 1; i >= 0; i--) {
       const p = S.piles[i];
       const mine = !p.frozen;
-      if (mine && rem <= aCm) {
-        const t = aCm > 0 ? clamp(rem / aCm, 0, 1) : 0;
+      const cm = mine ? chainCm() : 0;
+      if (mine && rem <= cm) {
+        const t = cm > 0 ? clamp(rem / cm, 0, 1) : 0;
         const q = curvePoint(t);
         return { x: q.x, y: q.y, t: t };
       }
       if (rem <= p.got || i === 0) {
-        const len = Math.max(0, mine ? p.got - aCm : p.got) * T.pxPerCm;
-        const pts = pilePts(p, len);
-        const s = Math.max(0, p.got - rem) * T.pxPerCm;
-        const k = clamp(Math.round(s / PILE_STEP), 0, pts.length - 1);
-        if (!pts.length) break;
-        return { x: pts[k].x, y: pts[k].y, t: 1 };
+        const px = Math.max(0, rem - cm) * T.pxPerCm;
+        const k = clamp(Math.round(px / SEG), 0, p.pts.length - 1);
+        if (!p.pts.length) break;
+        return { x: p.pts[k].x, y: p.pts[k].y, t: 1 };
       }
       rem -= p.got;
     }
@@ -922,7 +1005,7 @@
     if (S.state === ST.CLEAR) {
       S.clearLeft -= dt;
       S.waterSpin += dt * 3.2;
-      stepFx(dt); stepChain(dt);
+      stepFx(dt); stepChain(dt); stepTail(dt);
       if (S.shake > 0) S.shake -= dt;
       if (S.flash > 0) S.flash -= dt;
       if (S.bannerLeft > 0) S.bannerLeft -= dt;
@@ -947,7 +1030,7 @@
     /* 한 가닥 안에서는 절대 줄지 않는다. 사슬이 스프링이라 늘어짐이 펴질 때
        손이 안 움직여도 길어지는데, 그게 바닥 더미를 되감아 보이게 한다.
        덜어 둔 몇 cm 는 그 가닥이 끊길 때까지 손 쪽에 남는다. */
-    S.activeLen = Math.max(S.activeLen, chainCm());
+    stepTail(dt);                               // 손 아래 줄을 떨어뜨린다
     stepClog(dt);
     stepFx(dt);
     S.waterSpin += dt * (0.35 + S.clean / 100 * 1.4);
@@ -1040,7 +1123,7 @@
     const T = GAME_CONFIG.pile;
     for (const p of S.piles) {
       if (!p.frozen || p.got <= 0.3) continue;
-      const pts = pilePts(p, p.got * T.pxPerCm);
+      const pts = p.pts;
       if (pts.length < 2) continue;
       g.save();
       g.lineCap = "round"; g.lineJoin = "round";
@@ -1053,7 +1136,8 @@
         g.stroke();
       }
       g.restore();
-      if (p.tip) draw(g, p.tip, pts[0].x, pts[0].y, 150, { mode: "center", rot: p.tipRot });
+      if (p.tip) draw(g, p.tip, pts[pts.length - 1].x, pts[pts.length - 1].y, 150,
+        { mode: "center", rot: p.tipRot });
     }
   }
 
@@ -1075,24 +1159,18 @@
   }
 
   /* 지금 뽑고 있는 한 가닥 — 구멍에서 바닥 끝까지 '한 번의 선' 으로 잇는다.
-     구멍 -> 손 (사슬) -> 늘어짐 -> 바닥에 쌓인 구간 순서로 한 path 다. */
+  /* 구멍 -> 손 -> 손 아래로 늘어진 줄 을 한 붓으로 그린다.
+     끊긴 두 개의 선이 아니라 하나의 이어진 길이어야 '같은 털' 로 보인다. */
   function drawStrand(g) {
     const n = S.nodes.length;
     if (n < 2) return;
     const T = GAME_CONFIG.pile;
     const taut = clamp(S.tension, 0, 1);
-    /* 떨림 — 끊어질 것 같을 때만 눈에 보인다 */
     const shiver = taut > GAME_CONFIG.break.warningThreshold
       ? (taut - GAME_CONFIG.break.warningThreshold) * 26 : 0;
     const t = performance.now() / 1000;
-
     const cur = S.piles[S.piles.length - 1];
-    const aCm = activeCm();
-    const len = Math.max(0, (cur ? cur.got : 0) - aCm) * T.pxPerCm;
-    const pts = cur && !cur.frozen ? pilePts(cur, len) : [];
-    const lay = pts.length > 1 ? Math.floor(len / PILE_STEP) : -1;
-    const hand = curvePoint(1);
-    const live = lay >= 1 ? pts[lay] : null;     // 바닥 줄의 '손 쪽' 끝
+    const tail = cur && !cur.frozen ? cur.pts : [];
 
     const path = (wd, col, alpha) => {
       g.save();
@@ -1101,26 +1179,15 @@
       g.lineWidth = wd;
       g.lineCap = "round"; g.lineJoin = "round";
       g.beginPath();
-      /* (2) 구멍 -> 손 */
+      /* 구멍 -> 손 */
       const STEPS = 34;
       for (let i = 0; i <= STEPS; i++) {
         const p = curvePoint(i / STEPS);
         const sh = shiver * Math.sin(i * 1.7 + t * 42) * (i / STEPS);
         if (i) g.lineTo(p.x + sh, p.y); else g.moveTo(p.x + sh, p.y);
       }
-      if (live) {
-        /* (3-a) 손을 지나 바닥으로 늘어지는 구간 */
-        const cx = (hand.x + live.x) / 2;
-        const cy = (hand.y + live.y) / 2 + T.sag;
-        const SG = 10;
-        for (let i = 1; i <= SG; i++) {
-          const u = i / SG, m = 1 - u;
-          g.lineTo(m * m * hand.x + 2 * m * u * cx + u * u * live.x,
-                   m * m * hand.y + 2 * m * u * cy + u * u * live.y);
-        }
-        /* (3-b) 바닥에 쌓인 구간 — 손 쪽에서 끝쪽으로 거슬러 간다 */
-        for (let i = lay - 1; i >= 0; i--) g.lineTo(pts[i].x, pts[i].y);
-      }
+      /* 손 -> 늘어진 줄 -> 끝. 같은 길의 이어짐이다. */
+      for (let i = 1; i < tail.length; i++) g.lineTo(tail[i].x, tail[i].y);
       g.stroke();
       g.restore();
     };
@@ -1128,14 +1195,40 @@
     path(13, "rgba(24,20,18,.92)");
     path(5, "rgba(96,80,70,.75)", 0.8);
 
-    /* 가닥의 끝 — 바닥에 쌓였으면 그 끝에, 아직이면 손에 */
-    const endAt = live ? pts[0] : hand;
-    const prev = live ? pts[Math.min(2, lay)] : curvePoint(0.88);
+    /* 끝 — 늘어진 줄이 있으면 그 끝에, 없으면 손에 */
+    const endAt = tail.length > 1 ? tail[tail.length - 1] : curvePoint(1);
+    const prev = tail.length > 2 ? tail[tail.length - 3] : curvePoint(0.88);
     const ang = Math.atan2(endAt.y - prev.y, endAt.x - prev.x);
-    draw(g, S.tipKind, endAt.x, endAt.y, live ? 160 : 200,
+    draw(g, S.tipKind, endAt.x, endAt.y, tail.length > 1 ? 160 : 200,
       { mode: "center", rot: ang - Math.PI / 2 });
+
+    if (DEBUG_HAIR) drawHairDebug(g, tail);
   }
 
+  /* 디버그 — 뿌리·끝·바닥선·점을 보여 준다 */
+  function drawHairDebug(g, tail) {
+    const T = GAME_CONFIG.pile;
+    g.save();
+    g.strokeStyle = "rgba(90,220,255,.7)"; g.lineWidth = 3;
+    g.beginPath(); g.moveTo(-900, T.anchorY); g.lineTo(900, T.anchorY); g.stroke();
+    g.strokeStyle = "rgba(255,190,80,.5)"; g.lineWidth = 2;
+    g.beginPath();
+    for (let i = 0; i < MOUND_BINS; i++) {
+      const x = (i - (MOUND_BINS >> 1)) * MOUND_W;
+      if (i) g.lineTo(x, T.anchorY - S.mound[i]); else g.moveTo(x, T.anchorY - S.mound[i]);
+    }
+    g.stroke();
+    g.fillStyle = "rgba(120,255,160,.8)";
+    for (let i = 0; i < tail.length; i += 4) {
+      g.beginPath(); g.arc(tail[i].x, tail[i].y, 3, 0, 6.2832); g.fill();
+    }
+    const r = curvePoint(0), e = tail.length ? tail[tail.length - 1] : curvePoint(1);
+    g.fillStyle = "#4DE1FF";
+    g.beginPath(); g.arc(r.x, r.y, 10, 0, 6.2832); g.fill();
+    g.fillStyle = "#FF5A5A";
+    g.beginPath(); g.arc(e.x, e.y, 10, 0, 6.2832); g.fill();
+    g.restore();
+  }
   /* 매듭·오염물 — 같은 줄에 걸려 함께 나오고, 나온 뒤에도 그 줄에 얹혀 있다 */
   function drawOnHair(g) {
     const prog = S.extracted / S.total;
@@ -1318,8 +1411,10 @@
     S.regrabLeft = 0;
     S.fx.length = 0;
     S.bits.length = 0;
-    S.piles.length = 0; newPile();
-    S.activeLen = 0;
+    S.piles.length = 0;
+    S.mound = new Float64Array(MOUND_BINS);
+    newPile();
+
     S.milestone = 0; S.popScale = 0;
     S.shake = 0; S.flash = 0;
     S.msg = ""; S.msgLeft = 0;
@@ -1549,11 +1644,11 @@
     start, timeOver, showResult, doBreak, doClear, release, buildHair, newTip,
     buildSegments,
     resistanceNow, segmentName, curvePoint, topY, botY,
-    pileW, pilePoint, pilePts, activeCm, chainCm, newPile, strandPoint, PILE_STEP,
+    activeCm, chainCm, newPile, strandPoint, stepTail, floorAt, SEG, MOUND_BINS,
     stepChain, stepTension, scoreOf,
     checkMilestone, drawStrand, drawOldPiles, drawBits,
     gradeFor, grabRadius, tipRest, addFx, snapResult, buildCard, shareResult,
-    drawHero, paintBest, toLogical, visH, has, loadAssets,
+    drawHero, paintBest, toLogical, visH, has, loadAssets, render,
     assetsReady: () => assetsReady,
   });
 })();
