@@ -130,8 +130,17 @@
     grabShrink: [1, 0.85, 0.7, 0.6],
 
     /* ---- 채점 (100점) ---- */
-    score: { clean: 50, break: 25, time: 15, streak: 10 },
-    breakScore: [25, 20, 15, 10, 5, 0],
+    /* ---- 채점 (100점) ----
+       이 게임이 묻는 건 '끊지 않고 얼마나 길게 뽑았나' 다. 그래서 한 줄로
+       최장이 절반을 가져간다. 청소율은 거들 뿐이고, 끊으면 깎인다.
+       (예전엔 청소 50 / 끊김 25 / 시간 15 / 연속 10 이라 묻는 것과
+        재는 것이 달랐다. 짧게 여러 번 끊어 뽑아도 점수가 높았다.) */
+    score: {
+      longest: 50, longestAt: 200,   // 한 줄로 200cm 뽑으면 만점
+      total: 25,   totalAt: 300,     // 다 합쳐 300cm 면 만점
+      clean: 20,                     // 청소율 1% 당 0.2점
+      breakPenalty: 2,               // 한 번 끊길 때마다 -2점
+    },
 
     /* ---- 연출 ---- */
     fxTime: 0.34,                 // FX 한 장이 보이는 시간(초)
@@ -156,11 +165,15 @@
   const MEGA_CHANCE = 0.1;
 
   /* 등급 — 점수로 갈린다 */
+  /* 점수대가 바뀌어서 칸도 다시 잡았다. 새 공식은 몫의 합이 95라 만점이 95고,
+     판 길이가 140~290cm 라 "한 줄 200cm" 만점은 긴 판에서나 닿는다.
+     그래서 95/85/70/50 을 그대로 두면 위 두 칸이 아무도 못 받는 칸이 된다.
+     실제로 나오는 값에 맞춰 내렸다 (180cm 를 한 번에 뽑으면 78점). */
   const GRADES = [
-    { min: 95, title: "배수구 구조대",        remark: "이 정도면 기사님입니다." },
-    { min: 85, title: "한 번에 쑤욱",          remark: "손맛 좀 아시네요." },
-    { min: 70, title: "제법 깔끔함",           remark: "물이 내려가긴 합니다." },
-    { min: 50, title: "아직 뭐가 남아있는데?", remark: "다시 한 번 들여다보세요." },
+    { min: 78, title: "배수구 구조대",        remark: "이 정도면 기사님입니다." },
+    { min: 60, title: "한 번에 쑤욱",          remark: "손맛 좀 아시네요." },
+    { min: 42, title: "제법 깔끔함",           remark: "물이 내려가긴 합니다." },
+    { min: 24, title: "아직 뭐가 남아있는데?", remark: "다시 한 번 들여다보세요." },
     { min: 0,  title: "그냥 업체 부르세요",    remark: "더 건드리면 큰일 납니다." },
   ];
 
@@ -382,7 +395,9 @@
     fps: 0,
   };
   try {
-    S.bestScore = +(localStorage.getItem("ccojik_drain_score") || 0) || 0;
+    /* 점수 공식이 바뀌어서 옛 기록과는 견줄 수 없다. 칸을 새로 판다
+       (길이·청소율은 잰 값 그대로라 그대로 쓴다). */
+    S.bestScore = +(localStorage.getItem("ccojik_drain_score_v2") || 0) || 0;
     S.bestLength = +(localStorage.getItem("ccojik_drain_length") || 0) || 0;
     S.bestClean = +(localStorage.getItem("ccojik_drain_clean") || 0) || 0;
   } catch (_) {}
@@ -1423,13 +1438,14 @@
   function scoreOf() {
     const C = GAME_CONFIG.score;
     const cleared = S.clean >= 100;
-    const clean = C.clean * (S.clean / 100);
-    const brk = GAME_CONFIG.breakScore[Math.min(GAME_CONFIG.breakScore.length - 1, S.breaks)];
-    const time = cleared ? C.time * clamp(S.left / GAME_CONFIG.duration, 0, 1) : 0;
-    const streak = C.streak * clamp(S.streakBest / Math.max(1, S.total), 0, 1);
+    /* 한 줄로 최장 — 제일 큰 몫. cm 로 바로 잰다 (판 길이에 안 묶인다). */
+    const streak = C.longest * clamp(S.streakBest / C.longestAt, 0, 1);
+    const length = C.total * clamp(S.extracted / C.totalAt, 0, 1);
+    const clean = C.clean * clamp(S.clean / 100, 0, 1);
+    const brk = -(S.breaks * C.breakPenalty);
     return {
-      total: clamp(Math.round(clean + brk + time + streak), 0, 100),
-      clean, brk, time, streak, cleared,
+      total: clamp(Math.round(streak + length + clean + brk), 0, 100),
+      streak, length, clean, brk, cleared,
     };
   }
 
@@ -1466,7 +1482,7 @@
     S.bestLength = Math.max(S.bestLength, Math.floor(S.extracted));
     S.bestClean = Math.max(S.bestClean, Math.floor(S.clean));
     try {
-      localStorage.setItem("ccojik_drain_score", String(S.bestScore));
+      localStorage.setItem("ccojik_drain_score_v2", String(S.bestScore));
       localStorage.setItem("ccojik_drain_length", String(S.bestLength));
       localStorage.setItem("ccojik_drain_clean", String(S.bestClean));
     } catch (_) {}
