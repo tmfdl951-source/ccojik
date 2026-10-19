@@ -739,6 +739,7 @@
      한 프레임
      ============================================================ */
   function step(dt) {
+    if (CALIB.on) { calibFreeze(); return; }      // 조립 맞추는 중엔 아무것도 안 움직인다
     if (S.state === ST.READY) {
       if ((S.readyLeft -= dt) <= 0) { S.state = ST.GO; say("GO!"); }
       return;
@@ -1070,36 +1071,80 @@
   }
 
   /* ============================================================
+     조립 맞추기 모드
+
+     기준 그림(assets/ref/ref-player-unicycle-full.png)을 캐릭터 뒤에
+     흐리게 깔고, 그 위에 파츠를 올려 가며 자리를 맞춘다.
+     켜면 흔들림·페달·먹기·넘어짐이 전부 멈춘다 — 움직이는 걸 보면서
+     기본 자세를 맞출 수는 없다.
+     다 맞추면 false 로 되돌린다 (기준 그림은 안 불러온다).
+     ============================================================ */
+  let CHARACTER_CALIBRATION_MODE = false;
+  const CALIB = {
+    on: CHARACTER_CALIBRATION_MODE,
+    opacity: 0.35,
+    key: "ref/ref-player-unicycle-full",
+    k: 0.60,                 // 기준 그림 1px = 리그 몇 px
+    ox: 492, oy: 1382,       // 기준 그림에서 바퀴가 땅에 닿는 점
+    phase: -0.9,             // 맞출 때 쓰는 페달 각 (기준 그림의 발 자리)
+  };
+  let calibImg = null;
+  function calibRef() {
+    if (!CALIB.on) return null;
+    if (IMG[CALIB.key]) return IMG[CALIB.key];
+    if (!calibImg) {
+      calibImg = new Image();
+      calibImg.onload = () => { IMG[CALIB.key] = calibImg; };
+      calibImg.src = "assets/" + CALIB.key + ".png";
+    }
+    return null;
+  }
+  /* 맞추는 동안은 전부 멈춘다 */
+  function calibFreeze() {
+    if (!CALIB.on) return;
+    S.bikeAngle = 0; S.bikeVel = 0; S.th = 0; S.w = 0; S.wv = 0;
+    S.bowlAngle = 0; S.bowlVel = 0; S.soupAngle = 0; S.soupVel = 0;
+    S.eatLean = 0; S.eating = false; S.eatT = 0;
+    S.wheelSpin = CALIB.phase; S.shake = 0; S.gust = 0; S.gustTo = 0;
+    S.topple = false; S.rag = null; S.crash = null; S.doneT = 0;
+  }
+  function drawCalibRef(g) {
+    const im = calibRef();
+    if (!im) return;
+    const k = CALIB.k;
+    g.save();
+    g.globalAlpha = CALIB.opacity;
+    /* 기준 그림의 접지점을 리그 원점에 맞춰 깐다 */
+    g.drawImage(im, -CALIB.ox * k, -CALIB.oy * k, im.naturalWidth * k, im.naturalHeight * k);
+    g.restore();
+  }
+
+  /* ============================================================
      캐릭터 — 관절로 이어 붙인다
 
-     파츠를 각자 좌표에 놓으면, 기울거나 먹거나 넘어질 때마다 이음매가
-     벌어진다. 그래서 부모 관절에 자식을 매달고(아래 RIG), 이음매는
-     '일부러 겹쳐서' 끊긴 자리가 안 보이게 한다.
+     파츠를 각자 좌표에 놓으면 기울거나 먹을 때마다 이음매가 벌어진다.
+     부모 관절에 자식을 매달고, 이음매는 일부러 겹쳐서 끊긴 자리를 가린다.
 
-     관절 두 점(a=부모 쪽, b=자식 쪽)은 그림의 알파를 실제로 재서 넣은
-     값이다(scratchpad/joints.js). 그림마다 투명 여백이 달라서, 이 값 없이
-     width 로만 맞추면 파츠가 어긋난다.
+     그림마다 크기도 투명 여백도 달라서 공통 배율을 쓸 수 없다.
+     파츠마다 '보이는 가로(w)' 와 '관절 두 점(JOINT)' 을 따로 준다.
+     JOINT 는 그림의 알파를 실제로 재서 넣은 값이다 (scratchpad/joints.js).
      ============================================================ */
 
   /* ---- 3/4 시점 ---- 화면 오른쪽을 살짝 바라보는 각도 */
   const VIEW = {
-    wheelSquash: 0.80,       // 바퀴를 가로로 누르는 정도 (사선이라 타원으로 보인다)
-    squash: 0.92,            // 머리·몸통의 가로 압축
-    farShade: 0.22,          // 저편(왼쪽) 면에 얹는 그늘 (몸통에만)
+    wheelSquash: 0.86,       // 바퀴를 가로로 누르는 정도
+    squash: 0.96,            // 머리·몸통의 가로 압축
+    farShade: 0.18,
     offX: -40,               // 전체를 왼쪽으로 — 그릇 쪽에 자리를 준다
-    headRot: 0.05,
+    headRot: 0.04,
   };
-
-  /* 파츠가 앉는 x 자리 — 그릇만 남겼다. 나머지는 RIG 가 쥔다. */
-  const PART = { bowl: 236 };
-  /* 그릇 그림은 R 의 몇 배로 그리나. 기준 그림에 맞춰 줄였다.
-     (R 은 쏟기 계산에 쓰는 값이라 건드리지 않는다) */
-  const BOWL_ART = 1.72;
-  const HEAD_Y = -676;
-  const LEG_TOP = -392;                 // 외투 밑단 — 허벅지는 여기서 나온다
+  const PART = { bowl: 175 };
+  const BOWL_ART = 1.52;     // 그릇 그림은 R 의 몇 배로 그리나 (R 은 쏟기 계산용이라 안 건드린다)
+  const HEAD_Y = -670;
+  const LEG_TOP = -352;
 
   /* ---- 관절표 ---- 보이는 상자 기준 비율. a 가 부모 쪽, b 가 자식 쪽.
-     전부 알파를 재서 뽑은 값이다 (joints.js). 눈대중 금지. */
+     전부 알파를 재서 뽑았다. 눈대중 금지. */
   const JOINT = {
     "player/player-arm-upper-left":  { a: [0.89, 0.91], b: [0.11, 0.10] },  // 어깨(공) -> 팔꿈치
     "player/player-arm-lower-left":  { a: [0.07, 0.47], b: [0.93, 0.15] },  // 팔꿈치 -> 손목
@@ -1113,47 +1158,65 @@
     "player/player-thigh-right":     { a: [0.13, 0.07], b: [0.80, 0.92] },
     "player/player-shin-right":      { a: [0.17, 0.08], b: [0.69, 0.93] },
     "player/player-foot-right":      { a: [0.10, 0.30], b: [0.93, 0.79] },
-    "bowl/chopsticks":               { a: [0.08, 0.13], b: [0.93, 0.93] },  // 쥐는 끝 -> 집는 끝
+    "bowl/chopsticks":               { a: [0.08, 0.13], b: [0.93, 0.93] },  // 쥔 끝 -> 집는 끝
     "unicycle/unicycle-frame":       { a: [0.28, 0.94], b: [0.47, 0.05] },  // 바퀴축 -> 안장
     "unicycle/unicycle-pedal-left":  { a: [0.08, 0.13], b: [0.91, 0.80] },  // 크랭크 -> 발판
     "unicycle/unicycle-pedal-right": { a: [0.07, 0.16], b: [0.93, 0.80] },
   };
 
-  /* ---- 기본 자세 ---- 기준 그림(assets/ref/ref-player-unicycle-full.png) 의
-     색 덩어리를 재서 옮겼다. ref 1086x1448 에서 바퀴 접지점을 원점으로 0.633 배.
-     (재 본 값: 바퀴바닥 y1382 / 바퀴중심 492,1187 / 밑단 488,786 /
-      목도리 538,519 / 머리 534,315 / 비니꼭대기 y131)
-     위치값을 코드 여기저기 흩지 않으려고 전부 여기 모았다. */
-  const RIG = {
-    /* 크기·자리는 기준 그림의 색 덩어리를 재서 넣었다 (scratchpad/fitparts.js).
-       ref 1086x1448 에서 바퀴 접지점을 원점으로 0.60 배 한 값이다. */
-    torso: { x: 8, y: -466, w: 172 },
-    scarf: { x: 22, y: -534, w: 140 },
-    head:  { x: 26, y: HEAD_Y, w: 142 },
-    hip:   { x: 0, y: LEG_TOP },
-    /* 어깨·골반은 몸통 안쪽에 둔다 — 밖에 두면 팔다리가 떠 보인다 */
-    sho:   { far: [-48, -514], near: [40, -522] },
-    hipJ:  { far: [-32, -392], near: [22, -396] },
-    arm:   { upper: 100, fore: 104, hand: 46 },
-    /* 다리는 골반(-392)에서 페달(최저 -52)까지 닿아야 한다. 짧으면 쭉 뻗어
-       벌어져 보인다. 둘을 더한 값이 그 거리보다 조금 짧게. */
-    leg:   { thigh: 152, shin: 156, foot: 60 },
-    wheel: { x: 0, y: -122, w: 206 },
-    seat:  { x: -12, y: -330, w: 104 },
-    crank: 62,
-    chop: 118,                 // 젓가락 길이 (쥔 자리 -> 집는 끝)
-    /* 겹침 — 관절마다 부모 안으로 이만큼 더 밀어 넣는다 (뼈 길이의 비율).
-       이게 없으면 돌릴 때 이음매에 배경이 비친다. */
-    over: { shoulder: 0.16, elbow: 0.13, wrist: 0.12,
-            hip: 0.17, knee: 0.12, ankle: 0.14 },
+  /* ---- 파츠별 맞춤값 ----
+     기준 그림 위에 포개 가며 하나씩 맞춘 값이다. 공통 배율·공통 겹침은 안 쓴다.
+       w     : 화면에 보이는 가로 (px). '보이는 상자' 기준이라 투명 여백은 빠진다.
+       x,y   : 덩어리 파츠는 가운데 자리.
+       sx    : 가로만 더 누르는 값 (3/4 라 돌아선 만큼).
+       over  : 부모 안으로 밀어 넣는 비율 — 관절마다 따로. */
+  const PART_LAYOUT = {
+    torso: { x: -15, y: -432, w: 170, sx: 0.96 },
+    scarf: { x: -20, y: -506, w: 168, sx: 1.00 },
+    head:  { x:  -3, y: HEAD_Y, w: 206, sx: 0.97, rot: VIEW.headRot },
+    seat:  { x: -18, y: -322, w: 104 },
+    wheel: { x:  -3, y: -111, w: 220 },
+    armUpperNear: { w: null, over: 0.17 },   // w 는 뼈 길이로 정해진다
+    armLowerNear: { over: 0.14 },
+    handNear:     { over: 0.13 },
+    armUpperFar:  { over: 0.17 },
+    armLowerFar:  { over: 0.14 },
+    handFar:      { over: 0.13 },
+    thighNear: { over: 0.19 }, shinNear: { over: 0.12 }, footNear: { over: 0.16 },
+    thighFar:  { over: 0.19 }, shinFar:  { over: 0.12 }, footFar:  { over: 0.16 },
+    frame: { over: 0 }, pedal: { over: 0 },
+  };
+
+  /* ---- 기본 자세 ---- 기준 그림에서 읽은 자리. 움직임은 전부 여기에 더한다. */
+  const BASE = {
+    /* 어깨·골반은 몸통 '안쪽' 에 있다. 밖에 두면 팔다리가 떠 보인다. */
+    sho:  { near: [26, -498], far: [-14, -478] },
+    hipJ: { near: [8, -352],  far: [-40, -356] },
+    /* 마디 길이 — 앞뒤가 다르다 (3/4 라 뒤쪽이 짧아 보인다) */
+    arm:  { near: { upper: 92, fore: 84, hand: 46 },
+            far:  { upper: 96, fore: 92, hand: 46 } },
+    leg:  { near: { thigh: 92, shin: 134, foot: 66 },
+            far:  { thigh: 86, shin: 126, foot: 60 } },
+    /* 기준 그림의 앞발. 페달은 이 아래로 따라간다 (발이 먼저, 페달이 나중). */
+    foot: [24, -143],
+    /* 손 자리 — 하나는 그릇을 받치고 하나는 젓가락을 쥔다 */
+    handBowl: [128, -378],
+    handChop: [118, -516],
+    chopAng: 40,              // 젓가락이 누운 각 (도)
+    chopLen: 150,
     /* 깊이 — 가까운 쪽은 조금 크고 또렷, 먼 쪽은 작고 어둡다 */
     near: { k: 1.04, a: 1 },
-    far:  { k: 0.90, a: 0.74 },
+    far:  { k: 0.90, a: 0.76 },
   };
+  /* 페달은 발 자리에서 거꾸로 구한다 — 페달을 먼저 놓고 발을 맞추지 않는다 */
+  const CRANK = Math.hypot(BASE.foot[0] - PART_LAYOUT.wheel.x,
+                           BASE.foot[1] - PART_LAYOUT.wheel.y + 18);
+  const CRANK0 = Math.atan2(BASE.foot[1] + 18 - PART_LAYOUT.wheel.y,
+                            BASE.foot[0] - PART_LAYOUT.wheel.x);
 
   /* ---- 조각 하나를 관절에 붙인다 ----
      a 점을 (x,y) 에 놓고, a->b 방향이 ang 이 되게 돌리고, a->b 길이를 len 으로.
-     over 를 주면 그만큼 뒤로 물려 그려서 부모와 겹친다. */
+     over 를 주면 그만큼 뒤로 물려 그려 부모와 겹친다. */
   function limb(g, key, x, y, ang, len, opt) {
     const o = opt || {};
     const end = { x: x + Math.cos(ang) * len, y: y + Math.sin(ang) * len };
@@ -1164,7 +1227,7 @@
     const d = Math.hypot(J.b[0] * vw - ax, J.b[1] * vh - ay) || 1;
     const k = (len / d) * (o.k || 1);
     const spin = Math.atan2(J.b[1] * vh - ay, J.b[0] * vw - ax);
-    const back = (o.over || 0) * len;              // 부모 안으로 밀어 넣는 거리
+    const back = (o.over || 0) * len;
     g.save();
     g.translate(x - Math.cos(ang) * back, y - Math.sin(ang) * back);
     g.rotate(ang - spin);
@@ -1187,7 +1250,6 @@
   }
   const ang2 = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
 
-  /* 둥근 면의 저편에 얹는 그늘 — 돌아선 것처럼 보이게 하는 값싼 수법 */
   function farShade(g, x, y, w, h) {
     g.save();
     g.beginPath();
@@ -1201,33 +1263,31 @@
     }
     g.restore();
   }
-  const SKIN = "#F6E3C2", SKIN_D = "#E0CBA6";       // 크림빛 얼굴·손
-  const COAT = "#2E6BD4", COAT_D = "#2458B0";       // 파란 외투
+  const SKIN = "#F6E3C2", SKIN_D = "#E0CBA6";
+  const COAT = "#2E6BD4", COAT_D = "#2458B0";
   const SLEEVE = "#3C7BE4", SLEEVE_D = "#2E62BC";
-  const PANT = "#55555F", PANT_D = "#43434C";       // 짙은 회색 바지
-  const SHOE = "#6B4A32";                           // 갈색 신발
-  const REDC = "#E8463A", REDC_D = "#C3362C";       // 빨간 비니
-  const SCARF = "#F0862A", SCARF_D = "#D06E1C";     // 주황 목도리
-  const HEM = "#F5B82E";                            // 노란 밑단
+  const PANT = "#55555F", PANT_D = "#43434C";
+  const SHOE = "#6B4A32";
+  const REDC = "#E8463A", REDC_D = "#C3362C";
+  const SCARF = "#F0862A", SCARF_D = "#D06E1C";
+  const HEM = "#F5B82E";
 
-  /* 입 자리 (플레이어 로컬) — 젓가락이 여기를 겨냥한다 */
   function mouthPoint() {
     const lean = S.eatLean;
-    return { x: RIG.head.x + lean * 10, y: HEAD_Y + lean * 4 + 54 };
+    return { x: PART_LAYOUT.head.x + lean * 10, y: HEAD_Y + lean * 4 + 56 };
   }
 
   /* 그릇이 앉는 자리 (플레이어 로컬) */
   function handPoint() {
     const k = (S.preset.R - 108) / 70;
-    const base = { x: PART.bowl + k * 22, y: -452 + k * 26 + S.eatLean * 16 };
+    const base = { x: PART.bowl + k * 16, y: -408 + k * 18 + S.eatLean * 14 };
     const d = drinkPose();
     if (!d.lift) return base;
     const m = mouthPoint(), D = CFG.done;
     const tx2 = m.x + S.preset.R * D.near, ty2 = m.y + D.below;
     return { x: base.x + (tx2 - base.x) * d.lift, y: base.y + (ty2 - base.y) * d.lift };
   }
-  /* 그릇 테두리의 한 점. ux·uy 는 '그려지는 그릇' 반쪽의 비율(-1~1) 이다.
-     그릇 각도까지 먹여서 돌아간 자리를 준다. */
+  /* 그릇 테두리의 한 점. ux·uy 는 그려지는 그릇 반쪽의 비율(-1~1). */
   function bowlRim(ux, uy) {
     const h = handPoint(), a = (S.bowlAngle - S.bikeAngle) * RAD + drinkRot();
     const lx = S.preset.R * BOWL_ART / 2 * ux, ly = S.preset.vis * BOWL_ART / 2 * uy;
@@ -1236,65 +1296,62 @@
   }
 
   /* ---- 지금 프레임의 관절 자리 ----
-     그리기도 ragdoll 도 검사도 전부 이걸 본다. 한 군데서만 계산한다. */
+     기본 자세(BASE) 에 움직임을 '더해서' 낸다. 덮어쓰지 않는다.
+     그리기도 ragdoll 도 검사도 전부 이걸 본다. */
   function rigPts() {
     const lean = S.eatLean;
-    const tx = lean * 14, ty = lean * -6;          // 먹을 때 상체가 그릇 쪽으로
+    const tx = lean * 12, ty = lean * -5;          // 먹을 때 상체가 그릇 쪽으로
     const P = {};
-    P.hip   = { x: RIG.hip.x + tx * 0.4, y: RIG.hip.y + ty * 0.4 };
-    P.torso = { x: RIG.torso.x + tx, y: RIG.torso.y + ty };
-    P.scarf = { x: RIG.scarf.x + tx * 1.1, y: RIG.scarf.y + ty };
-    P.head  = { x: RIG.head.x + tx * 1.2, y: RIG.head.y + ty * 1.2 };
-    P.wheel = { x: RIG.wheel.x, y: RIG.wheel.y };
-    P.seat  = { x: RIG.seat.x, y: RIG.seat.y };
+    P.hip   = { x: -5 + tx * 0.4, y: LEG_TOP + ty * 0.4 };
+    P.torso = { x: PART_LAYOUT.torso.x + tx, y: PART_LAYOUT.torso.y + ty };
+    P.scarf = { x: PART_LAYOUT.scarf.x + tx * 1.1, y: PART_LAYOUT.scarf.y + ty };
+    P.head  = { x: PART_LAYOUT.head.x + tx * 1.2, y: PART_LAYOUT.head.y + ty * 1.2 };
+    P.wheel = { x: PART_LAYOUT.wheel.x, y: PART_LAYOUT.wheel.y };
+    P.seat  = { x: PART_LAYOUT.seat.x, y: PART_LAYOUT.seat.y };
 
-    /* 페달 — 크랭크가 바퀴와 같이 돈다 */
+    /* 페달 — 발 자리에서 구한 크랭크가 바퀴와 같이 돈다 */
     P.pedal = {};
     for (const [side, s] of [["near", 0], ["far", Math.PI]]) {
-      const ph = S.wheelSpin + s;
-      P.pedal[side] = { x: P.wheel.x + Math.cos(ph) * RIG.crank,
-                        y: P.wheel.y + Math.sin(ph) * RIG.crank, ph };
+      const ph = CRANK0 + (S.wheelSpin - CALIB.phase) + s;
+      P.pedal[side] = { x: P.wheel.x + Math.cos(ph) * CRANK,
+                        y: P.wheel.y + Math.sin(ph) * CRANK, ph };
     }
 
     /* 다리 — 발이 페달에서 떨어지지 않게 무릎을 역산한다 */
     P.leg = {};
     for (const side of ["near", "far"]) {
-      const hipJ = { x: RIG.hipJ[side][0] + tx * 0.3, y: RIG.hipJ[side][1] + ty * 0.3 };
+      const L = BASE.leg[side];
+      const hipJ = { x: BASE.hipJ[side][0] + tx * 0.3, y: BASE.hipJ[side][1] + ty * 0.3 };
       const pd = P.pedal[side];
-      const ankle = { x: pd.x - 6, y: pd.y - 26 };            // 발바닥이 발판을 덮게
-      const knee = ik2(hipJ.x, hipJ.y, ankle.x, ankle.y,
-                       RIG.leg.thigh, RIG.leg.shin, -1);      // 무릎은 앞으로 굽는다
-      P.leg[side] = { hip: hipJ, knee, ankle, pedal: pd };
+      const ankle = { x: pd.x - 4, y: pd.y - 20 };
+      const knee = ik2(hipJ.x, hipJ.y, ankle.x, ankle.y, L.thigh, L.shin, -1);
+      P.leg[side] = { hip: hipJ, knee, ankle, pedal: pd, len: L };
     }
 
-    /* 팔 — 손이 먼저 정해지고, 팔꿈치를 역산한다 */
+    /* 팔 — 손이 먼저 정해지고 팔꿈치를 역산한다 */
     P.arm = {};
-    /* 먼 쪽(그릇 받치는 손): 그릇 아래 테두리를 받친다.
-       몸통 뒤에 그려서 그릇이 손을 덮게 한다 — 그래야 '올려놓은' 걸로 보인다. */
+    /* 먼 쪽: 그릇을 받친다. 몸통 뒤에 그려 그릇이 손을 덮게 한다. */
     {
-      const grip = bowlRim(-0.62, 0.42);
-      const hang = Math.atan2(-0.42, 0.91);                   // 손이 향하는 쪽
-      const wrist = { x: grip.x - Math.cos(hang) * RIG.arm.hand,
-                      y: grip.y - Math.sin(hang) * RIG.arm.hand };
-      const sho = { x: RIG.sho.far[0] + tx, y: RIG.sho.far[1] + ty };
-      const elb = ik2(sho.x, sho.y, wrist.x, wrist.y, RIG.arm.upper, RIG.arm.fore, 1);
-      P.arm.far = { sho, elb, wrist, grip, hand: hang };
+      const A = BASE.arm.far;
+      const grip = bowlRim(-0.78, 0.34);   // 그릇 아래 테두리 — 손이 그릇에 닿는 자리
+      const hang = Math.atan2(-0.38, 0.92);
+      const wrist = { x: grip.x - Math.cos(hang) * A.hand, y: grip.y - Math.sin(hang) * A.hand };
+      const sho = { x: BASE.sho.far[0] + tx, y: BASE.sho.far[1] + ty };
+      const elb = ik2(sho.x, sho.y, wrist.x, wrist.y, A.upper, A.fore, 1);
+      P.arm.far = { sho, elb, wrist, grip, hand: hang, len: A };
     }
-    /* 가까운 쪽(젓가락 손): 가슴 앞을 가로질러 올라온다. 젓가락 끝이
-       그릇 -> 입 -> 가슴 을 오간다. */
+    /* 가까운 쪽: 젓가락. 가슴 앞을 가로질러 올라온다. */
     {
-      const mp = mouthPoint();
+      const A = BASE.arm.near, mp = mouthPoint();
       const L = (a, b, u) => ({ x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u });
       const ease = u => u * u * (3 - 2 * u);
       const t = S.eating ? clamp(S.eatT, 0, 1) : 0;
-      /* 쥔 자리 — 그릇 옆에서 입 아래로. 손은 끝까지 아래쪽에 남는다.
-         (쥔 자리를 안 움직이면 젓가락만 길어져 손이 머리 위로 넘어간다) */
-      const gRest  = bowlRim(-0.98, -0.52);
-      const gDish  = bowlRim(-0.70, -0.92);
-      const gMouth = { x: mp.x + 94, y: mp.y + 62 };
-      /* 집는 끝 — 그릇 밖 -> 국물 속 -> 입 */
-      const tRest  = bowlRim(-0.12, -0.42);
-      const tDish  = bowlRim(0.16, 0.06);
+      const gRest = { x: BASE.handChop[0] + tx, y: BASE.handChop[1] + ty };
+      const tRest = { x: gRest.x + Math.cos(BASE.chopAng * RAD) * BASE.chopLen,
+                      y: gRest.y + Math.sin(BASE.chopAng * RAD) * BASE.chopLen };
+      const gDish = bowlRim(-0.64, -0.96);
+      const tDish = bowlRim(0.16, 0.06);
+      const gMouth = { x: mp.x + 92, y: mp.y + 60 };
       const tMouth = { x: mp.x + 12, y: mp.y };
       let grip, tip;
       if (t <= 0) { grip = gRest; tip = tRest; }
@@ -1302,54 +1359,55 @@
       else if (t < 0.58) { const u = ease((t - 0.34) / 0.24); grip = L(gDish, gMouth, u); tip = L(tDish, tMouth, u); }
       else { const u = ease((t - 0.58) / 0.42); grip = L(gMouth, gRest, u); tip = L(tMouth, tRest, u); }
       const chopA = Math.atan2(tip.y - grip.y, tip.x - grip.x);
-      const CHOP = Math.max(60, Math.hypot(tip.x - grip.x, tip.y - grip.y));
-      const hang = chopA + 0.34;                              // 손은 젓가락보다 조금 아래
-      const wrist = { x: grip.x - Math.cos(hang) * RIG.arm.hand,
-                      y: grip.y - Math.sin(hang) * RIG.arm.hand };
-      const sho = { x: RIG.sho.near[0] + tx, y: RIG.sho.near[1] + ty };
-      const elb = ik2(sho.x, sho.y, wrist.x, wrist.y, RIG.arm.upper, RIG.arm.fore, 1);
-      P.arm.near = { sho, elb, wrist, grip, hand: hang, tip, chop: chopA, chopLen: CHOP };
+      const chopLen = Math.max(70, Math.hypot(tip.x - grip.x, tip.y - grip.y));
+      const hang = chopA + 0.36;
+      const wrist = { x: grip.x - Math.cos(hang) * A.hand, y: grip.y - Math.sin(hang) * A.hand };
+      const sho = { x: BASE.sho.near[0] + tx, y: BASE.sho.near[1] + ty };
+      const elb = ik2(sho.x, sho.y, wrist.x, wrist.y, A.upper, A.fore, 1);
+      P.arm.near = { sho, elb, wrist, grip, hand: hang, tip, chop: chopA, chopLen, len: A };
     }
     return P;
   }
 
-  /* ---- 다리 한 짝 ---- 허벅지 -> 정강이 -> 발. 전부 부모에 겹쳐 붙는다. */
+  /* ---- 다리 한 짝 ---- 골반 -> 무릎 -> 발목 -> 발 */
   function drawLeg(g, P, side) {
-    const L = P.leg[side], D = RIG[side], sfx2 = side === "near" ? "-right" : "-left";
+    const L = P.leg[side], D = BASE[side], s2 = side === "near" ? "-right" : "-left";
+    const PL = PART_LAYOUT, up = side === "near" ? "Near" : "Far";
     const o = { k: D.k, alpha: D.a };
-    limb(g, "player/player-thigh" + sfx2, L.hip.x, L.hip.y, ang2(L.hip, L.knee),
+    limb(g, "player/player-thigh" + s2, L.hip.x, L.hip.y, ang2(L.hip, L.knee),
       Math.hypot(L.knee.x - L.hip.x, L.knee.y - L.hip.y),
-      Object.assign({ over: RIG.over.hip }, o, { fallback: () => {
-        limbQuad(g, L.hip, L.knee, 60 * D.k, 48 * D.k, PANT, PANT_D); } }));
-    limb(g, "player/player-shin" + sfx2, L.knee.x, L.knee.y, ang2(L.knee, L.ankle),
+      Object.assign({ over: PL["thigh" + up].over }, o, { fallback: () =>
+        limbQuad(g, L.hip, L.knee, 58 * D.k, 48 * D.k, PANT, PANT_D) }));
+    limb(g, "player/player-shin" + s2, L.knee.x, L.knee.y, ang2(L.knee, L.ankle),
       Math.hypot(L.ankle.x - L.knee.x, L.ankle.y - L.knee.y),
-      Object.assign({ over: RIG.over.knee }, o, { fallback: () => {
-        limbQuad(g, L.knee, L.ankle, 48 * D.k, 40 * D.k, PANT, PANT_D); } }));
-    limb(g, "player/player-foot" + sfx2, L.ankle.x, L.ankle.y,
-      ang2(L.knee, L.ankle) - Math.PI / 2 + 0.25, RIG.leg.foot,
-      Object.assign({ over: RIG.over.ankle }, o, { fallback: () => {
-        chunk(g, box(L.ankle.x + 14 * D.k, L.ankle.y + 14 * D.k, 70 * D.k, 32 * D.k, 11),
-          SHOE, "#54382A"); } }));
+      Object.assign({ over: PL["shin" + up].over }, o, { fallback: () =>
+        limbQuad(g, L.knee, L.ankle, 48 * D.k, 40 * D.k, PANT, PANT_D) }));
+    limb(g, "player/player-foot" + s2, L.ankle.x, L.ankle.y,
+      ang2(L.knee, L.ankle) - Math.PI / 2 + 0.3, L.len.foot,
+      Object.assign({ over: PL["foot" + up].over }, o, { fallback: () =>
+        chunk(g, box(L.ankle.x + 12 * D.k, L.ankle.y + 12 * D.k, 68 * D.k, 30 * D.k, 11),
+          SHOE, "#54382A") }));
   }
 
-  /* ---- 팔 한 짝 ---- 윗팔 -> 아랫팔 -> 손 */
+  /* ---- 팔 한 짝 ---- 어깨 -> 팔꿈치 -> 손목 -> 손 */
   function drawArmRig(g, P, side, what) {
-    const A = P.arm[side], D = RIG[side], sfx2 = side === "near" ? "-right" : "-left";
+    const A = P.arm[side], D = BASE[side], s2 = side === "near" ? "-right" : "-left";
+    const PL = PART_LAYOUT, up = side === "near" ? "Near" : "Far";
     const o = { k: D.k, alpha: D.a };
     if (what !== "hand") {
-      limb(g, "player/player-arm-upper" + sfx2, A.sho.x, A.sho.y, ang2(A.sho, A.elb),
+      limb(g, "player/player-arm-upper" + s2, A.sho.x, A.sho.y, ang2(A.sho, A.elb),
         Math.hypot(A.elb.x - A.sho.x, A.elb.y - A.sho.y),
-        Object.assign({ over: RIG.over.shoulder }, o, { fallback: () => {
-          limbQuad(g, A.sho, A.elb, 50 * D.k, 42 * D.k, SLEEVE, SLEEVE_D); } }));
-      limb(g, "player/player-arm-lower" + sfx2, A.elb.x, A.elb.y, ang2(A.elb, A.wrist),
+        Object.assign({ over: PL["armUpper" + up].over }, o, { fallback: () =>
+          limbQuad(g, A.sho, A.elb, 48 * D.k, 40 * D.k, SLEEVE, SLEEVE_D) }));
+      limb(g, "player/player-arm-lower" + s2, A.elb.x, A.elb.y, ang2(A.elb, A.wrist),
         Math.hypot(A.wrist.x - A.elb.x, A.wrist.y - A.elb.y),
-        Object.assign({ over: RIG.over.elbow }, o, { fallback: () => {
-          limbQuad(g, A.elb, A.wrist, 42 * D.k, 34 * D.k, SLEEVE, SLEEVE_D); } }));
+        Object.assign({ over: PL["armLower" + up].over }, o, { fallback: () =>
+          limbQuad(g, A.elb, A.wrist, 40 * D.k, 32 * D.k, SLEEVE, SLEEVE_D) }));
     }
     if (what !== "arm") {
-      limb(g, "player/player-hand" + sfx2, A.wrist.x, A.wrist.y, A.hand, RIG.arm.hand,
-        Object.assign({ over: RIG.over.wrist }, o, { fallback: () => {
-          chunk(g, ngon(A.grip.x, A.grip.y, 24 * D.k, 24 * D.k, 8, 0.3), SKIN, SKIN_D); } }));
+      limb(g, "player/player-hand" + s2, A.wrist.x, A.wrist.y, A.hand, A.len.hand,
+        Object.assign({ over: PL["hand" + up].over }, o, { fallback: () =>
+          chunk(g, ngon(A.grip.x, A.grip.y, 22 * D.k, 22 * D.k, 8, 0.3), SKIN, SKIN_D) }));
     }
   }
 
@@ -1366,50 +1424,50 @@
 
   function drawPart(g, key, x, y, w, h, fallback) { art(g, key, x, y, w, h, fallback); }
 
-  /* ---- 외발자전거 ---- */
+  /* ---- 외발자전거 ---- 안장 -> 틀 -> 바퀴 -> 페달 (캐릭터 다음에 맞춘다) */
   function drawCycle(g, P, part) {
+    const PL = PART_LAYOUT;
     if (part === "wheel") {
+      limb(g, "unicycle/unicycle-frame", P.wheel.x, P.wheel.y, ang2(P.wheel, P.seat),
+        Math.hypot(P.seat.x - P.wheel.x, P.seat.y - P.wheel.y),
+        { fallback: () => limbQuad(g, P.wheel, P.seat, 46, 30, "#4A5370", "#3C4460") });
+      if (!put(g, "unicycle/unicycle-seat", P.seat.x, P.seat.y, PL.seat.w))
+        chunk(g, box(P.seat.x, P.seat.y, 120, 34, 12), REDC, REDC_D);
       g.save();
       g.translate(P.wheel.x, P.wheel.y);
       g.scale(VIEW.wheelSquash, 1);
-      if (!put(g, "unicycle/unicycle-wheel", 0, 0, RIG.wheel.w / VIEW.wheelSquash,
+      if (!put(g, "unicycle/unicycle-wheel", 0, 0, PL.wheel.w / VIEW.wheelSquash,
                { rot: S.wheelSpin })) {
-        chunk(g, ngon(0, 0, 124, 124, 12, S.wheelSpin), "#3C4258", "#323850");
-        chunk(g, ngon(0, 0, 20, 20, 7, 0), "#8A93A6", null);
+        chunk(g, ngon(0, 0, PL.wheel.w / 2, PL.wheel.w / 2, 12, S.wheelSpin), "#3C4258", "#323850");
+        chunk(g, ngon(0, 0, 18, 18, 7, 0), "#8A93A6", null);
       }
       g.restore();
-      /* 틀과 안장 — 바퀴축에서 안장까지 */
-      limb(g, "unicycle/unicycle-frame", P.wheel.x, P.wheel.y, ang2(P.wheel, P.seat),
-        Math.hypot(P.seat.x - P.wheel.x, P.seat.y - P.wheel.y),
-        { fallback: () => limbQuad(g, P.wheel, P.seat, 52, 34, "#4A5370", "#3C4460") });
-      if (!put(g, "unicycle/unicycle-seat", P.seat.x, P.seat.y, RIG.seat.w))
-        chunk(g, box(P.seat.x, P.seat.y, 148, 40, 14), REDC, REDC_D);
       return;
     }
-    /* 페달 — 바퀴축에서 발판으로 뻗는 크랭크 */
-    const side = part, pd = P.pedal[side], D = RIG[side];
+    const side = part, pd = P.pedal[side], D = BASE[side];
     limb(g, "unicycle/unicycle-pedal" + (side === "near" ? "-right" : "-left"),
-      P.wheel.x, P.wheel.y, Math.atan2(pd.y - P.wheel.y, pd.x - P.wheel.x), RIG.crank,
+      P.wheel.x, P.wheel.y, Math.atan2(pd.y - P.wheel.y, pd.x - P.wheel.x), CRANK,
       { k: D.k, alpha: D.a,
-        fallback: () => chunk(g, box(pd.x, pd.y, 56, 18, 5), "#5A6480", "#49516A") });
+        fallback: () => chunk(g, box(pd.x, pd.y, 50, 16, 5), "#5A6480", "#49516A") });
   }
 
   function drawHead(g, x, y, rot) {
+    const PL = PART_LAYOUT.head;
     g.save();
     g.translate(x, y);
     if (rot) g.rotate(rot);
-    if (!put(g, "player/player-head", 0, 0, RIG.head.w, { rot: VIEW.headRot, sx: VIEW.squash })) {
-      chunk(g, ngon(0, 0, 112, 116, 12, 0.26), SKIN, SKIN_D);
+    if (!put(g, "player/player-head", 0, 0, PL.w, { rot: PL.rot, sx: PL.sx })) {
+      chunk(g, ngon(0, 0, 100, 104, 12, 0.26), SKIN, SKIN_D);
       g.fillStyle = "#1A1A16";
-      pathOf(g, ngon(-36, 2, 13, 14, 9, 0)); g.fill();
-      pathOf(g, ngon(36, 2, 13, 14, 9, 0)); g.fill();
-      chunk(g, ngon(0, 30, 17, 16, 8, 0.3), "#E2503C", "#C33F2D");
-      g.strokeStyle = "#1A1A16"; g.lineWidth = 7; g.lineCap = "round";
+      pathOf(g, ngon(-32, 2, 12, 13, 9, 0)); g.fill();
+      pathOf(g, ngon(32, 2, 12, 13, 9, 0)); g.fill();
+      chunk(g, ngon(0, 28, 15, 14, 8, 0.3), "#E2503C", "#C33F2D");
+      g.strokeStyle = "#1A1A16"; g.lineWidth = 6; g.lineCap = "round";
       g.beginPath();
-      const mo = S.eating && S.eatT > 0.42 ? 18 : 0;
-      g.arc(0, 48 + mo * 0.2, 28 + mo * 0.4, 0.25 * Math.PI, 0.75 * Math.PI);
+      const mo = S.eating && S.eatT > 0.42 ? 16 : 0;
+      g.arc(0, 44 + mo * 0.2, 25 + mo * 0.4, 0.25 * Math.PI, 0.75 * Math.PI);
       g.stroke();
-      chunk(g, [[-112, -44], [-96, -112], [-44, -150], [44, -150], [96, -112], [112, -44]],
+      chunk(g, [[-100, -40], [-86, -100], [-40, -134], [40, -134], [86, -100], [100, -40]],
         REDC, REDC_D);
     }
     g.restore();
@@ -1417,8 +1475,8 @@
 
   /* ============================================================
      그리기 — 뒤에서 앞으로. 깊이 차례를 지켜야 3/4 로 보인다.
-       뒷다리 > 뒤페달 > 바퀴·틀·안장 > 뒷팔 > 몸통 > 목도리 > 머리 >
-       앞다리 > 앞페달 > 앞팔 > 받친 손 > 그릇 > 젓가락
+       뒷다리 > 뒷페달 > 안장·틀·바퀴 > 앞다리 > 앞페달 > 받치는 팔 >
+       몸통 > 목도리 > 머리 > (그릇 받친 손 > 그릇) > 젓가락 팔 > 젓가락
      ============================================================ */
   function drawPlayer(g) {
     if (S.rag) { drawRag(g); return; }
@@ -1426,6 +1484,7 @@
     g.save();
     g.translate(VIEW.offX, 0);
     g.rotate(S.bikeAngle * RAD);
+    drawCalibRef(g);                       // 맞추기 모드에서만 — 기준 그림을 깐다
 
     drawLeg(g, P, "far");
     drawCycle(g, P, "far");
@@ -1434,24 +1493,23 @@
     drawCycle(g, P, "near");
     drawArmRig(g, P, "far", "arm");        // 그릇 받치는 팔 — 몸통 뒤
 
-    /* 몸통 — 어깨·골반이 이 안에 들어와 있어서 팔다리가 붙어 보인다 */
-    if (put(g, "player/player-torso", P.torso.x, P.torso.y, RIG.torso.w, { sx: VIEW.squash })) {
-      farShade(g, P.torso.x, P.torso.y, RIG.torso.w * VIEW.squash, RIG.torso.w * 1.1);
+    const PL = PART_LAYOUT;
+    if (put(g, "player/player-torso", P.torso.x, P.torso.y, PL.torso.w, { sx: PL.torso.sx })) {
+      farShade(g, P.torso.x, P.torso.y, PL.torso.w * PL.torso.sx, PL.torso.w * 1.15);
     } else {
-      chunk(g, [[P.torso.x - 104, P.torso.y + 86], [P.torso.x + 104, P.torso.y + 86],
-                [P.torso.x + 94, P.torso.y - 94], [P.torso.x - 94, P.torso.y - 94]], COAT, COAT_D);
-      chunk(g, box(P.torso.x, P.torso.y + 78, 200, 26, 8), HEM, HEM);
+      chunk(g, [[P.torso.x - 78, P.torso.y + 76], [P.torso.x + 78, P.torso.y + 76],
+                [P.torso.x + 70, P.torso.y - 84], [P.torso.x - 70, P.torso.y - 84]], COAT, COAT_D);
+      chunk(g, box(P.torso.x, P.torso.y + 70, 150, 22, 8), HEM, HEM);
     }
     /* 목도리 — 머리와 몸통 사이를 덮는다. 목이 비는 자리가 여기다. */
-    if (!put(g, "player/player-scarf", P.scarf.x, P.scarf.y, RIG.scarf.w, { sx: VIEW.squash }))
-      chunk(g, box(P.scarf.x, P.scarf.y, 186, 46, 14), SCARF, SCARF_D);
+    if (!put(g, "player/player-scarf", P.scarf.x, P.scarf.y, PL.scarf.w, { sx: PL.scarf.sx }))
+      chunk(g, box(P.scarf.x, P.scarf.y, 160, 40, 13), SCARF, SCARF_D);
 
     drawHead(g, P.head.x, P.head.y, gulpRot());
-
     g.restore();
   }
 
-  /* 그릇을 쥔 손 — 그릇 위에 얹어야 '들고 있다' 로 보인다 */
+  /* 그릇을 받친 손 — 그릇보다 먼저 그려야 '손 위에 올라간' 걸로 보인다 */
   function drawBowlHand(g) {
     g.save();
     g.translate(VIEW.offX, 0);
@@ -1460,17 +1518,17 @@
     g.restore();
   }
 
-  /* 젓가락과 그 손 — 그릇보다 앞이라 늦게 얹는다 */
+  /* 젓가락 팔 — 제일 앞. 손에서 젓가락이 시작해 그릇을 향한다. */
   function drawEatTool(g) {
-    const P = rigPts(), A = P.arm.near, D = RIG.near;
+    const P = rigPts(), A = P.arm.near, D = BASE.near;
     g.save();
     g.translate(VIEW.offX, 0);
     g.rotate(S.bikeAngle * RAD);
-    drawArmRig(g, P, "near", "arm");       // 젓가락 팔은 제일 앞 — 가슴을 가로지른다
+    drawArmRig(g, P, "near", "arm");
     limb(g, "bowl/chopsticks", A.grip.x, A.grip.y, A.chop, A.chopLen,
       { alpha: D.a, fallback: () => {
-        g.strokeStyle = "#E7C45E"; g.lineWidth = 7; g.lineCap = "round";
-        for (const o2 of [-5, 5]) {
+        g.strokeStyle = "#E7C45E"; g.lineWidth = 6; g.lineCap = "round";
+        for (const o2 of [-4, 4]) {
           g.beginPath();
           g.moveTo(A.grip.x, A.grip.y + o2);
           g.lineTo(A.tip.x, A.tip.y + o2 * 0.4);
@@ -1532,9 +1590,9 @@
        마디 길이는 '넘어지는 순간의 자세' 로 재면 안 된다. 그릇 쥔 손은
        팔꿈치 바로 옆에 있어서 아랫팔이 20px 짜리로 잡힌다.
        제 길이를 정해 주고, 무르게(k 0.3) 매어 펴지는 게 보이게 한다. */
-    const UP = RIG.arm.upper, FORE = RIG.arm.fore;
+    const UP = BASE.arm.near.upper, FORE = BASE.arm.near.fore;
     for (const side of ["far", "near"]) {
-      const A = Q.arm[side], k = RIG[side].k;
+      const A = Q.arm[side], k = BASE[side].k;
       const n = side === "far" ? "B" : "F";
       P("sho" + n,  A.sho.x, A.sho.y,     0.80, 34, 0.5);
       P("elb" + n,  A.elb.x, A.elb.y,     1.80, 22, 1.7);
@@ -1556,7 +1614,7 @@
       B("chest", "lhip" + n, 0.5);
       B("lhip" + n, "knee" + n);
       B("knee" + n, "foot" + n);
-      const th = RIG.leg.thigh, sh = RIG.leg.shin;
+      const th = BASE.leg.near.thigh, sh = BASE.leg.near.shin;
       fold("lhip" + n, "foot" + n, (th + sh) * rnd(R.legFold[0], R.legFold[1]));
     }
 
@@ -1621,16 +1679,16 @@
 
   function drawRag(g) {
     const p = S.rag.pt;
-    const F = RIG.far, N = RIG.near;
+    const F = BASE.far, N = BASE.near;
 
     /* ---- 외발자전거 ---- 몸과 따로 구른다 */
     limb(g, "unicycle/unicycle-frame", p.wheel.x, p.wheel.y, ragAng(p.wheel, p.seat),
       Math.hypot(p.seat.x - p.wheel.x, p.seat.y - p.wheel.y),
       { fallback: () => limbQuad(g, p.wheel, p.seat, 52, 34, "#4A5370", "#3C4460") });
-    if (!put(g, "unicycle/unicycle-seat", p.seat.x, p.seat.y, RIG.seat.w,
+    if (!put(g, "unicycle/unicycle-seat", p.seat.x, p.seat.y, PART_LAYOUT.seat.w,
              { rot: ragAng(p.wheel, p.seat) + Math.PI / 2 }))
       chunk(g, box(p.seat.x, p.seat.y, 148, 40, 14), REDC, REDC_D);
-    if (!put(g, "unicycle/unicycle-wheel", p.wheel.x, p.wheel.y, RIG.wheel.w,
+    if (!put(g, "unicycle/unicycle-wheel", p.wheel.x, p.wheel.y, PART_LAYOUT.wheel.w,
              { rot: S.rag.spin })) {
       chunk(g, ngon(p.wheel.x, p.wheel.y, 124, 124, 12, S.rag.spin), "#3C4258", "#323850");
       chunk(g, ngon(p.wheel.x, p.wheel.y, 20, 20, 7, 0), "#8A93A6", null);
@@ -1645,9 +1703,9 @@
     /* ---- 몸통 ---- */
     const ta = ragAng(p.hip, p.chest) + Math.PI / 2;
     const mid = { x: (p.hip.x + p.chest.x) / 2, y: (p.hip.y + p.chest.y) / 2 };
-    if (!put(g, "player/player-torso", mid.x, mid.y, RIG.torso.w, { rot: ta, sx: VIEW.squash }))
+    if (!put(g, "player/player-torso", mid.x, mid.y, PART_LAYOUT.torso.w, { rot: ta, sx: VIEW.squash }))
       limbQuad(g, p.hip, p.chest, 192, 180, COAT, COAT_D);
-    if (!put(g, "player/player-scarf", p.chest.x, p.chest.y, RIG.scarf.w, { rot: ta }))
+    if (!put(g, "player/player-scarf", p.chest.x, p.chest.y, PART_LAYOUT.scarf.w, { rot: ta }))
       chunk(g, box(p.chest.x, p.chest.y, 186, 46, 14), SCARF, SCARF_D);
 
     /* ---- 앞다리 ---- 몸통 앞 */
@@ -1674,15 +1732,15 @@
     const o = { k: d.k, alpha: d.a };
     limb(g, "player/player-thigh" + sfx2, hip.x, hip.y, ragAng(hip, knee),
       Math.hypot(knee.x - hip.x, knee.y - hip.y),
-      Object.assign({ over: RIG.over.hip }, o,
+      Object.assign({ over: PART_LAYOUT.thighNear.over }, o,
         { fallback: () => limbQuad(g, hip, knee, 60 * d.k, 48 * d.k, PANT, PANT_D) }));
     limb(g, "player/player-shin" + sfx2, knee.x, knee.y, ragAng(knee, foot),
       Math.hypot(foot.x - knee.x, foot.y - knee.y),
-      Object.assign({ over: RIG.over.knee }, o,
+      Object.assign({ over: PART_LAYOUT.shinNear.over }, o,
         { fallback: () => limbQuad(g, knee, foot, 48 * d.k, 40 * d.k, PANT, PANT_D) }));
     limb(g, "player/player-foot" + sfx2, foot.x, foot.y,
-      ragAng(knee, foot) - Math.PI / 2 + 0.25, RIG.leg.foot,
-      Object.assign({ over: RIG.over.ankle }, o,
+      ragAng(knee, foot) - Math.PI / 2 + 0.25, BASE.leg.near.foot,
+      Object.assign({ over: PART_LAYOUT.footNear.over }, o,
         { fallback: () => chunk(g, box(foot.x, foot.y + 6, 70 * d.k, 32 * d.k, 11),
             SHOE, "#54382A") }));
   }
@@ -1692,14 +1750,14 @@
     const o = { k: d.k, alpha: d.a };
     limb(g, "player/player-arm-upper" + sfx2, sho.x, sho.y, ragAng(sho, elb),
       Math.hypot(elb.x - sho.x, elb.y - sho.y),
-      Object.assign({ over: RIG.over.shoulder }, o,
+      Object.assign({ over: PART_LAYOUT.armUpperNear.over }, o,
         { fallback: () => limbQuad(g, sho, elb, 50 * d.k, 42 * d.k, SLEEVE, SLEEVE_D) }));
     limb(g, "player/player-arm-lower" + sfx2, elb.x, elb.y, ragAng(elb, hand),
       Math.hypot(hand.x - elb.x, hand.y - elb.y),
-      Object.assign({ over: RIG.over.elbow }, o,
+      Object.assign({ over: PART_LAYOUT.armLowerNear.over }, o,
         { fallback: () => limbQuad(g, elb, hand, 42 * d.k, 34 * d.k, SLEEVE, SLEEVE_D) }));
-    limb(g, "player/player-hand" + sfx2, hand.x, hand.y, ragAng(elb, hand), RIG.arm.hand,
-      Object.assign({ over: RIG.over.wrist }, o,
+    limb(g, "player/player-hand" + sfx2, hand.x, hand.y, ragAng(elb, hand), BASE.arm.near.hand,
+      Object.assign({ over: PART_LAYOUT.handNear.over }, o,
         { fallback: () => chunk(g, ngon(hand.x, hand.y, 24 * d.k, 24 * d.k, 8, 0.3),
             SKIN, SKIN_D) }));
   }
@@ -2449,7 +2507,8 @@
     BOX, JOINT, put, VIEW, fitScale, CURB, SKYLINE,
     posePaint, POSE, PART, drawEatTool, tileRow,
     startCrash, stepCrash, drawCrash, bowlWorld,
-    startRag, stepRag, drawRag, rigPts, RIG, LEG_TOP, HEAD_Y, limb,
+    startRag, stepRag, drawRag, rigPts, BASE, PART_LAYOUT, CALIB, calibFreeze,
+    LEG_TOP, HEAD_Y, limb, CRANK, CRANK0,
     startDone, stepDone, drinkPose, drinkRot, gulpRot,
     pads, padAt, drawPads, padShown,
     getW: () => W, getH: () => H,
