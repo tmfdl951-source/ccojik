@@ -149,13 +149,20 @@
        1.00~1.30 다 빠진 깨끗한 배수구
        1.30~1.75 결과창 */
     clearFx: {
-      wind: 0.30,                 // 숨 고르는 구간이 끝나는 때(초)
-      suck: 1.00,                 // 빨려 드는 구간이 끝나는 때(초)
-      hold: 1.30,                 // 연출 전체 길이(초)
-      toResult: 0.45,             // 그 뒤 결과창까지 쉬는 시간(초)
-      bubbles: 14,                // 거품 수 — 저사양에서도 버티게 적게
-      spin: 7.2,                  // 소용돌이 각속도(rad/s)
+      /* CLEAR_DRAIN — 물이 빠진다 */
+      swallow: 0.25,              // 0.00~0.25 덩어리·매듭이 구멍으로 삼켜진다
+      drain: 1.55,                // 0.25~1.55 물이 소용돌이치며 내려간다 (1.3초)
+      /* CLEAN_FADE — 깨끗해진다 */
+      fade: 0.5,                  // 때가 걷히는 시간
+      hold: 0.5,                  // 깨끗해진 채로 머무는 시간
+      /* 물 오버레이 */
+      turns: 2,                   // 다 빠질 때까지 도는 바퀴 수 (720도)
+      spin: 9.0,                  // 소용돌이 고리 각속도(rad/s)
+      bubbles: 20,                // 거품 수 — 저사양에서도 버티게 스물까지만
       shake: 0.048,               // 아주 미세한 흔들림 (break.shake 0.14 대비)
+      /* 노는 동안 때가 이만큼은 남아 있어야 끝에 걷히는 게 보인다.
+         예전엔 청소율 95% 에서 알파가 0 이 되어 걷힐 거리가 없었다. */
+      dirtFloor: 0.32,
     },
     sfxGap: 70,                   // 같은 소리가 겹쳐 터지지 않게(ms)
   };
@@ -177,6 +184,8 @@
 
   /* 디버그 — 배포는 false */
   const DEBUG_GAME = false;
+  /* 클리어 연출이 순서대로 도는지 콘솔로 확인한다. 확인이 끝나면 false 로. */
+  const CLEAR_LOG = true;
 
   /* 논리 좌표계 */
   const REF_H = 1920;
@@ -360,7 +369,10 @@
   const ST = {
     TITLE: "TITLE", READY: "READY", SEARCHING: "SEARCHING", GRABBED: "GRABBED",
     PULLING: "PULLING", TENSION: "TENSION", BREAK: "BREAK", REGRAB: "REGRAB",
-    FINAL_CLOG: "FINAL_CLOG", CLEAR: "CLEAR", TIME_OVER: "TIME_OVER", RESULT: "RESULT",
+    FINAL_CLOG: "FINAL_CLOG",
+    CLEAR_DRAIN: "CLEAR_DRAIN",   // 물이 소용돌이치며 빠진다
+    CLEAN_FADE: "CLEAN_FADE",     // 때가 걷히고 깨끗한 배수구를 보여 준다
+    TIME_OVER: "TIME_OVER", RESULT: "RESULT",
   };
 
   const S = {
@@ -402,8 +414,10 @@
     fx: [], shake: 0, flash: 0,
     msg: "", msgLeft: 0, msgBad: false,
     banner: "", bannerLeft: 0,
+    cleared: false,               // 한 번 치웠으면 계속 치워진 채로 둔다
     clearT: 0,                    // 배수 연출이 시작되고 지난 시간(초)
-    clearSaid: false,             // '뻥 뚫렸다' 를 한 번만 알리게
+    /* 빨려 내려가는 물 한 겹 — 작아지고, 돌고, 옅어진다 */
+    clearWater: { opacity: 0.7, scale: 1, rotation: 0 },
     bubbles: [],                  // 구멍으로 빨려 드는 거품
     waterSpin: 0,
     clogOut: 0,                   // 최종 덩어리가 빠져나온 정도 0~1
@@ -789,6 +803,8 @@
   }
   const playing = () => [ST.SEARCHING, ST.GRABBED, ST.PULLING, ST.TENSION,
                          ST.REGRAB, ST.FINAL_CLOG].includes(S.state);
+  /* 클리어 연출이 도는 중 — 손이 안 먹고, 결과창은 아직 안 뜬다 */
+  const clearing = () => S.state === ST.CLEAR_DRAIN || S.state === ST.CLEAN_FADE;
 
   cv.addEventListener("pointerdown", e => {
     if (!playing()) return;
@@ -967,15 +983,19 @@
     if (prog < S.preset.clogAt) return;
     /* 덩어리가 구멍에서 빠져나온 정도 */
     S.clogOut = clamp((prog - S.preset.clogAt) / (1 - S.preset.clogAt), 0, 1);
-    if (S.clogOut >= 1 && S.state !== ST.CLEAR) doClear();
+    if (S.clogOut >= 1 && !clearing() && S.state !== ST.RESULT) doClear();
     void dt;
   }
 
   function doClear() {
-    S.state = ST.CLEAR;              // 여기서부터 playing() 이 false — 손이 안 먹는다
+    S.state = ST.CLEAR_DRAIN;        // 여기서부터 playing() 이 false — 손이 안 먹는다
     S.clean = 100;
+    S.cleared = true;
     S.clearT = 0;
     S.flash = 0.14;
+    /* 뽑아 둔 가닥을 바닥에 굳힌다 — 구멍~손 구간이 사라져도 전리품은 남는다 */
+    const cur = S.piles[S.piles.length - 1];
+    if (cur) { cur.frozen = true; cur.tip = S.tipKind; cur.tipRot = rnd(-0.6, 0.6); }
     const at = S.grab || { x: 0, y: -200 };
     addFx(clearKey("splash") || "fxSlimeSplash", at, 520);
     addFx("fxDroplet", { x: at.x, y: at.y + 60 }, 320);
@@ -986,29 +1006,40 @@
     pullSound(false);
     S.grab = null; S.ptr = null;
     cv.classList.remove("grabbing");
+    clearLog("CLEAR_DRAIN start");
   }
 
-  /* 배수 연출 — 지금 어디까지 왔나 (0~1) */
-  const windK = () => clamp(S.clearT / GAME_CONFIG.clearFx.wind, 0, 1);
-  const suckK = () => {
-    const C = GAME_CONFIG.clearFx;
-    return clamp((S.clearT - C.wind) / (C.suck - C.wind), 0, 1);
+  /* 배수 연출 — 지금 어디까지 왔나 (전부 0~1) */
+  const C_FX = () => GAME_CONFIG.clearFx;
+  /* 덩어리가 구멍으로 삼켜지는 정도 */
+  const swallowK = () => {
+    if (!clearing()) return S.cleared ? 1 : 0;
+    return clamp(S.clearT / C_FX().swallow, 0, 1);
   };
-  const doneK = () => {
-    const C = GAME_CONFIG.clearFx;
-    return clamp((S.clearT - C.suck) / (C.hold - C.suck), 0, 1);
+  /* 물이 빨려 내려간 정도 — 삼킨 뒤부터 CLEAR_DRAIN 이 끝날 때까지 */
+  const suckK = () => {
+    const C = C_FX();
+    if (!clearing()) return 0;
+    return clamp((S.clearT - C.swallow) / (C.drain - C.swallow), 0, 1);
+  };
+  /* 때가 걷힌 정도 — CLEAN_FADE 안에서만 오른다 */
+  const cleanK = () => {
+    const C = C_FX();
+    if (!clearing()) return S.cleared ? 1 : 0;
+    return clamp((S.clearT - C.drain) / C.fade, 0, 1);
   };
 
   function spawnBubbles() {
     S.bubbles.length = 0;
     for (let i = 0; i < GAME_CONFIG.clearFx.bubbles; i++) {
       S.bubbles.push({
+        /* 배수구 바깥 테두리 쪽에서 시작해 가운데로 간다 */
         a: rnd(0, Math.PI * 2),
-        r: rnd(DRAIN_R * 0.5, DRAIN_R * 1.15),
-        w: rnd(DRAIN_R * 0.035, DRAIN_R * 0.1),
-        vr: rnd(0.9, 1.7),                               // 반지름이 줄어드는 비율
-        spin: rnd(3.4, 6.2) * (Math.random() < 0.5 ? -1 : 1),
-        wait: rnd(0, 0.26),                              // 다 같이 출발하면 기계 같다
+        r: rnd(DRAIN_R * 0.72, DRAIN_R * 1.35),
+        w: rnd(DRAIN_R * 0.04, DRAIN_R * 0.115),
+        vr: rnd(0.85, 1.6),                              // 반지름이 줄어드는 비율
+        spin: rnd(3.0, 5.4) * (Math.random() < 0.5 ? -1 : 1),
+        wait: rnd(0, 0.5),                               // 다 같이 출발하면 기계 같다
       });
     }
   }
@@ -1017,30 +1048,51 @@
       if (b.wait > 0) { b.wait -= dt; continue; }
       if (b.r <= 0) continue;
       /* 깔때기 — 가운데로 갈수록 빨라지고 더 빨리 돈다 */
-      b.r -= (b.r * b.vr + DRAIN_R * 0.18) * dt;
-      b.a += b.spin * dt * (1 + DRAIN_R / Math.max(DRAIN_R * 0.22, b.r) * 0.3);
+      b.r -= (b.r * b.vr + DRAIN_R * 0.22) * dt;
+      b.a += b.spin * dt * (1 + DRAIN_R / Math.max(DRAIN_R * 0.22, b.r) * 0.35);
       if (b.r < DRAIN_R * 0.05) b.r = 0;
     }
   }
+
+  /* 물 오버레이 — 시간이 가면 작아지고, 돌고, 옅어진다 */
+  function stepClearWater() {
+    const C = GAME_CONFIG.clearFx, p = suckK();
+    S.clearWater.scale = lerp(1.0, 0.15, p);
+    S.clearWater.rotation = p * Math.PI * 2 * C.turns;    // 720도
+    S.clearWater.opacity = lerp(0.7, 0, p);
+  }
+
+  const clearLog = m => { if (CLEAR_LOG) console.log("[drain-hair] " + m); };
 
   function stepClear(dt) {
     const C = GAME_CONFIG.clearFx;
     S.clearT += dt;
     /* 빨려 드는 동안 점점 빨리 돈다 */
-    S.waterSpin += dt * (2.0 + C.spin * suckK() * (1 - doneK() * 0.7));
+    S.waterSpin += dt * (2.0 + C.spin * suckK());
     /* 아주 미세한 흔들림 — break 의 흔들림 틀을 그대로 쓰되 크기만 작게.
-       빨려 드는 동안은 매 칸 다시 채워야 꺼지지 않고 일정하게 떤다.
-       다 빠진 뒤에는 멈춰야 한다 — 안 그러면 결과창까지 화면이 떤다. */
-    if (S.clearT < C.suck) S.shake = C.shake;
+       빠지는 동안은 매 칸 다시 채워야 꺼지지 않고 일정하게 떤다. */
+    if (S.state === ST.CLEAR_DRAIN) S.shake = C.shake;
     else if (S.shake > 0) S.shake = Math.max(0, S.shake - dt);
     stepBubbles(dt);
+    stepClearWater();
     stepFx(dt); stepChain(dt); stepTail(dt);
     if (S.flash > 0) S.flash -= dt;
     if (S.msgLeft > 0) S.msgLeft -= dt;
     if (S.bannerLeft > 0) S.bannerLeft -= dt;
-    /* 다 빠진 순간에 한 번 알린다 */
-    if (!S.clearSaid && S.clearT >= C.suck) { S.clearSaid = true; banner("뻥 뚫렸다!", ""); }
-    if (S.clearT >= C.hold + C.toResult) showResult(true);
+
+    /* CLEAR_DRAIN -> CLEAN_FADE -> RESULT */
+    if (S.state === ST.CLEAR_DRAIN && S.clearT >= C.drain) {
+      S.state = ST.CLEAN_FADE;
+      banner("시원하게 뚫렸다!", "");
+      S.bannerLeft = 0.7;
+      sfx("result");
+      clearLog("CLEAR_DRAIN complete");
+      clearLog("CLEAN_FADE start");
+    }
+    if (S.state === ST.CLEAN_FADE && S.clearT >= C.drain + C.fade + C.hold) {
+      clearLog("RESULT start");
+      showResult(true);
+    }
   }
 
   /* ============================================================
@@ -1088,7 +1140,7 @@
       if (S.readyLeft <= 0) { S.state = ST.SEARCHING; S.msgLeft = 0; }
       return;
     }
-    if (S.state === ST.CLEAR) { stepClear(dt); return; }
+    if (clearing()) { stepClear(dt); return; }
     if (!playing() && S.state !== ST.BREAK) return;
 
     /* 시간 */
@@ -1117,7 +1169,7 @@
     if (S.bannerLeft > 0) S.bannerLeft -= dt;
 
     /* 청소율 — 최종 덩어리가 빠져야 100% 가 된다 */
-    if (S.state !== ST.CLEAR) S.clean = Math.min(99, S.extracted / S.cleanTarget * 100);
+    if (!clearing()) S.clean = Math.min(99, S.extracted / S.cleanTarget * 100);
 
     /* 매듭·오염물이 구멍을 지나는 순간 한 번씩 알려 준다 */
     const prog = S.extracted / S.cleanTarget;
@@ -1150,7 +1202,15 @@
      그리기
      ============================================================ */
   /* 청소율에 따른 오염 세기 */
-  const dirtAlpha = () => clamp(1 - S.clean / 95, 0, 1);
+  /* 때가 얼마나 보이나.
+     노는 동안은 dirtFloor 아래로 안 내려간다 — 다 내려가 버리면 클리어할 때
+     '깨끗해졌다' 로 바뀔 거리가 없다. 그 남은 몫을 CLEAN_FADE 에서 걷는다. */
+  const dirtAlpha = () => {
+    const C = GAME_CONFIG.clearFx;
+    const base = Math.max(C.dirtFloor, clamp(1 - S.clean / 95, 0, 1));
+    if (!clearing()) return S.cleared ? 0 : base;
+    return base * (1 - cleanK());
+  };
 
   function drawScene(g) {
     const box = DRAIN_R * 2;
@@ -1167,8 +1227,6 @@
 
     /* 7 물 — 청소율에 따라 층이 바뀐다 (회전·크기·투명도로 섞는다) */
     drawWater(g, box);
-    drawDrainSwirl(g, box);                     // 마지막 배수 — 소용돌이
-    drawBubbles(g);                             //              빨려 드는 거품
 
     /* 5~6 금속 테와 가장자리 때 */
     draw(g, "drainRing", 0, 0, box, { mode: "center" });
@@ -1181,7 +1239,7 @@
     const c = S.clean;
     const spin = S.waterSpin;
     /* 배수 중에는 물층이 통째로 가운데로 빨려 든다 — 줄이고 지운다 */
-    const k = S.state === ST.CLEAR ? suckK() : 0;
+    const k = suckK();
     const sz = 1 - k * 0.55, al = 1 - k * 0.85;
     /* 고인 물 — 처음엔 많이 보이고 깨끗해지면 사라진다 */
     draw(g, "waterPool", 0, 0, box * 1.08 * sz,
@@ -1195,11 +1253,11 @@
     draw(g, "waterSwirl2", 0, 0, box * 0.98 * sz,
       { mode: "center", alpha: a2 * 0.9 * al, rot: -spin * 1.1 });
     /* 다 빠지는 순간 — 다 빠진 뒤에는 그리지 않는다 */
-    if (S.state === ST.CLEAR) {
-      const a = (1 - k * 0.6) * (1 - doneK());
+    if (clearing()) {
+      const a = (1 - k) * 0.95;
       if (a > 0.004) {
-        draw(g, "waterDrainClear", 0, 0, box * (1.12 - k * 0.62),
-          { mode: "center", alpha: a, rot: spin * 2.2 });
+        draw(g, "waterDrainClear", 0, 0, box * (1.12 - k * 0.8),
+          { mode: "center", alpha: a, rot: S.clearWater.rotation });
       }
     }
   }
@@ -1210,48 +1268,69 @@
      다른 속도로 돌리면서 줄이면 소용돌이로 보이고, 가운데를 어둡게 깔면
      구멍이 깊어 보인다. 전부 호와 그라데이션이라 저사양에서도 싸다.
      ============================================================ */
+  /* 물 오버레이 — 배수구 한가운데(논리 원점 = drainCenter)에서 돈다.
+     여기는 world() 안이라 (0,0) 이 곧 구멍 가운데다. */
   function drawDrainSwirl(g, box) {
-    if (S.state !== ST.CLEAR) return;
-    const k = suckK(), fade = 1 - doneK(), r0 = box * 0.5;
-    if (fade <= 0) return;
+    if (!clearing()) return;
+    const O = S.clearWater;
+    if (O.opacity <= 0.004) return;
+    const k = suckK(), r0 = box * 0.5 * O.scale;
     g.save();
     /* 구멍이 깊어 보이게 — 가운데로 어두워진다 */
-    const dim = g.createRadialGradient(0, 0, r0 * 0.05, 0, 0, r0 * (1 - k * 0.4));
-    dim.addColorStop(0, "rgba(8,13,15," + (0.6 * fade * (0.3 + windK() * 0.7)).toFixed(3) + ")");
-    dim.addColorStop(0.55, "rgba(18,28,32," + (0.2 * fade).toFixed(3) + ")");
+    const dim = g.createRadialGradient(0, 0, Math.max(2, r0 * 0.05), 0, 0, Math.max(6, r0 * 1.1));
+    dim.addColorStop(0, "rgba(8,13,15," + (0.72 * O.opacity / 0.7).toFixed(3) + ")");
+    dim.addColorStop(0.55, "rgba(18,28,32," + (0.3 * O.opacity / 0.7).toFixed(3) + ")");
     dim.addColorStop(1, "rgba(18,28,32,0)");
     g.fillStyle = dim;
-    g.beginPath(); g.ellipse(0, 0, r0 * 1.1, r0 * 1.1, 0, 0, 7); g.fill();
+    g.beginPath(); g.ellipse(0, 0, r0 * 1.2, r0 * 1.2, 0, 0, 7); g.fill();
 
     const art = clearKey("swirl");
     if (art) {
-      draw(g, art, 0, 0, box * (1.12 - k * 0.62),
-        { mode: "center", alpha: fade * 0.9, rot: S.waterSpin * 1.6 });
+      draw(g, art, 0, 0, box * 1.12 * O.scale,
+        { mode: "center", alpha: O.opacity * 1.3, rot: O.rotation });
     } else {
-      /* 물결 고리 넷 — 안쪽일수록 빠르고 얇다 */
+      /* 소용돌이 — 반 바퀴짜리 호 넷을 서로 다른 속도로 돌린다.
+         안쪽일수록 빠르고 얇아서 물이 빨려드는 결로 읽힌다. */
       g.lineCap = "round";
-      g.strokeStyle = "rgba(226,240,244,.95)";
       for (let i = 0; i < 4; i++) {
         const u = i / 3;                                  // 0 바깥 ~ 1 안쪽
-        const rr = r0 * (1.02 - u * 0.5) * (1 - k * (0.42 + u * 0.3));
-        if (rr < 8) continue;
+        const rr = r0 * (1.15 - u * 0.52);
+        if (rr < 5) continue;
         g.save();
-        g.rotate(S.waterSpin * (1.1 + u * 1.5) + i * 1.7);
-        g.globalAlpha = fade * (0.44 - u * 0.1) * (0.3 + k * 0.7);
-        g.lineWidth = Math.max(2, r0 * (0.055 - u * 0.028));
+        g.rotate(O.rotation * (0.8 + u * 1.6) + i * 1.7);
+        g.globalAlpha = clamp(O.opacity * (1.5 - u * 0.35) * (0.45 + k * 0.55), 0, 1);
+        g.strokeStyle = i === 3 ? "rgba(255,255,255,.95)" : "rgba(214,236,243,.95)";
+        g.lineWidth = Math.max(2.5, box * 0.5 * (0.062 - u * 0.03));
         g.beginPath();
-        g.ellipse(0, 0, rr, rr * (0.84 - k * 0.18), 0, 0.4, 0.4 + Math.PI * 1.3);
+        g.ellipse(0, 0, rr, rr * (0.86 - k * 0.2), 0, 0.35, 0.35 + Math.PI * 1.35);
         g.stroke();
         g.restore();
       }
+      /* 테두리 하이라이트 — 물이 가장자리에서 끌려 들어가는 선 */
+      g.save();
+      g.rotate(-O.rotation * 0.55);
+      g.globalAlpha = clamp(O.opacity * 0.9, 0, 1);
+      g.strokeStyle = "rgba(255,255,255,.75)";
+      g.lineWidth = Math.max(2, box * 0.012);
+      g.beginPath();
+      g.ellipse(0, 0, r0 * 1.3, r0 * 1.12, 0, 0, Math.PI * 1.1);
+      g.stroke();
+      g.restore();
     }
     g.restore();
   }
 
+  /* 배수 연출 한 벌 — 소용돌이 + 거품. render() 에서 맨 위에 얹는다. */
+  function drawClearFx(g) {
+    if (!clearing()) return;
+    drawDrainSwirl(g, DRAIN_R * 2);
+    drawBubbles(g);
+  }
+
   function drawBubbles(g) {
-    if (S.state !== ST.CLEAR || !S.bubbles.length) return;
+    if (!clearing() || !S.bubbles.length) return;
     const sm = clearKey("bubbleSmall"), lg = clearKey("bubbleLarge");
-    const fade = 1 - doneK();
+    const fade = 1 - cleanK();
     if (fade <= 0) return;
     g.save();
     for (const b of S.bubbles) {
@@ -1273,14 +1352,24 @@
   }
 
   /* 다 빠진 뒤 — 젖은 금속이 한 번 환해진다 */
+  /* 때가 걷히고 드러나는 깨끗한 배수구.
+     drain-clean.png 가 들어오면 그걸로 크로스페이드하고(방법 A),
+     없으면 때를 걷어 원래 깨끗한 바탕이 드러나게 한다(방법 B).
+     때를 걷는 쪽은 dirtAlpha() 가 맡는다 — 여기서는 젖은 금속빛만 더한다. */
   function drawDrainClean(g, box) {
-    if (S.state !== ST.CLEAR) return;
-    const d = doneK();
+    if (!clearing() && !S.cleared) return;
+    const d = cleanK();
     if (d <= 0) return;
     const key = clearKey("drainClean");
     if (key) draw(g, key, 0, 0, box, { mode: "center", alpha: d });
-    draw(g, "drainRingWet", 0, 0, box, { mode: "center", alpha: d * 0.6 });
-    draw(g, "drainHighlight", 0, 0, box, { mode: "center", alpha: d * 0.3 });
+    draw(g, "drainRingWet", 0, 0, box, { mode: "center", alpha: d * 0.75 });
+    draw(g, "drainHighlight", 0, 0, box, { mode: "center", alpha: d * 0.45 });
+    /* 한 번 환해진다 — "전보다 깨끗해졌다" 가 눈에 띄게 */
+    g.save();
+    g.globalAlpha = Math.sin(clamp(d, 0, 1) * Math.PI) * 0.22;
+    g.fillStyle = "rgba(255,255,255,1)";
+    g.beginPath(); g.ellipse(0, 0, box * 0.46, box * 0.46, 0, 0, 7); g.fill();
+    g.restore();
   }
 
   /* 이미 뽑아 낸 누적분 — 구멍에서 시작해 아래로 접혀 쌓인 한 줄.
@@ -1316,6 +1405,10 @@
   function drawStrand(g) {
     const n = S.nodes.length;
     if (n < 2) return;
+    /* 클리어하면 구멍~손 구간이 빨려 들어간다. 바닥에 쌓인 몫은 doClear 에서
+       굳혀 두어 drawOldPiles 가 계속 그린다 — 전리품은 사라지지 않는다. */
+    const swAll = swallowK();
+    if (swAll >= 1) return;
     const T = GAME_CONFIG.pile;
     const taut = clamp(S.tension, 0, 1);
     const shiver = taut > GAME_CONFIG.break.warningThreshold
@@ -1345,7 +1438,7 @@
       g.stroke();
       g.restore();
     };
-    path(GAME_CONFIG.pile.lineW, "rgba(26,21,19,.95)");
+    path(GAME_CONFIG.pile.lineW, "rgba(26,21,19,.95)", 1 - swAll);
 
     /* 끝에 그림을 얹지 않는다. hair-tip-*.png 는 그 자체가 굽은 머리카락
        한 가닥 그림이라, 선 끝에 놓으면 '옆에 딴 머리카락' 으로 보였다.
@@ -1380,13 +1473,17 @@
   }
   /* 매듭·오염물 — 같은 줄에 걸려 함께 나오고, 나온 뒤에도 그 줄에 얹혀 있다 */
   function drawOnHair(g) {
+    /* 삼켜지는 동안 같이 빨려 들어간다 — 안 그러면 소용돌이를 덮는다 */
+    const sw = swallowK();
+    if (sw >= 1) return;
     const prog = S.extracted / S.cleanTarget;
     const place = (item, key, w) => {
       if (prog < item.p) return;                 // 아직 구멍 안
       const d = (prog - item.p) * S.cleanTarget; // 구멍에서 나온 길이(cm)
       const p = strandPoint(d);
-      draw(g, key, p.x + (item.offX || 0), p.y + (item.offY || 0), w,
-        { mode: "center", rot: item.rot + p.t * 0.6 });
+      draw(g, key, lerp(p.x, 0, sw) + (item.offX || 0) * (1 - sw),
+        lerp(p.y, 0, sw) + (item.offY || 0) * (1 - sw), w * (1 - sw * 0.7),
+        { mode: "center", rot: item.rot + p.t * 0.6, alpha: 1 - sw });
     };
     for (const gr of S.grimes) place(gr, gr.kind, gr.w);
     for (const k of S.knots) place(k, k.kind, k.w);
@@ -1395,10 +1492,15 @@
   /* 최종 덩어리 — 마지막에 구멍에서 쑥 올라온다 */
   function drawClog(g) {
     if (S.extracted / S.cleanTarget < S.preset.clogAt) return;
+    /* 덩어리가 제일 크게 구멍을 가린다 (431px). 클리어하면 가운데로 빨려
+       들어가며 사라져야 그 뒤의 소용돌이가 보인다. */
+    const sw = swallowK();
+    if (sw >= 1) return;
     const k = S.clogOut;
     const p = curvePoint(clamp(k * 0.8, 0, 0.8));
     const w = (S.preset.mega ? 540 : S.preset.bigClog ? 480 : 420) * (0.6 + k * 0.4);
-    draw(g, "hairClogFinal", p.x, p.y, w, { mode: "center", rot: Math.sin(k * 3) * 0.12 });
+    draw(g, "hairClogFinal", lerp(p.x, 0, sw), lerp(p.y, 0, sw), w * (1 - sw * 0.75),
+      { mode: "center", rot: Math.sin(k * 3) * 0.12 + sw * 1.6, alpha: 1 - sw });
   }
 
   /* 잡을 자리 표시 — 손가락이 가까우면 또렷해진다 */
@@ -1427,7 +1529,7 @@
   /* 뽑은 길이 — 상단 가운데 고정. 손끝을 따라다니면 흔들려서 읽기 나쁘다.
      돌파했을 때만 잠깐 커진다. */
   function drawLength(g) {
-    if (!playing() && S.state !== ST.CLEAR) return;
+    if (!playing() && !clearing()) return;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     const pop = 1 + S.popScale * 0.3;
     const size = Math.max(22, Math.min(W * 0.085, H * 0.05)) * pop;
@@ -1513,6 +1615,10 @@
     drawBits(g);
     drawOnHair(g);
     drawClog(g);
+    /* 마지막 배수 — 머리카락·덩어리보다 위에 그린다.
+       예전엔 drawScene 안(머리카락 아래)에 있어서 431px 짜리 덩어리와
+       매듭·오염물이 소용돌이를 통째로 덮었다. 그래서 안 보였던 것이다. */
+    drawClearFx(g);
     /* 10~11 광택과 물빛은 머리카락 위에 아주 옅게 */
     const box = DRAIN_R * 2;
     draw(g, "drainHighlight", 0, 0, box, { mode: "center", alpha: 0.3 + S.clean / 100 * 0.35 });
@@ -1568,7 +1674,8 @@
     S.shake = 0; S.flash = 0;
     S.msg = ""; S.msgLeft = 0;
     S.banner = ""; S.bannerLeft = 0;
-    S.waterSpin = 0; S.clearT = 0; S.clearSaid = false; S.bubbles.length = 0;
+    S.waterSpin = 0; S.clearT = 0; S.cleared = false; S.bubbles.length = 0;
+    S.clearWater.opacity = 0.7; S.clearWater.scale = 1; S.clearWater.rotation = 0;
     buildHair();
     cv.classList.remove("grabbing");
     $("startOver").hidden = true;
@@ -1799,7 +1906,7 @@
     S, GAME_CONFIG, PRESETS, MEGA, MEGA_CHANCE, ST, BOX, IMGS, SFX, DIR,
     ASSET_VERSION, DEBUG_GAME, REF_H, DRAIN_R, DRAIN_Y,
     start, timeOver, showResult, doBreak, doClear, release, buildHair, newTip,
-    stepClear, suckK, doneK, windK, CLEAR_ART,
+    stepClear, suckK, cleanK, swallowK, clearing, drawClearFx, CLEAR_ART,
     buildSegments,
     resistanceNow, segmentName, curvePoint, topY, botY,
     activeCm, chainCm, newPile, strandPoint, stepTail, floorAt, SEG, MOUND_BINS,
