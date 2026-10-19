@@ -142,7 +142,21 @@
     /* ---- 연출 ---- */
     fxTime: 0.34,                 // FX 한 장이 보이는 시간(초)
     maxFx: 10,
-    clearHold: 0.9,               // 물이 빠지는 연출 시간(초)
+    /* ---- 마지막 배수 연출 ----
+       다 뽑고 나면 막혀 있던 물이 한 번에 내려간다. 짧게, 그러나 확실하게.
+       0.0~0.30  구멍이 당겨지고 물이 떤다
+       0.30~1.00 소용돌이치며 빨려 들어간다 (고리가 줄고 거품이 따라 든다)
+       1.00~1.30 다 빠진 깨끗한 배수구
+       1.30~1.75 결과창 */
+    clearFx: {
+      wind: 0.30,                 // 숨 고르는 구간이 끝나는 때(초)
+      suck: 1.00,                 // 빨려 드는 구간이 끝나는 때(초)
+      hold: 1.30,                 // 연출 전체 길이(초)
+      toResult: 0.45,             // 그 뒤 결과창까지 쉬는 시간(초)
+      bubbles: 14,                // 거품 수 — 저사양에서도 버티게 적게
+      spin: 7.2,                  // 소용돌이 각속도(rad/s)
+      shake: 0.048,               // 아주 미세한 흔들림 (break.shake 0.14 대비)
+    },
     sfxGap: 70,                   // 같은 소리가 겹쳐 터지지 않게(ms)
   };
 
@@ -217,6 +231,24 @@
     waterSwirl1: { file: "water-swirl-1.png", w: 1536, h: 1024, l: 0.022, t: 0.026, r: 0.018, b: 0.026 },
     waterSwirl2: { file: "water-swirl-2.png", w: 1536, h: 1024, l: 0, t: 0.017, r: 0, b: 0 },
   };
+
+  /* 마지막 배수 연출에 쓸 그림 — 지금은 전부 코드로 그린다.
+     파일이 들어오면 아래를 BOX 와 같은 꼴로 한 줄씩 채우면 그때부터 그림을
+     쓰고, 비어 있으면 코드 그림으로 돌아간다. 알파 여백(l/t/r/b)은 BOX 의
+     다른 줄처럼 실제로 재서 넣어야 한다.
+       swirl       fx-water-swirl.png
+       splash      fx-water-splash.png   (지금은 fx-slime-splash 로 대신한다)
+       bubbleSmall fx-bubble-small.png
+       bubbleLarge fx-bubble-large.png
+       drainClean  drain-clean.png
+     없는 파일명을 미리 적어 두면 404 만 나므로 비워 둔다.
+     소리는 SFX.drain_clear 자리에 sfx-drain-water.mp3 경로를 넣으면 된다. */
+  const CLEAR_ART = {
+    swirl: null, splash: null, bubbleSmall: null, bubbleLarge: null, drainClean: null,
+  };
+  /* 채워진 것만 읽어 온다 */
+  for (const k of Object.keys(CLEAR_ART)) if (CLEAR_ART[k]) BOX["clear_" + k] = CLEAR_ART[k];
+  const clearKey = k => (CLEAR_ART[k] ? "clear_" + k : null);
 
   /* 효과음 — 파일이 들어오면 경로만 채우면 된다. 없으면 조용히 넘어간다.
      pull 은 당기는 동안 이어져야 하므로 따로 둔다(loop). */
@@ -370,7 +402,9 @@
     fx: [], shake: 0, flash: 0,
     msg: "", msgLeft: 0, msgBad: false,
     banner: "", bannerLeft: 0,
-    clearLeft: 0,
+    clearT: 0,                    // 배수 연출이 시작되고 지난 시간(초)
+    clearSaid: false,             // '뻥 뚫렸다' 를 한 번만 알리게
+    bubbles: [],                  // 구멍으로 빨려 드는 거품
     waterSpin: 0,
     clogOut: 0,                   // 최종 덩어리가 빠져나온 정도 0~1
 
@@ -938,20 +972,75 @@
   }
 
   function doClear() {
-    S.state = ST.CLEAR;
+    S.state = ST.CLEAR;              // 여기서부터 playing() 이 false — 손이 안 먹는다
     S.clean = 100;
-    S.clearLeft = GAME_CONFIG.clearHold;
-    S.flash = 0.18;
+    S.clearT = 0;
+    S.flash = 0.14;
     const at = S.grab || { x: 0, y: -200 };
-    addFx("fxSlimeSplash", at, 520);
+    addFx(clearKey("splash") || "fxSlimeSplash", at, 520);
     addFx("fxDroplet", { x: at.x, y: at.y + 60 }, 320);
     addFx("fxPopClean", { x: 0, y: 0 }, 460);
+    spawnBubbles();
     buzz(30); sfx("slime"); sfx("drain_clear");
-    say("쑥 빠졌다!");
-    banner("CLEAR!", "");
+    say("쑤우우욱!");
     pullSound(false);
     S.grab = null; S.ptr = null;
     cv.classList.remove("grabbing");
+  }
+
+  /* 배수 연출 — 지금 어디까지 왔나 (0~1) */
+  const windK = () => clamp(S.clearT / GAME_CONFIG.clearFx.wind, 0, 1);
+  const suckK = () => {
+    const C = GAME_CONFIG.clearFx;
+    return clamp((S.clearT - C.wind) / (C.suck - C.wind), 0, 1);
+  };
+  const doneK = () => {
+    const C = GAME_CONFIG.clearFx;
+    return clamp((S.clearT - C.suck) / (C.hold - C.suck), 0, 1);
+  };
+
+  function spawnBubbles() {
+    S.bubbles.length = 0;
+    for (let i = 0; i < GAME_CONFIG.clearFx.bubbles; i++) {
+      S.bubbles.push({
+        a: rnd(0, Math.PI * 2),
+        r: rnd(DRAIN_R * 0.5, DRAIN_R * 1.15),
+        w: rnd(DRAIN_R * 0.035, DRAIN_R * 0.1),
+        vr: rnd(0.9, 1.7),                               // 반지름이 줄어드는 비율
+        spin: rnd(3.4, 6.2) * (Math.random() < 0.5 ? -1 : 1),
+        wait: rnd(0, 0.26),                              // 다 같이 출발하면 기계 같다
+      });
+    }
+  }
+  function stepBubbles(dt) {
+    for (const b of S.bubbles) {
+      if (b.wait > 0) { b.wait -= dt; continue; }
+      if (b.r <= 0) continue;
+      /* 깔때기 — 가운데로 갈수록 빨라지고 더 빨리 돈다 */
+      b.r -= (b.r * b.vr + DRAIN_R * 0.18) * dt;
+      b.a += b.spin * dt * (1 + DRAIN_R / Math.max(DRAIN_R * 0.22, b.r) * 0.3);
+      if (b.r < DRAIN_R * 0.05) b.r = 0;
+    }
+  }
+
+  function stepClear(dt) {
+    const C = GAME_CONFIG.clearFx;
+    S.clearT += dt;
+    /* 빨려 드는 동안 점점 빨리 돈다 */
+    S.waterSpin += dt * (2.0 + C.spin * suckK() * (1 - doneK() * 0.7));
+    /* 아주 미세한 흔들림 — break 의 흔들림 틀을 그대로 쓰되 크기만 작게.
+       빨려 드는 동안은 매 칸 다시 채워야 꺼지지 않고 일정하게 떤다.
+       다 빠진 뒤에는 멈춰야 한다 — 안 그러면 결과창까지 화면이 떤다. */
+    if (S.clearT < C.suck) S.shake = C.shake;
+    else if (S.shake > 0) S.shake = Math.max(0, S.shake - dt);
+    stepBubbles(dt);
+    stepFx(dt); stepChain(dt); stepTail(dt);
+    if (S.flash > 0) S.flash -= dt;
+    if (S.msgLeft > 0) S.msgLeft -= dt;
+    if (S.bannerLeft > 0) S.bannerLeft -= dt;
+    /* 다 빠진 순간에 한 번 알린다 */
+    if (!S.clearSaid && S.clearT >= C.suck) { S.clearSaid = true; banner("뻥 뚫렸다!", ""); }
+    if (S.clearT >= C.hold + C.toResult) showResult(true);
   }
 
   /* ============================================================
@@ -999,16 +1088,7 @@
       if (S.readyLeft <= 0) { S.state = ST.SEARCHING; S.msgLeft = 0; }
       return;
     }
-    if (S.state === ST.CLEAR) {
-      S.clearLeft -= dt;
-      S.waterSpin += dt * 3.2;
-      stepFx(dt); stepChain(dt); stepTail(dt);
-      if (S.shake > 0) S.shake -= dt;
-      if (S.flash > 0) S.flash -= dt;
-      if (S.bannerLeft > 0) S.bannerLeft -= dt;
-      if (S.clearLeft <= 0) showResult(true);
-      return;
-    }
+    if (S.state === ST.CLEAR) { stepClear(dt); return; }
     if (!playing() && S.state !== ST.BREAK) return;
 
     /* 시간 */
@@ -1087,30 +1167,120 @@
 
     /* 7 물 — 청소율에 따라 층이 바뀐다 (회전·크기·투명도로 섞는다) */
     drawWater(g, box);
+    drawDrainSwirl(g, box);                     // 마지막 배수 — 소용돌이
+    drawBubbles(g);                             //              빨려 드는 거품
 
     /* 5~6 금속 테와 가장자리 때 */
     draw(g, "drainRing", 0, 0, box, { mode: "center" });
     draw(g, "drainRingWet", 0, 0, box, { mode: "center", alpha: clamp(S.clean / 70, 0, 1) * 0.55 });
     draw(g, "drainEdgeDirt", 0, 0, box * 1.02, { mode: "center", alpha: dirtAlpha() * 0.9 });
+    drawDrainClean(g, box);                     // 다 빠진 뒤의 환한 한 겹
   }
 
   function drawWater(g, box) {
     const c = S.clean;
     const spin = S.waterSpin;
+    /* 배수 중에는 물층이 통째로 가운데로 빨려 든다 — 줄이고 지운다 */
+    const k = S.state === ST.CLEAR ? suckK() : 0;
+    const sz = 1 - k * 0.55, al = 1 - k * 0.85;
     /* 고인 물 — 처음엔 많이 보이고 깨끗해지면 사라진다 */
-    draw(g, "waterPool", 0, 0, box * 1.08, { mode: "center", alpha: clamp(1 - c / 80, 0, 1) * 0.9 });
+    draw(g, "waterPool", 0, 0, box * 1.08 * sz,
+      { mode: "center", alpha: clamp(1 - c / 80, 0, 1) * 0.9 * al });
     /* 돌기 시작 */
     const a1 = clamp((c - 20) / 35, 0, 1) * clamp(1 - (c - 60) / 40, 0, 1);
-    draw(g, "waterSwirl1", 0, 0, box * 1.0, { mode: "center", alpha: a1 * 0.85, rot: spin * 0.5 });
+    draw(g, "waterSwirl1", 0, 0, box * 1.0 * sz,
+      { mode: "center", alpha: a1 * 0.85 * al, rot: spin * 0.5 });
     /* 더 빠르게 */
     const a2 = clamp((c - 55) / 35, 0, 1);
-    draw(g, "waterSwirl2", 0, 0, box * 0.98, { mode: "center", alpha: a2 * 0.9, rot: -spin * 1.1 });
-    /* 다 빠지는 순간 */
+    draw(g, "waterSwirl2", 0, 0, box * 0.98 * sz,
+      { mode: "center", alpha: a2 * 0.9 * al, rot: -spin * 1.1 });
+    /* 다 빠지는 순간 — 다 빠진 뒤에는 그리지 않는다 */
     if (S.state === ST.CLEAR) {
-      const k = 1 - clamp(S.clearLeft / GAME_CONFIG.clearHold, 0, 1);
-      draw(g, "waterDrainClear", 0, 0, box * (1.1 - k * 0.5),
-        { mode: "center", alpha: 1 - k * 0.8, rot: spin * 2.2 });
+      const a = (1 - k * 0.6) * (1 - doneK());
+      if (a > 0.004) {
+        draw(g, "waterDrainClear", 0, 0, box * (1.12 - k * 0.62),
+          { mode: "center", alpha: a, rot: spin * 2.2 });
+      }
     }
+  }
+
+  /* ============================================================
+     마지막 배수 — 소용돌이와 거품
+     그림이 없어도 "가운데로 빨려 든다" 가 읽혀야 한다. 고리 몇 겹을 서로
+     다른 속도로 돌리면서 줄이면 소용돌이로 보이고, 가운데를 어둡게 깔면
+     구멍이 깊어 보인다. 전부 호와 그라데이션이라 저사양에서도 싸다.
+     ============================================================ */
+  function drawDrainSwirl(g, box) {
+    if (S.state !== ST.CLEAR) return;
+    const k = suckK(), fade = 1 - doneK(), r0 = box * 0.5;
+    if (fade <= 0) return;
+    g.save();
+    /* 구멍이 깊어 보이게 — 가운데로 어두워진다 */
+    const dim = g.createRadialGradient(0, 0, r0 * 0.05, 0, 0, r0 * (1 - k * 0.4));
+    dim.addColorStop(0, "rgba(8,13,15," + (0.6 * fade * (0.3 + windK() * 0.7)).toFixed(3) + ")");
+    dim.addColorStop(0.55, "rgba(18,28,32," + (0.2 * fade).toFixed(3) + ")");
+    dim.addColorStop(1, "rgba(18,28,32,0)");
+    g.fillStyle = dim;
+    g.beginPath(); g.ellipse(0, 0, r0 * 1.1, r0 * 1.1, 0, 0, 7); g.fill();
+
+    const art = clearKey("swirl");
+    if (art) {
+      draw(g, art, 0, 0, box * (1.12 - k * 0.62),
+        { mode: "center", alpha: fade * 0.9, rot: S.waterSpin * 1.6 });
+    } else {
+      /* 물결 고리 넷 — 안쪽일수록 빠르고 얇다 */
+      g.lineCap = "round";
+      g.strokeStyle = "rgba(226,240,244,.95)";
+      for (let i = 0; i < 4; i++) {
+        const u = i / 3;                                  // 0 바깥 ~ 1 안쪽
+        const rr = r0 * (1.02 - u * 0.5) * (1 - k * (0.42 + u * 0.3));
+        if (rr < 8) continue;
+        g.save();
+        g.rotate(S.waterSpin * (1.1 + u * 1.5) + i * 1.7);
+        g.globalAlpha = fade * (0.44 - u * 0.1) * (0.3 + k * 0.7);
+        g.lineWidth = Math.max(2, r0 * (0.055 - u * 0.028));
+        g.beginPath();
+        g.ellipse(0, 0, rr, rr * (0.84 - k * 0.18), 0, 0.4, 0.4 + Math.PI * 1.3);
+        g.stroke();
+        g.restore();
+      }
+    }
+    g.restore();
+  }
+
+  function drawBubbles(g) {
+    if (S.state !== ST.CLEAR || !S.bubbles.length) return;
+    const sm = clearKey("bubbleSmall"), lg = clearKey("bubbleLarge");
+    const fade = 1 - doneK();
+    if (fade <= 0) return;
+    g.save();
+    for (const b of S.bubbles) {
+      if (b.wait > 0 || b.r <= 0) continue;
+      const x = Math.cos(b.a) * b.r, y = Math.sin(b.a) * b.r * 0.86;
+      const k = clamp(b.r / (DRAIN_R * 1.15), 0, 1);
+      const w = b.w * (0.4 + k * 0.6);
+      const a = (0.3 + k * 0.5) * fade;
+      const key = b.w > DRAIN_R * 0.07 ? lg : sm;
+      if (key && draw(g, key, x, y, w * 2, { mode: "center", alpha: a })) continue;
+      g.globalAlpha = a;
+      g.fillStyle = "rgba(236,248,252,.5)";
+      g.beginPath(); g.ellipse(x, y, w, w, 0, 0, 7); g.fill();
+      g.strokeStyle = "rgba(255,255,255,.9)";
+      g.lineWidth = Math.max(1.4, w * 0.2);
+      g.beginPath(); g.ellipse(x, y, w, w, 0, 0, 7); g.stroke();
+    }
+    g.restore();
+  }
+
+  /* 다 빠진 뒤 — 젖은 금속이 한 번 환해진다 */
+  function drawDrainClean(g, box) {
+    if (S.state !== ST.CLEAR) return;
+    const d = doneK();
+    if (d <= 0) return;
+    const key = clearKey("drainClean");
+    if (key) draw(g, key, 0, 0, box, { mode: "center", alpha: d });
+    draw(g, "drainRingWet", 0, 0, box, { mode: "center", alpha: d * 0.6 });
+    draw(g, "drainHighlight", 0, 0, box, { mode: "center", alpha: d * 0.3 });
   }
 
   /* 이미 뽑아 낸 누적분 — 구멍에서 시작해 아래로 접혀 쌓인 한 줄.
@@ -1398,7 +1568,7 @@
     S.shake = 0; S.flash = 0;
     S.msg = ""; S.msgLeft = 0;
     S.banner = ""; S.bannerLeft = 0;
-    S.waterSpin = 0; S.clearLeft = 0;
+    S.waterSpin = 0; S.clearT = 0; S.clearSaid = false; S.bubbles.length = 0;
     buildHair();
     cv.classList.remove("grabbing");
     $("startOver").hidden = true;
@@ -1629,6 +1799,7 @@
     S, GAME_CONFIG, PRESETS, MEGA, MEGA_CHANCE, ST, BOX, IMGS, SFX, DIR,
     ASSET_VERSION, DEBUG_GAME, REF_H, DRAIN_R, DRAIN_Y,
     start, timeOver, showResult, doBreak, doClear, release, buildHair, newTip,
+    stepClear, suckK, doneK, windK, CLEAR_ART,
     buildSegments,
     resistanceNow, segmentName, curvePoint, topY, botY,
     activeCm, chainCm, newPile, strandPoint, stepTail, floorAt, SEG, MOUND_BINS,
