@@ -39,6 +39,12 @@
      ============================================================ */
   const GAME_CONFIG = {
     duration: 45,                 // 제한시간(초)
+    /* 한 판에서 뽑아내야 하는 양(cm). 청소율은 판 길이가 아니라 이 값에 견준다.
+       예전엔 '판 길이의 몇 %' 였는데, 판마다 뽑히는 속도도 길이에 맞춰 커져서
+       어느 판이든 45초에 55% 언저리에서 끝났다. 이제 목표가 한 값으로 고정돼
+       45초 안에 얼마나 다가갔나가 그대로 청소율이 된다.
+       판이 이보다 짧으면 그 판을 다 뽑는 게 100% 다. */
+    cleanTargetCm: 195,
     hotAt: 10,                    // 남은 시간이 이 아래면 빨갛게 두근거린다
 
     /* ---- 당기는 속도 (논리 px/초) ---- */
@@ -60,12 +66,16 @@
       /* visCm 은 걷어 냈다 — 구멍~손 구간의 길이는 이제 그리는 자(pxPerCm)로
          바로 잰다. 예전엔 이 값을 넘는 만큼이 곧장 바닥으로 갔다. */
 
-      cmPerPx: 0.018,             // 손끝이 1px 움직일 때 빠져나오는 길이(cm)
-      /* 기준 길이. 290cm 짜리 판은 이 비율만큼 더 빨리 나온다 — 그래야
-         긴 판이 '숫자만 큰 구경거리' 가 되고 '점수 깎이는 판' 이 안 된다. */
-      lenRef: 170,
+      /* 손끝이 1px 움직일 때 빠져나오는 길이(cm).
+         0.018 이던 때는 45초를 꽉 채워도 목표의 55% 쯤에서 끝났다. 제한시간은
+         그대로 두고 이 값을 1.67배로 올려, 같은 솜씨면 45초에 90% 언저리,
+         조금 더 잘하면 100% 가 닿게 했다. */
+      cmPerPx: 0.030,
+      /* 기준 길이. 뽑아야 할 양이 이보다 많으면 그 비율만큼 더 빨리 나온다 —
+         그래야 목표가 크든 작든 45초에 드는 품이 같다. */
+      lenRef: 170,   // cleanTargetCm 에 견준다 — 어느 판이든 품이 같아진다
       /* 후반에는 같은 손놀림에 더 많이 나온다 — 숫자가 시원하게 올라가게.
-         초반 5~10초는 20~60cm, 중반 60~120cm, 후반 120cm+ 가 되도록 잡았다. */
+         초반 5~10초는 40~100cm, 중반 100~160cm, 후반 160cm+ 가 되도록 잡았다. */
       lateBoost: 1.5,             // 끝에서 cmPerPx 가 (1+이만큼) 배가 된다
       /* 끊지 않고 오래 당기면 조금 더 시원하게 — 길이 연출용 보정이다 */
       streakBonus: [
@@ -102,9 +112,9 @@
     pile: {
       /* 1cm 가 몇 px 인가. 손끝이 1px 움직일 때 나오는 길이(cmPerPx)의 역수로
          잡는다. 그래야 당기는 만큼 줄이 자라고, 늘어진 만큼만 바닥에 닿는다.
-         (예전엔 22 였다. 손은 1px 가는데 줄은 0.4px 만 자라서 늘 팽팽했고,
-          남는 길이는 곧바로 바닥에 직선으로 그려졌다.) */
-      pxPerCm: 55,
+         (cmPerPx 를 0.018 -> 0.030 으로 올리면서 55 에서 같이 내렸다. 한쪽만
+          건드리면 손보다 줄이 빨리 자라 닿기도 전에 바닥에 쌓인다.) */
+      pxPerCm: 33,
       anchorY: 860,               // 바닥 (구멍에서 이만큼 아래)
       /* 손에 매달린 줄 — 중력으로 떨어뜨리고 마디 길이를 맞춘다 */
       grav: 2600,                 // px/s^2
@@ -136,8 +146,15 @@
        (예전엔 청소 50 / 끊김 25 / 시간 15 / 연속 10 이라 묻는 것과
         재는 것이 달랐다. 짧게 여러 번 끊어 뽑아도 점수가 높았다.) */
     score: {
-      longest: 50, longestAt: 200,   // 한 줄로 200cm 뽑으면 만점
-      total: 25,   totalAt: 300,     // 다 합쳐 300cm 면 만점
+      /* 눈금은 실제로 나오는 값에 맞춰 둔다.
+         한 번 잡으면 구멍에서 visMax(720px) 까지밖에 못 끄니, 잡았다 놓기를
+         되풀이하는 손놀림으로는 한 줄에 30cm 남짓이 끝이다. 200cm 를 만점으로
+         두면 50점짜리 칸이 8점짜리 칸이 되어 윗 등급이 아무도 못 받는 칸이 됐다.
+         손을 놓지 않고 안팎으로 왕복하면 한 줄이 90cm 넘게 이어지므로,
+         '안 놓고 계속 뽑는' 손놀림이 만점을 가져가게 90 으로 잡았다. */
+      longest: 50, longestAt: 90,
+      /* 합계는 한 판에서 뽑아야 할 양이 천장이다 (cleanTargetCm). */
+      total: 25,   totalAt: 195,
       clean: 20,                     // 청소율 1% 당 0.2점
       breakPenalty: 2,               // 한 번 끊길 때마다 -2점
     },
@@ -349,7 +366,7 @@
 
   const S = {
     state: ST.TITLE,
-    preset: PRESETS[0],
+    preset: PRESETS[0], cleanTarget: PRESETS[0].total,
     left: GAME_CONFIG.duration,
     elapsed: 0,
 
@@ -456,7 +473,11 @@
 
   function buildHair() {
     const p = S.preset;
-    S.total = p.total;
+    S.total = p.total;          // 이 판에 든 머리카락 전체 길이 (표시·프리셋 구분용)
+    /* 뽑아야 할 양. 판이 목표보다 짧으면 그 판을 다 뽑는 게 100% 다.
+       아래의 prog(어디까지 왔나)도 전부 이 값 기준이라, 매듭·오염물·최종
+       덩어리가 전부 이 안에 들어온다. */
+    S.cleanTarget = Math.min(p.total, GAME_CONFIG.cleanTargetCm);
     S.extracted = 0;
     S.segments = buildSegments(p);
 
@@ -521,7 +542,7 @@
      ============================================================ */
   /* 지금 뽑히는 자리의 저항 — 구간 + 매듭이 걸려 있으면 그쪽이 이긴다 */
   function resistanceNow() {
-    const prog = S.extracted / S.total;
+    const prog = S.extracted / S.cleanTarget;
     let res = 1;
     for (const s of S.segments) { if (prog < s.to) { res = s.res; break; } }
     /* 매듭이 구멍을 막 지나는 동안은 더 버틴다 */
@@ -536,7 +557,7 @@
     return res;
   }
   const segmentName = () => {
-    const prog = S.extracted / S.total;
+    const prog = S.extracted / S.cleanTarget;
     for (const s of S.segments) if (prog < s.to) return s.kind;
     return "final";
   };
@@ -819,12 +840,12 @@
     if (feed > 0 && S.state !== ST.BREAK) {
       const H = GAME_CONFIG.hair;
       /* 뒤로 갈수록 같은 손놀림에 더 많이 나온다 — 숫자가 시원하게 오른다 */
-      const prog = S.extracted / S.total;
-      let rate = H.cmPerPx * (1 + prog * H.lateBoost) * (S.total / H.lenRef);
+      const prog = S.extracted / S.cleanTarget;
+      let rate = H.cmPerPx * (1 + prog * H.lateBoost) * (S.cleanTarget / H.lenRef);
       /* 끊지 않고 오래 당기고 있으면 조금 더 */
       for (const b of H.streakBonus) { if (S.streak >= b.from) { rate *= b.mul; break; } }
       const add = feed * rate / S.resistance;
-      S.extracted = Math.min(S.total, S.extracted + add);
+      S.extracted = Math.min(S.cleanTarget, S.extracted + add);
       /* 나온 만큼 지금 가닥의 바닥 더미가 길어진다 */
       const cur = S.piles[S.piles.length - 1];
       if (cur) cur.got += add;
@@ -898,7 +919,7 @@
         sfx("tension");                            // 팽팽해지는 소리 (쿨다운이 겹침을 막는다)
         if (!S.msgLeft) say("살살!", true);
       } else if (S.grab) {
-        S.state = S.extracted / S.total >= S.preset.clogAt ? ST.FINAL_CLOG : ST.PULLING;
+        S.state = S.extracted / S.cleanTarget >= S.preset.clogAt ? ST.FINAL_CLOG : ST.PULLING;
       }
     }
   }
@@ -932,7 +953,7 @@
     const cur = S.piles[S.piles.length - 1];
     if (cur) { cur.frozen = true; cur.tip = S.tipKind; cur.tipRot = rnd(-0.6, 0.6); }
     newPile();
-    S.extracted = Math.max(0, S.extracted - S.total * 0.03);
+    S.extracted = Math.max(0, S.extracted - S.cleanTarget * 0.03);
     S.grab = null; S.ptr = null;
     S.tension = 0; S.overTime = 0; S.overPull = 0;
     S.streak = 0;
@@ -944,7 +965,7 @@
      최종 덩어리 / 클리어
      ============================================================ */
   function stepClog(dt) {
-    const prog = S.extracted / S.total;
+    const prog = S.extracted / S.cleanTarget;
     if (prog < S.preset.clogAt) return;
     /* 덩어리가 구멍에서 빠져나온 정도 */
     S.clogOut = clamp((prog - S.preset.clogAt) / (1 - S.preset.clogAt), 0, 1);
@@ -1052,10 +1073,10 @@
     if (S.bannerLeft > 0) S.bannerLeft -= dt;
 
     /* 청소율 — 최종 덩어리가 빠져야 100% 가 된다 */
-    if (S.state !== ST.CLEAR) S.clean = Math.min(99, S.extracted / S.total * 100);
+    if (S.state !== ST.CLEAR) S.clean = Math.min(99, S.extracted / S.cleanTarget * 100);
 
     /* 매듭·오염물이 구멍을 지나는 순간 한 번씩 알려 준다 */
-    const prog = S.extracted / S.total;
+    const prog = S.extracted / S.cleanTarget;
     for (const k of S.knots) {
       if (!k.out && prog > k.p) {
         k.out = true;
@@ -1225,10 +1246,10 @@
   }
   /* 매듭·오염물 — 같은 줄에 걸려 함께 나오고, 나온 뒤에도 그 줄에 얹혀 있다 */
   function drawOnHair(g) {
-    const prog = S.extracted / S.total;
+    const prog = S.extracted / S.cleanTarget;
     const place = (item, key, w) => {
       if (prog < item.p) return;                 // 아직 구멍 안
-      const d = (prog - item.p) * S.total;       // 구멍에서 나온 길이(cm)
+      const d = (prog - item.p) * S.cleanTarget; // 구멍에서 나온 길이(cm)
       const p = strandPoint(d);
       draw(g, key, p.x + (item.offX || 0), p.y + (item.offY || 0), w,
         { mode: "center", rot: item.rot + p.t * 0.6 });
@@ -1239,7 +1260,7 @@
 
   /* 최종 덩어리 — 마지막에 구멍에서 쑥 올라온다 */
   function drawClog(g) {
-    if (S.extracted / S.total < S.preset.clogAt) return;
+    if (S.extracted / S.cleanTarget < S.preset.clogAt) return;
     const k = S.clogOut;
     const p = curvePoint(clamp(k * 0.8, 0, 0.8));
     const w = (S.preset.mega ? 540 : S.preset.bigClog ? 480 : 420) * (0.6 + k * 0.4);
@@ -1331,8 +1352,8 @@
       "tension: " + S.tension.toFixed(3) + " / " + GAME_CONFIG.break.breakThreshold,
       "resistance: " + S.resistance.toFixed(2) + "  seg: " + segmentName(),
       "angle: " + S.angleDeg.toFixed(0) + "deg  x" + S.angleMul.toFixed(2),
-      "extracted: " + S.extracted.toFixed(1) + "cm / " + S.total + "cm",
-      "remaining: " + (S.total - S.extracted).toFixed(1) + "cm",
+      "extracted: " + S.extracted.toFixed(1) + "cm / " + S.cleanTarget + "cm",
+      "remaining: " + (S.cleanTarget - S.extracted).toFixed(1) + "cm",
       "clean: " + S.clean.toFixed(1) + "%  breaks: " + S.breaks,
       "preset: " + S.preset.key + "  fx: " + S.fx.length,
     ];
