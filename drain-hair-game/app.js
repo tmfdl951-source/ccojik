@@ -1594,7 +1594,38 @@
   /* ============================================================
      버튼 / 부팅
      ============================================================ */
-  $("startBtn").addEventListener("click", () => { if (assetsReady) start(false); });
+  /* ---- 게임방법 ----
+     시작 화면에서 [게임방법] 을 눌렀을 때만 연다. 들어오자마자 뜨지 않고,
+     확인을 눌러도 게임이 시작되지 않는다 (시작은 [뽑기 시작] 로만).
+     열려 있는 동안은 뒤의 버튼이 안 눌리게 덮는다. */
+  let showHowToPlay = false;
+  function openHow() {
+    if (showHowToPlay) return;
+    if (S.state !== ST.TITLE) return;          // 노는 중에는 안 연다
+    showHowToPlay = true;
+    $("howOver").hidden = false;
+    $("howTitle").focus();
+  }
+  function closeHow() {
+    if (!showHowToPlay) return;
+    showHowToPlay = false;
+    $("howOver").hidden = true;
+    $("howBtn").focus();                       // 눌렀던 자리로 돌아간다
+  }
+  $("howBtn").addEventListener("click", openHow);
+  $("howOk").addEventListener("click", closeHow);
+  $("howX").addEventListener("click", closeHow);
+  window.addEventListener("keydown", (e) => {
+    if (showHowToPlay && (e.key === "Escape" || e.key === "Esc")) {
+      e.preventDefault();
+      closeHow();
+    }
+  });
+
+  $("startBtn").addEventListener("click", () => {
+    if (showHowToPlay) return;
+    if (assetsReady) start(false);
+  });
   $("againBtn").addEventListener("click", () => start(true));
   $("shareBtn").addEventListener("click", shareResult);
 
@@ -1628,6 +1659,7 @@
     checkMilestone, drawStrand, drawOldPiles, drawBits,
     gradeFor, grabRadius, tipRest, addFx, snapResult, buildCard, shareResult,
     drawHero, paintBest, toLogical, visH, has, loadAssets, render,
+    openHow, closeHow, howOpen: () => showHowToPlay,
     assetsReady: () => assetsReady,
   });
 })();

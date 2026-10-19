@@ -40,6 +40,24 @@
       <p class="lead">끊기지 않게<br>천천히 당겨보세요!</p>
       <p class="best">BEST <span id="bestStart">-</span></p>
       <button class="btn big" type="button" id="startBtn">뽑기 시작</button>
+      <button class="btn link" type="button" id="howBtn" aria-haspopup="dialog">게임방법</button>
+    </div>
+
+    <!-- 게임방법 — [게임방법] 을 눌렀을 때만 뜬다. 들어오자마자 뜨지 않는다. -->
+    <div class="over over-how" id="howOver" hidden role="dialog" aria-modal="true"
+         aria-labelledby="howTitle">
+      <div class="how-card">
+        <button class="how-x" type="button" id="howX" aria-label="닫기">&#215;</button>
+        <h2 class="how-title" id="howTitle" tabindex="-1">게임방법</h2>
+        <ol class="how-list">
+          <li><b>① 머리카락 잡기</b><span>배수구에서 삐져나온 끝을 누르세요.</span></li>
+          <li><b>② 천천히 당기기</b><span>누른 채 끌면 같은 머리카락이 계속 나와요.</span></li>
+          <li><b>③ 끊어짐 주의</b><span>빠르게 당기거나 급히 꺾으면 끊어져요.</span></li>
+          <li><b>④ 최대한 길게</b><span>길게 뽑을수록 배수구가 깨끗해져요.</span></li>
+        </ol>
+        <p class="how-punch">끊지 않고<br>최대한 길게 뽑아보세요!</p>
+        <button class="btn big" type="button" id="howOk">확인</button>
+      </div>
     </div>
 
     <!-- 결과 -->
