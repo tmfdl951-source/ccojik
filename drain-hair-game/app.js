@@ -893,7 +893,9 @@
     const at = S.grab ? { x: S.grab.x, y: S.grab.y } : tipRest();
     S.breaks++;
     S.state = ST.BREAK;
-    addFx("fxBreakHair", at, 300);
+    /* 끊길 때 터지는 그림도 머리카락 조각 그림이라 곁가닥처럼 보였다.
+       밝게 터지는 것으로 바꾼다 (흔들림·번쩍임·소리는 그대로). */
+    addFx("fxPopClean", at, 300);
     S.shake = C.shake;
     buzz(40); sfx("break");
     /* 많이 뽑아 두고 끊었으면 그만큼 아깝게 알린다 */
@@ -902,12 +904,7 @@
     cv.classList.remove("grabbing");
     /* 끊어진 쪽에서 짧은 파편이 튄다 (아주 짧은 FX) */
     for (let i = 0; i < 5; i++) {
-      S.bits.push({
-        x: at.x, y: at.y,
-        vx: rnd(-520, 520), vy: rnd(-700, -160),
-        rot: rnd(0, 6.28), vr: rnd(-9, 9),
-        len: rnd(40, 110), life: 0.5,
-      });
+      void i;        /* 짧은 조각은 안 만든다 — 작은 머리카락이 흩어진 것처럼 보였다 */
     }
     /* 끊어진 쪽은 손 방향으로 튕기고, 남은 쪽은 구멍으로 조금 들어간다 */
     const d = Math.hypot(at.x, at.y) || 1;
@@ -1127,36 +1124,21 @@
       if (pts.length < 2) continue;
       g.save();
       g.lineCap = "round"; g.lineJoin = "round";
-      for (const [wd, col, al] of [[T.lineW, "rgba(22,18,16,.74)", 1],
-                                   [T.lineW * 0.36, "rgba(104,86,74,.45)", 0.55]]) {
-        g.globalAlpha = al; g.strokeStyle = col; g.lineWidth = wd;
-        g.beginPath();
-        g.moveTo(pts[0].x, pts[0].y);
-        for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y);
-        g.stroke();
-      }
+      /* 여기도 한 겹만 */
+      g.globalAlpha = 0.8; g.strokeStyle = "rgba(22,18,16,.8)"; g.lineWidth = T.lineW;
+      g.beginPath();
+      g.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y);
+      g.stroke();
       g.restore();
-      if (p.tip) draw(g, p.tip, pts[pts.length - 1].x, pts[pts.length - 1].y, 150,
-        { mode: "center", rot: p.tipRot });
+      /* 굳은 가닥에도 끝 그림을 얹지 않는다 (같은 이유) */
     }
   }
 
   /* 끊어져 튀는 짧은 파편 */
-  function drawBits(g) {
-    for (const b of S.bits) {
-      g.save();
-      g.globalAlpha = Math.min(1, b.life * 2.4);
-      g.translate(b.x, b.y);
-      g.rotate(b.rot);
-      g.strokeStyle = "rgba(20,16,14,.9)";
-      g.lineWidth = 7; g.lineCap = "round";
-      g.beginPath();
-      g.moveTo(-b.len / 2, 0);
-      g.quadraticCurveTo(0, b.len * 0.22, b.len / 2, 0);
-      g.stroke();
-      g.restore();
-    }
-  }
+  /* 끊길 때 튀던 짧은 조각은 걷어 냈다 — 메인 가닥 옆에 작은 머리카락이
+     흩어진 것처럼 보였다. 끊긴 느낌은 흔들림·번쩍임·소리로만 낸다. */
+  function drawBits(g) { void g; }
 
   /* 지금 뽑고 있는 한 가닥 — 구멍에서 바닥 끝까지 '한 번의 선' 으로 잇는다.
   /* 구멍 -> 손 -> 손 아래로 늘어진 줄 을 한 붓으로 그린다.
@@ -1172,6 +1154,8 @@
     const cur = S.piles[S.piles.length - 1];
     const tail = cur && !cur.frozen ? cur.pts : [];
 
+    /* 붓질은 딱 한 번. 굵기를 내려고 선을 두 벌 겹치면 그것도 옆에
+       딴 가닥처럼 보인다. */
     const path = (wd, col, alpha) => {
       g.save();
       g.globalAlpha = alpha === undefined ? 1 : alpha;
@@ -1191,16 +1175,11 @@
       g.stroke();
       g.restore();
     };
-    /* 굵게 어둡게 한 번, 가늘게 밝게 한 번 — 가닥처럼 보이게 */
-    path(13, "rgba(24,20,18,.92)");
-    path(5, "rgba(96,80,70,.75)", 0.8);
+    path(GAME_CONFIG.pile.lineW, "rgba(26,21,19,.95)");
 
-    /* 끝 — 늘어진 줄이 있으면 그 끝에, 없으면 손에 */
-    const endAt = tail.length > 1 ? tail[tail.length - 1] : curvePoint(1);
-    const prev = tail.length > 2 ? tail[tail.length - 3] : curvePoint(0.88);
-    const ang = Math.atan2(endAt.y - prev.y, endAt.x - prev.x);
-    draw(g, S.tipKind, endAt.x, endAt.y, tail.length > 1 ? 160 : 200,
-      { mode: "center", rot: ang - Math.PI / 2 });
+    /* 끝에 그림을 얹지 않는다. hair-tip-*.png 는 그 자체가 굽은 머리카락
+       한 가닥 그림이라, 선 끝에 놓으면 '옆에 딴 머리카락' 으로 보였다.
+       끝은 이 선의 둥근 끝(lineCap) 으로 끝난다. */
 
     if (DEBUG_HAIR) drawHairDebug(g, tail);
   }
