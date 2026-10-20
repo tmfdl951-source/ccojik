@@ -25,7 +25,7 @@
   --card-h: calc(var(--card-w) * 1.32 + var(--label-h));
   --pick-gap: clamp(3px, .7vh, 7px);
   --cell-gap: clamp(3px, .8vh, 6px);
-  --tab-h: clamp(28px, 5.4vh, 42px);     /* 카테고리 탭 줄 */
+  --tab-h: clamp(34px, 6vh, 46px);       /* 카테고리 탭 줄 (손가락 터치 자리) */
   --list-h: calc(var(--card-h) * 2 + var(--cell-gap));   /* 카드 두 줄 */
   --sw-h: clamp(24px, 6.6vw, 34px);      /* 머리색/피부색 줄 */
   --act-h: clamp(30px, 5.6vh, 46px);     /* 랜덤·되돌리기·초기화·완성 줄 */
@@ -261,6 +261,7 @@ body { display: flex; align-items: center; justify-content: center; }
   color: var(--ink); background: var(--paper);
   border: 3px solid var(--ink); border-radius: 0;
   padding: 0 clamp(8px, 2.8vw, 14px);
+  min-width: 44px;                  /* 손가락으로 누를 자리 */
   cursor: pointer; touch-action: manipulation;
   white-space: nowrap;
 }

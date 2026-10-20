@@ -21,6 +21,8 @@ const REF = {
   browY: 151, eyeY: 171, noseY: 190, mouthY: 224,
   earY: 190, cheekY: 201,
   hairlineY: 108,               // 머리카락이 이마와 만나는 선 (= 이마 위)
+  /* 눈 두 개가 앉은 자리. 안경은 이 둘 사이 거리로 폭을 잡는다. */
+  leftEyeX: 121, rightEyeX: 179,
 };
 
 /* 떼어낸 원본 아트 — 좌표는 기준 얼굴(REF) 기준이다. 손대지 않았다. */
@@ -147,6 +149,9 @@ function face(n, top, chin, halfW, d, over) {
     width: halfW * 2, height: chin - top,
     hairlineY: top,
     leftCheekX: REF.cx - halfW, rightCheekX: REF.cx + halfW,
+    /* 눈 자리 — 파츠는 featScale 로 커지므로 눈도 그만큼 벌어진다 */
+    leftEyeX: REF.cx - (REF.cx - REF.leftEyeX) * (1 + (sx - 1) * 0.7),
+    rightEyeX: REF.cx + (REF.rightEyeX - REF.cx) * (1 + (sx - 1) * 0.7),
     browY: at(REF.browY), eyeY: at(REF.eyeY), noseY: at(REF.noseY),
     mouthY: at(REF.mouthY), earY: at(REF.earY), cheekY: at(REF.cheekY),
   }, over || {});
@@ -235,27 +240,93 @@ const HAIR_TIE = [
    ============================================================ */
 const GLASSES = [
   { n: "없음", s: "" },
-  { n: "뿔테", s: '<g fill="none" stroke="#222" stroke-width="3"><rect x="102" y="160" width="36" height="24" rx="9"/><rect x="162" y="160" width="36" height="24" rx="9"/><line x1="138" y1="171" x2="162" y2="171"/><line x1="102" y1="166" x2="86" y2="176"/><line x1="198" y1="166" x2="214" y2="176"/></g>' },
-  { n: "둥근테", s: '<g fill="none" stroke="#6a5238" stroke-width="2.6"><circle cx="120" cy="172" r="15"/><circle cx="180" cy="172" r="15"/><line x1="135" y1="172" x2="165" y2="172"/><line x1="105" y1="168" x2="86" y2="176"/><line x1="195" y1="168" x2="214" y2="176"/></g>' },
-  { n: "무테", s: '<g fill="none" stroke="#9aa6ad" stroke-width="1.8"><rect x="104" y="162" width="32" height="20" rx="4"/><rect x="164" y="162" width="32" height="20" rx="4"/><line x1="136" y1="171" x2="164" y2="171"/></g>' },
-  { n: "선글라스", s: '<g stroke="#222" stroke-width="3"><rect x="102" y="160" width="36" height="24" rx="9" fill="#232a33"/><rect x="162" y="160" width="36" height="24" rx="9" fill="#232a33"/><line x1="138" y1="171" x2="162" y2="171"/><line x1="102" y1="166" x2="86" y2="176"/><line x1="198" y1="166" x2="214" y2="176"/></g>' },
-  { n: "반달", s: '<g fill="none" stroke="#3a3a3a" stroke-width="2.8"><path d="M104 172 h34 a0 0 0 0 1 0 0 a17 12 0 0 1 -34 0z"/><path d="M162 172 h34 a17 12 0 0 1 -34 0z"/><line x1="138" y1="172" x2="162" y2="172"/></g>' },
+  { n: "동그란", s: '<g fill="none" stroke="#3a3a3a" stroke-width="2.8">' +
+    '<circle cx="121" cy="171" r="15"/><circle cx="179" cy="171" r="15"/>' +
+    '<path d="M136 171 h28"/><path d="M106 167 l-18 8"/><path d="M194 167 l18 8"/></g>' },
+  { n: "사각", s: '<g fill="none" stroke="#222" stroke-width="3">' +
+    '<rect x="104" y="159" width="34" height="24" rx="3"/>' +
+    '<rect x="162" y="159" width="34" height="24" rx="3"/>' +
+    '<path d="M138 171 h24"/><path d="M104 165 l-18 8"/><path d="M196 165 l18 8"/></g>' },
+  { n: "얇은테", s: '<g fill="none" stroke="#8a9299" stroke-width="1.6">' +
+    '<rect x="106" y="162" width="30" height="19" rx="5"/>' +
+    '<rect x="164" y="162" width="30" height="19" rx="5"/>' +
+    '<path d="M136 171 h28"/><path d="M106 167 l-19 7"/><path d="M194 167 l19 7"/></g>' },
+  { n: "두꺼운뿔테", s: '<g fill="none" stroke="#1a1a16" stroke-width="6">' +
+    '<rect x="103" y="157" width="36" height="27" rx="8"/>' +
+    '<rect x="161" y="157" width="36" height="27" rx="8"/>' +
+    '<path d="M139 170 h22"/></g>' +
+    '<g fill="none" stroke="#1a1a16" stroke-width="4">' +
+    '<path d="M103 164 l-18 9"/><path d="M197 164 l18 9"/></g>' },
+  { n: "작은", s: '<g fill="none" stroke="#4a4a44" stroke-width="2.4">' +
+    '<circle cx="121" cy="171" r="10"/><circle cx="179" cy="171" r="10"/>' +
+    '<path d="M131 171 h18"/><path d="M111 169 l-22 5"/><path d="M189 169 l22 5"/></g>' },
+  { n: "큰", s: '<g fill="none" stroke="#2a2a26" stroke-width="3.2">' +
+    '<rect x="98" y="153" width="44" height="33" rx="11"/>' +
+    '<rect x="158" y="153" width="44" height="33" rx="11"/>' +
+    '<path d="M142 170 h16"/><path d="M98 161 l-14 10"/><path d="M202 161 l14 10"/></g>' },
+  { n: "선글라스", s: '<g stroke="#1a1a16" stroke-width="3">' +
+    '<rect x="102" y="158" width="37" height="26" rx="8" fill="#232a33"/>' +
+    '<rect x="161" y="158" width="37" height="26" rx="8" fill="#232a33"/>' +
+    '<path d="M139 170 h22" fill="none"/>' +
+    '<path d="M102 164 l-17 8" fill="none"/><path d="M198 164 l17 8" fill="none"/></g>' },
 ];
 
 /* ============================================================
    기타 디테일 — 점·주근깨·흉터·수염 / 모자 / 마스크
    ============================================================ */
 const DETAIL = [
-  { n: "없음", s: "" },
-  { n: "주근깨", s: '<g fill="#a9714a" opacity=".75"><circle cx="118" cy="196" r="1.8"/><circle cx="126" cy="202" r="1.6"/><circle cx="112" cy="204" r="1.5"/><circle cx="182" cy="196" r="1.8"/><circle cx="174" cy="202" r="1.6"/><circle cx="188" cy="204" r="1.5"/></g>' },
-  { n: "흉터", s: '<g stroke="#b4705c" stroke-width="2.4" stroke-linecap="round"><path d="M196 150 l-10 22"/><path d="M190 154 l8 4"/><path d="M186 164 l8 4"/></g>' },
-  { n: "보조개", s: '<g stroke="#b58a63" stroke-width="2" fill="none" stroke-linecap="round"><path d="M124 222 q-3 6 0 10"/><path d="M176 222 q3 6 0 10"/></g>' },
-  { n: "콧수염", s: '<path d="M132 209 q18 9 36 0 q-8 8 -18 6 q-10 2 -18 -6z" fill="#3a2a1a"/>' },
-  { n: "턱수염", s: '<path d="M112 212 q38 52 76 0 q-8 40 -38 44 q-30 -4 -38 -44z" fill="#3a2a1a" opacity="0.92"/>' },
-  { n: "모자", top: 1, s: '<path d="M84 116 q66 -30 132 0 q0 -46 -66 -46 q-66 0 -66 46z" fill="#2e7df1"/><path d="M84 116 q66 -12 132 0 q-8 8 -16 8 h-100 q-8 0 -16 -8z" fill="#1e63d0"/>' },
-  { n: "다크서클", s: '<g fill="#9a7a86" opacity=".4"><ellipse cx="121" cy="182" rx="11" ry="4.5"/><ellipse cx="179" cy="182" rx="11" ry="4.5"/></g>' },
-  { n: "잔수염", s: '<g fill="#3a2a1a" opacity=".5"><ellipse cx="150" cy="232" rx="26" ry="10"/><ellipse cx="150" cy="212" rx="20" ry="6"/></g>' },
-  { n: "마스크", top: 1, s: '<path d="M118 198 q32 22 64 0 v18 q-32 24 -64 0z" fill="#fff" stroke="#c4ccd8" stroke-width="2"/><path d="M118 200 l-14 -6 M182 200 l14 -6" stroke="#c4ccd8" stroke-width="2"/>' },
+  { n: "없음", s: "", anchor: "cheekY", ref: "cheekY" },
+  /* 점 — 볼·눈밑·코옆. 얼굴 폭의 18% 쯤 되는 자리에 둔다 */
+  { n: "왼쪽볼점", anchor: "cheekY", ref: "cheekY",
+    s: '<circle cx="125" cy="201" r="3.2" fill="#5a3a1a"/>' },
+  { n: "오른쪽볼점", anchor: "cheekY", ref: "cheekY",
+    s: '<circle cx="175" cy="201" r="3.2" fill="#5a3a1a"/>' },
+  { n: "눈밑점", anchor: "eyeY", ref: "eyeY",
+    s: '<circle cx="126" cy="185" r="2.6" fill="#5a3a1a"/>' },
+  { n: "코옆점", anchor: "noseY", ref: "noseY",
+    s: '<circle cx="137" cy="196" r="2.6" fill="#5a3a1a"/>' },
+  /* 주근깨 — 코 둘레와 양 볼 위쪽 */
+  { n: "주근깨", anchor: "noseY", ref: "noseY",
+    s: '<g fill="#a9714a" opacity=".72">' +
+    '<circle cx="132" cy="188" r="1.8"/><circle cx="124" cy="194" r="1.6"/>' +
+    '<circle cx="138" cy="196" r="1.5"/><circle cx="118" cy="187" r="1.5"/>' +
+    '<circle cx="168" cy="188" r="1.8"/><circle cx="176" cy="194" r="1.6"/>' +
+    '<circle cx="162" cy="196" r="1.5"/><circle cx="182" cy="187" r="1.5"/>' +
+    '<circle cx="146" cy="183" r="1.4"/><circle cx="154" cy="183" r="1.4"/></g>' },
+  /* 다크서클 — 두 눈 바로 아래 */
+  { n: "다크서클", anchor: "eyeY", ref: "eyeY",
+    s: '<g fill="#9a7a86" opacity=".42">' +
+    '<path d="M111 180 q10 9 20 0 q-10 5 -20 0z"/>' +
+    '<path d="M169 180 q10 9 20 0 q-10 5 -20 0z"/></g>' },
+  /* 볼터치 — 양 볼 */
+  { n: "볼터치", anchor: "cheekY", ref: "cheekY",
+    s: '<g fill="#f2a0a0" opacity=".5"><ellipse cx="112" cy="201" rx="13" ry="8"/>' +
+    '<ellipse cx="188" cy="201" rx="13" ry="8"/></g>' },
+  /* 흉터 — 눈썹 가로지르는 것과 볼에 난 것 */
+  { n: "눈썹흉터", anchor: "browY", ref: "browY",
+    s: '<g stroke="#b4705c" stroke-width="2.4" stroke-linecap="round">' +
+    '<path d="M178 143 l6 18"/><path d="M175 149 l12 3"/></g>' },
+  { n: "볼흉터", anchor: "cheekY", ref: "cheekY",
+    s: '<g stroke="#b4705c" stroke-width="2.2" stroke-linecap="round">' +
+    '<path d="M186 192 l-8 20"/><path d="M181 198 l9 3"/><path d="M179 206 l9 3"/></g>' },
+  /* 수염 — 코와 입 사이 / 입 아래 턱 / 턱선 */
+  { n: "콧수염", anchor: "mouthY", ref: "mouthY",
+    s: '<path d="M132 211 q18 9 36 0 q-8 8 -18 6 q-10 2 -18 -6z" fill="#3a2a1a"/>' },
+  { n: "턱수염", anchor: "mouthY", ref: "mouthY",
+    s: '<path d="M114 232 q36 46 72 0 q-8 36 -36 40 q-28 -4 -36 -40z" fill="#3a2a1a" opacity=".92"/>' },
+  { n: "잔수염", anchor: "mouthY", ref: "mouthY",
+    s: '<g fill="#3a2a1a" opacity=".45"><ellipse cx="150" cy="240" rx="27" ry="11"/>' +
+    '<ellipse cx="150" cy="214" rx="21" ry="6"/></g>' },
+  { n: "보조개", anchor: "mouthY", ref: "mouthY",
+    s: '<g stroke="#b58a63" stroke-width="2" fill="none" stroke-linecap="round">' +
+    '<path d="M124 222 q-3 6 0 10"/><path d="M176 222 q3 6 0 10"/></g>' },
+  /* 머리 위에 얹는 것 — 레이어가 달라서 top 으로 구분한다 */
+  { n: "모자", top: 1, anchor: "hairlineY", ref: "top",
+    s: '<path d="M84 116 q66 -30 132 0 q0 -46 -66 -46 q-66 0 -66 46z" fill="#2e7df1"/>' +
+    '<path d="M84 116 q66 -12 132 0 q-8 8 -16 8 h-100 q-8 0 -16 -8z" fill="#1e63d0"/>' },
+  { n: "마스크", top: 1, anchor: "mouthY", ref: "mouthY",
+    s: '<path d="M118 198 q32 22 64 0 v18 q-32 24 -64 0z" fill="#fff" stroke="#c4ccd8" stroke-width="2"/>' +
+    '<path d="M118 200 l-14 -6 M182 200 l14 -6" stroke="#c4ccd8" stroke-width="2"/>' },
 ];
 
 /* 눈 / 코 / 입 몇 개 더 — 요청한 인상 (처진·올라간·뭉툭·내려간 입꼬리) */
@@ -291,8 +362,6 @@ const CATS = [
   { key: "detail", label: "특징", list: DETAIL },
   { key: "lens", label: "눈색", list: LENS },
   { key: "liner", label: "아이라인", list: LINER },
-  { key: "blush", label: "볼", list: BLUSH },
-  { key: "mole", label: "점", list: MOLE },
 ];
 
 
@@ -320,22 +389,20 @@ const CATS = [
              없으면 안 되는 것들). 안경·수염까지 매번 붙으면 과하다.
    NEUTRAL   처음 들어왔을 때의 얼굴. 장식이 하나도 안 붙은 상태다. */
 const OPTIONAL = ["hairFront", "hairSide", "hairTie", "glasses", "detail",
-                  "lens", "liner", "blush", "mole"];
+                  "lens", "liner"];
 const CHANCE = {
   hairFront: 0.85,       // 앞머리는 대개 있다
   hairSide: 0.35,
   hairTie: 0.2,
-  glasses: 0.3,
-  detail: 0.35,
+  glasses: 0.35,         // 안경은 35% 만 쓴다
+  detail: 0.4,           // 특징도 40%
   lens: 0.15,
   liner: 0.2,
-  blush: 0.25,
-  mole: 0.2,
 };
 const NEUTRAL = {
   face: 0, hairBack: 8, hairFront: 1, hairSide: 0, hairTie: 0,   // 8 = 숏밥 (기본 단발)
   brows: 0, eyes: 0, nose: 0, mouth: 0, ears: 0,
-  glasses: 0, detail: 0, lens: 0, liner: 0, blush: 0, mole: 0,
+  glasses: 0, detail: 0, lens: 0, liner: 0,
   skin: 0, hairCol: 0,
 };
 
@@ -358,6 +425,11 @@ function tieOk(backName, tieName) {
   return !list || list.indexOf(tieName) >= 0;
 }
 
+
+
+/* 앞머리 맞춤 — drop 은 이마 높이의 몇 배까지 내려오는 꼴인가,
+   fit 은 폭이 좁은/보통/넓은 꼴인가. app.js 가 이 둘로 크기를 잡는다. */
+
 /* ============================================================
    파츠 설명말 — 전단지 "특징" 글을 이걸로 짓는다
    ============================================================
@@ -369,21 +441,19 @@ const TAGS = {
   FACES: [["둥근 얼굴형"], ["계란 얼굴형"], ["길쭉 얼굴형"], ["각진 얼굴형"], ["넓적 얼굴형"], ["브이 얼굴형"], ["각턱 얼굴형"], ["통통 얼굴형"], ["광대 얼굴형"]],
   HAIR_FRONT: [[], ["짧은 앞머리"], ["반머리 앞머리"], ["투블럭 앞머리"], ["가르마 앞머리"], ["올백 앞머리"], ["뾰족 앞머리"], ["모히칸 앞머리"], ["반삭 앞머리"], ["곱슬 앞머리"], ["파마 앞머리"], ["장발 앞머리"], ["단발 앞머리"], ["긴생머리 앞머리"], ["웨이브 앞머리"], ["포니 앞머리"], ["양갈래 앞머리"], ["시스루 앞머리"], ["처피뱅 앞머리"], ["가운데 앞머리"]],
   HAIR_BACK: [[], ["파마 머리"], ["장발 머리"], ["단발 머리"], ["긴생 머리"], ["웨이브 머리","꼬불꼬불한 머리"], ["중단발 머리"], ["뽀글 머리","곱슬머리"], ["숏밥 머리"]],
+  GLASSES: [[], ["동그란 안경"], ["사각 안경"], ["얇은테 안경"], ["두꺼운뿔테 안경"], ["작은 안경"], ["큰 안경"], ["선글라스 안경"]],
+  DETAIL: [[], ["왼쪽볼점"], ["오른쪽볼점"], ["눈밑점"], ["코옆점"], ["주근깨"], ["다크서클"], ["볼터치"], ["눈썹흉터"], ["볼흉터"], ["콧수염"], ["턱수염"], ["잔수염"], ["보조개"], ["모자"], ["마스크"]],
   EYES: [["기본 눈"], ["큰 눈"], ["작은 눈"], ["찢어진 눈"], ["졸린 눈"], ["동그란 눈"], ["쌍꺼풀 눈"], ["무쌍 눈"], ["윙크 눈"], ["감은 눈"], ["하트 눈"], ["처진 눈"], ["올라간 눈"]],
   BROWS: [["일자 눈썹"], ["아치 눈썹"], ["짙은 눈썹"], ["화난 눈썹"], ["처진 눈썹"], ["갈매기 눈썹"], ["세미 눈썹"], ["옅은 눈썹"], ["짧은 눈썹"], ["굵은아치 눈썹"]],
   NOSE: [["작은 코"], ["동그란 코"], ["넓은 코"], ["뾰족 코"], ["콧대 코"], ["들창 코"], ["매부리 코"], ["주먹 코"], ["뭉툭 코"], ["긴 코"]],
   MOUTH: [["미소 입"], ["무표정 입"], ["벌림 입"], ["삐죽 입"], ["이빨 입"], ["혀 입"], ["앙다문 입"], ["메롱 입"], ["하하 입"], ["립스틱 입"], ["비웃음 입"], ["내려간 입"], ["두꺼운 입"], ["얇은 입"]],
   HAIR_TIE: [[], ["포니"], ["양갈래"], ["번헤어"], ["낮은묶음"], ["땋은머리"], ["리본"]],
   HAIR_SIDE: [[], ["귀덮기 옆머리"], ["볼선 옆머리"], ["짧은갈래 옆머리"], ["구레나룻 옆머리"], ["한쪽넘김 옆머리"], ["옆으로 흘러내린 컬"]],
-  GLASSES: [[], ["뿔테 안경"], ["둥근테 안경"], ["무테 안경"], ["선글라스 안경"], ["반달 안경"]],
-  DETAIL: [[], ["주근깨"], ["흉터"], ["보조개"], ["콧수염"], ["턱수염"], ["모자"], ["다크서클"], ["잔수염"], ["마스크"]],
   EARS: [["기본 귀"], ["큰 귀"], ["작은 귀"], ["칼 귀"], ["당나 귀"]],
-  MOLE: [[], ["입가 점"], ["눈밑 점"], ["볼 점"], ["이마 점"]],
-  BLUSH: [[], ["핑크 볼터치"], ["진분홍 볼터치"], ["주황 볼터치"], ["애교 볼터치"]],
   LENS: [[], ["갈색 렌즈"], ["파랑 렌즈"], ["초록 렌즈"], ["회색 렌즈"], ["보라 렌즈"], ["핑크 렌즈"]],
   LINER: [[], ["기본 아이라인"], ["또렷 아이라인"], ["캣아이 아이라인"], ["언더 아이라인"]],
 };
-const TAG_ORDER = ["FACES","HAIR_FRONT","HAIR_BACK","EYES","BROWS","NOSE","MOUTH","HAIR_TIE","HAIR_SIDE","GLASSES","DETAIL","EARS","MOLE","BLUSH","LENS","LINER"];
+const TAG_ORDER = ["FACES","HAIR_FRONT","HAIR_BACK","GLASSES","DETAIL","EYES","BROWS","NOSE","MOUTH","HAIR_TIE","HAIR_SIDE","EARS","LENS","LINER"];
 /* ============================================================
    파츠가 기준 얼굴에서 차지하는 네모 [x1, y1, x2, y2]
    ============================================================
@@ -401,8 +471,8 @@ const EXT = {
   NOSE: [[142,182,150,199], [144,191,157,204], [139,183,161,205], [142,181,158,199], [144,178,156,202], [143,184,157,198], [146,180,156,198], [141,187,159,205], [140,180,160,204], [143,172,157,205]],
   MOUTH: [[126,219,174,241], [131,225,169,225], [135,215,165,239], [130,218,170,236], [127,218,173,240], [126,218,174,249], [132,221,168,230], [126,218,178,254], [124,216,176,246], [126,220,174,240], [130,212,170,226], [128,222,172,232], [126,220,174,236], [132,224,168,224]],
   EARS: [[71,175,229,205], [65,170,235,210], [76,179,224,201], [72,176,228,208], [66,160,234,208]],
-  GLASSES: [null, [86,160,214,184], [86,157,214,187], [104,162,196,182], [86,160,214,184], [104,172,213,184]],
-  DETAIL: [null, [111,194,190,206], [186,150,198,172], [121,222,179,232], [132,209,168,218], [112,212,188,264], [84,70,216,124], [110,178,190,187], [124,206,176,242], [104,194,196,240]],
+  GLASSES: [null, [88,156,212,186], [86,159,214,183], [87,162,213,181], [85,157,215,184], [89,161,211,181], [84,153,216,186], [85,158,215,184]],
+  DETAIL: [null, [122,198,128,204], [172,198,178,204], [123,182,129,188], [134,193,140,199], [117,182,184,198], [111,180,189,189], [99,193,201,209], [175,143,187,161], [178,192,190,212], [132,211,168,220], [114,232,186,278], [123,208,177,251], [121,222,179,232], [84,70,216,124], [104,194,196,240]],
   LENS: [null, [116,166,184,176], [116,166,184,176], [116,166,184,176], [116,166,184,176], [116,166,184,176], [116,166,184,176]],
   LINER: [null, [113,162,187,169], [112,160,188,169], [107,161,193,168], [114,178,186,181]],
   BLUSH: [null, [99,193,201,209], [99,193,201,209], [99,193,201,209], [110,183,190,187]],
@@ -443,6 +513,8 @@ window.MONTAGE_PARTS = {
   TAGS: TAGS, TAG_ORDER: TAG_ORDER,
   
    EXT: EXT, HAIR_FIT: HAIR_FIT,
+  
+  
   OPTIONAL: OPTIONAL, CHANCE: CHANCE, NEUTRAL: NEUTRAL,
   HAIR_COMPAT: HAIR_COMPAT, tieOk: tieOk,
 };

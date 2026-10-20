@@ -107,6 +107,23 @@
       inner + '</g>';
   }
 
+  /* 안경은 눈에 걸치는 것이다. 두 눈 기준점 사이 거리로 폭을 잡으므로
+     얼굴형이 바뀌든 눈이 바뀌든 늘 두 눈에 맞는다.
+       가운데  (왼눈 + 오른눈) / 2
+       폭      두 눈 거리 / 기준 거리(58)
+     파츠마다 offsetY / scale 로 미세 보정할 수 있다. */
+  function placeGlasses(inner, f, m) {
+    if (!inner) return "";
+    const o = m || {};
+    const dist = f.rightEyeX - f.leftEyeX;
+    const refDist = REF.rightEyeX - REF.leftEyeX;
+    const k = (dist / refDist) * (o.scale || 1);
+    const cx = (f.leftEyeX + f.rightEyeX) / 2;
+    const cy = f.eyeY + (o.dy || 0) * f.sy;
+    return '<g transform="translate(' + r2(cx) + ' ' + r2(cy) + ') scale(' + r3(k) +
+      ') translate(' + -REF.cx + ' ' + -REF.eyeY + ')">' + inner + '</g>';
+  }
+
   /* 눈썹 — 눈에 너무 붙거나 이마 위로 올라가지 않게 묶는다.
      그려진 자리를 지키되, 눈과의 틈이 이마 높이의 22% 보다 좁아지면 올린다. */
   function browShift(f) {
@@ -146,8 +163,7 @@
      상태
      ============================================================ */
   const KEYS = ["face", "hairBack", "hairFront", "hairSide", "hairTie", "brows", "eyes",
-                "nose", "mouth", "ears", "glasses", "detail",
-                "lens", "liner", "blush", "mole"];
+                "nose", "mouth", "ears", "glasses", "detail", "lens", "liner"];
   const listOf = k => P.CATS.find(c => c.key === k).list;
   /* 고른 번호가 범위를 벗어나면 기본 파츠로 되돌린다 — undefined 를 그리면
      화면이 통째로 비어 버린다. */
@@ -227,8 +243,7 @@
   const dEars = (f, sk) => place(at("ears", pick.ears).s(sk), REF.earY, f, f.earY);
   const dNeck = (f, sk) => place(P.NECK(sk), REF.chin - 20, f, f.chinY - 20 * f.sy);
   const dFace = (f, sk) => f.d(sk);
-  const dBlush = f => place(at("blush", pick.blush).s, REF.cheekY, f, f.cheekY,
-    fitIn(P.EXT.BLUSH[pick.blush], REF.cheekY, f, f.cheekY));
+
   const dBrows = f => place(at("brows", pick.brows).s, REF.browY, f, f.browY,
     { dy: browShift(f) });
   const dEyes = f => place(at("eyes", pick.eyes).s, REF.eyeY, f, f.eyeY) +
@@ -236,20 +251,31 @@
     place(at("liner", pick.liner).s, REF.eyeY, f, f.eyeY);
   const dNose = f => place(at("nose", pick.nose).s, REF.noseY, f, f.noseY);
   const dMouth = f => place(at("mouth", pick.mouth).s, REF.mouthY, f, f.mouthY);
-  const dDetails = f => place(at("mole", pick.mole).s, REF.mouthY, f, f.mouthY,
-      fitIn(P.EXT.MOLE[pick.mole], REF.mouthY, f, f.mouthY)) +
-    (at("detail", pick.detail).top ? "" :
-      place(at("detail", pick.detail).s, REF.mouthY, f, f.mouthY,
-        fitIn(P.EXT.DETAIL[pick.detail], REF.mouthY, f, f.mouthY)));
+  /* 특징 — 파츠가 '어느 기준선에 걸리나(anchor)' 를 데이터로 들고 있다.
+     점은 볼선, 다크서클은 눈선, 수염은 입선… 한 칸에 하나만 고른다. */
+  const dDetails = f => {
+    const d = at("detail", pick.detail);
+    if (!d.s || d.top) return "";
+    const ref = REF[d.ref] === undefined ? REF.mouthY : REF[d.ref];
+    const fy = f[d.anchor] === undefined ? f.mouthY : f[d.anchor];
+    return place(d.s, ref, f, fy, fitIn(P.EXT.DETAIL[pick.detail], ref, f, fy));
+  };
   const dHairSide = (f, hc) => placeHair(at("hairSide", pick.hairSide).f(hc), f);
   const dHairFront = (f, hc) => {
     const fr = at("hairFront", pick.hairFront);
     return placeFront(fr.f(hc), f, fr.n);
   };
   const dHairTie = (f, hc) => placeHair(at("hairTie", pick.hairTie).f(hc), f);
-  const dAccessory = f => place(at("glasses", pick.glasses).s, REF.eyeY, f, f.eyeY) +
-    (at("detail", pick.detail).top
-      ? place(at("detail", pick.detail).s, REF.mouthY, f, f.mouthY) : "");
+  /* 안경 / 머리 위에 얹는 것 — 거의 맨 위 */
+  const dAccessory = f => {
+    const g = at("glasses", pick.glasses);
+    const d = at("detail", pick.detail);
+    const top = d.top
+      ? place(d.s, REF[d.ref] === undefined ? REF.mouthY : REF[d.ref], f,
+              f[d.anchor] === undefined ? f.mouthY : f[d.anchor])
+      : "";
+    return placeGlasses(g.s, f, g) + top;
+  };
 
   /* 안내선 — DEBUG_MONTAGE 일 때만. 어긋난 파츠가 어느 기준선에서
      벗어났는지 눈으로 바로 보려고 둔다. */
@@ -288,7 +314,7 @@
   function drawMontage(f, sk, hc) {
     return [
       dHairBack(f, hc), dNeck(f, sk), dEars(f, sk), dFace(f, sk),
-      dBlush(f), dBrows(f), dEyes(f), dNose(f), dMouth(f), dDetails(f),
+      dBrows(f), dEyes(f), dNose(f), dMouth(f), dDetails(f),
       dHairSide(f, hc), dHairFront(f, hc), dHairTie(f, hc), dAccessory(f),
       DEBUG_MONTAGE ? dGuides(f) : "",
     ].join("");
@@ -330,7 +356,7 @@
   const TAGKEY = { face: "FACES", hairFront: "HAIR_FRONT", hairBack: "HAIR_BACK",
     hairSide: "HAIR_SIDE", hairTie: "HAIR_TIE", brows: "BROWS", eyes: "EYES",
     nose: "NOSE", mouth: "MOUTH", ears: "EARS", glasses: "GLASSES",
-    detail: "DETAIL", lens: "LENS", liner: "LINER", blush: "BLUSH", mole: "MOLE" };
+    detail: "DETAIL", lens: "LENS", liner: "LINER" };
   const CATKEY = {};
   for (const k of Object.keys(TAGKEY)) CATKEY[TAGKEY[k]] = k;
 
@@ -343,16 +369,18 @@
     for (const tk of P.TAG_ORDER) {
       const ck = CATKEY[tk];
       if (!ck || pick[ck] === undefined) continue;
-      if (ck === "glasses" || (ck === "detail" && at("detail", pick.detail).top)) continue;
+      /* 모자·마스크는 '인상착의' 쪽에 적으므로 특징 글에서는 건너뛴다.
+         안경은 사람을 가리는 표가 되므로 특징 글에도 적는다. */
+      if (ck === "detail" && at("detail", pick.detail).top) continue;
       /* 설명말이 여럿이면 하나만 쓴다 — 같은 파츠를 두 번 적으면 안 된다
          ("웨이브 머리, 꼬불꼬불한 머리" 처럼). 나머지는 바꿔 쓸 말이다. */
       const t = (P.TAGS[tk] || [])[pick[ck]] || [];
       if (t.length && feat.indexOf(t[0]) < 0) feat.push(t[0]);
       if (feat.length >= 5) break;
     }
-    /* 인상착의 — 적은 게 있으면 그대로. 없으면 눈에 띄는 것만, 그것도 없으면 미상 */
+    /* 인상착의 — 적은 게 있으면 그대로. 안경은 특징 글에 적히므로 여기선
+       빼고, 쓴 것(모자·마스크)만 적는다. 둘 다 없으면 미상. */
     const wear = [];
-    if (nm("glasses") !== "없음") wear.push(nm("glasses") + " 안경");
     const d = at("detail", pick.detail);
     if (d.top) wear.push(nm("detail") + " 착용");
     const made = feat.slice(0, 5).join(", ");
@@ -761,7 +789,8 @@
     place: place, placeHair: placeHair, buildSVG: buildSVG, flyerInfo: flyerInfo,
     randomize: randomize, undo: undo, resetAll: resetAll, paintAll: paintAll,
     finish: finish, buildCard: buildCard, thumb: thumb, shareText: shareText,
-    placeFront: placeFront, fitIn: fitIn, typed: typed, bindInputs: bindInputs,
+    placeFront: placeFront, placeGlasses: placeGlasses, fitIn: fitIn,
+    typed: typed, bindInputs: bindInputs,
     getFaceTemplate: getFaceTemplate, getFitRect: getFitRect,
     getAnchorPoint: getAnchorPoint, drawMontage: drawMontage, browShift: browShift,
     validate: validate, at: at, clean: clean, posterName: posterName, MODE: MODE,
