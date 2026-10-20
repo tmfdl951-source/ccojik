@@ -76,9 +76,21 @@
   }
   /* 머리카락은 머리통을 덮는 뚜껑이다 — 가로·세로를 따로 늘려 머리에 맞춘다.
      얼굴보다 살짝 크게 씌워야 두피가 비지 않는다. */
-  function placeHair(inner, f) {
+  /* 틀 바닥 — 긴 머리 끝을 여기까지만 내린다 */
+  const VIEW_BOT = (() => { const v = VIEW.split(" ").map(Number); return v[1] + v[3] - 4; })();
+  /* 머리는 얼굴 비율로 늘인다. 다만 얼굴이 긴 사람에게 긴 머리를 얹으면
+     꼬리가 틀 밖으로 흘러내린다 (길쭉 + 긴생머리에서 12px). 스타일마다
+     y 를 손으로 박는 대신 '꼬리가 틀 바닥을 넘지 않는다' 는 한 규칙으로
+     세로 배율만 조인다. e 는 그 파츠의 기준좌표 네모다. */
+  function placeHair(inner, f, e) {
     if (!inner) return "";
-    const sx = f.sx * 1.02, sy = f.sy * 1.02;
+    const sx = f.sx * 1.02;
+    let sy = f.sy * 1.02;
+    const drop = e ? e[3] - REF.top : 0;
+    if (drop > 0) {
+      const room = (VIEW_BOT - f.top) / drop;
+      if (room < sy) sy = clamp(room, sy * 0.78, sy);
+    }
     return '<g transform="translate(' + f.cx + ' ' + r2(f.top) + ') scale(' +
       r3(sx) + ' ' + r3(sy) + ') translate(' + -REF.cx + ' ' + -REF.top + ')">' +
       inner + '</g>';
@@ -217,6 +229,9 @@
     const backName = at("hairBack", pick.hairBack).n;
     const tieName = at("hairTie", pick.hairTie).n;
     if (tieName !== "없음" && !P.tieOk(backName, tieName)) pick.hairTie = 0;
+    /* 앞머리는 받쳐 줄 뒷머리가 있어야 한다 — 삭발이나 뒷머리없음 위에
+       앞머리만 뜨면 공중에 붙은 조각으로 보인다 */
+    if (!P.frontOk(backName, at("hairFront", pick.hairFront).n)) pick.hairFront = 0;
     /* 앞·뒤가 다 없으면 민머리다 — 몽타주로 안 보인다 */
     if (pick.hairBack === 0 && pick.hairFront === 0) pick.hairBack = 1;
     return pick;
@@ -272,7 +287,8 @@
      귀와 목은 얼굴보다 먼저 그린다. 뒤에 그리면 얼굴 위에 얹혀 스티커처럼
      보인다 — 안쪽이 얼굴에 가려져야 붙어 보인다. */
   /* 레이어마다 함수를 따로 둔다 — 거대한 그리기 함수 하나로 두지 않는다 */
-  const dHairBack = (f, hc) => placeHair(at("hairBack", pick.hairBack).f(hc), f);
+  const dHairBack = (f, hc) =>
+    placeHair(at("hairBack", pick.hairBack).f(hc), f, P.EXT.HAIR_BACK[pick.hairBack]);
   const dEars = (f, sk) => place(at("ears", pick.ears).s(sk), REF.earY, f, f.earY);
   const dNeck = (f, sk) => place(P.NECK(sk), REF.chin - 20, f, f.chinY - 20 * f.sy);
   const dFace = (f, sk) => f.d(sk);
@@ -293,12 +309,14 @@
     const fy = f[d.anchor] === undefined ? f.mouthY : f[d.anchor];
     return place(d.s, ref, f, fy, fitIn(P.EXT.DETAIL[pick.detail], ref, f, fy));
   };
-  const dHairSide = (f, hc) => placeHair(at("hairSide", pick.hairSide).f(hc), f);
+  const dHairSide = (f, hc) =>
+    placeHair(at("hairSide", pick.hairSide).f(hc), f, P.EXT.HAIR_SIDE[pick.hairSide]);
   const dHairFront = (f, hc) => {
     const fr = at("hairFront", pick.hairFront);
     return placeFront(fr.f(hc), f, fr.n);
   };
-  const dHairTie = (f, hc) => placeHair(at("hairTie", pick.hairTie).f(hc), f);
+  const dHairTie = (f, hc) =>
+    placeHair(at("hairTie", pick.hairTie).f(hc), f, P.EXT.HAIR_TIE[pick.hairTie]);
   /* 안경 / 머리 위에 얹는 것 — 거의 맨 위 */
   const dAccessory = f => {
     const g = at("glasses", pick.glasses);
