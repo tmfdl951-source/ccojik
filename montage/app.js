@@ -344,16 +344,18 @@
       const ck = CATKEY[tk];
       if (!ck || pick[ck] === undefined) continue;
       if (ck === "glasses" || (ck === "detail" && at("detail", pick.detail).top)) continue;
+      /* 설명말이 여럿이면 하나만 쓴다 — 같은 파츠를 두 번 적으면 안 된다
+         ("웨이브 머리, 꼬불꼬불한 머리" 처럼). 나머지는 바꿔 쓸 말이다. */
       const t = (P.TAGS[tk] || [])[pick[ck]] || [];
-      for (const x of t) if (feat.indexOf(x) < 0) feat.push(x);
-      if (feat.length >= 4) break;
+      if (t.length && feat.indexOf(t[0]) < 0) feat.push(t[0]);
+      if (feat.length >= 5) break;
     }
     /* 인상착의 — 적은 게 있으면 그대로. 없으면 눈에 띄는 것만, 그것도 없으면 미상 */
     const wear = [];
     if (nm("glasses") !== "없음") wear.push(nm("glasses") + " 안경");
     const d = at("detail", pick.detail);
     if (d.top) wear.push(nm("detail") + " 착용");
-    const made = feat.slice(0, 4).join(", ");
+    const made = feat.slice(0, 5).join(", ");
     return {
       /* 적은 게 있으면 그대로, 없으면 지어낸 것 */
       name: clean(typed.name, 16) || "미상",
