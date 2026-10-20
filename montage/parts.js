@@ -369,11 +369,16 @@ const HAIR_COMPAT = {
   "단발": ["없음", "번헤어", "낮은번", "반묶음", "리본"],
   "C컬단발": ["없음", "번헤어", "낮은번", "반묶음", "리본"],
 };
-/* 머리가 거의 없는데 앞머리를 얹으면 이마에 조각만 뜬다 */
+/* 앞머리는 받쳐 줄 뒷머리가 있어야 한다.
+     - 머리가 거의 없으면 이마에 조각만 뜬다
+     - 아주 짧게 깎은 머리에 길게 흐르는 앞머리를 얹으면 뒤가 비어 어긋난다 */
 const BALD = ["없음", "삭발"];
+const BUZZ = ["스포츠컷"];
+const FRONT_LONG = ["긴앞머리", "쓸어넘김"];
 function frontOk(backName, frontName) {
-  if (BALD.indexOf(backName) < 0) return true;
-  return frontName === "없음";
+  if (BALD.indexOf(backName) >= 0) return frontName === "없음";
+  if (BUZZ.indexOf(backName) >= 0 && FRONT_LONG.indexOf(frontName) >= 0) return false;
+  return true;
 }
 /* 적히지 않은 뒷머리는 모든 묶음과 쓸 수 있다 */
 function tieOk(backName, tieName) {
@@ -430,6 +435,29 @@ const TAGS = {
   LINER: [[], ["기본 아이라인"], ["또렷 아이라인"], ["캣아이 아이라인"], ["언더 아이라인"]],
 };
 const TAG_ORDER = ["FACES","HAIR_FRONT","HAIR_BACK","GLASSES","DETAIL","EYES","BROWS","NOSE","MOUTH","HAIR_TIE","HAIR_SIDE","EARS","LENS","LINER"];
+
+
+/* 앞머리 맞춤 — drop 은 이마 높이의 몇 배까지 내려오는 꼴인가,
+   fit 은 폭이 좁은/보통/넓은 꼴인가. app.js 가 이 둘로 크기를 잡는다. */
+
+
+
+/* 앞머리 맞춤
+     drop  이마 높이의 몇 배까지 내려오는 꼴인가 (전체 밑끝)
+     core  눈 구역(가운데 +-44) 안쪽 밑끝이 이마선 아래로 몇 px 인가.
+           placeFront 가 이 값으로 눈썹선을 안 넘게 조인다. 바깥으로
+           흘러내리는 가닥은 얼굴 옆이라 조이지 않는다.
+     fit   머리 실루엣을 얼마나 덮나 (좁은/보통/넓은) */
+
+
+
+/* 앞머리 맞춤
+     drop  이마 높이의 몇 배까지 내려오는 꼴인가 (전체 밑끝)
+     core  눈 구역(가운데 +-54) 안쪽 밑끝이 이마선 아래로 몇 px 인가.
+           placeFront 가 이 값으로 눈썹선을 안 넘게 조인다. 바깥으로
+           흘러내리는 가닥은 얼굴 옆이라 조이지 않는다.
+     fit   머리 실루엣을 얼마나 덮나 (좁은/보통/넓은) */
+
 /* ============================================================
    파츠가 기준 얼굴에서 차지하는 네모 [x1, y1, x2, y2]
    ============================================================
@@ -438,7 +466,7 @@ const TAG_ORDER = ["FACES","HAIR_FRONT","HAIR_BACK","GLASSES","DETAIL","EYES","B
    나가면 끌어당긴다. 파츠 그림을 고치면 이 표도 다시 재야 한다
    (scratchpad/mgbake2.js 가 다시 굽는다). */
 const EXT = {
-  HAIR_FRONT: [null, [66,85,234,150], [66,87,234,136], [68,89,232,144], [68,86,232,145], [71,83,229,151], [66,88,234,152], [67,88,235,152], [68,88,236,152], [64,87,233,155], [64,88,235,160], [65,88,236,158], [70,81,230,123]],
+  HAIR_FRONT: [null, [64,88,236,147], [68,90,232,140], [67,91,233,143], [71,90,229,138], [59,88,241,148], [54,90,246,158], [54,89,246,152], [54,88,246,160], [52,88,248,161], [42,90,239,189], [63,89,257,165], [69,86,231,123]],
   HAIR_BACK: [null, [69,90,231,136], [68,82,232,150], [65,76,235,169], [72,66,228,156], [60,74,240,182], [53,70,247,177], [61,74,239,237], [68,74,233,244], [60,72,240,280], [56,64,244,278], [60,72,240,334], [50,68,250,332], [50,68,250,274], [36,61,264,258]],
   HAIR_SIDE: [null, [72,112,228,156], [71,111,229,187], [70,108,230,231], [69,105,231,272], [73,112,227,165], [68,107,232,248]],
   HAIR_TIE: [null, [212,135,254,242], [204,227,246,324], [56,157,244,263], [120,38,180,90], [125,236,175,280], [203,149,236,310], [124,124,176,198], [118,72,182,93]],
@@ -455,21 +483,25 @@ const EXT = {
   MOLE: [null, [173,227,179,233], [123,183,129,189], [183,207,189,213], [147,147,153,153]],
 };
 
-/* 앞머리 맞춤 — drop 은 이마 높이의 몇 배까지 내려오는 꼴인가,
-   fit 은 폭이 좁은/보통/넓은 꼴인가. app.js 가 이 둘로 크기를 잡는다. */
+/* 앞머리 맞춤
+     drop  이마 높이의 몇 배까지 내려오는 꼴인가 (전체 밑끝)
+     core  눈 구역(가운데 +-54) 안쪽 밑끝이 이마선 아래로 몇 px 인가.
+           placeFront 가 이 값으로 눈썹선을 안 넘게 조인다. 바깥으로
+           흘러내리는 가닥은 얼굴 옆이라 조이지 않는다.
+     fit   머리 실루엣을 얼마나 덮나 (좁은/보통/넓은) */
 const HAIR_FIT = {
-  "일자": { drop: 0.98, fit: "standard" },
-  "짧은일자": { drop: 0.65, fit: "standard" },
-  "시스루": { drop: 0.84, fit: "standard" },
-  "처피뱅": { drop: 0.86, fit: "standard" },
-  "곱슬앞머리": { drop: 1, fit: "standard" },
-  "5대5가르마": { drop: 1.02, fit: "standard" },
-  "6대4가르마": { drop: 1.02, fit: "standard" },
-  "7대3가르마": { drop: 1.02, fit: "standard" },
-  "옆가르마": { drop: 1.09, fit: "standard" },
-  "긴앞머리": { drop: 1.21, fit: "wide" },
-  "쓸어넘김": { drop: 1.16, fit: "wide" },
-  "올백": { drop: 0.35, fit: "narrow" },
+  "일자": { drop: 0.91, core: 38.8, fit: "standard" },
+  "짧은일자": { drop: 0.74, core: 32.1, fit: "standard" },
+  "시스루": { drop: 0.81, core: 34.9, fit: "standard" },
+  "처피뱅": { drop: 0.7, core: 30.3, fit: "standard" },
+  "곱슬앞머리": { drop: 0.93, core: 40.4, fit: "standard" },
+  "5대5가르마": { drop: 1.16, core: 36.3, fit: "wide" },
+  "6대4가르마": { drop: 1.02, core: 43, fit: "wide" },
+  "7대3가르마": { drop: 1.21, core: 51.6, fit: "wide" },
+  "옆가르마": { drop: 1.23, core: 51.9, fit: "wide" },
+  "긴앞머리": { drop: 1.88, core: 54.5, fit: "wide" },
+  "쓸어넘김": { drop: 1.33, core: 39.1, fit: "wide" },
+  "올백": { drop: 0.35, core: 14.7, fit: "narrow" },
 };
 window.MONTAGE_PARTS = {
   REF: REF, FACES: FACES, EARS: EARS, NECK: NECK,
@@ -479,8 +511,8 @@ window.MONTAGE_PARTS = {
   GLASSES: GLASSES, DETAIL: DETAIL,
   LENS: LENS, LINER: LINER, BLUSH: BLUSH, MOLE: MOLE,
   SKIN: SKIN, HAIRCOL: HAIRCOL, CATS: CATS,
-  TAGS: TAGS, TAG_ORDER: TAG_ORDER,
-   EXT: EXT, HAIR_FIT: HAIR_FIT,
+  TAGS: TAGS, TAG_ORDER: TAG_ORDER, EXT: EXT, HAIR_FIT: HAIR_FIT,
+  
   
   
   
@@ -489,5 +521,6 @@ window.MONTAGE_PARTS = {
   
   OPTIONAL: OPTIONAL, CHANCE: CHANCE, NEUTRAL: NEUTRAL,
   HAIR_COMPAT: HAIR_COMPAT, tieOk: tieOk, frontOk: frontOk, BALD: BALD,
+  BUZZ: BUZZ, FRONT_LONG: FRONT_LONG,
 };
 })();

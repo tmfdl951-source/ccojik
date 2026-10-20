@@ -97,19 +97,26 @@
   }
 
   /* 앞머리는 뚜껑도 아니고 이마에 붙인 조각도 아니다 — 머리에서 내려오는
-     것이다. 위끝과 아래끝을 먼저 못으로 박고 그 사이를 채우도록 배율을
-     끌어낸다.
-       위끝  = 이마선 - 이마높이 x 내림폭   (늘 머리 쪽에서 시작)
-       아래끝 = 눈썹선 바로 위               (눈을 침범하지 않는다)
-       폭    = max(얼굴폭 x fit, 머리실루엣폭 x 관자놀이비율)
-     예전엔 폭을 얼굴폭만 보고 잡아서 뒷머리보다 한쪽 6~27px 좁았고,
-     관자놀이에 틈이 생겨 가발 조각처럼 보였다.
-     fit 은 꼴마다 다르다 — 모히칸처럼 좁은 것은 좁게 두되 머리에 붙게. */
-  const FIT_W = { narrow: 0.92, standard: 1.02, wide: 1.1 };
-  /* 머리 실루엣을 얼마나 덮나 */
-  const TEMPLE = { narrow: 0.74, standard: 0.99, wide: 1.04 };
+     것이다.
 
-  /* 지금 머리(뒷머리/옆머리) 실루엣의 폭 — 앞머리가 맞춰야 할 기준 */
+     예전에는 위끝과 아래끝을 둘 다 못 박고 그 사이를 채우도록 늘였다.
+     그래서 어떤 스타일이든 이마선~눈썹선을 꽉 채웠고, 재 보니 12종이
+     전부 눈썹선 -2px 에서 끝났다. 올백은 그린 깊이 15px 인데 1.62배로
+     늘어나 이마를 다 덮었다. 길이가 스타일 차이의 핵심인데 그게 뭉갰다.
+     폭도 max(얼굴폭, 실루엣폭) 에서 실루엣 항이 늘 이겨 10종이 한 폭이
+     됐다.
+
+     이제는 '얼굴 비율로 얹고, 넘칠 때만 조인다'.
+       위끝  이마선 위 — 그린 lift 만큼 머리 베이스에 묻힌다. 그래서
+             앞머리 윗동이 이마 한가운데서 불쑥 시작하지 않는다.
+       세로  이마 높이 비율. 늘이지 않으므로 스타일 깊이가 그대로 산다.
+       폭    그린 폭 x 얼굴 가로비율. 다만 아래로 눈썹 바깥은 반드시
+             덮고(가운데만 툭 튀면 안 된다), 위로 머리 실루엣을 넘지
+             않는다(관자놀이에서 옆·뒷머리와 이어진다).
+       조임  눈 구역(core) 밑끝이 눈썹선을 넘을 때만 세로를 줄인다.
+             바깥으로 흘러내리는 가닥은 눈이 아니라 얼굴 옆이라 둔다. */
+  /* 지금 머리가 차지하는 폭 — 앞머리를 여기에 맞춰야 관자놀이에서
+     옆·뒷머리와 이어지고 앞머리만 따로 뜨지 않는다 */
   function hairSpan(f) {
     let w = f.width;
     for (const k of ["hairBack", "hairSide"]) {
@@ -122,32 +129,46 @@
     return w;
   }
 
+  const FIT_W  = { narrow: 0.94, standard: 1.02, wide: 1.08 };
+  /* 머리 실루엣을 얼마나 덮나 */
+  const TEMPLE = { narrow: 0.82, standard: 1.0, wide: 1.06 };
+
+  /* 얼굴형 보정 — 얼굴이 길면 폭을 넓히고 세로를 줄인다. 얼굴마다 x/y 를
+     박는 대신 '세로/가로 비율' 하나로만 민다. */
+  function faceLean(f) {
+    const ref = (REF.chin - REF.top) / (REF.halfW * 2);
+    return clamp(((f.chinY - f.topY) / f.width) / ref, 0.86, 1.2);
+  }
+
   function placeFront(inner, f, name) {
     if (!inner) return "";
-    const meta = P.HAIR_FIT[name] || { drop: 1, fit: "standard" };
-    const e = P.EXT.HAIR_FRONT[P.HAIR_FRONT.findIndex(h => h.n === name)];
-    if (!e) return placeHair(inner, f);
-    const fore = f.browY - f.hairlineY;
-    const refFore = REF.browY - REF.top;
+    const idx = P.HAIR_FRONT.findIndex(h => h.n === name);
+    const e = P.EXT.HAIR_FRONT[idx];
+    if (!e) return place(inner, REF.top, f, f.hairlineY, null);
+    const meta = P.HAIR_FIT[name] || { fit: "standard", core: REF.browY - REF.top };
+    const fit = meta.fit || "standard";
+    const fore = f.browY - f.hairlineY, refFore = REF.browY - REF.top;
+    const lean = faceLean(f);
 
-    /* --- 가로 --- */
-    const refW = Math.max(8, e[2] - e[0]);
-    const wantW = Math.max(f.width * (FIT_W[meta.fit] || 1.02),
-                           hairSpan(f) * (TEMPLE[meta.fit] || 0.99));
-    const kx = clamp(wantW / refW, 0.6, 2.2);
+    /* 폭 — 스타일 차이를 살리되 눈썹 바깥과 머리 실루엣 사이에 둔다 */
+    const artW = Math.max(8, e[2] - e[0]);
+    const browOut = (f.rightEyeX - f.leftEyeX) / 2 + 15 * f.featScale;
+    const maxW = hairSpan(f) * TEMPLE[fit];
+    const minW = Math.min(browOut * 2 * 1.1, maxW);
+    const want = clamp(artW * f.sx * (1 + (lean - 1) * 0.45) * FIT_W[fit], minW, maxW);
+    const kx = clamp(want / artW, 0.6, 2.2);
 
-    /* --- 세로 --- */
-    /* 그려진 대로의 내림폭(이마선 위로 얼마나 솟았나). 너무 얕으면 끌어올려
-       머리에서 내려오는 꼴을 만든다. */
-    const over = clamp((REF.top - e[1]) / refFore, 0.3, 1.2);
-    const wantTop = f.hairlineY - fore * over;
-    const wantBot = f.browY - 2 * f.sy;
-    const refH = Math.max(6, e[3] - e[1]);
-    const ky = clamp((wantBot - wantTop) / refH, 0.5, 2.2);
-    /* y1 이 wantTop 에 꽂히도록 원점을 옮긴다 */
-    const y0 = wantTop - ky * (e[1] - REF.top);
+    /* 세로 — 이마 높이 비율. 긴 얼굴은 조금 줄여 세로로만 길어지지 않게 */
+    let ky = clamp(fore / refFore * (1 - (lean - 1) * 0.3), 0.6, 1.8);
+    /* 눈 구역 밑끝이 눈썹선을 넘으면 그만큼만 조인다 */
+    const core = meta.core || (e[3] - REF.top);
+    const room = fore - 2 * f.sy;
+    if (core > 0 && ky * core > room) ky = room / core;
+    /* 위끝은 늘 이마선 위에 있어야 한다 — 베이스에 묻혀야 잘린 종이가 안 된다 */
+    const up = REF.top - e[1];
+    if (up > 0 && ky * up < 7) ky = Math.max(ky, 7 / up);
 
-    return '<g transform="translate(' + r2(f.cx) + ' ' + r2(y0) + ') scale(' +
+    return '<g transform="translate(' + r2(f.cx) + ' ' + r2(f.hairlineY) + ') scale(' +
       r3(kx) + ' ' + r3(ky) + ') translate(' + -REF.cx + ' ' + -REF.top + ')">' +
       inner + '</g>';
   }
@@ -525,12 +546,14 @@
     cat.list.forEach((item, i) => {
       const b = document.createElement("button");
       b.type = "button";
-      /* 지금 머리와 안 맞는 묶음은 흐리게 — 눌러도 되돌려지므로 숨기지 않고
-         왜 못 쓰는지 보이게 둔다 */
-      const bad = cat.key === "hairTie" &&
-        !P.tieOk(at("hairBack", pick.hairBack).n, item.n);
+      /* 지금 머리와 안 맞는 묶음·앞머리는 흐리게 — 눌러도 되돌려지므로
+         숨기지 않고 왜 못 쓰는지 보이게 둔다 */
+      const backN = at("hairBack", pick.hairBack).n;
+      const bad = (cat.key === "hairTie" && !P.tieOk(backN, item.n)) ||
+                  (cat.key === "hairFront" && !P.frontOk(backN, item.n));
       b.className = "opt" + (pick[cat.key] === i ? " on" : "") + (bad ? " off" : "");
-      if (bad) b.title = "지금 뒷머리로는 묶을 수 없어요";
+      if (bad) b.title = cat.key === "hairTie" ? "지금 뒷머리로는 묶을 수 없어요"
+                                               : "지금 뒷머리에는 얹을 수 없어요";
       b.setAttribute("aria-label", item.n + " " + cat.label + " 선택");
       b.innerHTML = '<span class="opt-art">' + thumb(cat, i) + '</span>' +
                     '<span class="opt-name"></span>';

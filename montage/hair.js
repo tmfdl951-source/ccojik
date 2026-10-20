@@ -142,133 +142,129 @@
   }
 
   /* ------------------------------------------------------------
-     앞머리 — 이마선에서 내려오는 파츠
+     앞머리 — 머리 베이스에서 내려오는 갈래 묶음
      ------------------------------------------------------------
-       depth  이마선에서 아래로 내려오는 깊이 (이마 높이 43 기준)
-       tw     좌우 반폭 (눈썹 바깥까지 덮어야 가발 조각으로 안 보인다)
-       kind   straight | seethrough | choppy | part | sweep | curl
-       part   가르마 가로 위치 (-1 왼쪽 ~ 1 오른쪽)
+     한 덩어리 도형을 이마에 붙이면 스티커로 보인다. 두 켜로 짓는다.
+
+       1) 밑판  이마선 '위'(머리 베이스 안)에서 시작하는 뚜껑. 위끝이
+                베이스에 묻히므로 잘린 종이처럼 안 보이고, 앞머리가
+                이마 한가운데서 불쑥 시작하지 않는다.
+       2) 갈래  밑판에서 내려오는 가닥들. 끝이 따로 있어 갈라져 보이고,
+                갈래 사이 틈이 시스루를 만든다.
+
+     스타일은 숫자 묶음이다 — 이 숫자가 전부 차이를 낸다.
+       width    반폭. 눈썹 바깥을 지나 관자놀이까지
+       height   이마선에서 내려오는 깊이. 스타일 차이의 핵심
+       base     밑판이 내려오는 비율 (0.25 면 거의 안 내려와 이마가 보인다)
+       strands  갈래 수
+       density  갈래 두께 (1 서로 붙어 한 덩어리 ~ 0.4 틈이 넓다)
+       split    가르마 자리 (-1 왼쪽 ~ 1 오른쪽, 없으면 적지 않는다)
+       bias     한쪽으로 쏠린 정도 (-1 ~ 1)
+       jag      갈래 끝이 들쭉날쭉한 정도
+       fall     바깥 갈래가 볼 쪽으로 더 내려오는 길이 (긴 앞머리)
+       curlTip  끝이 동글게 말리나
+       lift     이마선 위로 올려 베이스에 묻는 깊이
      ------------------------------------------------------------ */
+
+  /* 갈래 하나 — 시작점에서 끝점까지 가늘어지는 닫힌 모양.
+     양쪽을 따로 그어 모아야 끝이 뾰족해지고 머리카락처럼 보인다. */
+  function strand(a, b, w0, w1, bow) {
+    const mx = (a[0] + b[0]) / 2 + (bow || 0), my = (a[1] + b[1]) / 2;
+    return smooth([
+      [a[0] - w0, a[1]],
+      [mx - w1 * 1.25, my],
+      [b[0] - w1 * 0.9, b[1]],
+      [b[0] + w1 * 0.9, b[1] + 1.5],
+      [mx + w1 * 1.25, my + 2],
+      [a[0] + w0, a[1] + 2],
+    ], true);
+  }
+
+  /* 갈래 끝을 흔드는 고정 패턴. 난수를 쓰면 다시 그릴 때마다 모양이
+     달라져 썸네일과 결과가 어긋난다. */
+  const JIT = [0, .46, -.3, .2, -.5, .3, -.14, .52, -.26, .36, -.42, .16, -.36, .24];
+
   function bangs(o) {
-    const tw = o.tw, dep = o.depth, kind = o.kind;
-    const topY = TOP - (o.lift === undefined ? 16 : o.lift);   // 머리에서 시작
-    const lo = TOP + dep;
+    const W = o.width, H = o.height;
+    const n = o.strands, dens = o.density;
+    const hasSplit = o.split !== undefined && o.split !== null;
+    const sp = hasSplit ? o.split : 0;
+    const bias = o.bias || 0, jag = o.jag || 0, fall = o.fall || 0;
+    const topY = TOP - (o.lift === undefined ? 18 : o.lift);
+    const baseDrop = H * (o.base === undefined ? 0.6 : o.base);
+    /* 머리 베이스 안쪽을 따라가는 활 — 가운데가 가장 높다 */
+    const arcY = u => topY + 11 * u * u;
+    /* 갈래 길이 — 스타일 차이가 여기서 난다 */
+    const lenAt = (u, k) => {
+      let t = 1 - 0.2 * u * u;
+      /* 가르마는 갈라진 선에서 멀수록 길다. 선 쪽은 짧아 가운데가 열린다. */
+      if (hasSplit) t = 0.38 + 0.74 * Math.min(1, Math.abs(u - sp) / 0.72);
+      if (bias) t *= 1 + bias * u * 0.5;
+      t *= 1 + jag * JIT[k % JIT.length];
+      /* 맨 바깥 갈래만 볼 쪽으로 더 내려온다. 0.78 보다 바깥이라야 눈
+         구역(가운데 +-54)을 벗어나 눈을 안 가린다 — 얼굴 옆으로 흐른다. */
+      const out = fall * Math.max(0, Math.abs(u) - 0.78) / 0.22;
+      return Math.max(H * 0.2, H * t) + out * (bias === 0 || u * bias > 0 ? 1 : 0.3);
+    };
+    /* 갈래가 흐르는 쪽 — 가르마는 선에서 바깥으로, 쓸어넘김은 한쪽으로 */
+    const flowAt = u => {
+      let fx = u * W * 0.1;
+      if (hasSplit) fx = (u >= sp ? 1 : -1) * W * 0.2 *
+        Math.min(1, Math.abs(u - sp) / 0.5 + 0.25);
+      if (bias) fx += bias * W * 0.24;
+      return fx;
+    };
+
     return c => {
-      const g = ['<g fill="' + c + '">'];
-      if (kind === "seethrough") {
-        /* 시스루 — 이마가 비쳐 보이게 윗동은 얇게, 아래로 가닥만 */
-        g.push('<path d="' + smooth([
-          [CX - tw, topY + 10], [CX - tw * 0.5, topY], [CX, topY - 3],
-          [CX + tw * 0.5, topY], [CX + tw, topY + 10],
-          [CX + tw * 0.86, TOP + dep * 0.42], [CX, TOP + dep * 0.3],
-          [CX - tw * 0.86, TOP + dep * 0.42],
-        ], true) + '"/>');
-        g.push('</g>');
-        g.push('<g fill="none" stroke="' + c + '" stroke-width="6.5" stroke-linecap="round" ' +
-          'stroke-opacity=".82">');
-        for (let i = -3; i <= 3; i++) {
-          const x = CX + i * tw * 0.26;
-          g.push('<path d="' + smooth([[x, TOP + dep * 0.22],
-            [x + (i < 0 ? -3 : 3), TOP + dep * 0.66], [x + (i < 0 ? -5 : 5), lo]], false) + '"/>');
-        }
-        g.push('</g>');
-        return g.join("");
+      const g = [];
+      /* ---- 1) 밑판 ---- */
+      const lip = [];
+      for (let k = -4; k <= 4; k++) { const u = k / 4; lip.push([CX + u * W, arcY(u)]); }
+      const hem = [];
+      for (let k = 4; k >= -4; k--) {
+        const u = k / 4;
+        let d = baseDrop * (1 - 0.28 * u * u);
+        /* 가르마 — 갈라진 선에서 밑판이 위로 패인다 (가운데가 막히면 안 된다) */
+        if (hasSplit) d *= 0.26 + 0.74 * Math.min(1, Math.abs(u - sp) / 0.55);
+        if (bias) d *= 1 + bias * u * 0.42;
+        /* 밑단을 조금 흔들어 자른 종이처럼 안 보이게 */
+        d += baseDrop * 0.1 * JIT[(k + 5) % JIT.length];
+        hem.push([CX + u * W * 0.97, TOP + d]);
       }
-      if (kind === "part") {
-        /* 가르마 — 가운데 선만 옮기고 양쪽 끝은 머리에 붙여 둔다.
-           px 에서 ±tw 를 재면 머리 전체가 옆으로 밀려 반대쪽 관자놀이에
-           틈이 생긴다 (7대3 에서 25px). 비대칭은 두 갈래의 두께로 낸다. */
-        const pr = o.part || 0;                       // -1 왼쪽 ~ 1 오른쪽
-        const px = CX + pr * tw * 0.42;               // 가르마 선
-        const lw = px - (CX - tw);                    // 왼쪽 갈래 폭
-        const rw = (CX + tw) - px;                    // 오른쪽 갈래 폭
-        /* 좁은 쪽이 더 깊게 내려온다 — 쓸어 넘긴 쪽이 두꺼워 보인다 */
-        const lDeep = lw >= rw ? 0.95 : 0.74;
-        const rDeep = rw > lw ? 0.95 : 0.74;
-        g.push('<path d="' + smooth([
-          [px, topY + 3], [px - lw * 0.45, topY + 2], [CX - tw, TOP + dep * 0.3],
-          [CX - tw * 0.93, lo], [px - lw * 0.22, TOP + dep * lDeep],
-          [px - 2, TOP + dep * 0.36],
-        ], true) + '"/>');
-        g.push('<path d="' + smooth([
-          [px, topY + 3], [px + rw * 0.45, topY + 2], [CX + tw, TOP + dep * 0.3],
-          [CX + tw * 0.93, lo], [px + rw * 0.22, TOP + dep * rDeep],
-          [px + 2, TOP + dep * 0.36],
-        ], true) + '"/>');
-        g.push('</g>');
-        /* 갈라진 방향이 보이게 결을 그 쪽으로 흘린다 */
-        g.push('<g fill="none" stroke="#000000" stroke-opacity=".26" stroke-width="2.4" ' +
-          'stroke-linecap="round">');
-        g.push('<path d="' + smooth([[px - 3, topY + 9],
-          [px - lw * 0.5, TOP + dep * 0.42], [px - lw * 0.82, lo - 4]], false) + '"/>');
-        g.push('<path d="' + smooth([[px + 3, topY + 9],
-          [px + rw * 0.5, TOP + dep * 0.42], [px + rw * 0.82, lo - 4]], false) + '"/>');
-        g.push('</g>');
-        return g.join("");
+      g.push('<path fill="' + c + '" d="' + smooth(lip.concat(hem), true) + '"/>');
+      /* ---- 2) 갈래 ---- */
+      const step = 2 / (n - 1);
+      for (let k = 0; k < n; k++) {
+        const u = -1 + k * step;
+        const flow = flowAt(u);
+        const a = [CX + u * W * 0.93, arcY(u) + 2];
+        const b = [a[0] + flow, TOP + lenAt(u, k)];
+        const w0 = W * step * 0.5 * dens + 1.4;
+        const w1 = w0 * (o.curlTip ? 0.74 : 0.4);
+        g.push('<path fill="' + c + '" d="' +
+          strand(a, b, w0, w1, flow * 0.3 + u * 2.5) + '"/>');
+        if (o.curlTip) g.push('<circle fill="' + c + '" cx="' + r1(b[0]) +
+          '" cy="' + r1(b[1]) + '" r="' + r1(w1 * 1.2) + '"/>');
       }
-      if (kind === "choppy") {
-        /* 처피뱅 — 밑단이 톱니처럼 들쭉날쭉 */
-        const pts = [[CX - tw, topY + 10], [CX - tw * 0.5, topY - 2], [CX, topY - 4],
-                     [CX + tw * 0.5, topY - 2], [CX + tw, topY + 10]];
-        const teeth = 7;
-        for (let i = 0; i <= teeth; i++) {
-          const t = 1 - i / teeth;
-          pts.push([CX - tw + 2 * tw * t, lo - (i % 2 ? dep * 0.3 : 0)]);
-        }
-        g.push('<path d="' + smooth(pts, true) + '"/>');
-        g.push('</g>');
-        return g.join("");
-      }
-      if (kind === "sweep") {
-        /* 긴 앞머리 — 한쪽으로 쓸어 넘긴다 */
-        const s = o.part === undefined || o.part <= 0 ? -1 : 1;
-        g.push('<path d="' + smooth([
-          [CX - s * tw * 0.2, topY], [CX + s * tw * 0.6, topY + 2],
-          [CX + s * tw, TOP + dep * 0.3], [CX + s * tw * 0.96, lo + dep * 0.12],
-          [CX + s * tw * 0.3, lo], [CX - s * tw * 0.7, TOP + dep * 0.62],
-          [CX - s * tw * 0.98, TOP + dep * 0.2],
-        ], true) + '"/>');
-        g.push('</g>');
-        g.push('<g fill="none" stroke="#000000" stroke-opacity=".24" stroke-width="2.6" ' +
-          'stroke-linecap="round">');
-        for (let i = 1; i <= 3; i++) {
-          g.push('<path d="' + smooth([[CX - s * tw * 0.5, topY + 8],
-            [CX + s * tw * 0.2, TOP + dep * (0.3 + i * 0.14)],
-            [CX + s * tw * 0.8, TOP + dep * (0.5 + i * 0.16)]], false) + '"/>');
-        }
-        g.push('</g>');
-        return g.join("");
-      }
-      if (kind === "curl") {
-        /* 곱슬 앞머리 — 밑단이 동글동글 */
-        g.push('<path d="' + smooth([
-          [CX - tw, topY + 12], [CX - tw * 0.5, topY - 2], [CX, topY - 5],
-          [CX + tw * 0.5, topY - 2], [CX + tw, topY + 12],
-          [CX + tw * 0.6, TOP + dep * 0.8], [CX, TOP + dep * 0.66],
-          [CX - tw * 0.6, TOP + dep * 0.8],
-        ], true) + '"/>');
-        for (let i = -3; i <= 3; i++) {
-          g.push('<circle cx="' + r1(CX + i * tw * 0.27) + '" cy="' +
-            r1(lo - dep * 0.1) + '" r="' + r1(tw * 0.16) + '"/>');
-        }
-        g.push('</g>');
-        return g.join("");
-      }
-      /* straight — 일자. 다만 가장자리를 살짝 눌러 종이조각처럼 안 보이게 */
-      g.push('<path d="' + smooth([
-        [CX - tw, topY + 12], [CX - tw * 0.5, topY - 2], [CX, topY - 5],
-        [CX + tw * 0.5, topY - 2], [CX + tw, topY + 12],
-        [CX + tw * 0.94, lo - dep * 0.1], [CX, lo], [CX - tw * 0.94, lo - dep * 0.1],
-      ], true) + '"/>');
-      g.push('</g>');
-      g.push('<g fill="none" stroke="#000000" stroke-opacity=".2" stroke-width="2.4" ' +
+      /* ---- 3) 결 — 흐르는 쪽이 보이게 아주 옅게 ---- */
+      g.push('<g fill="none" stroke="#000000" stroke-opacity=".2" stroke-width="2.2" ' +
         'stroke-linecap="round">');
-      for (let i = -2; i <= 2; i++) {
-        const x = CX + i * tw * 0.34;
-        g.push('<path d="' + smooth([[x, topY + 10], [x, TOP + dep * 0.5],
-          [x, lo - 3]], false) + '"/>');
+      for (let k = 0; k < n; k += 2) {
+        const u = -1 + k * step;
+        const a = [CX + u * W * 0.93, arcY(u) + 6];
+        const L = lenAt(u, k), fx = flowAt(u);
+        g.push('<path d="' + smooth([a,
+          [a[0] + fx * 0.55, TOP + L * 0.55], [a[0] + fx * 0.9, TOP + L * 0.9]], false) + '"/>');
       }
       g.push('</g>');
+      /* ---- 4) 가르마 선 — 갈라진 자리를 또렷하게 ---- */
+      if (hasSplit) {
+        const px = CX + sp * W * 0.9;
+        g.push('<path fill="none" stroke="#000000" stroke-opacity=".3" stroke-width="2.6" ' +
+          'stroke-linecap="round" d="' + smooth([[px, arcY(sp) + 3],
+          [px + sp * 3, TOP + baseDrop * 0.3], [px + sp * 6, TOP + baseDrop * 0.52]],
+          false) + '"/>');
+      }
       return g.join("");
     };
   }
@@ -396,23 +392,40 @@
   ];
 
   /* 앞머리 */
+  /* 앞머리 — 폭·깊이·갈래수·숱이 스타일마다 다르다.
+     깊이는 이마 높이 43 기준이다. 처피뱅 22 는 눈썹에서 21px 위에서
+     끝나고, 긴앞머리 44 는 눈썹선 근처까지 온다 — 이 차이가 안 뭉치게
+     app.js 의 placeFront 가 '늘이지 않고' 얼굴 비율로만 얹는다.
+     fit — 머리 실루엣을 얼마나 덮나. */
   const FRONT = [
     { n: "없음", f: () => "" },
-    /* fit — 머리 실루엣을 얼마나 덮나. tw(그리는 폭)와 다른 값이다.
-       올백만 좁게 둔다 (뒤로 넘겨 이마가 드러나는 꼴). */
-    { n: "일자", o: { kind: "straight", tw: 76, depth: 38, lift: 18, fit: "standard" } },
-    { n: "짧은일자", o: { kind: "straight", tw: 76, depth: 26, lift: 16, fit: "standard" } },
-    { n: "시스루", o: { kind: "seethrough", tw: 77, depth: 36, lift: 16, fit: "standard" } },
-    { n: "처피뱅", o: { kind: "choppy", tw: 76, depth: 32, lift: 18, fit: "standard" } },
-    { n: "곱슬앞머리", o: { kind: "curl", tw: 78, depth: 34, lift: 20, fit: "standard" } },
-    { n: "5대5가르마", o: { kind: "part", tw: 78, depth: 40, lift: 18, part: 0, fit: "standard" } },
-    { n: "6대4가르마", o: { kind: "part", tw: 78, depth: 40, lift: 18, part: -0.3, fit: "standard" } },
-    { n: "7대3가르마", o: { kind: "part", tw: 78, depth: 40, lift: 18, part: -0.6, fit: "standard" } },
-    { n: "옆가르마", o: { kind: "part", tw: 78, depth: 42, lift: 18, part: 0.55, fit: "standard" } },
-    { n: "긴앞머리", o: { kind: "sweep", tw: 80, depth: 42, lift: 16, part: -1, fit: "wide" } },
-    { n: "쓸어넘김", o: { kind: "sweep", tw: 80, depth: 40, lift: 16, part: 1, fit: "wide" } },
-    { n: "올백", o: { kind: "straight", tw: 72, depth: 12, lift: 22, fit: "narrow" } },
-  ];
+    { n: "일자", o: { kind: "straight", width: 78, height: 33, base: .72,
+        strands: 11, density: 1, jag: .05, lift: 18, fit: "standard" } },
+    { n: "짧은일자", o: { kind: "straight", width: 74, height: 27, base: .7,
+        strands: 10, density: 1, jag: .06, lift: 17, fit: "standard" } },
+    { n: "시스루", o: { kind: "seethrough", width: 76, height: 28, base: .24,
+        strands: 9, density: .52, jag: .3, lift: 16, fit: "standard" } },
+    { n: "처피뱅", o: { kind: "choppy", width: 72, height: 22, base: .52,
+        strands: 13, density: .92, jag: .34, lift: 17, fit: "standard" } },
+    { n: "곱슬앞머리", o: { kind: "curl", width: 78, height: 30, base: .56,
+        strands: 9, density: .9, jag: .2, curlTip: 1, lift: 19, fit: "standard" } },
+    { n: "5대5가르마", o: { kind: "part", width: 80, height: 38, base: .6,
+        strands: 11, density: .95, split: 0, jag: .08, lift: 18, fit: "wide" } },
+    { n: "6대4가르마", o: { kind: "part", width: 80, height: 34, base: .6,
+        strands: 11, density: .95, split: -.26, jag: .08, lift: 18, fit: "wide" } },
+    { n: "7대3가르마", o: { kind: "part", width: 80, height: 39, base: .62,
+        strands: 11, density: .95, split: -.52, jag: .08, lift: 18, fit: "wide" } },
+    { n: "옆가르마", o: { kind: "part", width: 82, height: 40, base: .62,
+        strands: 11, density: .95, split: .5, jag: .1, lift: 18, fit: "wide" } },
+    { n: "긴앞머리", o: { kind: "sweep", width: 84, height: 42, base: .66,
+        strands: 11, density: .95, bias: -.8, fall: 26, jag: .12, lift: 16,
+        fit: "wide" } },
+    { n: "쓸어넘김", o: { kind: "sweep", width: 82, height: 31, base: .5,
+        strands: 10, density: .9, bias: .85, fall: 14, jag: .14, lift: 17,
+        fit: "wide" } },
+    { n: "올백", o: { kind: "straight", width: 72, height: 11, base: .8,
+        strands: 9, density: 1, jag: .04, lift: 22, fit: "narrow" } },
+  ];;
 
   /* 옆머리 */
   const SIDE = [
@@ -443,7 +456,8 @@
   function fitOf(o) {
     if (!o) return "standard";
     if (o.fit) return o.fit;                 // 프리셋에 적힌 것이 먼저다
-    return o.tw <= 72 ? "narrow" : o.tw >= 80 ? "wide" : "standard";
+    const w = o.width || o.tw || 76;
+    return w <= 73 ? "narrow" : w >= 80 ? "wide" : "standard";
   }
   const build = (list, maker) => list.map(x =>
     x.f ? { n: x.n, f: x.f, o: null } : { n: x.n, f: maker(x.o), o: x.o, fit: fitOf(x.o) });
