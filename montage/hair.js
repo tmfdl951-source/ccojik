@@ -51,70 +51,147 @@
   }
 
   /* ------------------------------------------------------------
-     머리 바깥 윤곽 (정수리 볼륨 + 관자놀이 + 옆선 + 밑단)
+     머리 바깥 윤곽
      ------------------------------------------------------------
        crown  정수리가 이마선 위로 솟은 높이
        temple 관자놀이 반폭 (얼굴 반폭 70 보다 커야 머리가 얼굴을 감싼다)
        len    이마선에서 머리끝까지
-       wave   옆선이 안팎으로 흔들리는 폭 (0 이면 매끈한 생머리)
-       waves  흔들리는 횟수
-       hem    밑단이 가운데에서 더 내려오는 양 (C컬 느낌)
        endW   머리끝 반폭 비율 (1 보다 작으면 아래로 모인다)
-       nape   뒷목 쪽으로 좁아지는 정도
+       hem    밑단이 가운데에서 더 내려오는 양 (C컬 느낌)
+
+     물결과 곱슬은 '진폭' 과 '주기' 를 따로 둔다.
+       wave  진폭 — 옆선이 안팎으로 흔들리는 폭
+       cyc   주기 수 — 머리끝까지 몇 번 흔들리나
+               0        매끈한 생머리
+               2 ~ 3.5  웨이브. 큰 물결, 긴 흐름, 찰랑임
+               6 ~ 11   곱슬. 작고 촘촘한 컬, 뽀글거림
+       tip   머리끝 말림 (+ 안쪽 / - 바깥쪽)
+
+     예전에는 옆선에 점을 두세 개만 안팎으로 번갈아 찍고 둥글렸다.
+     길이 206px 에 물결 4번이면 주기가 50px 인데 그 사이에 점이 하나뿐
+     이라, 사인 곡선이 아니라 울퉁불퉁한 덩어리가 됐다. 곱슬도 같은 식에
+     타원 세 개를 얹은 것이라 웨이브와 구조가 같았다.
+     이제 옆선을 열여섯 토막으로 쪼개 사인 곡선을 그대로 따라간다.
      ------------------------------------------------------------ */
-  function outline(o) {
+  /* 옆선을 몇 토막으로 쪼개나. 주기가 많으면 토막도 늘려야 한다 —
+     주기 8 을 16토막으로 나누면 한 주기에 표본이 둘뿐이라 사인이 뭉개져
+     꺾임이 0이 된다 (복슬곱슬·풍성곱슬이 그래서 매끈한 판이 됐다).
+     한 주기에 최소 다섯 토막을 둔다. */
+  const sideSteps = o => Math.max(16, Math.ceil((o.cyc || 0) * 5));
+
+  /* 한쪽 옆선. dir -1 왼쪽 / +1 오른쪽, phase 는 위상차.
+     좌우를 그냥 뒤집어 붙이면 양쪽이 같은 자리에서 부풀어 가발처럼
+     보인다. 위상을 엇갈려 한쪽이 들어갈 때 다른 쪽이 나오게 한다. */
+  function sideLine(o, dir, phase) {
     const crown = o.crown, tw = o.temple, len = o.len;
-    const wave = o.wave || 0, waves = o.waves || 0;
-    const hem = o.hem === undefined ? 6 : o.hem;
+    const wave = o.wave || 0, cyc = o.cyc || 0;
     const endW = o.endW === undefined ? 0.92 : o.endW;
-    const left = [];
-    /* 정수리에서 관자놀이까지 — 두상 곡선 */
-    left.push([CX - tw * 0.52, TOP - crown * 0.88]);
-    left.push([CX - tw * 0.88, TOP - crown * 0.34]);
-    left.push([CX - tw * 0.99, TOP + len * 0.10]);
-    /* 옆선 — 물결 */
-    const n = Math.max(1, waves);
-    for (let i = 1; i <= n; i++) {
-      const t = i / (n + 1);
-      const sign = i % 2 ? 1 : -1;                  // 바깥 / 안쪽 번갈아
-      const x = CX - (tw * (1 - t * (1 - endW)) + sign * wave);
-      left.push([x, TOP + len * (0.10 + t * 0.86)]);
+    const tight = cyc >= 5;                     // 곱슬이냐
+    const pts = [];
+    /* 정수리에서 관자놀이까지 — 두상 곡선. 곱슬은 여기서도 뽀글거린다 */
+    const cr = [[0.3, 0.97], [0.62, 0.84], [0.9, 0.34]];
+    for (let k = 0; k < cr.length; k++) {
+      const bump = tight ? wave * 0.5 * Math.sin((k * 0.5 + phase) * Math.PI * 2) : 0;
+      pts.push([CX + dir * (tw * cr[k][0] + bump),
+                TOP - crown * cr[k][1] - bump * 0.4]);
     }
-    left.push([CX - tw * endW, TOP + len]);
-    /* 밑단 */
-    const bottom = [[CX, TOP + len + hem]];
-    /* 오른쪽은 왼쪽을 뒤집는다 — 좌우 대칭이면 가발처럼 안 보인다 */
-    const right = left.slice().reverse().map(p => [2 * CX - p[0], p[1]]);
-    const pts = [[CX, TOP - crown]].concat(left, bottom, right);
-    return smooth(pts, true);
+    /* 옆선 — 사인 곡선을 따라간다 */
+    const steps = sideSteps(o);
+    for (let k = 0; k <= steps; k++) {
+      const t = k / steps;                      // 0 관자놀이 ~ 1 머리끝
+      let base = tw * (1 - t * (1 - endW));
+      /* 끝말림 — 마지막 토막에서 안이나 밖으로 돈다 */
+      if (o.tip && t > 0.72) base += o.tip * (t - 0.72) / 0.28;
+      /* 위쪽은 차분하고 아래로 갈수록 물결이 커진다 (웨이브의 핵심) */
+      const amp = wave * Math.min(1, t / 0.28) * (tight ? 1 : 0.45 + 0.55 * t);
+      const ph = Math.sin((t * cyc + phase) * Math.PI * 2);
+      pts.push([CX + dir * (base + amp * ph), TOP + len * (0.08 + t * 0.92)]);
+    }
+    return pts;
   }
 
-  /* 머리 안쪽 결 — 아주 옅은 선 몇 가닥. 꽉 찬 검은 덩어리로 안 보이게.
-     흐름 방향(flow)에 따라 가르마에서 퍼지거나 아래로 흐른다. */
-  function strands(o) {
-    const tw = o.temple, len = o.len, crown = o.crown;
-    const from = o.partX === undefined ? 0 : o.partX;   // 가르마 가로 위치(-1~1)
+  /* 닫힌 둘레 점 목록 — 윤곽과 컬 원이 같은 선을 쓴다 */
+  function outlinePts(o) {
+    const hem = o.hem === undefined ? 6 : o.hem;
+    const ph = o.cyc ? 0.38 : 0;                // 좌우 위상차
+    const left = sideLine(o, -1, 0);
+    const right = sideLine(o, 1, ph).reverse();
+    return [[CX, TOP - o.crown]].concat(left, [[CX, TOP + o.len + hem]], right);
+  }
+  function outline(o) { return smooth(outlinePts(o), true); }
+
+  /* 뽀글 — 둘레에 작은 컬 원을 쭉 두른다. 윤곽만 촘촘히 흔들면 톱니처럼
+     보이는데, 원을 겹쳐 두르면 동글동글한 컬 덩어리가 된다.
+       curl.r  컬 하나 반지름
+       curl.n  둘레에 몇 개 */
+  function curlRing(o) {
+    const c = o.curl;
+    if (!c) return [];
+    const pts = outlinePts(o);
     const out = [];
-    const n = o.lines === undefined ? 4 : o.lines;
-    for (let i = 0; i < n; i++) {
-      const t = (i + 1) / (n + 1);
-      const side = i % 2 ? 1 : -1;
-      const sx = CX + from * tw * 0.5;
-      const ex = CX + side * tw * (0.42 + t * 0.5);
-      const sy = TOP - crown * 0.72;
-      const ey = TOP + len * (0.42 + t * 0.4);
-      const mx = (sx + ex) / 2 + side * tw * (o.wave ? 0.18 : 0.06);
-      const my = (sy + ey) / 2;
-      out.push(smooth([[sx, sy], [mx, my], [ex, ey]], false));
+    for (let k = 0; k < c.n; k++) {
+      const p = pts[Math.round(k * (pts.length - 1) / (c.n - 1))];
+      /* 크기를 조금씩 달리해 기계로 찍은 것처럼 안 보이게 */
+      const r = c.r * (0.78 + 0.34 * Math.abs(Math.sin(k * 1.7)));
+      out.push('<circle cx="' + r1(p[0]) + '" cy="' + r1(p[1]) +
+        '" r="' + r1(r) + '"/>');
     }
     return out;
   }
 
-  /* 머리 전체 한 벌 — 윤곽 + 결 + (물결이면) 끝 컬 덩어리 */
+  /* 머리 안쪽 결 — 아주 옅은 선. 꽉 찬 검은 덩어리로 안 보이게.
+     웨이브는 긴 S 로 흐르고, 곱슬은 짧은 고리가 흩어진다. */
+  function strands(o) {
+    const tw = o.temple, len = o.len, crown = o.crown;
+    const from = o.partX === undefined ? 0 : o.partX;
+    const cyc = o.cyc || 0, wave = o.wave || 0;
+    const out = [];
+    const n = o.lines === undefined ? 4 : o.lines;
+    if (cyc >= 5) {
+      /* 곱슬 — 작은 고리를 흩는다 (긴 선을 그으면 생머리로 보인다) */
+      for (let i = 0; i < n * 2; i++) {
+        const side = i % 2 ? 1 : -1;
+        const t = ((i >> 1) + 1) / (n + 1);
+        const x = CX + side * tw * (0.3 + 0.45 * t);
+        const y = TOP + len * (0.2 + 0.62 * t) - crown * 0.3 * (1 - t);
+        const r = wave * 0.8;
+        out.push(smooth([[x - r, y], [x, y - r * 0.9], [x + r, y],
+                         [x, y + r * 0.9]], false));
+      }
+      return out;
+    }
+    for (let i = 0; i < n; i++) {
+      const t = (i + 1) / (n + 1);
+      const side = i % 2 ? 1 : -1;
+      const sx = CX + from * tw * 0.5;
+      const sy = TOP - crown * 0.72;
+      const ex = CX + side * tw * (0.42 + t * 0.5);
+      const ey = TOP + len * (0.42 + t * 0.4);
+      if (cyc) {
+        /* 웨이브 — 결도 같은 주기로 물결친다 */
+        const pts = [[sx, sy]];
+        for (let k = 1; k <= 5; k++) {
+          const u = k / 5;
+          const ph = Math.sin((u * cyc * 0.8 + 0.2) * Math.PI * 2);
+          pts.push([sx + (ex - sx) * u + side * wave * 0.7 * ph,
+                    sy + (ey - sy) * u]);
+        }
+        out.push(smooth(pts, false));
+      } else {
+        const mx = (sx + ex) / 2 + side * tw * 0.06;
+        out.push(smooth([[sx, sy], [mx, (sy + ey) / 2], [ex, ey]], false));
+      }
+    }
+    return out;
+  }
+
+  /* 머리 전체 한 벌 — 윤곽 + 컬 + 광택 + 결 */
   function cap(o) {
     return c => {
       const g = ['<g fill="' + c + '">', '<path d="' + outline(o) + '"/>'];
-      /* 물결·곱슬이면 옆선과 끝에 덩어리를 얹어 결을 살린다 */
+      /* 곱슬 — 둘레를 컬 원으로 두른다 */
+      for (const d of curlRing(o)) g.push(d);
+      /* 웨이브 — 머리끝에 말린 덩어리를 얹어 찰랑임을 살린다 */
       if (o.curls) {
         const tw = o.temple, len = o.len;
         for (const [fx, fy, r] of o.curls) {
@@ -274,22 +351,44 @@
      앞머리와 뒷머리 사이를 이어 주는 몫이라, 시작점이 관자놀이여야 한다.
        len   얼굴을 타고 내려오는 길이
        grip  얼굴에 붙는 정도 (0 붙음 ~ 1 벌어짐)
-       ear   귀를 덮나 (true 면 귀 위를 지난다)
+       taper 끝이 모이는 정도
+       wave  바깥선 진폭 / cyc 주기 수 — 뒷머리와 같은 규칙이다.
+             웨이브 옆머리는 아래로 흐르고, 곱슬 옆머리는 볼 옆에서 복슬하다
+       curls 바깥선에 두르는 작은 컬 개수 (곱슬)
      ------------------------------------------------------------ */
   function side(o) {
     const tw = o.tw === undefined ? 76 : o.tw;
     const len = o.len, grip = o.grip === undefined ? 0.3 : o.grip;
+    const taper = o.taper === undefined ? 0.6 : o.taper;
+    const wave = o.wave || 0, cyc = o.cyc || 0;
+    const STEPS = 10;
     return c => {
       const g = ['<g fill="' + c + '">'];
       for (const s of [-1, 1]) {
-        g.push('<path d="' + smooth([
-          [CX + s * tw * 0.86, TOP + 6],
-          [CX + s * (tw + grip * 10), TOP + len * 0.4],
-          [CX + s * (tw * 0.94 + grip * 6), TOP + len],
-          [CX + s * tw * (o.taper === undefined ? 0.6 : o.taper), TOP + len * 0.96],
-          [CX + s * tw * 0.66, TOP + len * 0.4],
-          [CX + s * tw * 0.7, TOP + 8],
-        ], true) + '"/>');
+        /* 바깥선 — 관자놀이에서 볼을 타고 내려온다. 계열이 있으면
+           뒷머리와 같은 사인 규칙을 쓴다 (따로 놀지 않게). */
+        const out = [[CX + s * tw * 0.86, TOP + 6]];
+        for (let k = 1; k <= STEPS; k++) {
+          const t = k / STEPS;
+          const base = tw + grip * 10 * Math.sin(t * Math.PI);
+          const amp = wave * Math.min(1, t / 0.3) * (cyc >= 5 ? 1 : 0.4 + 0.6 * t);
+          const ph = Math.sin((t * cyc + (s < 0 ? 0 : 0.38)) * Math.PI * 2);
+          out.push([CX + s * (base + amp * ph), TOP + len * (0.06 + t * 0.94)]);
+        }
+        const back = [[CX + s * tw * taper, TOP + len * 0.96],
+                      [CX + s * tw * 0.66, TOP + len * 0.4],
+                      [CX + s * tw * 0.7, TOP + 8]];
+        g.push('<path d="' + smooth(out.concat(back), true) + '"/>');
+        /* 곱슬 — 바깥선에 작은 컬을 두른다 */
+        if (o.curls) {
+          for (let k = 0; k < o.curls; k++) {
+            const p = out[Math.round(1 + k * (out.length - 2) / Math.max(1, o.curls - 1))];
+            const r = tw * 0.1 * (0.8 + 0.3 * Math.abs(Math.sin(k * 1.7)));
+            g.push('<circle cx="' + r1(p[0]) + '" cy="' + r1(p[1]) +
+              '" r="' + r1(r) + '"/>');
+          }
+        }
+        /* 웨이브 — 끝이 말린다 */
         if (o.curl) {
           g.push('<ellipse cx="' + r1(CX + s * tw * 0.88) + '" cy="' +
             r1(TOP + len * 0.92) + '" rx="' + r1(tw * 0.17) + '" ry="' + r1(tw * 0.14) + '"/>');
@@ -363,6 +462,10 @@
      스타일 — 숫자 묶음. 여기만 고치면 실루엣이 바뀐다.
      ============================================================ */
   /* 뒷머리 / 기본 머리 (정수리 볼륨은 전부 들어간다) */
+  /* 뒷머리 — 생머리 계열 / 웨이브 계열 / 곱슬 계열.
+     cyc 가 계열을 가른다: 0 생머리 · 2~3.5 웨이브 · 6~11 곱슬.
+     앞 네 자리(없음·삭발·스포츠컷·숏컷)는 자리를 지킨다 — NEUTRAL 이
+     번호로 숏컷을 집는다. */
   const BACK = [
     { n: "없음", f: () => "" },
     { n: "삭발", o: { crown: 18, temple: 72, len: 26, endW: 0.96, hem: 2, lines: 2 } },
@@ -370,25 +473,42 @@
     { n: "숏컷", o: { crown: 32, temple: 77, len: 56, endW: 0.94, hem: 4, lines: 3 } },
     { n: "포마드", o: { crown: 42, temple: 74, len: 44, endW: 0.9, hem: 3, lines: 4 } },
     { n: "덮은머리", o: { crown: 34, temple: 80, len: 66, endW: 0.96, hem: 8, lines: 4 } },
-    { n: "곱슬숏", o: { crown: 38, temple: 82, len: 62, wave: 14, waves: 4, hem: 7,
-        curls: [[0.82, 0.3, 0.17], [0.9, 0.72, 0.15], [0.52, 0.02, 0.16]], lines: 3 } },
     { n: "단발", o: { crown: 34, temple: 80, len: 118, endW: 0.95, hem: 10, lines: 4 } },
     { n: "C컬단발", o: { crown: 34, temple: 80, len: 120, endW: 0.82, hem: 16,
-        wave: 5, waves: 2, curls: [[0.78, 0.94, 0.16]], lines: 4 } },
+        tip: 7, lines: 4 } },
     { n: "중단발", o: { crown: 36, temple: 82, len: 158, endW: 0.94, hem: 12, lines: 5 } },
-    { n: "볼륨중단발", o: { crown: 44, temple: 88, len: 156, endW: 0.9, hem: 14,
-        wave: 7, waves: 2, lines: 5 } },
+    { n: "볼륨중단발", o: { crown: 44, temple: 86, len: 156, endW: 0.92, hem: 14,
+        lines: 5 } },
     { n: "긴생머리", o: { crown: 36, temple: 80, len: 208, endW: 0.96, hem: 12, lines: 6 } },
+
+    /* 웨이브 — 큰 물결, 긴 흐름. 주기가 적고 진폭이 크다. 아래로 갈수록
+       물결이 커지고 머리끝이 말린다. */
+    { n: "짧은웨이브", o: { crown: 38, temple: 82, len: 96, endW: 0.9, hem: 10,
+        wave: 7, cyc: 2.2, tip: -5, lines: 4 } },
+    { n: "자연웨이브", o: { crown: 38, temple: 84, len: 168, endW: 0.93, hem: 13,
+        wave: 8, cyc: 2.4, tip: 5, lines: 5 } },
+    { n: "중단발웨이브", o: { crown: 40, temple: 85, len: 150, endW: 0.9, hem: 15,
+        wave: 11, cyc: 2.8, tip: -7, lines: 5,
+        curls: [[0.86, 0.9, 0.13]] } },
+    { n: "굵은웨이브", o: { crown: 42, temple: 88, len: 180, endW: 0.88, hem: 17,
+        wave: 17, cyc: 2, tip: 9, lines: 5,
+        curls: [[0.92, 0.88, 0.16]] } },
     { n: "긴웨이브", o: { crown: 40, temple: 86, len: 206, endW: 0.9, hem: 18,
-        wave: 13, waves: 4,
-        curls: [[0.92, 0.42, 0.14], [1.0, 0.68, 0.15], [0.86, 0.9, 0.16]], lines: 6 } },
-    { n: "웨이브", o: { crown: 40, temple: 86, len: 150, endW: 0.88, hem: 16,
-        wave: 12, waves: 4,
-        curls: [[0.94, 0.4, 0.15], [1.0, 0.72, 0.16], [0.8, 0.95, 0.15]], lines: 5 } },
-    { n: "곱슬머리", o: { crown: 46, temple: 92, len: 140, endW: 0.96, hem: 10,
-        wave: 15, waves: 5,
-        curls: [[0.98, 0.18, 0.19], [1.04, 0.5, 0.2], [0.92, 0.82, 0.18],
-                [0.5, -0.1, 0.2], [0.0, -0.22, 0.21]], lines: 4 } },
+        wave: 14, cyc: 3.4, tip: -8, lines: 6,
+        curls: [[0.9, 0.93, 0.14]] } },
+
+    /* 곱슬 — 작고 촘촘한 컬. 주기가 많고 진폭이 작다. 둘레를 컬 원으로
+       둘러 뽀글거리게 하고, 길게 흐르지 않고 복슬하게 마감한다. */
+    { n: "짧은곱슬", o: { crown: 38, temple: 82, len: 58, endW: 0.96, hem: 6,
+        wave: 5, cyc: 6, lines: 3, curl: { r: 9, n: 15 } } },
+    { n: "뽀글곱슬", o: { crown: 42, temple: 84, len: 76, endW: 0.97, hem: 7,
+        wave: 5, cyc: 11, lines: 3, curl: { r: 7.5, n: 24 } } },
+    { n: "복슬곱슬", o: { crown: 46, temple: 88, len: 94, endW: 0.97, hem: 8,
+        wave: 6, cyc: 8, lines: 4, curl: { r: 10.5, n: 19 } } },
+    { n: "풍성곱슬", o: { crown: 50, temple: 92, len: 118, endW: 0.98, hem: 9,
+        wave: 8, cyc: 8, lines: 4, curl: { r: 12, n: 20 } } },
+    { n: "중간곱슬", o: { crown: 44, temple: 86, len: 136, endW: 0.95, hem: 9,
+        wave: 6, cyc: 9, lines: 5, curl: { r: 9, n: 23 } } },
   ];
 
   /* 앞머리 */
@@ -425,7 +545,7 @@
         fit: "wide" } },
     { n: "올백", o: { kind: "straight", width: 72, height: 11, base: .8,
         strands: 9, density: 1, jag: .04, lift: 22, fit: "narrow" } },
-  ];;
+  ];
 
   /* 옆머리 */
   const SIDE = [
@@ -435,7 +555,10 @@
     { n: "볼선", o: { len: 112, grip: 0.3, taper: 0.58 } },
     { n: "턱선", o: { len: 150, grip: 0.36, taper: 0.56 } },
     { n: "구레나룻", o: { len: 52, grip: 0.0, taper: 0.78 } },
-    { n: "웨이브컬", o: { len: 128, grip: 0.42, taper: 0.52, curl: 1 } },
+    { n: "웨이브컬", o: { len: 128, grip: 0.42, taper: 0.52, curl: 1,
+        wave: 8, cyc: 2.2 } },
+    { n: "곱슬갈래", o: { len: 104, grip: 0.3, taper: 0.56,
+        wave: 5, cyc: 7, curls: 9 } },
   ];
 
   /* 묶음 */

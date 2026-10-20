@@ -84,7 +84,10 @@
      세로 배율만 조인다. e 는 그 파츠의 기준좌표 네모다. */
   function placeHair(inner, f, e) {
     if (!inner) return "";
-    const sx = f.sx * 1.02;
+    /* 얼굴형 볼륨 보정 — 긴 얼굴은 옆 볼륨을 조금 보태 세로로만 길어
+       보이지 않게 하고, 둥글고 넓은 얼굴은 과하게 퍼지지 않게 줄인다.
+       얼굴마다 숫자를 박지 않고 세로/가로 비율 하나로 민다. */
+    const sx = f.sx * 1.02 * (1 + (faceLean(f) - 1) * 0.35);
     let sy = f.sy * 1.02;
     const drop = e ? e[3] - REF.top : 0;
     if (drop > 0) {
@@ -614,9 +617,37 @@
     return lo + rnd(list.length - lo);
   }
   /* 랜덤은 얼굴만 바꾼다 — 적어 넣은 이름·별명·나이대·특징·인상착의는 그대로 */
+  /* 머리 계열끼리 어울리는 짝 — 랜덤이 이 쪽으로 기운다. 막지는 않는다.
+     곱슬 머리에 일자 앞머리를 얹으면 질감이 따로 놀고, 웨이브 머리에
+     짧고 딱 잘린 앞머리를 얹으면 흐름이 끊긴다. */
+  const FAMILY = {
+    curly: { front: ["곱슬앞머리", "처피뱅", "짧은일자", "시스루"],
+             side:  ["곱슬갈래", "짧은갈래", "귀덮기"] },
+    wave:  { front: ["긴앞머리", "쓸어넘김", "시스루", "옆가르마", "7대3가르마"],
+             side:  ["웨이브컬", "볼선", "턱선"] },
+  };
+  function familyOf(backName) {
+    const h = P.HAIR_BACK.find(x => x.n === backName);
+    if (!h || !h.o || !h.o.cyc) return null;
+    return h.o.cyc >= 5 ? "curly" : "wave";
+  }
+  /* 계열이 있으면 열 번 중 예닐곱 번은 어울리는 짝에서 고른다 */
+  function leanToFamily(backName) {
+    const fam = FAMILY[familyOf(backName)];
+    if (!fam) return;
+    for (const [key, cat] of [["hairFront", "front"], ["hairSide", "side"]]) {
+      if (!pick[key]) continue;                  // "없음" 은 그대로 둔다
+      if (Math.random() > 0.65) continue;
+      const names = fam[cat];
+      const i = listOf(key).findIndex(x => x.n === names[rnd(names.length)]);
+      if (i > 0) pick[key] = i;
+    }
+  }
+
   function randomize() {
     mark();
     for (const k of KEYS) pick[k] = getRandomPart(k);
+    leanToFamily(at("hairBack", pick.hairBack).n);
     skinIdx = rnd(P.SKIN.length);
     hairColIdx = rnd(P.HAIRCOL.length);
     normalizeSelection();
