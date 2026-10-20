@@ -62,8 +62,9 @@
         </div>
         <div class="ff-row">
           <label class="ff-k" for="inAge">나이대</label>
-          <input class="ff-v" id="inAge" type="text" maxlength="14"
-            autocomplete="off" enterkeyhint="done" placeholder="20대 추정" />
+          <input class="ff-v" id="inAge" type="text" maxlength="14" list="ageList"
+            autocomplete="off" enterkeyhint="done" placeholder="미상" />
+          <datalist id="ageList"></datalist>
         </div>
         <div class="ff-row">
           <label class="ff-k" for="inFeat">특 징</label>
@@ -71,8 +72,9 @@
             autocomplete="off" enterkeyhint="done" placeholder="고른 파츠로 자동" />
         </div>
         <div class="ff-row">
-          <span class="ff-k">인상착의</span>
-          <span class="ff-v fixed" id="fWear">-</span>
+          <label class="ff-k" for="inWear">인상착의</label>
+          <input class="ff-v" id="inWear" type="text" maxlength="30"
+            autocomplete="off" enterkeyhint="done" placeholder="미상" />
         </div>
       </div>
     </div>
@@ -115,6 +117,7 @@
     </div>
   </section>
 
+  <pre class="dbg" id="dbgPanel" hidden></pre>
   <div class="toast" id="toast"></div>
   <div class="save-modal" id="saveModal">
     <div class="sm-inner">

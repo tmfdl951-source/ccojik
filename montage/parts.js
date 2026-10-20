@@ -290,7 +290,9 @@ const TAGS = {
   LENS: [[], ["갈색 렌즈"], ["파랑 렌즈"], ["초록 렌즈"], ["회색 렌즈"], ["보라 렌즈"], ["핑크 렌즈"]],
   LINER: [[], ["기본 아이라인"], ["또렷 아이라인"], ["캣아이 아이라인"], ["언더 아이라인"]],
 };
-const TAG_ORDER = ["FACES","HAIR_FRONT","HAIR_BACK","HAIR_TIE","BROWS","EYES","NOSE","MOUTH","GLASSES","DETAIL","HAIR_SIDE","EARS","MOLE","BLUSH","LENS","LINER"];
+/* 특징에 적히는 차례. 몽타주에서 사람을 가리는 건 얼굴형·앞머리·눈·눈썹이다
+   — 뒷머리를 앞세우면 눈이 네 토막 밖으로 밀려난다. */
+const TAG_ORDER = ["FACES","HAIR_FRONT","EYES","BROWS","NOSE","MOUTH","HAIR_BACK","HAIR_TIE","HAIR_SIDE","GLASSES","DETAIL","EARS","MOLE","BLUSH","LENS","LINER"];
 /* ============================================================
    카테고리 — 화면 아래 탭 순서
    ============================================================ */
@@ -373,6 +375,52 @@ const HAIR_FIT = {
   "처피뱅": { drop: 1.07, fit: "standard" },
   "가운데": { drop: 1.12, fit: "standard" },
 };
+/* ============================================================
+   칸 규칙 — 화면 탭 / 랜덤 / 그리기가 다 이 하나만 본다
+   ============================================================
+   OPTIONAL  "없음" 이 0번에 있어야 하는 칸. 사용자가 언제든 뺄 수 있다.
+   CHANCE    랜덤에서 붙을 확률. 안 적힌 칸은 늘 고른다(얼굴·눈·코·입처럼
+             없으면 안 되는 것들). 안경·수염까지 매번 붙으면 과하다.
+   NEUTRAL   처음 들어왔을 때의 얼굴. 장식이 하나도 안 붙은 상태다. */
+const OPTIONAL = ["hairFront", "hairSide", "hairTie", "glasses", "detail",
+                  "lens", "liner", "blush", "mole"];
+const CHANCE = {
+  hairFront: 0.85,       // 앞머리는 대개 있다
+  hairSide: 0.35,
+  hairTie: 0.2,
+  glasses: 0.3,
+  detail: 0.35,
+  lens: 0.15,
+  liner: 0.2,
+  blush: 0.25,
+  mole: 0.2,
+};
+const NEUTRAL = {
+  face: 0, hairBack: 8, hairFront: 1, hairSide: 0, hairTie: 0,   // 8 = 숏밥 (기본 단발)
+  brows: 0, eyes: 0, nose: 0, mouth: 0, ears: 0,
+  glasses: 0, detail: 0, lens: 0, liner: 0, blush: 0, mole: 0,
+  skin: 0, hairCol: 0,
+};
+
+/* ============================================================
+   머리 조합 호환성
+   ============================================================
+   묶음(포니·양갈래·번·땋은머리)은 묶을 머리가 있어야 한다. 뒷머리가
+   "없음" 인데 묶음만 있으면 머리카락 없이 끈만 떠 있다.
+   짧은 뒷머리(숏밥)는 긴 묶음을 달기 어색하다. */
+const HAIR_COMPAT = {
+  /* 뒷머리 이름 -> 함께 쓸 수 있는 묶음 이름들 ("*" 는 전부) */
+  "없음": ["없음"],
+  "숏밥": ["없음", "번헤어"],
+  "파마": ["없음", "번헤어", "리본"],
+  "뽀글": ["없음", "번헤어", "리본"],
+};
+/* 적히지 않은 뒷머리는 모든 묶음과 쓸 수 있다 */
+function tieOk(backName, tieName) {
+  const list = HAIR_COMPAT[backName];
+  return !list || list.indexOf(tieName) >= 0;
+}
+
 window.MONTAGE_PARTS = {
   REF: REF, FACES: FACES, EARS: EARS, NECK: NECK,
   HAIR_FRONT: HAIR_FRONT, HAIR_BACK: HAIR_BACK, HAIR_TIE: HAIR_TIE,
@@ -382,5 +430,7 @@ window.MONTAGE_PARTS = {
   LENS: LENS, LINER: LINER, BLUSH: BLUSH, MOLE: MOLE,
   SKIN: SKIN, HAIRCOL: HAIRCOL, CATS: CATS,
   TAGS: TAGS, TAG_ORDER: TAG_ORDER, EXT: EXT, HAIR_FIT: HAIR_FIT,
+  OPTIONAL: OPTIONAL, CHANCE: CHANCE, NEUTRAL: NEUTRAL,
+  HAIR_COMPAT: HAIR_COMPAT, tieOk: tieOk,
 };
 })();

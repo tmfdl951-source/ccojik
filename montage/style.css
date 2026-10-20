@@ -274,6 +274,9 @@ body { display: flex; align-items: center; justify-content: center; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
 .opt.on .opt-name { color: var(--red); }
+/* 지금 머리로는 못 쓰는 조합 — 숨기지 않고 흐리게 둔다 (왜 안 되는지 보이게) */
+.opt.off { opacity: .35; }
+.opt.off .opt-name { text-decoration: line-through; }
 
 /* 색 고르기 */
 .swatches {
@@ -310,6 +313,18 @@ body { display: flex; align-items: center; justify-content: center; }
   opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* 디버그 — DEBUG_MONTAGE 일 때만 뜬다. 화면에 보이는 것과 고른 값이
+   어긋나지 않는지 보려고 둔다. */
+.dbg {
+  position: fixed; left: 4px; top: 4px; z-index: 60;
+  max-width: 44vw; max-height: 60vh; overflow: auto;
+  background: rgba(20, 20, 16, .86); color: #c8f7c8;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 9px; line-height: 1.35; padding: 5px 7px;
+  pointer-events: none; white-space: pre;
+}
+.dbg[hidden] { display: none; }
 
 .save-modal {
   position: fixed; inset: 0; z-index: 50;

@@ -21,6 +21,8 @@
   /* 정렬이 어긋날 때 어디가 문제인지 바로 보려고 켠다.
      배포는 false. 켜면 얼굴 네모·기준선·맞춤 칸이 몽타주 위에 겹쳐 그려진다. */
   let DEBUG_MONTAGE = false;
+  /* 보여 주는 칸 — 파츠가 실제로 쓰는 범위에 맞춰 잘라 낸 것 */
+  const VIEW = "14 24 272 330";
 
   /* ============================================================
      공통 — 얼굴 기준점과 맞춤 칸
@@ -154,6 +156,23 @@
     const n = Number(i);
     return list[(n >= 0 && n < list.length) ? n : 0];
   }
+  /* 고른 것을 쓸 수 있는 상태로 다듬는다. 파츠를 고를 때마다, 랜덤 뒤에도
+     반드시 거친다.
+       - 없는 번호 -> 기본
+       - 화면 탭에 없는 칸 -> 아예 못 들어온다 (KEYS 가 CATS 에서 나온다)
+       - 안 맞는 머리 조합 -> 묶음을 "없음" 으로
+       - 머리가 하나도 없으면 -> 기본 뒷머리를 씌운다 */
+  function normalizeSelection() {
+    validate();
+    /* 묶음은 묶을 머리가 있어야 한다 */
+    const backName = at("hairBack", pick.hairBack).n;
+    const tieName = at("hairTie", pick.hairTie).n;
+    if (tieName !== "없음" && !P.tieOk(backName, tieName)) pick.hairTie = 0;
+    /* 앞·뒤가 다 없으면 민머리다 — 몽타주로 안 보인다 */
+    if (pick.hairBack === 0 && pick.hairFront === 0) pick.hairBack = 1;
+    return pick;
+  }
+
   function validate() {
     for (const k of KEYS) {
       const list = listOf(k);
@@ -170,7 +189,7 @@
   let mode = MODE.EDIT;
   const history = [];
   /* 사용자가 직접 적는 칸. 비워 두면 고른 파츠로 지어낸 글이 들어간다. */
-  const typed = { name: "", nick: "", age: "", feat: "" };
+  const typed = { name: "", nick: "", age: "", feat: "", wear: "" };
 
   function snapshot() {
     return { pick: Object.assign({}, pick), skinIdx: skinIdx, hairColIdx: hairColIdx };
@@ -184,10 +203,14 @@
      이름까지 비우려면 keepTyped 를 false 로. */
   function resetAll(keepTyped) {
     pick = {};
-    if (keepTyped === false) { typed.name = ""; typed.nick = ""; typed.age = ""; typed.feat = ""; }
-    for (const k of KEYS) pick[k] = 0;
-    pick.hairFront = 1;                 // 맨머리로 시작하면 몽타주 같지 않다
-    skinIdx = 0; hairColIdx = 0;
+    if (keepTyped === false) {
+      typed.name = ""; typed.nick = ""; typed.age = ""; typed.feat = ""; typed.wear = "";
+    }
+    /* 중립 — 안경·수염·점 같은 장식이 하나도 안 붙은 얼굴.
+       처음 들어왔을 때 이상한 게 이미 붙어 있으면 안 된다. */
+    for (const k of KEYS) pick[k] = P.NEUTRAL[k] === undefined ? 0 : P.NEUTRAL[k];
+    skinIdx = P.NEUTRAL.skin; hairColIdx = P.NEUTRAL.hairCol;
+    normalizeSelection();
   }
 
   /* ============================================================
@@ -275,10 +298,13 @@
     const o = opt || {};
     validate();
     const f = getFaceTemplate();
-    const body = (o.bare ? "" : '<rect width="300" height="360" fill="' +
+    const body = (o.bare ? "" : '<rect x="0" y="0" width="300" height="360" fill="' +
       (o.bg || "#FBF4DF") + '"/>') + drawMontage(f, P.SKIN[skinIdx], P.HAIRCOL[hairColIdx]);
     if (o.bare) return body;
-    return '<svg viewBox="0 0 300 360" xmlns="http://www.w3.org/2000/svg">' + body + '</svg>';
+    /* 그리는 자리는 300x360 이지만 실제로 쓰이는 칸은 x21~279 y34~328 이다.
+       0 0 300 360 으로 보여 주면 사방에 빈 테가 남아 얼굴이 작아 보인다.
+       쓰이는 칸에 맞춰 잘라 보여 준다 (머리까지 높이의 63~83% 를 차지). */
+    return '<svg viewBox="' + VIEW + '" xmlns="http://www.w3.org/2000/svg">' + body + '</svg>';
   }
 
   /* ============================================================
@@ -296,12 +322,10 @@
       .slice(0, max);
   }
 
-  const AGES = ["10대 후반", "20대 초반", "20대 중반", "20대 후반",
-                "30대 초반", "30대 중반", "40대 초반", "50대 전후"];
-  const WEARS = ["검은 상의", "회색 후드", "남색 셔츠", "체크 남방",
-                 "흰 티셔츠", "베이지 코트", "검은 패딩"];
-  const SEEN = ["편의점 앞", "지하철 2호선", "학교 정문", "시장 골목",
-                "버스 정류장", "아파트 단지", "PC방 앞"];
+  /* 나이대 — 직접 적어도 되고 아래에서 골라도 된다 (datalist) */
+  const AGES = ["10대", "20대", "30대", "40대", "50대", "60대 이상", "미상"];
+  /* 옷을 고르는 기능이 없으므로 인상착의를 지어내지 않는다. 안 적으면 "미상".
+     눈에 띄는 안경·모자·마스크만 자동으로 덧붙인다. */
   /* 칸 이름 -> TAGS 표의 이름 */
   const TAGKEY = { face: "FACES", hairFront: "HAIR_FRONT", hairBack: "HAIR_BACK",
     hairSide: "HAIR_SIDE", hairTie: "HAIR_TIE", brows: "BROWS", eyes: "EYES",
@@ -324,8 +348,8 @@
       for (const x of t) if (feat.indexOf(x) < 0) feat.push(x);
       if (feat.length >= 4) break;
     }
-    /* 인상착의 — 안경·모자·마스크는 눈에 띄니 따로 적는다 */
-    const wear = [WEARS[sum % WEARS.length]];
+    /* 인상착의 — 적은 게 있으면 그대로. 없으면 눈에 띄는 것만, 그것도 없으면 미상 */
+    const wear = [];
     if (nm("glasses") !== "없음") wear.push(nm("glasses") + " 안경");
     const d = at("detail", pick.detail);
     if (d.top) wear.push(nm("detail") + " 착용");
@@ -334,30 +358,49 @@
       /* 적은 게 있으면 그대로, 없으면 지어낸 것 */
       name: clean(typed.name, 16) || "미상",
       nick: clean(typed.nick, 16),
-      age: clean(typed.age, 16) || (AGES[(sum * 3) % AGES.length] + " 추정"),
+      age: clean(typed.age, 16) || "미상",
       feat: clean(typed.feat, 44) || made,
       autoFeat: made,
-      wear: wear.join(", "),
-      seen: SEEN[(sum * 5) % SEEN.length],
+      wear: clean(typed.wear, 30) || wear.join(", ") || "미상",
+      autoWear: wear.join(", ") || "미상",
       no: String(1000 + (sum * 37) % 9000),
     };
   }
   function paintInfo() {
     const i = flyerInfo();
-    $("fWear").textContent = i.wear;
     $("fNo").textContent = "제 " + i.no + " 호";
-    /* 적는 칸은 placeholder 로 지어낸 글을 보여 준다 — 비워 두면 그게 들어간다 */
-    $("inName").placeholder = "이름을 입력하세요";
-    $("inNick").placeholder = "별명 (없어도 됨)";
-    $("inAge").placeholder = i.age;
+    /* 비워 둔 칸은 placeholder 로 들어갈 글을 미리 보여 준다 */
+    $("inAge").placeholder = "미상";
     $("inFeat").placeholder = i.autoFeat;
+    $("inWear").placeholder = i.autoWear;
+    if (DEBUG_MONTAGE) dumpSelection();
   }
-  /* 적는 칸 -> 글 */
+  /* 적는 칸 -> 글. 랜덤은 이 값들을 건드리지 않는다. */
   function bindInputs() {
-    const map = { inName: "name", inNick: "nick", inAge: "age", inFeat: "feat" };
+    const map = { inName: "name", inNick: "nick", inAge: "age",
+                  inFeat: "feat", inWear: "wear" };
     for (const id of Object.keys(map)) {
       const el = $(id);
+      if (!el) continue;
       el.addEventListener("input", () => { typed[map[id]] = el.value; paintInfo(); });
+    }
+    /* 나이대 고르는 목록 */
+    const dl = $("ageList");
+    if (dl) for (const a of AGES) {
+      const o = document.createElement("option");
+      o.value = a;
+      dl.appendChild(o);
+    }
+  }
+
+  /* 화면에 보이는 것과 고른 값이 어긋나지 않는지 보려고 찍는다 (디버그) */
+  function dumpSelection() {
+    const rows = KEYS.map(k => k + ": " + at(k, pick[k]).n).join("  |  ");
+    console.log("[montage] " + rows + "  |  skin:" + skinIdx + " hair:" + hairColIdx);
+    const box = $("dbgPanel");
+    if (box) {
+      box.hidden = false;
+      box.textContent = KEYS.map(k => k + ": " + at(k, pick[k]).n).join("\n");
     }
   }
 
@@ -401,7 +444,12 @@
     cat.list.forEach((item, i) => {
       const b = document.createElement("button");
       b.type = "button";
-      b.className = "opt" + (pick[cat.key] === i ? " on" : "");
+      /* 지금 머리와 안 맞는 묶음은 흐리게 — 눌러도 되돌려지므로 숨기지 않고
+         왜 못 쓰는지 보이게 둔다 */
+      const bad = cat.key === "hairTie" &&
+        !P.tieOk(at("hairBack", pick.hairBack).n, item.n);
+      b.className = "opt" + (pick[cat.key] === i ? " on" : "") + (bad ? " off" : "");
+      if (bad) b.title = "지금 뒷머리로는 묶을 수 없어요";
       b.setAttribute("aria-label", item.n + " " + cat.label + " 선택");
       b.innerHTML = '<span class="opt-art">' + thumb(cat, i) + '</span>' +
                     '<span class="opt-name"></span>';
@@ -409,6 +457,7 @@
       b.addEventListener("click", () => {
         mark();
         pick[cat.key] = i;
+        normalizeSelection();            // 고른 것 -> 다듬기 -> 다시 그리기
         paintFace(); buildGrid(); sfx();
       });
       box.appendChild(b);
@@ -446,13 +495,25 @@
      단추
      ============================================================ */
   const rnd = n => Math.floor(Math.random() * n);
+  /* 랜덤은 화면에서 고를 수 있는 것에서만 뽑는다 — 탭에 없는 파츠가
+     몰래 붙는 일이 없다 (KEYS 자체가 CATS 에서 나온다).
+     안경·수염 같은 덧붙이는 칸은 확률로만 붙인다. 매번 붙으면 과하다. */
+  function getRandomPart(k) {
+    const list = listOf(k);
+    if (!list.length) return 0;
+    const ch = P.CHANCE[k];
+    if (ch !== undefined && Math.random() >= ch) return 0;   // 0번 = "없음"
+    const lo = P.OPTIONAL.indexOf(k) >= 0 ? 1 : 0;           // "없음" 은 건너뛴다
+    if (list.length <= lo) return 0;
+    return lo + rnd(list.length - lo);
+  }
+  /* 랜덤은 얼굴만 바꾼다 — 적어 넣은 이름·별명·나이대·특징·인상착의는 그대로 */
   function randomize() {
     mark();
-    for (const k of KEYS) pick[k] = rnd(listOf(k).length);
-    /* 머리가 아예 없으면 몽타주로 안 보인다 */
-    if (pick.hairFront === 0 && pick.hairBack === 0) pick.hairFront = 1 + rnd(listOf("hairFront").length - 1);
+    for (const k of KEYS) pick[k] = getRandomPart(k);
     skinIdx = rnd(P.SKIN.length);
     hairColIdx = rnd(P.HAIRCOL.length);
+    normalizeSelection();
     paintAll();
   }
   function undo() {
@@ -683,11 +744,13 @@
   $("muteBtn").textContent = muted ? "음소거" : "소리";
   addEventListener("keydown", e => { if (e.key === "Escape") closeSave(); });
 
-  /* 시작 화면에도 얼굴 하나 */
-  randomize();
+  /* 시작 화면 얼굴 — 중립 프리셋이다. 들어오자마자 안경·수염이 붙어 있으면
+     "내가 안 골랐는데?" 가 된다. 랜덤은 단추를 눌렀을 때만 돈다. */
+  resetAll(false);
   history.length = 0;
   $("startArt").innerHTML = buildSVG();
   paintInfo();
+  if (DEBUG_MONTAGE) dumpSelection();
 
   /* 테스트가 들여다본다 */
   window.__montage = {
@@ -698,6 +761,8 @@
     getFaceTemplate: getFaceTemplate, getFitRect: getFitRect,
     getAnchorPoint: getAnchorPoint, drawMontage: drawMontage, browShift: browShift,
     validate: validate, at: at, clean: clean, posterName: posterName, MODE: MODE,
+    normalizeSelection: normalizeSelection, getRandomPart: getRandomPart,
+    dumpSelection: dumpSelection, VIEW: VIEW, AGES: AGES,
     get mode() { return mode; },
     get debug() { return DEBUG_MONTAGE; }, set debug(v) { DEBUG_MONTAGE = v; },
     get pick() { return pick; }, set pick(v) { pick = v; },
