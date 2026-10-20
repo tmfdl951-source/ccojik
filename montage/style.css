@@ -20,18 +20,23 @@
      화면 크기에 따라 같이 줄지만, 같은 화면에서는 어느 칸을 눌러도
      한 픽셀도 안 움직인다. 칸마다 항목 수가 달라도 아래 네 줄의 높이는
      여기서 정한 값으로 못 박혀 있다. */
-  /* 카드는 '정사각 미리보기 + 아래 이름 한 줄'. 예전엔 1.32 배로 길어서
-     세로로 늘어나 보였다. */
-  --card-w: clamp(62px, 18vw, 92px);     /* 카드 폭 = 미리보기 한 변 */
-  --label-h: clamp(14px, 3.4vw, 20px);   /* 카드 밑 이름 줄 */
+  /* 모든 치수를 min(vw, dvh) 로 묶는다. 폭만 보고 잡으면 화면이 낮을 때
+     선택창은 그대로인데 사진만 찌그러진다 (1366x768 에서 79px 까지 줄었다). */
+  --card-w: clamp(54px, min(15.5vw, 10.2dvh), 86px);   /* 카드 폭 = 미리보기 한 변 */
+  --label-h: clamp(13px, min(3vw, 1.9dvh), 18px);      /* 카드 밑 이름 줄 */
   --card-h: calc(var(--card-w) + var(--label-h));
-  --pick-gap: clamp(4px, .9vh, 9px);
-  --cell-gap: clamp(5px, 1.4vw, 10px);
-  /* 탭은 두 줄이다 — 가로로 숨어서 못 누르는 칸이 없게 */
-  --tab-h: clamp(60px, 10.6vh, 80px);
-  --list-h: calc(var(--card-h) * 2 + var(--cell-gap));   /* 카드 두 줄 */
-  --sw-h: clamp(26px, 7vw, 36px);        /* 머리색/피부색 줄 */
-  --act-h: clamp(34px, 6vh, 48px);       /* 랜덤·되돌리기·초기화·완성 줄 */
+  --pick-gap: clamp(3px, .8dvh, 8px);
+  --cell-gap: clamp(5px, min(1.3vw, .9dvh), 9px);
+  /* 탭은 두 줄 — 가로로 숨어서 못 누르는 칸이 없게 */
+  --tab-h: clamp(56px, min(7.6dvh, 11vw), 64px);
+  --list-rows: 2;
+  --list-h: calc(var(--card-h) * var(--list-rows) + var(--cell-gap));
+  --sw-h: clamp(24px, min(6vw, 3.8dvh), 32px);         /* 머리색/피부색 줄 */
+  --act-h: clamp(32px, min(5.2dvh, 8.6vw), 44px);      /* 랜덤·되돌리기·초기화·완성 */
+  /* 전단지 쪽 */
+  --row-h: clamp(16px, min(3.8vw, 2.4dvh), 22px);      /* 입력 한 줄 */
+  --gap-s: clamp(3px, .7dvh, 8px);
+  --pad-s: clamp(5px, 1.1dvh, 12px);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -52,12 +57,16 @@ body { display: flex; align-items: center; justify-content: center; }
 .app {
   position: relative;
   width: min(540px, 100vw);
+  /* dvh 를 못 읽는 브라우저는 vh 로, 주소창이 오르내려도 안 튀게 svh 로 */
+  height: 100vh;
+  height: 100svh;
   height: 100dvh;
+  max-height: 100dvh;
   display: flex; flex-direction: column;
   background: #57574D;
-  padding: clamp(6px, 1.4vh, 14px) clamp(6px, 2vw, 14px);
-  padding-top: calc(clamp(6px, 1.4vh, 14px) + env(safe-area-inset-top, 0px));
-  padding-bottom: calc(clamp(6px, 1.4vh, 14px) + env(safe-area-inset-bottom, 0px));
+  padding: var(--pad-s) clamp(6px, 2vw, 14px);
+  padding-top: calc(var(--pad-s) + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(var(--pad-s) + env(safe-area-inset-bottom, 0px));
   touch-action: manipulation;
   overscroll-behavior: contain;
 }
@@ -76,7 +85,7 @@ body { display: flex; align-items: center; justify-content: center; }
 /* ============================================================
    화면
    ============================================================ */
-.screen { display: none; flex: 1 1 auto; min-height: 0; flex-direction: column; gap: clamp(5px, 1.1vh, 11px); }
+.screen { display: none; flex: 1 1 auto; min-height: 0; flex-direction: column; gap: var(--gap-s); }
 .screen.on { display: flex; }
 
 /* ============================================================
@@ -85,10 +94,10 @@ body { display: flex; align-items: center; justify-content: center; }
 .flyer {
   flex: 1 1 auto; min-height: 0;
   display: flex; flex-direction: column; align-items: center;
-  gap: clamp(4px, .9vh, 10px);
+  gap: var(--gap-s);
   background: var(--paper);
-  border: 5px solid var(--ink);
-  padding: 0 clamp(8px, 2.6vw, 16px) clamp(8px, 1.6vh, 15px);
+  border: 3px solid var(--ink);
+  padding: 0 clamp(8px, 2.6vw, 16px) var(--pad-s);
   /* 종이 결 — 아주 옅은 가로줄 */
   background-image: repeating-linear-gradient(
     180deg, rgba(0,0,0,.022) 0 1px, transparent 1px 7px);
@@ -106,7 +115,7 @@ body { display: flex; align-items: center; justify-content: center; }
   margin: 0 clamp(-16px, -2.6vw, -8px);
   background: var(--red);
   border-bottom: 5px solid var(--ink);
-  padding: clamp(6px, 1.4vh, 13px) 10px;
+  padding: var(--pad-s) 10px;
   display: flex; align-items: center; justify-content: center; gap: 8px;
   position: relative; flex-shrink: 0;
 }
@@ -114,10 +123,10 @@ body { display: flex; align-items: center; justify-content: center; }
   font-family: var(--ft); font-weight: 400;
   color: #FFF6E2;
   letter-spacing: .02em; line-height: 1.1;
-  font-size: clamp(26px, min(8.6vw, 4.4vh), 46px);
+  font-size: clamp(24px, min(8vw, 5dvh), 44px);
   text-shadow: 2px 2px 0 var(--red-dk);
 }
-.f-head.small h1 { font-size: clamp(19px, min(6vw, 3vh), 31px); }
+.f-head.small h1 { font-size: clamp(17px, min(5.4vw, 3.2dvh), 28px); }
 .f-back {
   position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
   font-size: 18px; font-weight: 800; line-height: 1;
@@ -138,19 +147,25 @@ body { display: flex; align-items: center; justify-content: center; }
 }
 
 /* 사진 — 전단지에 붙은 증명사진처럼 */
-/* 증명사진처럼 — 테는 얇고 정갈하게, 안쪽에 옅은 선 한 겹 */
+/* 증명사진처럼 — 테는 얇고 정갈하게, 안쪽에 옅은 선 한 겹.
+   남는 높이를 전부 먹되, 안의 몽타주 칸은 그 비율(272:330)로 잡아
+   가운데 둔다. 그래야 주어진 높이에서 얼굴이 제일 크게 들어간다. */
 .f-photo {
   flex: 1 1 auto; min-height: 0;
   width: 100%;
   display: flex; align-items: center; justify-content: center;
   background: #fff;
   border: 2px solid var(--ink);
-  padding: clamp(4px, 1.2vw, 8px);
+  padding: clamp(3px, .9vw, 6px);
   box-shadow: inset 0 0 0 1px #DDD2B4, 0 1px 2px rgba(0, 0, 0, .1);
 }
 .f-photo.big { border-width: 3px; }
-.f-art { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
-.f-art svg { width: auto; height: 100%; max-width: 100%; display: block; }
+.f-art {
+  height: 100%; aspect-ratio: 272 / 330; max-width: 100%;
+  margin: 0 auto;
+  display: flex; align-items: center; justify-content: center;
+}
+.f-art svg { width: 100%; height: 100%; display: block; }
 
 /* 전단지 정보 */
 .f-info {
@@ -169,19 +184,24 @@ body { display: flex; align-items: center; justify-content: center; }
 .f-info dd { flex: 1 1 auto; font-weight: 700; min-width: 0; }
 
 /* 전단지 양식 — 밑줄 그어 놓은 빈 칸에 적는 느낌 */
+/* 신고서 양식 — 두 칸씩 나란히 놓아 세 줄로 줄였다 (다섯 줄이면 사진이
+   그만큼 줄어든다). 라벨 정렬과 줄 높이는 그대로 고르다. */
 .f-form {
   width: 100%; flex-shrink: 0;
-  display: flex; flex-direction: column; gap: clamp(1px, .4vh, 4px);
-  border-top: 3px solid var(--ink);
-  padding-top: clamp(3px, .8vh, 7px);
-  font-size: clamp(11px, min(3.3vw, 1.7vh), 15px);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px clamp(8px, 2.4vw, 16px);
+  border-top: 2px solid var(--ink);
+  padding-top: var(--gap-s);
+  font-size: clamp(10px, min(3.1vw, 1.6dvh), 14px);
 }
+.f-form .wide { grid-column: 1 / -1; }
 .ff-row {
-  display: flex; align-items: baseline; gap: 8px;
-  min-height: clamp(18px, 4.4vw, 24px);
+  display: flex; align-items: baseline; gap: 6px;
+  min-height: var(--row-h);
 }
 .ff-k {
-  flex: 0 0 clamp(50px, 15vw, 68px);
+  flex: 0 0 clamp(40px, 11.5vw, 56px);
   font-weight: 700; color: #7A5A52; letter-spacing: .06em;
   font-size: .92em;
 }
@@ -439,17 +459,18 @@ body { display: flex; align-items: center; justify-content: center; }
 /* ============================================================
    낮은 화면 — 장식부터 접는다. 사진과 단추는 반드시 남긴다.
    ============================================================ */
+/* 낮은 화면 — 장식부터 접고 카드는 한 줄로. 구조는 그대로다. */
 @media (max-height: 700px) {
+  :root { --list-rows: 1; }
   .f-sub { display: none; }
   .f-foot { display: none; }
 }
 /* 낮은 화면에서는 창 전체를 줄인다 — 다만 그 화면 안에서는 어느 칸을
    눌러도 같은 높이다 (칸별로 달라지는 규칙을 두지 않는다). */
-@media (max-height: 640px) {
-  :root {
-    --list-h: calc(var(--card-h) * 1 + var(--cell-gap));
-    --tab-h: clamp(46px, 9vh, 58px);
-  }
+
+/* 아주 낮으면 전단지 부제·꼬리말까지 접는다 (위에서 이미 접힌다) */
+@media (max-height: 560px) {
+  :root { --tab-h: clamp(54px, 10vh, 58px); }
 }
 @media (max-height: 560px) {
   .f-desc { font-size: 11px; }
