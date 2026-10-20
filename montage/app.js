@@ -18,6 +18,41 @@
   const $ = id => document.getElementById(id);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
+  /* 정렬이 어긋날 때 어디가 문제인지 바로 보려고 켠다.
+     배포는 false. 켜면 얼굴 네모·기준선·맞춤 칸이 몽타주 위에 겹쳐 그려진다. */
+  let DEBUG_MONTAGE = false;
+
+  /* ============================================================
+     공통 — 얼굴 기준점과 맞춤 칸
+     ============================================================
+     파츠마다 좌표를 따로 계산하지 않는다. 전부 이 셋만 쓴다. */
+  function getFaceTemplate() {
+    const list = listOf("face");
+    return list[clamp(pick.face | 0, 0, list.length - 1)];
+  }
+  /* 기준선 한 점 — 'eyeY' 같은 이름으로 묻는다 */
+  function getAnchorPoint(f, name) {
+    return { x: f.centerX, y: f[name] };
+  }
+  /* 맞춤 칸 — 그 파츠가 들어가야 하는 네모. 얼굴 기준점에서 끌어낸다
+     (얼굴마다 숫자를 따로 적지 않는다). */
+  function getFitRect(f, zone) {
+    const fore = f.browY - f.hairlineY;
+    const halfW = f.width / 2;
+    const Z = {
+      hairFront: { x: f.centerX - halfW, y: f.topY - fore * 0.8, w: f.width, h: fore * 1.8 },
+      hairBack: { x: f.centerX - halfW * 1.2, y: f.topY - fore * 1.1, w: f.width * 1.2, h: f.height * 1.5 },
+      hairSide: { x: f.centerX - halfW * 1.1, y: f.topY, w: f.width * 1.1, h: f.height },
+      eyebrows: { x: f.leftCheekX, y: f.browY - fore * 0.3, w: f.width, h: fore * 0.6 },
+      eyes: { x: f.leftCheekX, y: f.eyeY - fore * 0.4, w: f.width, h: fore * 0.9 },
+      nose: { x: f.centerX - halfW * 0.4, y: f.noseY - fore * 0.5, w: halfW * 0.8, h: fore * 1.1 },
+      mouth: { x: f.centerX - halfW * 0.6, y: f.mouthY - fore * 0.4, w: halfW * 1.2, h: fore * 0.9 },
+      ears: { x: f.leftCheekX - 14, y: f.earY - fore * 0.7, w: f.width + 28, h: fore * 1.4 },
+      detail: { x: f.leftCheekX, y: f.topY, w: f.width, h: f.height },
+    };
+    return Z[zone] || Z.detail;
+  }
+
   /* ============================================================
      기준점 배치
      ============================================================ */
@@ -70,6 +105,23 @@
       inner + '</g>';
   }
 
+  /* 눈썹 — 눈에 너무 붙거나 이마 위로 올라가지 않게 묶는다.
+     그려진 자리를 지키되, 눈과의 틈이 이마 높이의 22% 보다 좁아지면 올린다. */
+  function browShift(f) {
+    const e = P.EXT.BROWS[pick.brows];
+    if (!e) return 0;
+    const k = f.featScale;
+    const fore = f.browY - f.hairlineY;
+    const low = f.browY + k * (e[3] - REF.browY);      // 눈썹 아래끝
+    const gap = f.eyeY - low;                          // 눈까지 틈
+    const want = fore * 0.22;
+    let dy = 0;
+    if (gap < want) dy = -(want - gap);                // 눈에 붙었으면 올린다
+    const high = f.browY + k * (e[1] - REF.browY) + dy;
+    if (high < f.hairlineY + 2) dy += f.hairlineY + 2 - high;   // 이마 위로는 안 간다
+    return dy;
+  }
+
   /* 작은 파츠(점·주근깨·흉터·볼터치…)는 자유도가 커도 되지만 얼굴 밖으로는
      못 나간다. 기준 네모(EXT)를 옮겨 보고 넘치면 배율을 줄여 끌어당긴다. */
   function fitIn(ext, refY, f, fy) {
@@ -95,8 +147,27 @@
                 "nose", "mouth", "ears", "glasses", "detail",
                 "lens", "liner", "blush", "mole"];
   const listOf = k => P.CATS.find(c => c.key === k).list;
+  /* 고른 번호가 범위를 벗어나면 기본 파츠로 되돌린다 — undefined 를 그리면
+     화면이 통째로 비어 버린다. */
+  function at(k, i) {
+    const list = listOf(k);
+    const n = Number(i);
+    return list[(n >= 0 && n < list.length) ? n : 0];
+  }
+  function validate() {
+    for (const k of KEYS) {
+      const list = listOf(k);
+      const n = Number(pick[k]);
+      if (!(n >= 0 && n < list.length)) pick[k] = 0;
+    }
+    if (!(skinIdx >= 0 && skinIdx < P.SKIN.length)) skinIdx = 0;
+    if (!(hairColIdx >= 0 && hairColIdx < P.HAIRCOL.length)) hairColIdx = 0;
+  }
   let pick = {};
   let skinIdx = 0, hairColIdx = 0, curCat = "face";
+  /* 어느 단계인가 — 고치는 중 / 완성본 보는 중 / 저장·공유 */
+  const MODE = { EDIT: "EDIT", PREVIEW: "PREVIEW", RESULT: "RESULT" };
+  let mode = MODE.EDIT;
   const history = [];
   /* 사용자가 직접 적는 칸. 비워 두면 고른 파츠로 지어낸 글이 들어간다. */
   const typed = { name: "", nick: "", age: "", feat: "" };
@@ -109,9 +180,11 @@
   }
   function mark() { history.push(snapshot()); if (history.length > 40) history.shift(); }
 
-  function resetAll() {
+  /* 초기화는 파츠만 되돌린다 — 적어 둔 이름까지 날리면 번거롭다.
+     이름까지 비우려면 keepTyped 를 false 로. */
+  function resetAll(keepTyped) {
     pick = {};
-    typed.name = ""; typed.nick = ""; typed.age = ""; typed.feat = "";
+    if (keepTyped === false) { typed.name = ""; typed.nick = ""; typed.age = ""; typed.feat = ""; }
     for (const k of KEYS) pick[k] = 0;
     pick.hairFront = 1;                 // 맨머리로 시작하면 몽타주 같지 않다
     skinIdx = 0; hairColIdx = 0;
@@ -126,38 +199,84 @@
 
      귀와 목은 얼굴보다 먼저 그린다. 뒤에 그리면 얼굴 위에 얹혀 스티커처럼
      보인다 — 안쪽이 얼굴에 가려져야 붙어 보인다. */
+  /* 레이어마다 함수를 따로 둔다 — 거대한 그리기 함수 하나로 두지 않는다 */
+  const dHairBack = (f, hc) => placeHair(at("hairBack", pick.hairBack).f(hc), f);
+  const dEars = (f, sk) => place(at("ears", pick.ears).s(sk), REF.earY, f, f.earY);
+  const dNeck = (f, sk) => place(P.NECK(sk), REF.chin - 20, f, f.chinY - 20 * f.sy);
+  const dFace = (f, sk) => f.d(sk);
+  const dBlush = f => place(at("blush", pick.blush).s, REF.cheekY, f, f.cheekY,
+    fitIn(P.EXT.BLUSH[pick.blush], REF.cheekY, f, f.cheekY));
+  const dBrows = f => place(at("brows", pick.brows).s, REF.browY, f, f.browY,
+    { dy: browShift(f) });
+  const dEyes = f => place(at("eyes", pick.eyes).s, REF.eyeY, f, f.eyeY) +
+    place(at("lens", pick.lens).s, REF.eyeY, f, f.eyeY) +
+    place(at("liner", pick.liner).s, REF.eyeY, f, f.eyeY);
+  const dNose = f => place(at("nose", pick.nose).s, REF.noseY, f, f.noseY);
+  const dMouth = f => place(at("mouth", pick.mouth).s, REF.mouthY, f, f.mouthY);
+  const dDetails = f => place(at("mole", pick.mole).s, REF.mouthY, f, f.mouthY,
+      fitIn(P.EXT.MOLE[pick.mole], REF.mouthY, f, f.mouthY)) +
+    (at("detail", pick.detail).top ? "" :
+      place(at("detail", pick.detail).s, REF.mouthY, f, f.mouthY,
+        fitIn(P.EXT.DETAIL[pick.detail], REF.mouthY, f, f.mouthY)));
+  const dHairSide = (f, hc) => placeHair(at("hairSide", pick.hairSide).f(hc), f);
+  const dHairFront = (f, hc) => {
+    const fr = at("hairFront", pick.hairFront);
+    return placeFront(fr.f(hc), f, fr.n);
+  };
+  const dHairTie = (f, hc) => placeHair(at("hairTie", pick.hairTie).f(hc), f);
+  const dAccessory = f => place(at("glasses", pick.glasses).s, REF.eyeY, f, f.eyeY) +
+    (at("detail", pick.detail).top
+      ? place(at("detail", pick.detail).s, REF.mouthY, f, f.mouthY) : "");
+
+  /* 안내선 — DEBUG_MONTAGE 일 때만. 어긋난 파츠가 어느 기준선에서
+     벗어났는지 눈으로 바로 보려고 둔다. */
+  function dGuides(f) {
+    const g = [];
+    const line = (y, c, t) => '<line x1="8" y1="' + r2(y) + '" x2="292" y2="' + r2(y) +
+      '" stroke="' + c + '" stroke-width="1" stroke-dasharray="4 3"/>' +
+      '<text x="10" y="' + r2(y - 2) + '" font-size="7" fill="' + c + '">' + t + '</text>';
+    const boxOf = (z, c) => {
+      const r = getFitRect(f, z);
+      return '<rect x="' + r2(r.x) + '" y="' + r2(r.y) + '" width="' + r2(r.w) +
+        '" height="' + r2(r.h) + '" fill="none" stroke="' + c +
+        '" stroke-width="1" stroke-dasharray="2 2"/>';
+    };
+    g.push('<rect x="' + r2(f.leftCheekX) + '" y="' + r2(f.topY) + '" width="' + r2(f.width) +
+      '" height="' + r2(f.height) + '" fill="none" stroke="#e01b1b" stroke-width="1.4"/>');
+    g.push(line(f.hairlineY, "#1b8ae0", "hairline"));
+    g.push(line(f.browY, "#8a1be0", "brow"));
+    g.push(line(f.eyeY, "#0f9d58", "eye"));
+    g.push(line(f.noseY, "#e08a1b", "nose"));
+    g.push(line(f.mouthY, "#e01b8a", "mouth"));
+    g.push(line(f.chinY, "#444", "chin"));
+    for (const z of ["hairFront", "eyebrows", "eyes", "nose", "mouth", "detail"])
+      g.push(boxOf(z, "#00000055"));
+    for (const a of ["centerX"])
+      g.push('<line x1="' + f[a] + '" y1="8" x2="' + f[a] + '" y2="352" stroke="#e01b1b" ' +
+        'stroke-width="1" stroke-dasharray="4 3"/>');
+    for (const p of [["eyeY", "#0f9d58"], ["browY", "#8a1be0"], ["mouthY", "#e01b8a"]]) {
+      const q = getAnchorPoint(f, p[0]);
+      g.push('<circle cx="' + r2(q.x) + '" cy="' + r2(q.y) + '" r="2.4" fill="' + p[1] + '"/>');
+    }
+    return g.join("");
+  }
+
+  /* 몽타주 한 장 — 레이어 차례대로 불러 모은다 (§39 순서) */
+  function drawMontage(f, sk, hc) {
+    return [
+      dHairBack(f, hc), dNeck(f, sk), dEars(f, sk), dFace(f, sk),
+      dBlush(f), dBrows(f), dEyes(f), dNose(f), dMouth(f), dDetails(f),
+      dHairSide(f, hc), dHairFront(f, hc), dHairTie(f, hc), dAccessory(f),
+      DEBUG_MONTAGE ? dGuides(f) : "",
+    ].join("");
+  }
+
   function buildSVG(opt) {
     const o = opt || {};
-    const f = listOf("face")[pick.face];
-    const s = P.SKIN[skinIdx], hc = P.HAIRCOL[hairColIdx];
-    const det = listOf("detail")[pick.detail];
-    const L = [];
-    if (!o.bare) L.push('<rect width="300" height="360" fill="' + (o.bg || "#FBF4DF") + '"/>');
-    L.push(placeHair(listOf("hairBack")[pick.hairBack].f(hc), f));
-    L.push(place(P.NECK(s), REF.chin - 20, f, f.chin - 20 * f.sy));
-    L.push(place(listOf("ears")[pick.ears].s(s), REF.earY, f, f.earY));
-    L.push(f.d(s));
-    L.push(place(listOf("blush")[pick.blush].s, REF.cheekY, f, f.cheekY,
-      fitIn(P.EXT.BLUSH[pick.blush], REF.cheekY, f, f.cheekY)));
-    L.push(place(listOf("brows")[pick.brows].s, REF.browY, f, f.browY));
-    L.push(place(listOf("eyes")[pick.eyes].s, REF.eyeY, f, f.eyeY));
-    L.push(place(listOf("lens")[pick.lens].s, REF.eyeY, f, f.eyeY));
-    L.push(place(listOf("liner")[pick.liner].s, REF.eyeY, f, f.eyeY));
-    L.push(place(listOf("nose")[pick.nose].s, REF.noseY, f, f.noseY));
-    L.push(place(listOf("mouth")[pick.mouth].s, REF.mouthY, f, f.mouthY));
-    L.push(place(listOf("mole")[pick.mole].s, REF.mouthY, f, f.mouthY,
-      fitIn(P.EXT.MOLE[pick.mole], REF.mouthY, f, f.mouthY)));
-    if (!det.top) {
-      L.push(place(det.s, REF.mouthY, f, f.mouthY,
-        fitIn(P.EXT.DETAIL[pick.detail], REF.mouthY, f, f.mouthY)));
-    }
-    const fr = listOf("hairFront")[pick.hairFront];
-    L.push(placeFront(fr.f(hc), f, fr.n));
-    L.push(placeHair(listOf("hairSide")[pick.hairSide].f(hc), f));
-    L.push(placeHair(listOf("hairTie")[pick.hairTie].f(hc), f));
-    L.push(place(listOf("glasses")[pick.glasses].s, REF.eyeY, f, f.eyeY));
-    if (det.top) L.push(place(det.s, REF.mouthY, f, f.mouthY));
-    const body = L.join("");
+    validate();
+    const f = getFaceTemplate();
+    const body = (o.bare ? "" : '<rect width="300" height="360" fill="' +
+      (o.bg || "#FBF4DF") + '"/>') + drawMontage(f, P.SKIN[skinIdx], P.HAIRCOL[hairColIdx]);
     if (o.bare) return body;
     return '<svg viewBox="0 0 300 360" xmlns="http://www.w3.org/2000/svg">' + body + '</svg>';
   }
@@ -165,37 +284,58 @@
   /* ============================================================
      전단지 더미 정보 — 고른 파츠로 문장을 짜 맞춘다
      ============================================================ */
+  /* 적어 넣은 글 다듬기 — 줄바꿈·꺾쇠를 털고 길이를 자른다.
+     textContent 로만 넣으므로 태그가 살아날 일은 없지만, 캔버스에 그릴 때
+     줄바꿈이 섞이면 글자가 깨져 보인다. */
+  function clean(v, max) {
+    return String(v === undefined || v === null ? "" : v)
+      .replace(/[<>]/g, "")
+      .replace(/[\r\n\t]+/g, " ")
+      .replace(/\s{2,}/g, " ")
+      .trim()
+      .slice(0, max);
+  }
+
   const AGES = ["10대 후반", "20대 초반", "20대 중반", "20대 후반",
                 "30대 초반", "30대 중반", "40대 초반", "50대 전후"];
   const WEARS = ["검은 상의", "회색 후드", "남색 셔츠", "체크 남방",
                  "흰 티셔츠", "베이지 코트", "검은 패딩"];
   const SEEN = ["편의점 앞", "지하철 2호선", "학교 정문", "시장 골목",
                 "버스 정류장", "아파트 단지", "PC방 앞"];
+  /* 칸 이름 -> TAGS 표의 이름 */
+  const TAGKEY = { face: "FACES", hairFront: "HAIR_FRONT", hairBack: "HAIR_BACK",
+    hairSide: "HAIR_SIDE", hairTie: "HAIR_TIE", brows: "BROWS", eyes: "EYES",
+    nose: "NOSE", mouth: "MOUTH", ears: "EARS", glasses: "GLASSES",
+    detail: "DETAIL", lens: "LENS", liner: "LINER", blush: "BLUSH", mole: "MOLE" };
+  const CATKEY = {};
+  for (const k of Object.keys(TAGKEY)) CATKEY[TAGKEY[k]] = k;
+
   function flyerInfo() {
-    const nm = k => listOf(k)[pick[k]].n;
+    validate();
+    const nm = k => at(k, pick[k]).n;
     const sum = KEYS.reduce((a, k) => a + pick[k], 0) + skinIdx + hairColIdx;
-    /* 특징 — 있는 것만 골라 세 토막까지 */
+    /* 특징 — 파츠에 적힌 설명말(TAGS)을 차례대로 모아 넷까지 */
     const feat = [];
-    if (nm("hairFront") !== "없음") feat.push(nm("hairFront") + " 앞머리");
-    if (nm("hairBack") !== "없음") feat.push(nm("hairBack") + " 뒷머리");
-    if (nm("hairTie") !== "없음") feat.push(nm("hairTie"));
-    feat.push(nm("face") + " 얼굴형");
-    feat.push(nm("eyes").replace(/눈$/, "") + " 눈");
-    feat.push(nm("brows") + " 눈썹");
-    feat.push(nm("nose") + " 코");
-    if (nm("detail") !== "없음" && !listOf("detail")[pick.detail].top) feat.push(nm("detail"));
+    for (const tk of P.TAG_ORDER) {
+      const ck = CATKEY[tk];
+      if (!ck || pick[ck] === undefined) continue;
+      if (ck === "glasses" || (ck === "detail" && at("detail", pick.detail).top)) continue;
+      const t = (P.TAGS[tk] || [])[pick[ck]] || [];
+      for (const x of t) if (feat.indexOf(x) < 0) feat.push(x);
+      if (feat.length >= 4) break;
+    }
     /* 인상착의 — 안경·모자·마스크는 눈에 띄니 따로 적는다 */
     const wear = [WEARS[sum % WEARS.length]];
     if (nm("glasses") !== "없음") wear.push(nm("glasses") + " 안경");
-    const d = listOf("detail")[pick.detail];
+    const d = at("detail", pick.detail);
     if (d.top) wear.push(nm("detail") + " 착용");
     const made = feat.slice(0, 4).join(", ");
     return {
       /* 적은 게 있으면 그대로, 없으면 지어낸 것 */
-      name: typed.name.trim() || "미상",
-      nick: typed.nick.trim(),
-      age: typed.age.trim() || (AGES[(sum * 3) % AGES.length] + " 추정"),
-      feat: typed.feat.trim() || made,
+      name: clean(typed.name, 16) || "미상",
+      nick: clean(typed.nick, 16),
+      age: clean(typed.age, 16) || (AGES[(sum * 3) % AGES.length] + " 추정"),
+      feat: clean(typed.feat, 44) || made,
       autoFeat: made,
       wear: wear.join(", "),
       seen: SEEN[(sum * 5) % SEEN.length],
@@ -262,6 +402,7 @@
       const b = document.createElement("button");
       b.type = "button";
       b.className = "opt" + (pick[cat.key] === i ? " on" : "");
+      b.setAttribute("aria-label", item.n + " " + cat.label + " 선택");
       b.innerHTML = '<span class="opt-art">' + thumb(cat, i) + '</span>' +
                     '<span class="opt-name"></span>';
       b.querySelector(".opt-name").textContent = item.n;
@@ -373,6 +514,7 @@
 
   function finish() {
     sfxDone();
+    mode = MODE.PREVIEW;
     $("resArt").innerHTML = buildSVG();
     const i = flyerInfo();
     $("rName").textContent = i.name + (i.nick ? " (" + i.nick + ")" : "");
@@ -382,6 +524,7 @@
     $("rNo").textContent = "제 " + i.no + " 호";
     $("rSeen").textContent = i.seen;
     show("doneScreen");
+    mode = MODE.RESULT;
   }
 
   /* ============================================================
@@ -406,7 +549,7 @@
     if (line) { c.strokeStyle = "#1A1A16"; c.lineWidth = line; c.strokeRect(x, y, w, h); }
   }
   async function buildCard() {
-    const W = 1080, H = 1500;
+    const W = 1080, H = 1920;
     const cv = document.createElement("canvas");
     cv.width = W; cv.height = H;
     const c = cv.getContext("2d");
@@ -414,43 +557,54 @@
     box(c, 0, 0, W, H, "#FBF4DF");
     box(c, 24, 24, W - 48, H - 48, null, 10);
     /* 빨간 머리띠 */
-    box(c, 24, 24, W - 48, 210, "#D73A2F", 10);
+    box(c, 24, 24, W - 48, 250, "#D73A2F", 10);
     c.fillStyle = "#FFF8E6";
     c.textAlign = "center";
-    c.font = "800 118px 'Black Han Sans', Pretendard, sans-serif";
-    c.fillText("사람을 찾습니다", W / 2, 162);
-    /* 사진 */
-    const svg = buildSVG({ bg: "#FFFFFF" }).replace("<svg ", '<svg width="760" height="912" ');
+    c.font = "800 136px 'Black Han Sans', Pretendard, sans-serif";
+    c.fillText("사람을 찾습니다", W / 2, 192);
+    /* 사진 — 편집 UI 는 들어가지 않는다 (몽타주만 다시 그린다) */
+    const PW = 800, PH = 960, PX = (W - PW) / 2, PY = 330;
+    const svg = buildSVG({ bg: "#FFFFFF" })
+      .replace("<svg ", '<svg width="' + PW + '" height="' + PH + '" ');
     try {
       const im = await svgToImg(svg);
-      box(c, 160, 276, 760, 912, "#FFFFFF", 8);
-      c.drawImage(im, 160, 276, 760, 912);
+      box(c, PX, PY, PW, PH, "#FFFFFF", 8);
+      c.drawImage(im, PX, PY, PW, PH);
     } catch (_) {
-      box(c, 160, 276, 760, 912, "#EDEDE4", 8);
+      box(c, PX, PY, PW, PH, "#EDEDE4", 8);
     }
     /* 정보 */
     const i = flyerInfo();
     c.textAlign = "left";
     c.fillStyle = "#1A1A16";
-    let y = 1256;
+    let y = 1420;
     const row = (k, v) => {
-      c.font = "800 38px Pretendard, sans-serif";
+      c.font = "800 44px Pretendard, sans-serif";
       c.fillStyle = "#8A3F38";
-      c.fillText(k, 170, y);
-      c.font = "700 38px Pretendard, sans-serif";
+      c.fillText(k, 150, y);
+      c.font = "700 44px Pretendard, sans-serif";
       c.fillStyle = "#1A1A16";
-      c.fillText(v, 330, y);
-      y += 56;
+      /* 길면 줄여 적는다 — 넘쳐 잘리는 것보다 낫다 */
+      let t = v;
+      while (t.length > 6 && c.measureText(t).width > W - 480) t = t.slice(0, -2);
+      c.fillText(t === v ? v : t + "...", 350, y);
+      y += 72;
     };
     row("이 름", i.name + (i.nick ? "  (" + i.nick + ")" : ""));
     row("나이대", i.age);
     row("특 징", i.feat);
     row("인상착의", i.wear);
     c.textAlign = "center";
-    c.font = "800 34px Pretendard, sans-serif";
+    c.font = "800 40px Pretendard, sans-serif";
     c.fillStyle = "#8A3F38";
-    c.fillText("찾으시면 만든 사람에게 알려 주세요 · 꼬직", W / 2, H - 56);
+    c.fillText("찾으시면 만든 사람에게 알려 주세요 · 꼬직", W / 2, H - 70);
     return cv;
+  }
+
+  /* 저장 파일명 — 이름이 있으면 거기에 붙인다 */
+  function posterName() {
+    const n = clean(typed.name, 16).replace(/[^가-힣a-zA-Z0-9]/g, "");
+    return n ? "wanted-poster-" + n + ".png" : "wanted-poster.png";
   }
 
   let savedURL = null;
@@ -473,7 +627,7 @@
     const url = URL.createObjectURL(blob);
     if (canDownload()) {
       const a = document.createElement("a");
-      a.href = url; a.download = "ccojik-montage.png";
+      a.href = url; a.download = posterName();
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 2000);
       toast("전단지를 저장했어요");
@@ -493,7 +647,7 @@
     try { cv = await buildCard(); } catch (_) { toast("전단지를 만들지 못했어요"); return; }
     const blob = await new Promise(res => cv.toBlob(res, "image/png"));
     if (!blob) return;
-    const file = new File([blob], "ccojik-montage.png", { type: "image/png" });
+    const file = new File([blob], posterName(), { type: "image/png" });
     try {
       if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
         await navigator.share({ files: [file], title: "꼬직 · 몽타주 만들기", text: shareText() });
@@ -518,10 +672,10 @@
   $("backBtn").addEventListener("click", () => { sfx(); show("startScreen"); });
   $("rndBtn").addEventListener("click", () => { sfx(); randomize(); });
   $("undoBtn").addEventListener("click", () => { sfx(); undo(); });
-  $("resetBtn").addEventListener("click", () => { sfx(); mark(); resetAll(); paintAll(); });
+  $("resetBtn").addEventListener("click", () => { sfx(); mark(); resetAll(true); paintAll(); });
   $("doneBtn").addEventListener("click", finish);
-  $("editBtn").addEventListener("click", () => { sfx(); show("buildScreen"); paintAll(); });
-  $("newBtn").addEventListener("click", () => { sfx(); mark(); randomize(); show("buildScreen"); });
+  $("editBtn").addEventListener("click", () => { sfx(); mode = MODE.EDIT; show("buildScreen"); paintAll(); });
+  $("newBtn").addEventListener("click", () => { sfx(); mark(); randomize(); mode = MODE.EDIT; show("buildScreen"); });
   $("saveBtn").addEventListener("click", save);
   $("shareBtn").addEventListener("click", share);
   $("saveClose").addEventListener("click", closeSave);
@@ -541,6 +695,11 @@
     randomize: randomize, undo: undo, resetAll: resetAll, paintAll: paintAll,
     finish: finish, buildCard: buildCard, thumb: thumb, shareText: shareText,
     placeFront: placeFront, fitIn: fitIn, typed: typed, bindInputs: bindInputs,
+    getFaceTemplate: getFaceTemplate, getFitRect: getFitRect,
+    getAnchorPoint: getAnchorPoint, drawMontage: drawMontage, browShift: browShift,
+    validate: validate, at: at, clean: clean, posterName: posterName, MODE: MODE,
+    get mode() { return mode; },
+    get debug() { return DEBUG_MONTAGE; }, set debug(v) { DEBUG_MONTAGE = v; },
     get pick() { return pick; }, set pick(v) { pick = v; },
     get skinIdx() { return skinIdx; }, set skinIdx(v) { skinIdx = v; },
     get hairColIdx() { return hairColIdx; }, set hairColIdx(v) { hairColIdx = v; },
