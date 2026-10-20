@@ -42,9 +42,8 @@
     const fore = f.browY - f.hairlineY;
     const halfW = f.width / 2;
     const Z = {
-      hairFront: { x: f.centerX - halfW, y: f.topY - fore * 0.8, w: f.width, h: fore * 1.8 },
-      hairBack: { x: f.centerX - halfW * 1.2, y: f.topY - fore * 1.1, w: f.width * 1.2, h: f.height * 1.5 },
-      hairSide: { x: f.centerX - halfW * 1.1, y: f.topY, w: f.width * 1.1, h: f.height },
+      bangs: { x: f.centerX - halfW, y: f.topY - fore * 0.8, w: f.width, h: fore * 1.8 },
+      hairBase: { x: f.centerX - halfW * 1.2, y: f.topY - fore * 1.1, w: f.width * 1.2, h: f.height * 1.5 },
       eyebrows: { x: f.leftCheekX, y: f.browY - fore * 0.3, w: f.width, h: fore * 0.6 },
       eyes: { x: f.leftCheekX, y: f.eyeY - fore * 0.4, w: f.width, h: fore * 0.9 },
       nose: { x: f.centerX - halfW * 0.4, y: f.noseY - fore * 0.5, w: halfW * 0.8, h: fore * 1.1 },
@@ -118,23 +117,21 @@
              않는다(관자놀이에서 옆·뒷머리와 이어진다).
        조임  눈 구역(core) 밑끝이 눈썹선을 넘을 때만 세로를 줄인다.
              바깥으로 흘러내리는 가닥은 눈이 아니라 얼굴 옆이라 둔다. */
-  /* 지금 머리가 차지하는 폭 — 앞머리를 여기에 맞춰야 관자놀이에서
-     옆·뒷머리와 이어지고 앞머리만 따로 뜨지 않는다 */
-  function hairSpan(f) {
-    let w = f.width;
-    for (const k of ["hairBack", "hairSide"]) {
-      const idx = pick[k];
-      if (!idx) continue;
-      const e = P.EXT[k === "hairBack" ? "HAIR_BACK" : "HAIR_SIDE"][idx];
-      if (!e) continue;
-      w = Math.max(w, (e[2] - e[0]) * f.sx * 1.02);
-    }
-    return w;
+  /* 지금 머리가 차지하는 폭 — 앞머리가 이 안에 있어야 머리에서 내려온
+     것으로 보인다 (밖으로 나가면 머리 위에 얹힌 조각이 된다) */
+  function hairSpanOf(f, idx) {
+    if (!idx) return f.width;
+    const e = P.EXT.HAIR_BASE[idx];
+    if (!e) return f.width;
+    return Math.max(f.width, (e[2] - e[0]) * f.sx * 1.02);
   }
+  function hairSpan(f) { return hairSpanOf(f, pick.hairBase); }
 
-  const FIT_W  = { narrow: 0.94, standard: 1.02, wide: 1.08 };
-  /* 머리 실루엣을 얼마나 덮나 */
-  const TEMPLE = { narrow: 0.82, standard: 1.0, wide: 1.06 };
+  /* 앞머리 폭 — 얼굴폭에 대한 비율. 이마를 덮되 관자놀이까지 끌고 가지
+     않는다. 관자놀이·귀 쪽 측면은 hairBase 가 맡는다.
+     예전에는 '머리 실루엣만큼 넓게' 로 잡아 얼굴폭의 123~131% 가 됐고,
+     그게 앞머리가 검은 커튼처럼 보이던 가장 큰 원인이었다. */
+  const FIT_W = { narrow: 0.58, standard: 0.68, wide: 0.73 };
 
   /* 얼굴형 보정 — 얼굴이 길면 폭을 넓히고 세로를 줄인다. 얼굴마다 x/y 를
      박는 대신 '세로/가로 비율' 하나로만 민다. */
@@ -145,28 +142,30 @@
 
   function placeFront(inner, f, name) {
     if (!inner) return "";
-    const idx = P.HAIR_FRONT.findIndex(h => h.n === name);
-    const e = P.EXT.HAIR_FRONT[idx];
+    const idx = P.BANGS.findIndex(h => h.n === name);
+    const e = P.EXT.BANGS[idx];
     if (!e) return place(inner, REF.top, f, f.hairlineY, null);
-    const meta = P.HAIR_FIT[name] || { fit: "standard", core: REF.browY - REF.top };
+    const meta = P.HAIR_FIT[name] || { fit: "standard" };
     const fit = meta.fit || "standard";
     const fore = f.browY - f.hairlineY, refFore = REF.browY - REF.top;
     const lean = faceLean(f);
 
-    /* 폭 — 스타일 차이를 살리되 눈썹 바깥과 머리 실루엣 사이에 둔다 */
+    /* 폭 — 얼굴폭의 비율로 잡는다. 아래로 두 눈 사이는 덮어야 하고,
+       위로 머리 실루엣을 넘지 않는다. */
     const artW = Math.max(8, e[2] - e[0]);
-    const browOut = (f.rightEyeX - f.leftEyeX) / 2 + 15 * f.featScale;
-    const maxW = hairSpan(f) * TEMPLE[fit];
-    const minW = Math.min(browOut * 2 * 1.1, maxW);
-    const want = clamp(artW * f.sx * (1 + (lean - 1) * 0.45) * FIT_W[fit], minW, maxW);
-    const kx = clamp(want / artW, 0.6, 2.2);
+    const maxW = hairSpan(f) * 0.96;
+    const minW = Math.min((f.rightEyeX - f.leftEyeX) * 1.3, maxW);
+    const want = clamp(f.width * FIT_W[fit] * (1 + (lean - 1) * 0.3), minW, maxW);
+    const kx = clamp(want / artW, 0.3, 2.2);
 
     /* 세로 — 이마 높이 비율. 긴 얼굴은 조금 줄여 세로로만 길어지지 않게 */
     let ky = clamp(fore / refFore * (1 - (lean - 1) * 0.3), 0.6, 1.8);
-    /* 눈 구역 밑끝이 눈썹선을 넘으면 그만큼만 조인다 */
-    const core = meta.core || (e[3] - REF.top);
+    /* 밑끝이 눈썹선을 넘으면 그만큼만 조인다. 예전엔 눈 구역(가운데
+       +-54)만 봤는데, 앞머리 폭이 좁아지면서 바깥 가닥도 눈 위에 오게
+       돼 구역을 가릴 뜻이 없어졌다 — 전체 밑끝으로 잰다. */
+    const low = e[3] - REF.top;
     const room = fore - 2 * f.sy;
-    if (core > 0 && ky * core > room) ky = room / core;
+    if (low > 0 && ky * low > room) ky = room / low;
     /* 위끝은 늘 이마선 위에 있어야 한다 — 베이스에 묻혀야 잘린 종이가 안 된다 */
     const up = REF.top - e[1];
     if (up > 0 && ky * up < 7) ky = Math.max(ky, 7 / up);
@@ -231,7 +230,7 @@
   /* ============================================================
      상태
      ============================================================ */
-  const KEYS = ["face", "hairBack", "hairFront", "hairSide", "hairTie", "brows", "eyes",
+  const KEYS = ["face", "hairBase", "bangs", "hairExtra", "brows", "eyes",
                 "nose", "mouth", "ears", "glasses", "detail", "lens", "liner"];
   const listOf = k => P.CATS.find(c => c.key === k).list;
   /* 고른 번호가 범위를 벗어나면 기본 파츠로 되돌린다 — undefined 를 그리면
@@ -250,14 +249,14 @@
   function normalizeSelection() {
     validate();
     /* 묶음은 묶을 머리가 있어야 한다 */
-    const backName = at("hairBack", pick.hairBack).n;
-    const tieName = at("hairTie", pick.hairTie).n;
-    if (tieName !== "없음" && !P.tieOk(backName, tieName)) pick.hairTie = 0;
+    const backName = at("hairBase", pick.hairBase).n;
+    const tieName = at("hairExtra", pick.hairExtra).n;
+    if (tieName !== "없음" && !P.tieOk(backName, tieName)) pick.hairExtra = 0;
     /* 앞머리는 받쳐 줄 뒷머리가 있어야 한다 — 삭발이나 뒷머리없음 위에
        앞머리만 뜨면 공중에 붙은 조각으로 보인다 */
-    if (!P.frontOk(backName, at("hairFront", pick.hairFront).n)) pick.hairFront = 0;
+    if (!P.frontOk(backName, at("bangs", pick.bangs).n)) pick.bangs = 0;
     /* 앞·뒤가 다 없으면 민머리다 — 몽타주로 안 보인다 */
-    if (pick.hairBack === 0 && pick.hairFront === 0) pick.hairBack = 1;
+    if (pick.hairBase === 0 && pick.bangs === 0) pick.hairBase = 1;
     return pick;
   }
 
@@ -311,8 +310,8 @@
      귀와 목은 얼굴보다 먼저 그린다. 뒤에 그리면 얼굴 위에 얹혀 스티커처럼
      보인다 — 안쪽이 얼굴에 가려져야 붙어 보인다. */
   /* 레이어마다 함수를 따로 둔다 — 거대한 그리기 함수 하나로 두지 않는다 */
-  const dHairBack = (f, hc) =>
-    placeHair(at("hairBack", pick.hairBack).f(hc), f, P.EXT.HAIR_BACK[pick.hairBack]);
+  const dHairBase = (f, hc) =>
+    placeHair(at("hairBase", pick.hairBase).f(hc), f, P.EXT.HAIR_BASE[pick.hairBase]);
   const dEars = (f, sk) => place(at("ears", pick.ears).s(sk), REF.earY, f, f.earY);
   const dNeck = (f, sk) => place(P.NECK(sk), REF.chin - 20, f, f.chinY - 20 * f.sy);
   const dFace = (f, sk) => f.d(sk);
@@ -333,14 +332,12 @@
     const fy = f[d.anchor] === undefined ? f.mouthY : f[d.anchor];
     return place(d.s, ref, f, fy, fitIn(P.EXT.DETAIL[pick.detail], ref, f, fy));
   };
-  const dHairSide = (f, hc) =>
-    placeHair(at("hairSide", pick.hairSide).f(hc), f, P.EXT.HAIR_SIDE[pick.hairSide]);
-  const dHairFront = (f, hc) => {
-    const fr = at("hairFront", pick.hairFront);
+  const dBangs = (f, hc) => {
+    const fr = at("bangs", pick.bangs);
     return placeFront(fr.f(hc), f, fr.n);
   };
-  const dHairTie = (f, hc) =>
-    placeHair(at("hairTie", pick.hairTie).f(hc), f, P.EXT.HAIR_TIE[pick.hairTie]);
+  const dHairExtra = (f, hc) =>
+    placeHair(at("hairExtra", pick.hairExtra).f(hc), f, P.EXT.HAIR_EXTRA[pick.hairExtra]);
   /* 안경 / 머리 위에 얹는 것 — 거의 맨 위 */
   const dAccessory = f => {
     const g = at("glasses", pick.glasses);
@@ -373,7 +370,7 @@
     g.push(line(f.noseY, "#e08a1b", "nose"));
     g.push(line(f.mouthY, "#e01b8a", "mouth"));
     g.push(line(f.chinY, "#444", "chin"));
-    for (const z of ["hairFront", "eyebrows", "eyes", "nose", "mouth", "detail"])
+    for (const z of ["bangs", "eyebrows", "eyes", "nose", "mouth", "detail"])
       g.push(boxOf(z, "#00000055"));
     for (const a of ["centerX"])
       g.push('<line x1="' + f[a] + '" y1="8" x2="' + f[a] + '" y2="352" stroke="#e01b1b" ' +
@@ -388,9 +385,12 @@
   /* 몽타주 한 장 — 레이어 차례대로 불러 모은다 (§39 순서) */
   function drawMontage(f, sk, hc) {
     return [
-      dHairBack(f, hc), dNeck(f, sk), dEars(f, sk), dFace(f, sk),
+      /* 머리는 세 켜만 그린다 — 베이스 / 앞머리 / 묶음.
+         옆머리를 따로 얹던 켜는 걷어냈다 (뒷머리와 같은 자리를 두 번
+         칠해 귀 옆이 검은 덩어리로 보였다). */
+      dHairBase(f, hc), dNeck(f, sk), dEars(f, sk), dFace(f, sk),
       dBrows(f), dEyes(f), dNose(f), dMouth(f), dDetails(f),
-      dHairSide(f, hc), dHairFront(f, hc), dHairTie(f, hc), dAccessory(f),
+      dBangs(f, hc), dHairExtra(f, hc), dAccessory(f),
       DEBUG_MONTAGE ? dGuides(f) : "",
     ].join("");
   }
@@ -428,8 +428,8 @@
   /* 옷을 고르는 기능이 없으므로 인상착의를 지어내지 않는다. 안 적으면 "미상".
      눈에 띄는 안경·모자·마스크만 자동으로 덧붙인다. */
   /* 칸 이름 -> TAGS 표의 이름 */
-  const TAGKEY = { face: "FACES", hairFront: "HAIR_FRONT", hairBack: "HAIR_BACK",
-    hairSide: "HAIR_SIDE", hairTie: "HAIR_TIE", brows: "BROWS", eyes: "EYES",
+  const TAGKEY = { face: "FACES", bangs: "BANGS", hairBase: "HAIR_BASE",
+    hairExtra: "HAIR_EXTRA", brows: "BROWS", eyes: "EYES",
     nose: "NOSE", mouth: "MOUTH", ears: "EARS", glasses: "GLASSES",
     detail: "DETAIL", lens: "LENS", liner: "LINER" };
   const CATKEY = {};
@@ -551,11 +551,11 @@
       b.type = "button";
       /* 지금 머리와 안 맞는 묶음·앞머리는 흐리게 — 눌러도 되돌려지므로
          숨기지 않고 왜 못 쓰는지 보이게 둔다 */
-      const backN = at("hairBack", pick.hairBack).n;
-      const bad = (cat.key === "hairTie" && !P.tieOk(backN, item.n)) ||
-                  (cat.key === "hairFront" && !P.frontOk(backN, item.n));
+      const backN = at("hairBase", pick.hairBase).n;
+      const bad = (cat.key === "hairExtra" && !P.tieOk(backN, item.n)) ||
+                  (cat.key === "bangs" && !P.frontOk(backN, item.n));
       b.className = "opt" + (pick[cat.key] === i ? " on" : "") + (bad ? " off" : "");
-      if (bad) b.title = cat.key === "hairTie" ? "지금 뒷머리로는 묶을 수 없어요"
+      if (bad) b.title = cat.key === "hairExtra" ? "지금 뒷머리로는 묶을 수 없어요"
                                                : "지금 뒷머리에는 얹을 수 없어요";
       b.setAttribute("aria-label", item.n + " " + cat.label + " 선택");
       b.innerHTML = '<span class="opt-art">' + thumb(cat, i) + '</span>' +
@@ -621,33 +621,28 @@
      곱슬 머리에 일자 앞머리를 얹으면 질감이 따로 놀고, 웨이브 머리에
      짧고 딱 잘린 앞머리를 얹으면 흐름이 끊긴다. */
   const FAMILY = {
-    curly: { front: ["곱슬앞머리", "처피뱅", "짧은일자", "시스루"],
-             side:  ["곱슬갈래", "짧은갈래", "귀덮기"] },
-    wave:  { front: ["긴앞머리", "쓸어넘김", "시스루", "옆가르마", "7대3가르마"],
-             side:  ["웨이브컬", "볼선", "턱선"] },
+    curly: ["곱슬앞머리", "처피뱅", "짧은일자", "시스루"],
+    wave:  ["긴앞머리", "쓸어넘김", "시스루", "옆가르마", "7대3가르마"],
   };
   function familyOf(backName) {
-    const h = P.HAIR_BACK.find(x => x.n === backName);
+    const h = P.HAIR_BASE.find(x => x.n === backName);
     if (!h || !h.o || !h.o.cyc) return null;
     return h.o.cyc >= 5 ? "curly" : "wave";
   }
   /* 계열이 있으면 열 번 중 예닐곱 번은 어울리는 짝에서 고른다 */
-  function leanToFamily(backName) {
-    const fam = FAMILY[familyOf(backName)];
-    if (!fam) return;
-    for (const [key, cat] of [["hairFront", "front"], ["hairSide", "side"]]) {
-      if (!pick[key]) continue;                  // "없음" 은 그대로 둔다
-      if (Math.random() > 0.65) continue;
-      const names = fam[cat];
-      const i = listOf(key).findIndex(x => x.n === names[rnd(names.length)]);
-      if (i > 0) pick[key] = i;
-    }
+  function leanToFamily(baseName) {
+    const names = FAMILY[familyOf(baseName)];
+    if (!names) return;
+    if (!pick.bangs) return;                     // "없음" 은 그대로 둔다
+    if (Math.random() > 0.65) return;
+    const i = listOf("bangs").findIndex(x => x.n === names[rnd(names.length)]);
+    if (i > 0) pick.bangs = i;
   }
 
   function randomize() {
     mark();
     for (const k of KEYS) pick[k] = getRandomPart(k);
-    leanToFamily(at("hairBack", pick.hairBack).n);
+    leanToFamily(at("hairBase", pick.hairBase).n);
     skinIdx = rnd(P.SKIN.length);
     hairColIdx = rnd(P.HAIRCOL.length);
     normalizeSelection();
@@ -895,7 +890,7 @@
     randomize: randomize, undo: undo, resetAll: resetAll, paintAll: paintAll,
     finish: finish, buildCard: buildCard, thumb: thumb, shareText: shareText,
     placeFront: placeFront, placeGlasses: placeGlasses, fitIn: fitIn,
-    hairSpan: hairSpan, FIT_W: FIT_W, TEMPLE: TEMPLE,
+    hairSpan: hairSpan, hairSpanOf: hairSpanOf, FIT_W: FIT_W,
     typed: typed, bindInputs: bindInputs,
     getFaceTemplate: getFaceTemplate, getFitRect: getFitRect,
     getAnchorPoint: getAnchorPoint, drawMontage: drawMontage, browShift: browShift,

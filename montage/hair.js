@@ -88,8 +88,11 @@
     const endW = o.endW === undefined ? 0.92 : o.endW;
     const tight = cyc >= 5;                     // 곱슬이냐
     const pts = [];
-    /* 정수리에서 관자놀이까지 — 두상 곡선. 곱슬은 여기서도 뽀글거린다 */
-    const cr = [[0.3, 0.97], [0.62, 0.84], [0.9, 0.34]];
+    /* 정수리에서 관자놀이까지 — 두상 곡선. 좌우를 똑같이 두면 완전한
+       반원이 되어 검은 헬멧처럼 보인다. 한쪽 어깨를 살짝 낮춘다.
+       곱슬은 여기서도 뽀글거린다. */
+    const cr = dir < 0 ? [[0.3, 0.97], [0.62, 0.85], [0.9, 0.35]]
+                       : [[0.33, 0.93], [0.66, 0.79], [0.92, 0.31]];
     for (let k = 0; k < cr.length; k++) {
       const bump = tight ? wave * 0.5 * Math.sin((k * 0.5 + phase) * Math.PI * 2) : 0;
       pts.push([CX + dir * (tw * cr[k][0] + bump),
@@ -102,6 +105,8 @@
       let base = tw * (1 - t * (1 - endW));
       /* 끝말림 — 마지막 토막에서 안이나 밖으로 돈다 */
       if (o.tip && t > 0.72) base += o.tip * (t - 0.72) / 0.28;
+      /* 끝이 관자놀이의 7할보다 좁아지면 칼날로 보인다 — 거기서 멈춘다 */
+      base = Math.max(base, tw * 0.7);
       /* 위쪽은 차분하고 아래로 갈수록 물결이 커진다 (웨이브의 핵심) */
       const amp = wave * Math.min(1, t / 0.28) * (tight ? 1 : 0.45 + 0.55 * t);
       const ph = Math.sin((t * cyc + phase) * Math.PI * 2);
@@ -110,13 +115,25 @@
     return pts;
   }
 
-  /* 닫힌 둘레 점 목록 — 윤곽과 컬 원이 같은 선을 쓴다 */
+  /* 닫힌 둘레 점 목록 — 윤곽과 컬 원이 같은 선을 쓴다.
+     밑단을 가운데 한 점으로 닫으면 양 끝에서 그 점으로 모여 칼날이 된다
+     (재 보니 밑단폭/최대폭이 긴웨이브 0.24, 복슬곱슬 0.28). 끝 폭을
+     지키면서 가운데만 내려오는 활로 닫는다. */
   function outlinePts(o) {
     const hem = o.hem === undefined ? 6 : o.hem;
     const ph = o.cyc ? 0.38 : 0;                // 좌우 위상차
     const left = sideLine(o, -1, 0);
-    const right = sideLine(o, 1, ph).reverse();
-    return [[CX, TOP - o.crown]].concat(left, [[CX, TOP + o.len + hem]], right);
+    const rightFwd = sideLine(o, 1, ph);
+    const a = left[left.length - 1], b = rightFwd[rightFwd.length - 1];
+    const hemPts = [];
+    for (let k = 1; k <= 4; k++) {
+      const u = k / 5;
+      hemPts.push([a[0] + (b[0] - a[0]) * u,
+                   a[1] + (b[1] - a[1]) * u + hem * Math.sin(u * Math.PI)]);
+    }
+    /* 정수리 꼭대기도 살짝 비껴 둔다 — 가운데 꼭지가 서면 버섯처럼 보인다 */
+    return [[CX - o.temple * 0.07, TOP - o.crown]]
+      .concat(left, hemPts, rightFwd.reverse());
   }
   function outline(o) { return smooth(outlinePts(o), true); }
 
@@ -209,6 +226,15 @@
         [CX + o.temple * 0.46, TOP - o.crown * 0.52],
       ], false) + '" fill="none" stroke="#ffffff" stroke-opacity=".14" stroke-width="7" ' +
         'stroke-linecap="round"/>');
+      /* 가르마 — 정수리에서 이마선까지 한 줄. 이마선 아래는 얼굴이
+         덮으므로 여기만 보이고, 결이 이 선에서 좌우로 퍼진다. */
+      if (o.partX !== undefined) {
+        const px = CX + o.partX * o.temple * 0.5;
+        g.push('<path d="' + smooth([[px - o.partX * 4, TOP - o.crown * 0.92],
+          [px, TOP - o.crown * 0.4], [px + o.partX * 3, TOP + 2]], false) +
+          '" fill="none" stroke="#ffffff" stroke-opacity=".2" stroke-width="3.4" ' +
+          'stroke-linecap="round"/>');
+      }
       /* 안쪽 결 */
       g.push('<g fill="none" stroke="#000000" stroke-opacity=".22" stroke-width="2.6" ' +
         'stroke-linecap="round">');
@@ -238,7 +264,6 @@
        split    가르마 자리 (-1 왼쪽 ~ 1 오른쪽, 없으면 적지 않는다)
        bias     한쪽으로 쏠린 정도 (-1 ~ 1)
        jag      갈래 끝이 들쭉날쭉한 정도
-       fall     바깥 갈래가 볼 쪽으로 더 내려오는 길이 (긴 앞머리)
        curlTip  끝이 동글게 말리나
        lift     이마선 위로 올려 베이스에 묻는 깊이
      ------------------------------------------------------------ */
@@ -261,12 +286,17 @@
      달라져 썸네일과 결과가 어긋난다. */
   const JIT = [0, .46, -.3, .2, -.5, .3, -.14, .52, -.26, .36, -.42, .16, -.36, .24];
 
+  /* 가닥 하나의 반폭. 얼굴폭의 4~7% 안에 들어야 한다 — 예전엔 9~14%
+     라 굵은 검은 캡슐이 이마에 내려온 꼴이었다. 식을 테스트가 베껴 쓰면
+     어긋나므로 여기 한 곳에만 둔다. */
+  function strandHalf(W, step, dens) { return W * step * 0.5 * dens * 0.72 + 2; }
+
   function bangs(o) {
     const W = o.width, H = o.height;
     const n = o.strands, dens = o.density;
     const hasSplit = o.split !== undefined && o.split !== null;
     const sp = hasSplit ? o.split : 0;
-    const bias = o.bias || 0, jag = o.jag || 0, fall = o.fall || 0;
+    const bias = o.bias || 0, jag = o.jag || 0;
     const topY = TOP - (o.lift === undefined ? 18 : o.lift);
     const baseDrop = H * (o.base === undefined ? 0.6 : o.base);
     /* 머리 베이스 안쪽을 따라가는 활 — 가운데가 가장 높다 */
@@ -278,10 +308,10 @@
       if (hasSplit) t = 0.38 + 0.74 * Math.min(1, Math.abs(u - sp) / 0.72);
       if (bias) t *= 1 + bias * u * 0.5;
       t *= 1 + jag * JIT[k % JIT.length];
-      /* 맨 바깥 갈래만 볼 쪽으로 더 내려온다. 0.78 보다 바깥이라야 눈
-         구역(가운데 +-54)을 벗어나 눈을 안 가린다 — 얼굴 옆으로 흐른다. */
-      const out = fall * Math.max(0, Math.abs(u) - 0.78) / 0.22;
-      return Math.max(H * 0.2, H * t) + out * (bias === 0 || u * bias > 0 ? 1 : 0.3);
+      /* 볼 쪽으로 흘러내리던 가닥(fall)은 걷어냈다. 앞머리 폭을 얼굴폭의
+         59~74% 로 줄이니 그 가닥이 더는 눈 바깥에 있지 못해 눈을 가렸다.
+         앞머리는 전부 눈썹 위에서 끝낸다. */
+      return Math.max(H * 0.2, H * t);
     };
     /* 갈래가 흐르는 쪽 — 가르마는 선에서 바깥으로, 쓸어넘김은 한쪽으로 */
     const flowAt = u => {
@@ -316,7 +346,10 @@
         const flow = flowAt(u);
         const a = [CX + u * W * 0.93, arcY(u) + 2];
         const b = [a[0] + flow, TOP + lenAt(u, k)];
-        const w0 = W * step * 0.5 * dens + 1.4;
+        /* 가닥 굵기 — 얼굴폭의 4~7% 안에 둔다. 예전엔 9~14% 라
+           굵은 검은 캡슐 여러 개가 이마에 내려온 꼴이었다. 숱은
+           가닥 굵기가 아니라 밑판(base)과 가닥 수가 낸다. */
+        const w0 = strandHalf(W, step, dens);
         const w1 = w0 * (o.curlTip ? 0.74 : 0.4);
         g.push('<path fill="' + c + '" d="' +
           strand(a, b, w0, w1, flow * 0.3 + u * 2.5) + '"/>');
@@ -326,7 +359,7 @@
       /* ---- 3) 결 — 흐르는 쪽이 보이게 아주 옅게 ---- */
       g.push('<g fill="none" stroke="#000000" stroke-opacity=".2" stroke-width="2.2" ' +
         'stroke-linecap="round">');
-      for (let k = 0; k < n; k += 2) {
+      for (let k = 1; k < n; k += 3) {
         const u = -1 + k * step;
         const a = [CX + u * W * 0.93, arcY(u) + 6];
         const L = lenAt(u, k), fx = flowAt(u);
@@ -346,58 +379,9 @@
     };
   }
 
-  /* ------------------------------------------------------------
-     옆머리 — 관자놀이에서 볼을 타고 내려온다.
-     앞머리와 뒷머리 사이를 이어 주는 몫이라, 시작점이 관자놀이여야 한다.
-       len   얼굴을 타고 내려오는 길이
-       grip  얼굴에 붙는 정도 (0 붙음 ~ 1 벌어짐)
-       taper 끝이 모이는 정도
-       wave  바깥선 진폭 / cyc 주기 수 — 뒷머리와 같은 규칙이다.
-             웨이브 옆머리는 아래로 흐르고, 곱슬 옆머리는 볼 옆에서 복슬하다
-       curls 바깥선에 두르는 작은 컬 개수 (곱슬)
-     ------------------------------------------------------------ */
-  function side(o) {
-    const tw = o.tw === undefined ? 76 : o.tw;
-    const len = o.len, grip = o.grip === undefined ? 0.3 : o.grip;
-    const taper = o.taper === undefined ? 0.6 : o.taper;
-    const wave = o.wave || 0, cyc = o.cyc || 0;
-    const STEPS = 10;
-    return c => {
-      const g = ['<g fill="' + c + '">'];
-      for (const s of [-1, 1]) {
-        /* 바깥선 — 관자놀이에서 볼을 타고 내려온다. 계열이 있으면
-           뒷머리와 같은 사인 규칙을 쓴다 (따로 놀지 않게). */
-        const out = [[CX + s * tw * 0.86, TOP + 6]];
-        for (let k = 1; k <= STEPS; k++) {
-          const t = k / STEPS;
-          const base = tw + grip * 10 * Math.sin(t * Math.PI);
-          const amp = wave * Math.min(1, t / 0.3) * (cyc >= 5 ? 1 : 0.4 + 0.6 * t);
-          const ph = Math.sin((t * cyc + (s < 0 ? 0 : 0.38)) * Math.PI * 2);
-          out.push([CX + s * (base + amp * ph), TOP + len * (0.06 + t * 0.94)]);
-        }
-        const back = [[CX + s * tw * taper, TOP + len * 0.96],
-                      [CX + s * tw * 0.66, TOP + len * 0.4],
-                      [CX + s * tw * 0.7, TOP + 8]];
-        g.push('<path d="' + smooth(out.concat(back), true) + '"/>');
-        /* 곱슬 — 바깥선에 작은 컬을 두른다 */
-        if (o.curls) {
-          for (let k = 0; k < o.curls; k++) {
-            const p = out[Math.round(1 + k * (out.length - 2) / Math.max(1, o.curls - 1))];
-            const r = tw * 0.1 * (0.8 + 0.3 * Math.abs(Math.sin(k * 1.7)));
-            g.push('<circle cx="' + r1(p[0]) + '" cy="' + r1(p[1]) +
-              '" r="' + r1(r) + '"/>');
-          }
-        }
-        /* 웨이브 — 끝이 말린다 */
-        if (o.curl) {
-          g.push('<ellipse cx="' + r1(CX + s * tw * 0.88) + '" cy="' +
-            r1(TOP + len * 0.92) + '" rx="' + r1(tw * 0.17) + '" ry="' + r1(tw * 0.14) + '"/>');
-        }
-      }
-      g.push('</g>');
-      return g.join("");
-    };
-  }
+  /* 옆머리 생성기는 걷어냈다. 옆머리 네모가 뒷머리 네모 안에 평균 85%
+     들어가 있어 같은 자리를 두 번 칠하고 있었다 — 귀 옆이 검은 덩어리로
+     보이던 원인이다. 측면 실루엣은 hairBase 의 outline() 이 맡는다. */
 
   /* ------------------------------------------------------------
      묶음 — 뒷머리 뒤쪽 기준점에서 파생된다 (혼자 떠 있지 않게)
@@ -480,6 +464,14 @@
     { n: "볼륨중단발", o: { crown: 44, temple: 86, len: 156, endW: 0.92, hem: 14,
         lines: 5 } },
     { n: "긴생머리", o: { crown: 36, temple: 80, len: 208, endW: 0.96, hem: 12, lines: 6 } },
+    /* 가르마 — 가운데에서 갈라 넘긴 긴 머리. 가르마가 앞머리에만 있어서
+       '가르마 머리' 자체를 고를 수 없었다. */
+    { n: "가르마머리", o: { crown: 30, temple: 81, len: 196, endW: 0.95, hem: 12,
+        partX: -0.45, lines: 6 } },
+    /* 묶음 베이스 — 뒤로 넘겨 당긴 머리. 묶음(extra)과 짝이다. 풀린 긴
+       머리에 꼬리를 달면 둘이 따로 놀았다. */
+    { n: "묶음머리", o: { crown: 28, temple: 74, len: 52, endW: 0.98, hem: 4,
+        partX: 0, lines: 4 } },
 
     /* 웨이브 — 큰 물결, 긴 흐름. 주기가 적고 진폭이 크다. 아래로 갈수록
        물결이 커지고 머리끝이 말린다. */
@@ -519,47 +511,35 @@
      fit — 머리 실루엣을 얼마나 덮나. */
   const FRONT = [
     { n: "없음", f: () => "" },
-    { n: "일자", o: { kind: "straight", width: 78, height: 33, base: .72,
-        strands: 11, density: 1, jag: .05, lift: 18, fit: "standard" } },
-    { n: "짧은일자", o: { kind: "straight", width: 74, height: 27, base: .7,
-        strands: 10, density: 1, jag: .06, lift: 17, fit: "standard" } },
+    { n: "일자", o: { kind: "straight", width: 78, height: 33, base: .76,
+        strands: 13, density: 1, jag: .05, lift: 18, fit: "standard" } },
+    { n: "짧은일자", o: { kind: "straight", width: 74, height: 27, base: .72,
+        strands: 12, density: 1, jag: .06, lift: 17, fit: "standard" } },
     { n: "시스루", o: { kind: "seethrough", width: 76, height: 28, base: .24,
         strands: 9, density: .52, jag: .3, lift: 16, fit: "standard" } },
     { n: "처피뱅", o: { kind: "choppy", width: 72, height: 22, base: .52,
         strands: 13, density: .92, jag: .34, lift: 17, fit: "standard" } },
-    { n: "곱슬앞머리", o: { kind: "curl", width: 78, height: 30, base: .56,
-        strands: 9, density: .9, jag: .2, curlTip: 1, lift: 19, fit: "standard" } },
+    { n: "곱슬앞머리", o: { kind: "curl", width: 78, height: 30, base: .6,
+        strands: 11, density: .9, jag: .2, curlTip: 1, lift: 19, fit: "standard" } },
     { n: "5대5가르마", o: { kind: "part", width: 80, height: 38, base: .6,
-        strands: 11, density: .95, split: 0, jag: .08, lift: 18, fit: "wide" } },
+        strands: 12, density: .95, split: 0, jag: .08, lift: 18, fit: "wide" } },
     { n: "6대4가르마", o: { kind: "part", width: 80, height: 34, base: .6,
-        strands: 11, density: .95, split: -.26, jag: .08, lift: 18, fit: "wide" } },
+        strands: 12, density: .95, split: -.26, jag: .08, lift: 18, fit: "wide" } },
     { n: "7대3가르마", o: { kind: "part", width: 80, height: 39, base: .62,
-        strands: 11, density: .95, split: -.52, jag: .08, lift: 18, fit: "wide" } },
+        strands: 12, density: .95, split: -.52, jag: .08, lift: 18, fit: "wide" } },
     { n: "옆가르마", o: { kind: "part", width: 82, height: 40, base: .62,
-        strands: 11, density: .95, split: .5, jag: .1, lift: 18, fit: "wide" } },
+        strands: 12, density: .95, split: .5, jag: .1, lift: 18, fit: "wide" } },
     { n: "긴앞머리", o: { kind: "sweep", width: 84, height: 42, base: .66,
-        strands: 11, density: .95, bias: -.8, fall: 26, jag: .12, lift: 16,
+        strands: 12, density: .95, bias: -.8, jag: .12, lift: 16,
         fit: "wide" } },
     { n: "쓸어넘김", o: { kind: "sweep", width: 82, height: 31, base: .5,
-        strands: 10, density: .9, bias: .85, fall: 14, jag: .14, lift: 17,
+        strands: 12, density: .9, bias: .85, jag: .14, lift: 17,
         fit: "wide" } },
-    { n: "올백", o: { kind: "straight", width: 72, height: 11, base: .8,
-        strands: 9, density: 1, jag: .04, lift: 22, fit: "narrow" } },
+    { n: "올백", o: { kind: "straight", width: 72, height: 11, base: .84,
+        strands: 11, density: 1, jag: .04, lift: 22, fit: "narrow" } },
   ];
 
-  /* 옆머리 */
-  const SIDE = [
-    { n: "없음", f: () => "" },
-    { n: "짧은갈래", o: { len: 44, grip: 0.1, taper: 0.66 } },
-    { n: "귀덮기", o: { len: 72, grip: 0.2, taper: 0.62 } },
-    { n: "볼선", o: { len: 112, grip: 0.3, taper: 0.58 } },
-    { n: "턱선", o: { len: 150, grip: 0.36, taper: 0.56 } },
-    { n: "구레나룻", o: { len: 52, grip: 0.0, taper: 0.78 } },
-    { n: "웨이브컬", o: { len: 128, grip: 0.42, taper: 0.52, curl: 1,
-        wave: 8, cyc: 2.2 } },
-    { n: "곱슬갈래", o: { len: 104, grip: 0.3, taper: 0.56,
-        wave: 5, cyc: 7, curls: 9 } },
-  ];
+
 
   /* 묶음 */
   const TIE = [
@@ -587,10 +567,10 @@
 
   window.MONTAGE_HAIR = {
     REF: { CX: CX, TOP: TOP, BROW: BROW, CHIN: CHIN, HALF: HALF },
-    smooth: smooth, outline: outline, cap: cap, bangs: bangs, side: side, tie: tie,
-    BACK: build(BACK, cap),
-    FRONT: build(FRONT, bangs),
-    SIDE: build(SIDE, side),
-    TIE: build(TIE, tie),
+    smooth: smooth, outline: outline, cap: cap, bangs: bangs, tie: tie,
+    strandHalf: strandHalf,
+    BASE: build(BACK, cap),
+    BANGS: build(FRONT, bangs),
+    EXTRA: build(TIE, tie),
   };
 })();
