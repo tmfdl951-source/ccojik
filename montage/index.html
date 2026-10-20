@@ -48,13 +48,33 @@
         <span class="f-no" id="fNo">제 0000 호</span>
       </div>
       <div class="f-photo"><div class="f-art" id="faceArt"></div></div>
-      <!-- 분위기용 더미 정보 — 고른 파츠로 짜 맞춘다 -->
-      <dl class="f-info">
-        <div><dt>이 름</dt><dd id="fName">미상</dd></div>
-        <div><dt>나이대</dt><dd id="fAge">-</dd></div>
-        <div><dt>특 징</dt><dd id="fFeat">-</dd></div>
-        <div><dt>인상착의</dt><dd id="fWear">-</dd></div>
-      </dl>
+      <!-- 빈 칸은 직접 적는다. 안 적으면 고른 파츠로 지어낸 글이 들어간다. -->
+      <div class="f-form">
+        <div class="ff-row">
+          <label class="ff-k" for="inName">이 름</label>
+          <input class="ff-v" id="inName" type="text" maxlength="12"
+            autocomplete="off" enterkeyhint="done" placeholder="이름을 입력하세요" />
+        </div>
+        <div class="ff-row">
+          <label class="ff-k" for="inNick">별 명</label>
+          <input class="ff-v" id="inNick" type="text" maxlength="14"
+            autocomplete="off" enterkeyhint="done" placeholder="별명 (없어도 됨)" />
+        </div>
+        <div class="ff-row">
+          <label class="ff-k" for="inAge">나이대</label>
+          <input class="ff-v" id="inAge" type="text" maxlength="14"
+            autocomplete="off" enterkeyhint="done" placeholder="20대 추정" />
+        </div>
+        <div class="ff-row">
+          <label class="ff-k" for="inFeat">특 징</label>
+          <input class="ff-v" id="inFeat" type="text" maxlength="40"
+            autocomplete="off" enterkeyhint="done" placeholder="고른 파츠로 자동" />
+        </div>
+        <div class="ff-row">
+          <span class="ff-k">인상착의</span>
+          <span class="ff-v fixed" id="fWear">-</span>
+        </div>
+      </div>
     </div>
 
     <div class="picker">
@@ -86,7 +106,7 @@
       <p class="f-call">이 사람, 누구를 만든 걸까요?</p>
       <div class="f-btns row">
         <button class="btn big" type="button" id="saveBtn">전단지 저장</button>
-        <button class="btn ghost" type="button" id="shareBtn">공유</button>
+        <button class="btn ghost" type="button" id="shareBtn">친구에게 공유</button>
       </div>
       <div class="f-btns row">
         <button class="btn soft" type="button" id="editBtn">더 다듬기</button>

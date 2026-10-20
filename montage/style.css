@@ -146,6 +146,32 @@ body { display: flex; align-items: center; justify-content: center; }
 }
 .f-info dd { flex: 1 1 auto; font-weight: 700; min-width: 0; }
 
+/* 전단지 양식 — 밑줄 그어 놓은 빈 칸에 적는 느낌 */
+.f-form {
+  width: 100%; flex-shrink: 0;
+  display: flex; flex-direction: column; gap: clamp(1px, .4vh, 4px);
+  border-top: 3px solid var(--ink);
+  padding-top: clamp(3px, .8vh, 7px);
+  font-size: clamp(11px, min(3.3vw, 1.7vh), 15px);
+}
+.ff-row { display: flex; align-items: baseline; gap: 7px; }
+.ff-k {
+  flex: 0 0 clamp(46px, 14vw, 62px);
+  font-weight: 800; color: var(--brown); letter-spacing: .08em;
+}
+.ff-v {
+  flex: 1 1 auto; min-width: 0;
+  font-family: var(--f); font-size: inherit; font-weight: 700; color: var(--ink);
+  background: transparent;
+  border: 0; border-bottom: 2px solid #C1B48E;
+  border-radius: 0; padding: 2px 2px 1px;
+  -webkit-user-select: text; user-select: text;
+  touch-action: manipulation;
+}
+.ff-v::placeholder { color: #A89C78; font-weight: 600; }
+.ff-v:focus { outline: 0; border-bottom-color: var(--red); background: #FFFDF4; }
+.ff-v.fixed { border-bottom: 2px dotted #D5CBAC; }
+
 .f-desc {
   text-align: center; line-height: 1.5; color: var(--gray);
   font-size: clamp(12px, min(3.6vw, 1.9vh), 16px);
@@ -310,8 +336,11 @@ body { display: flex; align-items: center; justify-content: center; }
 }
 @media (max-height: 560px) {
   .f-desc { font-size: 11px; }
-  .f-info { font-size: 10px; }
+  .f-info, .f-form { font-size: 10px; }
   .f-info > div:nth-child(n+4) { display: none; }
+  /* 자판이 올라와 화면이 낮아지면 별명·나이대 칸부터 접는다 —
+     이름과 특징은 남긴다 */
+  .ff-row:nth-child(2), .ff-row:nth-child(3) { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::after, *::before { animation: none !important; transition-duration: .01ms !important; }

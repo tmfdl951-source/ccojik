@@ -46,19 +46,60 @@
       r3(sx) + ' ' + r3(sy) + ') translate(' + -REF.cx + ' ' + -REF.top + ')">' +
       inner + '</g>';
   }
+
+  /* 앞머리는 뚜껑이 아니라 '이마에 걸치는 것' 이다.
+     그냥 머리통 배율로 늘리면 171가지 조합 중 144가지가 눈썹을 덮었다
+     (최대 21px). 그래서 아래 끝이 눈썹선 위에 오도록 세로 배율을 따로
+     잡는다. 각 꼴이 원래 이마를 얼마나 덮는지(drop)는 지켜 주되, 1 을
+     넘지 못하게 묶는다 — 1 이면 눈썹선에 딱 닿는 깊이다.
+     폭은 fitMode 로 좁은/보통/넓은 꼴을 구분한다. */
+  const FIT_W = { narrow: 0.92, standard: 1.02, wide: 1.1 };
+  function placeFront(inner, f, name) {
+    if (!inner) return "";
+    const meta = P.HAIR_FIT[name] || { drop: 1, fit: "standard" };
+    const kx = f.sx * (FIT_W[meta.fit] || 1.02);
+    const fore = f.browY - f.hairlineY;             // 이 얼굴의 이마 높이
+    const drop = clamp(meta.drop, 0.45, 1);         // 눈썹선을 넘지 않는다
+    const span = REF.browY - REF.top;               // 기준 이마 높이
+    /* 그려진 아래 끝이 기준 이마의 몇 배였나 -> 이 얼굴에서 그만큼만 */
+    const refLow = REF.top + span * meta.drop;
+    const want = f.hairlineY + fore * drop;
+    const ky = clamp((want - f.hairlineY) / Math.max(6, refLow - REF.top), 0.5, 1.8);
+    return '<g transform="translate(' + f.cx + ' ' + r2(f.hairlineY) + ') scale(' +
+      r3(kx) + ' ' + r3(ky) + ') translate(' + -REF.cx + ' ' + -REF.top + ')">' +
+      inner + '</g>';
+  }
+
+  /* 작은 파츠(점·주근깨·흉터·볼터치…)는 자유도가 커도 되지만 얼굴 밖으로는
+     못 나간다. 기준 네모(EXT)를 옮겨 보고 넘치면 배율을 줄여 끌어당긴다. */
+  function fitIn(ext, refY, f, fy) {
+    if (!ext) return null;
+    let k = f.featScale;
+    for (let n = 0; n < 6; n++) {
+      const x1 = f.cx + k * (ext[0] - REF.cx), x2 = f.cx + k * (ext[2] - REF.cx);
+      const y1 = fy + k * (ext[1] - refY), y2 = fy + k * (ext[3] - refY);
+      const out = Math.max(f.leftCheekX - x1, x2 - f.rightCheekX,
+                           f.topY - y1, y2 - f.chinY);
+      if (out <= 1) break;
+      k *= 0.9;
+    }
+    return k === f.featScale ? null : { scale: k / f.featScale };
+  }
   const r2 = v => Math.round(v * 100) / 100;
   const r3 = v => Math.round(v * 1000) / 1000;
 
   /* ============================================================
      상태
      ============================================================ */
-  const KEYS = ["face", "hairBack", "hairFront", "hairTie", "brows", "eyes",
+  const KEYS = ["face", "hairBack", "hairFront", "hairSide", "hairTie", "brows", "eyes",
                 "nose", "mouth", "ears", "glasses", "detail",
                 "lens", "liner", "blush", "mole"];
   const listOf = k => P.CATS.find(c => c.key === k).list;
   let pick = {};
   let skinIdx = 0, hairColIdx = 0, curCat = "face";
   const history = [];
+  /* 사용자가 직접 적는 칸. 비워 두면 고른 파츠로 지어낸 글이 들어간다. */
+  const typed = { name: "", nick: "", age: "", feat: "" };
 
   function snapshot() {
     return { pick: Object.assign({}, pick), skinIdx: skinIdx, hairColIdx: hairColIdx };
@@ -70,6 +111,7 @@
 
   function resetAll() {
     pick = {};
+    typed.name = ""; typed.nick = ""; typed.age = ""; typed.feat = "";
     for (const k of KEYS) pick[k] = 0;
     pick.hairFront = 1;                 // 맨머리로 시작하면 몽타주 같지 않다
     skinIdx = 0; hairColIdx = 0;
@@ -95,16 +137,23 @@
     L.push(place(P.NECK(s), REF.chin - 20, f, f.chin - 20 * f.sy));
     L.push(place(listOf("ears")[pick.ears].s(s), REF.earY, f, f.earY));
     L.push(f.d(s));
-    L.push(place(listOf("blush")[pick.blush].s, REF.cheekY, f, f.cheekY));
+    L.push(place(listOf("blush")[pick.blush].s, REF.cheekY, f, f.cheekY,
+      fitIn(P.EXT.BLUSH[pick.blush], REF.cheekY, f, f.cheekY)));
     L.push(place(listOf("brows")[pick.brows].s, REF.browY, f, f.browY));
     L.push(place(listOf("eyes")[pick.eyes].s, REF.eyeY, f, f.eyeY));
     L.push(place(listOf("lens")[pick.lens].s, REF.eyeY, f, f.eyeY));
     L.push(place(listOf("liner")[pick.liner].s, REF.eyeY, f, f.eyeY));
     L.push(place(listOf("nose")[pick.nose].s, REF.noseY, f, f.noseY));
     L.push(place(listOf("mouth")[pick.mouth].s, REF.mouthY, f, f.mouthY));
-    L.push(place(listOf("mole")[pick.mole].s, REF.mouthY, f, f.mouthY));
-    if (!det.top) L.push(place(det.s, REF.mouthY, f, f.mouthY));
-    L.push(placeHair(listOf("hairFront")[pick.hairFront].f(hc), f));
+    L.push(place(listOf("mole")[pick.mole].s, REF.mouthY, f, f.mouthY,
+      fitIn(P.EXT.MOLE[pick.mole], REF.mouthY, f, f.mouthY)));
+    if (!det.top) {
+      L.push(place(det.s, REF.mouthY, f, f.mouthY,
+        fitIn(P.EXT.DETAIL[pick.detail], REF.mouthY, f, f.mouthY)));
+    }
+    const fr = listOf("hairFront")[pick.hairFront];
+    L.push(placeFront(fr.f(hc), f, fr.n));
+    L.push(placeHair(listOf("hairSide")[pick.hairSide].f(hc), f));
     L.push(placeHair(listOf("hairTie")[pick.hairTie].f(hc), f));
     L.push(place(listOf("glasses")[pick.glasses].s, REF.eyeY, f, f.eyeY));
     if (det.top) L.push(place(det.s, REF.mouthY, f, f.mouthY));
@@ -140,10 +189,14 @@
     if (nm("glasses") !== "없음") wear.push(nm("glasses") + " 안경");
     const d = listOf("detail")[pick.detail];
     if (d.top) wear.push(nm("detail") + " 착용");
+    const made = feat.slice(0, 4).join(", ");
     return {
-      name: "미상",
-      age: AGES[(sum * 3) % AGES.length] + " 추정",
-      feat: feat.slice(0, 4).join(", "),
+      /* 적은 게 있으면 그대로, 없으면 지어낸 것 */
+      name: typed.name.trim() || "미상",
+      nick: typed.nick.trim(),
+      age: typed.age.trim() || (AGES[(sum * 3) % AGES.length] + " 추정"),
+      feat: typed.feat.trim() || made,
+      autoFeat: made,
       wear: wear.join(", "),
       seen: SEEN[(sum * 5) % SEEN.length],
       no: String(1000 + (sum * 37) % 9000),
@@ -151,13 +204,21 @@
   }
   function paintInfo() {
     const i = flyerInfo();
-    $("fName").textContent = i.name;
-    $("fAge").textContent = i.age;
-    $("fFeat").textContent = i.feat;
     $("fWear").textContent = i.wear;
     $("fNo").textContent = "제 " + i.no + " 호";
-    const r = $("rSeen");
-    if (r) r.textContent = i.seen;
+    /* 적는 칸은 placeholder 로 지어낸 글을 보여 준다 — 비워 두면 그게 들어간다 */
+    $("inName").placeholder = "이름을 입력하세요";
+    $("inNick").placeholder = "별명 (없어도 됨)";
+    $("inAge").placeholder = i.age;
+    $("inFeat").placeholder = i.autoFeat;
+  }
+  /* 적는 칸 -> 글 */
+  function bindInputs() {
+    const map = { inName: "name", inNick: "nick", inAge: "age", inFeat: "feat" };
+    for (const id of Object.keys(map)) {
+      const el = $(id);
+      el.addEventListener("input", () => { typed[map[id]] = el.value; paintInfo(); });
+    }
   }
 
   /* ============================================================
@@ -314,7 +375,7 @@
     sfxDone();
     $("resArt").innerHTML = buildSVG();
     const i = flyerInfo();
-    $("rName").textContent = i.name;
+    $("rName").textContent = i.name + (i.nick ? " (" + i.nick + ")" : "");
     $("rAge").textContent = i.age;
     $("rFeat").textContent = i.feat;
     $("rWear").textContent = i.wear;
@@ -381,7 +442,7 @@
       c.fillText(v, 330, y);
       y += 56;
     };
-    row("이 름", i.name);
+    row("이 름", i.name + (i.nick ? "  (" + i.nick + ")" : ""));
     row("나이대", i.age);
     row("특 징", i.feat);
     row("인상착의", i.wear);
@@ -420,6 +481,13 @@
     }
     openSave(url);
   }
+  /* 공유 문구 — 이름을 적었으면 그 사람을 찾는 말로 */
+  function shareText() {
+    const i = flyerInfo();
+    return i.name === "미상"
+      ? "내가 만든 몽타주 전단지! 이 사람을 찾습니다"
+      : i.name + " 몽타주 전단지를 만들었어요!";
+  }
   async function share() {
     let cv;
     try { cv = await buildCard(); } catch (_) { toast("전단지를 만들지 못했어요"); return; }
@@ -428,18 +496,23 @@
     const file = new File([blob], "ccojik-montage.png", { type: "image/png" });
     try {
       if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
-        await navigator.share({ files: [file], title: "꼬직 · 몽타주 만들기" });
+        await navigator.share({ files: [file], title: "꼬직 · 몽타주 만들기", text: shareText() });
         return;
       }
     } catch (_) {}
-    try { await navigator.clipboard.writeText(location.href); toast("링크를 복사했어요"); }
-    catch (_) { save(); }
+    /* 공유를 못 쓰는 브라우저 — 문구와 링크를 복사해 주고 그림은 내려받게 */
+    try {
+      await navigator.clipboard.writeText(shareText() + " " + location.href);
+      toast("공유 문구를 복사했어요");
+    } catch (_) {}
+    save();
   }
 
   /* ============================================================
      묶기
      ============================================================ */
   resetAll();
+  bindInputs();
   $("startBtn").addEventListener("click", () => { sfx(); show("buildScreen"); paintAll(); });
   $("startRnd").addEventListener("click", () => { randomize(); show("buildScreen"); });
   $("backBtn").addEventListener("click", () => { sfx(); show("startScreen"); });
@@ -466,7 +539,8 @@
   window.__montage = {
     place: place, placeHair: placeHair, buildSVG: buildSVG, flyerInfo: flyerInfo,
     randomize: randomize, undo: undo, resetAll: resetAll, paintAll: paintAll,
-    finish: finish, buildCard: buildCard, thumb: thumb,
+    finish: finish, buildCard: buildCard, thumb: thumb, shareText: shareText,
+    placeFront: placeFront, fitIn: fitIn, typed: typed, bindInputs: bindInputs,
     get pick() { return pick; }, set pick(v) { pick = v; },
     get skinIdx() { return skinIdx; }, set skinIdx(v) { skinIdx = v; },
     get hairColIdx() { return hairColIdx; }, set hairColIdx(v) { hairColIdx = v; },
