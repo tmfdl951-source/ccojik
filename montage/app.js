@@ -84,25 +84,58 @@
       inner + '</g>';
   }
 
-  /* 앞머리는 뚜껑이 아니라 '이마에 걸치는 것' 이다.
-     그냥 머리통 배율로 늘리면 171가지 조합 중 144가지가 눈썹을 덮었다
-     (최대 21px). 그래서 아래 끝이 눈썹선 위에 오도록 세로 배율을 따로
-     잡는다. 각 꼴이 원래 이마를 얼마나 덮는지(drop)는 지켜 주되, 1 을
-     넘지 못하게 묶는다 — 1 이면 눈썹선에 딱 닿는 깊이다.
-     폭은 fitMode 로 좁은/보통/넓은 꼴을 구분한다. */
+  /* 앞머리는 뚜껑도 아니고 이마에 붙인 조각도 아니다 — 머리에서 내려오는
+     것이다. 위끝과 아래끝을 먼저 못으로 박고 그 사이를 채우도록 배율을
+     끌어낸다.
+       위끝  = 이마선 - 이마높이 x 내림폭   (늘 머리 쪽에서 시작)
+       아래끝 = 눈썹선 바로 위               (눈을 침범하지 않는다)
+       폭    = max(얼굴폭 x fit, 머리실루엣폭 x 관자놀이비율)
+     예전엔 폭을 얼굴폭만 보고 잡아서 뒷머리보다 한쪽 6~27px 좁았고,
+     관자놀이에 틈이 생겨 가발 조각처럼 보였다.
+     fit 은 꼴마다 다르다 — 모히칸처럼 좁은 것은 좁게 두되 머리에 붙게. */
   const FIT_W = { narrow: 0.92, standard: 1.02, wide: 1.1 };
+  /* 머리 실루엣을 얼마나 덮나 */
+  const TEMPLE = { narrow: 0.74, standard: 0.99, wide: 1.04 };
+
+  /* 지금 머리(뒷머리/옆머리) 실루엣의 폭 — 앞머리가 맞춰야 할 기준 */
+  function hairSpan(f) {
+    let w = f.width;
+    for (const k of ["hairBack", "hairSide"]) {
+      const idx = pick[k];
+      if (!idx) continue;
+      const e = P.EXT[k === "hairBack" ? "HAIR_BACK" : "HAIR_SIDE"][idx];
+      if (!e) continue;
+      w = Math.max(w, (e[2] - e[0]) * f.sx * 1.02);
+    }
+    return w;
+  }
+
   function placeFront(inner, f, name) {
     if (!inner) return "";
     const meta = P.HAIR_FIT[name] || { drop: 1, fit: "standard" };
-    const kx = f.sx * (FIT_W[meta.fit] || 1.02);
-    const fore = f.browY - f.hairlineY;             // 이 얼굴의 이마 높이
-    const drop = clamp(meta.drop, 0.45, 1);         // 눈썹선을 넘지 않는다
-    const span = REF.browY - REF.top;               // 기준 이마 높이
-    /* 그려진 아래 끝이 기준 이마의 몇 배였나 -> 이 얼굴에서 그만큼만 */
-    const refLow = REF.top + span * meta.drop;
-    const want = f.hairlineY + fore * drop;
-    const ky = clamp((want - f.hairlineY) / Math.max(6, refLow - REF.top), 0.5, 1.8);
-    return '<g transform="translate(' + f.cx + ' ' + r2(f.hairlineY) + ') scale(' +
+    const e = P.EXT.HAIR_FRONT[P.HAIR_FRONT.findIndex(h => h.n === name)];
+    if (!e) return placeHair(inner, f);
+    const fore = f.browY - f.hairlineY;
+    const refFore = REF.browY - REF.top;
+
+    /* --- 가로 --- */
+    const refW = Math.max(8, e[2] - e[0]);
+    const wantW = Math.max(f.width * (FIT_W[meta.fit] || 1.02),
+                           hairSpan(f) * (TEMPLE[meta.fit] || 0.99));
+    const kx = clamp(wantW / refW, 0.6, 2.2);
+
+    /* --- 세로 --- */
+    /* 그려진 대로의 내림폭(이마선 위로 얼마나 솟았나). 너무 얕으면 끌어올려
+       머리에서 내려오는 꼴을 만든다. */
+    const over = clamp((REF.top - e[1]) / refFore, 0.3, 1.2);
+    const wantTop = f.hairlineY - fore * over;
+    const wantBot = f.browY - 2 * f.sy;
+    const refH = Math.max(6, e[3] - e[1]);
+    const ky = clamp((wantBot - wantTop) / refH, 0.5, 2.2);
+    /* y1 이 wantTop 에 꽂히도록 원점을 옮긴다 */
+    const y0 = wantTop - ky * (e[1] - REF.top);
+
+    return '<g transform="translate(' + r2(f.cx) + ' ' + r2(y0) + ') scale(' +
       r3(kx) + ' ' + r3(ky) + ') translate(' + -REF.cx + ' ' + -REF.top + ')">' +
       inner + '</g>';
   }
@@ -790,6 +823,7 @@
     randomize: randomize, undo: undo, resetAll: resetAll, paintAll: paintAll,
     finish: finish, buildCard: buildCard, thumb: thumb, shareText: shareText,
     placeFront: placeFront, placeGlasses: placeGlasses, fitIn: fitIn,
+    hairSpan: hairSpan, FIT_W: FIT_W, TEMPLE: TEMPLE,
     typed: typed, bindInputs: bindInputs,
     getFaceTemplate: getFaceTemplate, getFitRect: getFitRect,
     getAnchorPoint: getAnchorPoint, drawMontage: drawMontage, browShift: browShift,

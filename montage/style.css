@@ -20,15 +20,18 @@
      화면 크기에 따라 같이 줄지만, 같은 화면에서는 어느 칸을 눌러도
      한 픽셀도 안 움직인다. 칸마다 항목 수가 달라도 아래 네 줄의 높이는
      여기서 정한 값으로 못 박혀 있다. */
-  --card-w: clamp(52px, 15vw, 74px);     /* 썸네일 카드 폭 */
-  --label-h: clamp(11px, 2.9vw, 15px);   /* 카드 밑 이름 줄 */
-  --card-h: calc(var(--card-w) * 1.32 + var(--label-h));
-  --pick-gap: clamp(3px, .7vh, 7px);
-  --cell-gap: clamp(3px, .8vh, 6px);
-  --tab-h: clamp(34px, 6vh, 46px);       /* 카테고리 탭 줄 (손가락 터치 자리) */
+  /* 카드는 '정사각 미리보기 + 아래 이름 한 줄'. 예전엔 1.32 배로 길어서
+     세로로 늘어나 보였다. */
+  --card-w: clamp(62px, 18vw, 92px);     /* 카드 폭 = 미리보기 한 변 */
+  --label-h: clamp(14px, 3.4vw, 20px);   /* 카드 밑 이름 줄 */
+  --card-h: calc(var(--card-w) + var(--label-h));
+  --pick-gap: clamp(4px, .9vh, 9px);
+  --cell-gap: clamp(5px, 1.4vw, 10px);
+  /* 탭은 두 줄이다 — 가로로 숨어서 못 누르는 칸이 없게 */
+  --tab-h: clamp(60px, 10.6vh, 80px);
   --list-h: calc(var(--card-h) * 2 + var(--cell-gap));   /* 카드 두 줄 */
-  --sw-h: clamp(24px, 6.6vw, 34px);      /* 머리색/피부색 줄 */
-  --act-h: clamp(30px, 5.6vh, 46px);     /* 랜덤·되돌리기·초기화·완성 줄 */
+  --sw-h: clamp(26px, 7vw, 36px);        /* 머리색/피부색 줄 */
+  --act-h: clamp(34px, 6vh, 48px);       /* 랜덤·되돌리기·초기화·완성 줄 */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -135,15 +138,17 @@ body { display: flex; align-items: center; justify-content: center; }
 }
 
 /* 사진 — 전단지에 붙은 증명사진처럼 */
+/* 증명사진처럼 — 테는 얇고 정갈하게, 안쪽에 옅은 선 한 겹 */
 .f-photo {
   flex: 1 1 auto; min-height: 0;
   width: 100%;
   display: flex; align-items: center; justify-content: center;
   background: #fff;
-  border: 4px solid var(--ink);
-  padding: 4px;
+  border: 2px solid var(--ink);
+  padding: clamp(4px, 1.2vw, 8px);
+  box-shadow: inset 0 0 0 1px #DDD2B4, 0 1px 2px rgba(0, 0, 0, .1);
 }
-.f-photo.big { border-width: 5px; }
+.f-photo.big { border-width: 3px; }
 .f-art { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
 .f-art svg { width: auto; height: 100%; max-width: 100%; display: block; }
 
@@ -171,10 +176,14 @@ body { display: flex; align-items: center; justify-content: center; }
   padding-top: clamp(3px, .8vh, 7px);
   font-size: clamp(11px, min(3.3vw, 1.7vh), 15px);
 }
-.ff-row { display: flex; align-items: baseline; gap: 7px; }
+.ff-row {
+  display: flex; align-items: baseline; gap: 8px;
+  min-height: clamp(18px, 4.4vw, 24px);
+}
 .ff-k {
-  flex: 0 0 clamp(46px, 14vw, 62px);
-  font-weight: 800; color: var(--brown); letter-spacing: .08em;
+  flex: 0 0 clamp(50px, 15vw, 68px);
+  font-weight: 700; color: #7A5A52; letter-spacing: .06em;
+  font-size: .92em;
 }
 .ff-v {
   flex: 1 1 auto; min-width: 0;
@@ -185,7 +194,7 @@ body { display: flex; align-items: center; justify-content: center; }
   -webkit-user-select: text; user-select: text;
   touch-action: manipulation;
 }
-.ff-v::placeholder { color: #A89C78; font-weight: 600; }
+.ff-v::placeholder { color: #B4A98C; font-weight: 500; font-style: italic; }
 .ff-v:focus { outline: 0; border-bottom-color: var(--red); background: #FFFDF4; }
 .ff-v.fixed { border-bottom: 2px dotted #D5CBAC; }
 
@@ -241,31 +250,42 @@ body { display: flex; align-items: center; justify-content: center; }
   display: grid;
   grid-template-rows: var(--tab-h) var(--list-h) var(--sw-h) var(--act-h);
   gap: var(--pick-gap);
-  background: var(--paper-dk);
-  border: 5px solid var(--ink);
-  padding: clamp(5px, 1vh, 9px);
-  box-shadow: 4px 4px 0 rgba(0, 0, 0, .25);
+  /* 편집 보드 — 전단지보다 한 톤 어둡게 깔아 '작업 영역' 으로 읽히게 */
+  background: #EFE6CF;
+  border: 3px solid var(--ink);
+  padding: clamp(6px, 1.2vh, 11px);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, .18), inset 0 1px 0 rgba(255, 255, 255, .5);
 }
 /* 카테고리 — 한 줄로 쭉, 옆으로 밀어 본다 */
+/* 카테고리 — 두 줄 격자. 칸이 몇 개든 두 줄 안에 다 보인다.
+   (예전엔 한 줄 가로 스크롤이라 '눈' 뒤가 잘렸다.) */
 .tabs {
   height: var(--tab-h);
-  display: flex; align-items: stretch; gap: 4px;
-  overflow-x: auto; overflow-y: hidden;
-  scrollbar-width: none;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: 1fr;
+  gap: clamp(3px, .8vw, 5px);
+  overflow: hidden;
 }
-.tabs::-webkit-scrollbar { display: none; }
+/* 오래된 서류철 탭 느낌 — 크림 바탕 / 먹색 테 / 고른 것은 붉은 포인트 */
 .tab {
-  flex: 0 0 auto;
-  font-family: var(--f); font-weight: 800;
-  font-size: clamp(11px, min(3.4vw, 1.8vh), 15px);
-  color: var(--ink); background: var(--paper);
-  border: 3px solid var(--ink); border-radius: 0;
-  padding: 0 clamp(8px, 2.8vw, 14px);
-  min-width: 44px;                  /* 손가락으로 누를 자리 */
+  font-family: var(--f); font-weight: 800; letter-spacing: -.02em;
+  font-size: clamp(9px, 2.6vw, 13px); line-height: 1.1;
+  color: #5A4A3A; background: var(--paper);
+  border: 2px solid #B9A98A; border-bottom-width: 3px;
+  border-radius: 2px 2px 0 0;
+  padding: 0 2px;
+  min-height: 24px;
   cursor: pointer; touch-action: manipulation;
-  white-space: nowrap;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: flex; align-items: center; justify-content: center;
 }
-.tab.on { background: var(--ink); color: var(--paper); }
+.tab:hover { background: #FFFCF0; }
+.tab.on {
+  color: #FFF6E2; background: var(--red);
+  border-color: var(--ink); border-bottom-color: var(--red-dk);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, .25);
+}
 
 /* 썸네일 — 그림으로 고른다 */
 .grid {
@@ -280,31 +300,50 @@ body { display: flex; align-items: center; justify-content: center; }
   justify-content: start;
   align-content: start;
   gap: var(--cell-gap);
+  padding: 2px;
 }
+/* 카드 — 정사각 미리보기 + 아래 이름 한 줄 */
 .opt {
-  /* 어느 칸이든 카드 크기가 같다 */
   width: var(--card-w); height: var(--card-h);
-  display: flex; flex-direction: column; align-items: center; gap: 1px;
-  background: #fff; border: 3px solid var(--ink); border-radius: 0;
-  padding: 2px 2px 1px;
+  display: flex; flex-direction: column; align-items: center;
+  background: #fff;
+  border: 1.5px solid #C3B394; border-radius: 3px;
+  padding: 0;
   cursor: pointer; touch-action: manipulation;
   font-family: var(--f);
   overflow: hidden;
+  position: relative;
+  transition: border-color .12s, box-shadow .12s;
 }
-.opt.on { border-color: var(--red); box-shadow: inset 0 0 0 2px var(--red); }
+.opt:hover { border-color: #8A7A5A; }
+/* 고른 카드 — 번쩍이지 않고 정돈되게 */
+.opt.on {
+  border-color: var(--red);
+  background: #FFF7F2;
+  box-shadow: 0 0 0 1.5px var(--red), 0 1px 3px rgba(0, 0, 0, .12);
+}
+.opt.on::after {
+  content: ""; position: absolute; right: 3px; top: 3px;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 0 1.5px #fff;
+}
+/* 미리보기 — 정사각. 안의 몽타주는 viewBox 비율을 지키며 들어간다
+   (preserveAspectRatio 기본값이 알아서 레터박스한다). */
 .opt-art {
-  width: 100%; height: calc(var(--card-h) - var(--label-h) - 8px);
-  overflow: hidden;
+  width: 100%; height: var(--card-w);
+  overflow: hidden; background: #FDFBF4;
   display: flex; align-items: center; justify-content: center;
 }
 .opt-art svg { width: 100%; height: 100%; display: block; }
 .opt-name {
-  height: var(--label-h); line-height: var(--label-h);
-  font-size: clamp(8px, min(2.5vw, 1.3vh), 11px);
-  font-weight: 800; color: var(--ink);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+  width: 100%; height: var(--label-h); line-height: var(--label-h);
+  font-size: clamp(9px, 2.6vw, 12px);
+  font-weight: 700; color: #5A4A3A; text-align: center;
+  border-top: 1px solid #E6DCC2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.opt.on .opt-name { color: var(--red); }
+.opt.on .opt-name { color: var(--red); font-weight: 800; border-top-color: #F3C9BE; }
 /* 지금 머리로는 못 쓰는 조합 — 숨기지 않고 흐리게 둔다 (왜 안 되는지 보이게) */
 .opt.off { opacity: .35; }
 .opt.off .opt-name { text-decoration: line-through; }
@@ -321,29 +360,40 @@ body { display: flex; align-items: center; justify-content: center; }
 .swatches::-webkit-scrollbar { display: none; }
 .swatches.on { visibility: visible; }
 .sw-lbl {
-  font-size: clamp(10px, min(3vw, 1.5vh), 13px); font-weight: 800; color: var(--brown);
-  letter-spacing: .04em;
+  flex: 0 0 auto;
+  font-size: clamp(10px, 2.8vw, 12px); font-weight: 700; color: #7A6A52;
+  letter-spacing: .02em;
 }
 .sw {
   flex: 0 0 auto;
-  width: clamp(20px, 6vw, 28px); height: clamp(20px, 6vw, 28px);
-  border: 3px solid var(--ink); border-radius: 0; padding: 0;
+  width: clamp(20px, 6vw, 26px); height: clamp(20px, 6vw, 26px);
+  border: 1.5px solid #9A8A6A; border-radius: 50%; padding: 0;
   cursor: pointer; touch-action: manipulation;
 }
-.sw.on { box-shadow: 0 0 0 3px var(--red); }
+.sw.on { border-color: var(--ink); box-shadow: 0 0 0 2px var(--red); }
 
 .p-btns {
   height: var(--act-h);
   display: flex; gap: clamp(3px, .9vw, 6px); align-items: stretch;
 }
-/* 좁은 화면에서도 네 개가 한 줄에 들어가게 — 글자가 넘치면 줄인다 */
+/* 좁은 화면에서도 네 개가 한 줄에 들어가게 — 글자가 넘치면 줄인다.
+   보조 단추는 종이톤, 완성만 붉은 CTA 다. */
 .p-btns .btn {
   flex: 1 1 0; min-width: 0;
-  padding: 0 2px;
-  font-size: clamp(10px, min(3vw, 1.6vh), 14px);
+  padding: 0 2px; border-width: 2px; border-radius: 3px;
+  font-size: clamp(10px, 2.9vw, 14px);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  box-shadow: 0 1.5px 0 rgba(0, 0, 0, .2);
 }
-.p-btns .btn.big { flex: 1.4 1 0; }
+.p-btns .btn.soft {
+  background: var(--paper); color: #4A3A2A; border-color: #9A8A6A;
+}
+.p-btns .btn.soft:hover { background: #FFFCF0; }
+.p-btns .btn.big {
+  flex: 1.5 1 0;
+  background: var(--red); color: #FFF6E2; border-color: var(--ink);
+  font-weight: 800; letter-spacing: .02em;
+}
 
 /* ============================================================
    알림 / 저장 창
@@ -396,7 +446,10 @@ body { display: flex; align-items: center; justify-content: center; }
 /* 낮은 화면에서는 창 전체를 줄인다 — 다만 그 화면 안에서는 어느 칸을
    눌러도 같은 높이다 (칸별로 달라지는 규칙을 두지 않는다). */
 @media (max-height: 640px) {
-  :root { --list-h: calc(var(--card-h) * 1 + var(--cell-gap)); }
+  :root {
+    --list-h: calc(var(--card-h) * 1 + var(--cell-gap));
+    --tab-h: clamp(46px, 9vh, 58px);
+  }
 }
 @media (max-height: 560px) {
   .f-desc { font-size: 11px; }
