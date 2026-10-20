@@ -15,6 +15,20 @@
   --navy: #2B3A55;           /* 포인트 */
   --f: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --ft: 'Black Han Sans', Pretendard, sans-serif;
+
+  /* ---- 하단 선택창 치수 ----
+     화면 크기에 따라 같이 줄지만, 같은 화면에서는 어느 칸을 눌러도
+     한 픽셀도 안 움직인다. 칸마다 항목 수가 달라도 아래 네 줄의 높이는
+     여기서 정한 값으로 못 박혀 있다. */
+  --card-w: clamp(52px, 15vw, 74px);     /* 썸네일 카드 폭 */
+  --label-h: clamp(11px, 2.9vw, 15px);   /* 카드 밑 이름 줄 */
+  --card-h: calc(var(--card-w) * 1.32 + var(--label-h));
+  --pick-gap: clamp(3px, .7vh, 7px);
+  --cell-gap: clamp(3px, .8vh, 6px);
+  --tab-h: clamp(28px, 5.4vh, 42px);     /* 카테고리 탭 줄 */
+  --list-h: calc(var(--card-h) * 2 + var(--cell-gap));   /* 카드 두 줄 */
+  --sw-h: clamp(24px, 6.6vw, 34px);      /* 머리색/피부색 줄 */
+  --act-h: clamp(30px, 5.6vh, 46px);     /* 랜덤·되돌리기·초기화·완성 줄 */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -79,7 +93,10 @@ body { display: flex; align-items: center; justify-content: center; }
   overflow: hidden;
 }
 /* 만들기 화면에서는 전단지가 위쪽 절반만 차지한다 */
-.flyer.build { flex: 0 1 auto; }
+/* 만들기 화면 — 선택창 높이가 못 박혀 있으므로 전단지가 남는 높이를 먹는다.
+   (예전엔 전단지가 내용 높이였고 선택창이 남는 걸 먹어서, 칸을 바꿀 때마다
+    양쪽이 같이 흔들렸다.) */
+.flyer.build { flex: 1 1 auto; min-height: 0; }
 
 .f-head {
   width: calc(100% + 2 * clamp(8px, 2.6vw, 16px));
@@ -219,8 +236,11 @@ body { display: flex; align-items: center; justify-content: center; }
    파츠 고르기
    ============================================================ */
 .picker {
-  flex: 1 1 auto; min-height: 0;
-  display: flex; flex-direction: column; gap: clamp(3px, .7vh, 7px);
+  /* 네 줄의 높이를 못으로 박는다 — 안의 내용이 몇 개든 창은 그대로다 */
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-rows: var(--tab-h) var(--list-h) var(--sw-h) var(--act-h);
+  gap: var(--pick-gap);
   background: var(--paper-dk);
   border: 5px solid var(--ink);
   padding: clamp(5px, 1vh, 9px);
@@ -228,11 +248,10 @@ body { display: flex; align-items: center; justify-content: center; }
 }
 /* 카테고리 — 한 줄로 쭉, 옆으로 밀어 본다 */
 .tabs {
-  flex-shrink: 0;
-  display: flex; gap: 4px;
+  height: var(--tab-h);
+  display: flex; align-items: stretch; gap: 4px;
   overflow-x: auto; overflow-y: hidden;
   scrollbar-width: none;
-  padding-bottom: 2px;
 }
 .tabs::-webkit-scrollbar { display: none; }
 .tab {
@@ -241,36 +260,47 @@ body { display: flex; align-items: center; justify-content: center; }
   font-size: clamp(11px, min(3.4vw, 1.8vh), 15px);
   color: var(--ink); background: var(--paper);
   border: 3px solid var(--ink); border-radius: 0;
-  padding: clamp(4px, .9vh, 8px) clamp(8px, 2.8vw, 14px);
+  padding: 0 clamp(8px, 2.8vw, 14px);
   cursor: pointer; touch-action: manipulation;
+  white-space: nowrap;
 }
 .tab.on { background: var(--ink); color: var(--paper); }
 
 /* 썸네일 — 그림으로 고른다 */
 .grid {
-  flex: 1 1 auto; min-height: 0;
-  overflow-y: auto; overscroll-behavior: contain;
+  /* 항목이 둘이든 스물이든 이 높이다. 넘치면 안에서만 굴러간다. */
+  height: var(--list-h);
+  overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
+  /* 스크롤바가 생겼다 없어졌다 하며 카드가 좌우로 밀리지 않게 */
+  scrollbar-gutter: stable;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(clamp(52px, 15vw, 74px), 1fr));
-  gap: clamp(3px, .8vh, 6px);
+  /* 카드 폭을 고정하고 왼쪽부터 채운다 — 항목이 적을 때 늘어나지 않는다 */
+  grid-template-columns: repeat(auto-fill, var(--card-w));
+  justify-content: start;
   align-content: start;
+  gap: var(--cell-gap);
 }
 .opt {
+  /* 어느 칸이든 카드 크기가 같다 */
+  width: var(--card-w); height: var(--card-h);
   display: flex; flex-direction: column; align-items: center; gap: 1px;
   background: #fff; border: 3px solid var(--ink); border-radius: 0;
   padding: 2px 2px 1px;
   cursor: pointer; touch-action: manipulation;
   font-family: var(--f);
+  overflow: hidden;
 }
 .opt.on { border-color: var(--red); box-shadow: inset 0 0 0 2px var(--red); }
 .opt-art {
-  width: 100%; aspect-ratio: 5 / 6; display: block; overflow: hidden;
+  width: 100%; height: calc(var(--card-h) - var(--label-h) - 8px);
+  overflow: hidden;
   display: flex; align-items: center; justify-content: center;
 }
 .opt-art svg { width: 100%; height: 100%; display: block; }
 .opt-name {
+  height: var(--label-h); line-height: var(--label-h);
   font-size: clamp(8px, min(2.5vw, 1.3vh), 11px);
-  font-weight: 800; color: var(--ink); line-height: 1.1;
+  font-weight: 800; color: var(--ink);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
 .opt.on .opt-name { color: var(--red); }
@@ -278,17 +308,23 @@ body { display: flex; align-items: center; justify-content: center; }
 .opt.off { opacity: .35; }
 .opt.off .opt-name { text-decoration: line-through; }
 
-/* 색 고르기 */
+/* 색 고르기 — 해당 없는 칸에서도 자리는 그대로 두고 내용만 감춘다.
+   display: none 으로 접으면 아래 단추들이 위로 당겨져 창이 흔들린다. */
 .swatches {
-  flex-shrink: 0; display: flex; align-items: center; gap: 5px;
-  flex-wrap: wrap;
+  height: var(--sw-h);
+  display: flex; align-items: center; gap: 5px;
+  overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none;
+  visibility: hidden;
 }
-.swatches[hidden] { display: none; }
+.swatches::-webkit-scrollbar { display: none; }
+.swatches.on { visibility: visible; }
 .sw-lbl {
   font-size: clamp(10px, min(3vw, 1.5vh), 13px); font-weight: 800; color: var(--brown);
   letter-spacing: .04em;
 }
 .sw {
+  flex: 0 0 auto;
   width: clamp(20px, 6vw, 28px); height: clamp(20px, 6vw, 28px);
   border: 3px solid var(--ink); border-radius: 0; padding: 0;
   cursor: pointer; touch-action: manipulation;
@@ -296,10 +332,17 @@ body { display: flex; align-items: center; justify-content: center; }
 .sw.on { box-shadow: 0 0 0 3px var(--red); }
 
 .p-btns {
-  flex-shrink: 0; display: flex; gap: clamp(3px, .9vw, 6px); align-items: stretch;
+  height: var(--act-h);
+  display: flex; gap: clamp(3px, .9vw, 6px); align-items: stretch;
 }
-.p-btns .btn.soft { flex: 1 1 0; }
-.p-btns .btn.big { flex: 1.4 1 0; padding: clamp(6px, 1.2vh, 11px) 8px; }
+/* 좁은 화면에서도 네 개가 한 줄에 들어가게 — 글자가 넘치면 줄인다 */
+.p-btns .btn {
+  flex: 1 1 0; min-width: 0;
+  padding: 0 2px;
+  font-size: clamp(10px, min(3vw, 1.6vh), 14px);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.p-btns .btn.big { flex: 1.4 1 0; }
 
 /* ============================================================
    알림 / 저장 창
@@ -348,6 +391,11 @@ body { display: flex; align-items: center; justify-content: center; }
 @media (max-height: 700px) {
   .f-sub { display: none; }
   .f-foot { display: none; }
+}
+/* 낮은 화면에서는 창 전체를 줄인다 — 다만 그 화면 안에서는 어느 칸을
+   눌러도 같은 높이다 (칸별로 달라지는 규칙을 두지 않는다). */
+@media (max-height: 640px) {
+  :root { --list-h: calc(var(--card-h) * 1 + var(--cell-gap)); }
 }
 @media (max-height: 560px) {
   .f-desc { font-size: 11px; }

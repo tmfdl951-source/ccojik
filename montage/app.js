@@ -469,7 +469,9 @@
     sw.innerHTML = "";
     const colCat = cat.skin ? { key: "skin", list: P.SKIN, label: "피부색" }
       : cat.hairCol ? { key: "hairCol", list: P.HAIRCOL, label: "머리색" } : null;
-    sw.hidden = !colCat;
+    /* 자리는 늘 차지하고 내용만 보이거나 숨는다 — hidden 으로 접으면
+       아래 단추들이 위로 당겨져 창 높이가 칸마다 달라진다. */
+    sw.classList.toggle("on", !!colCat);
     if (!colCat) return;
     const lab = document.createElement("span");
     lab.className = "sw-lbl";

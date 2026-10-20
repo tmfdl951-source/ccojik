@@ -82,7 +82,8 @@
     <div class="picker">
       <div class="tabs" id="catTabs"></div>
       <div class="grid" id="optGrid"></div>
-      <div class="swatches" id="swatchRow" hidden></div>
+      <!-- 자리는 늘 차지한다. 해당 없는 칸에서는 visibility 로만 감춘다. -->
+      <div class="swatches" id="swatchRow"></div>
       <div class="p-btns">
         <button class="btn soft" type="button" id="rndBtn">랜덤</button>
         <button class="btn soft" type="button" id="undoBtn">되돌리기</button>
