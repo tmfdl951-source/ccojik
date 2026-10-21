@@ -1,18 +1,30 @@
 /* ============================================================
    몽타주 만들기 — "사람을 찾습니다" 전단지
    ============================================================
-   앱 UI 처럼 매끈하게가 아니라, 담벼락에 붙은 전단지처럼.
-   빨간 머리띠 / 크림색 종이 / 굵은 검은 테두리 / 네모난 각.
+   전단지를 만드는 편집 화면. 담벼락에 붙은 종이 느낌은 남기되
+   겉치레는 걷어냈다.
+
+   예전에는 테두리가 3~5px 검정이고 버튼마다 4px 입체 그림자가 있어
+   2000년대 플래시게임처럼 보였다. 지금은
+     - 선은 1px 베이지/따뜻한 회색, 꼭 필요한 데만 진하게
+     - 입체 그림자 대신 아주 옅은 그림자
+     - 빨강은 제목 머리띠·완성 버튼·고른 카드에만
+     - 글자는 완전 검정이 아니라 차콜
    ============================================================ */
 :root {
-  --red: #D73A2F;            /* 머리띠 */
-  --red-dk: #A82A21;
-  --paper: #FBF4DF;          /* 종이 */
-  --paper-dk: #F2E6C8;
-  --ink: #1A1A16;            /* 테두리·글자 */
-  --brown: #8A3F38;          /* 항목 이름 */
-  --gray: #6B6B60;
-  --navy: #2B3A55;           /* 포인트 */
+  --red: #C8382E;            /* 제목·완성·고른 것에만 */
+  --red-dk: #A32C24;
+  --red-soft: #FBEDEA;
+  --paper: #FFFDF7;          /* 종이 */
+  --paper-dk: #F6F0E2;
+  --cream: #F4EFE2;          /* 바탕 */
+  --ink: #2E2A26;            /* 글자 — 완전 검정 아님 */
+  --ink-soft: #6E665C;
+  --line: #E4DDCC;           /* 얇은 구분선 */
+  --line-mid: #D2C9B4;
+  --brown: #8A6A52;          /* 항목 이름 */
+  --gray: #6E665C;
+  --navy: #2B3A55;
   --f: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --ft: 'Black Han Sans', Pretendard, sans-serif;
 
@@ -43,7 +55,7 @@
 
 html, body {
   height: 100%;
-  background: #4A4A42;              /* 전단지가 붙은 담벼락 */
+  background: var(--cream);
   color: var(--ink);
   font-family: var(--f);
   -webkit-user-select: none; user-select: none;
@@ -63,7 +75,7 @@ body { display: flex; align-items: center; justify-content: center; }
   height: 100dvh;
   max-height: 100dvh;
   display: flex; flex-direction: column;
-  background: #57574D;
+  background: var(--cream);
   padding: var(--pad-s) clamp(6px, 2vw, 14px);
   padding-top: calc(var(--pad-s) + env(safe-area-inset-top, 0px));
   padding-bottom: calc(var(--pad-s) + env(safe-area-inset-bottom, 0px));
@@ -77,9 +89,9 @@ body { display: flex; align-items: center; justify-content: center; }
 .mute {
   position: absolute; top: calc(8px + env(safe-area-inset-top, 0px)); right: 10px; z-index: 20;
   font-family: var(--f); font-size: 11px; font-weight: 800;
-  color: var(--ink); background: var(--paper);
-  border: 3px solid var(--ink); border-radius: 0;
-  padding: 4px 9px; cursor: pointer; touch-action: manipulation;
+  color: var(--ink-soft); background: var(--paper);
+  border: 1px solid var(--line-mid); border-radius: 999px;
+  padding: 5px 11px; cursor: pointer; touch-action: manipulation;
 }
 
 /* ============================================================
@@ -96,12 +108,10 @@ body { display: flex; align-items: center; justify-content: center; }
   display: flex; flex-direction: column; align-items: center;
   gap: var(--gap-s);
   background: var(--paper);
-  border: 3px solid var(--ink);
+  border: 1px solid var(--line-mid);
+  border-radius: 10px;
   padding: 0 clamp(8px, 2.6vw, 16px) var(--pad-s);
-  /* 종이 결 — 아주 옅은 가로줄 */
-  background-image: repeating-linear-gradient(
-    180deg, rgba(0,0,0,.022) 0 1px, transparent 1px 7px);
-  box-shadow: 4px 4px 0 rgba(0, 0, 0, .25);
+  box-shadow: 0 1px 2px rgba(60, 50, 35, .06), 0 8px 20px rgba(60, 50, 35, .07);
   overflow: hidden;
 }
 /* 만들기 화면에서는 전단지가 위쪽 절반만 차지한다 */
@@ -114,24 +124,26 @@ body { display: flex; align-items: center; justify-content: center; }
   width: calc(100% + 2 * clamp(8px, 2.6vw, 16px));
   margin: 0 clamp(-16px, -2.6vw, -8px);
   background: var(--red);
-  border-bottom: 5px solid var(--ink);
-  padding: var(--pad-s) 10px;
+  border-radius: 9px 9px 0 0;
+  padding: clamp(5px, 1dvh, 10px) 10px;
   display: flex; align-items: center; justify-content: center; gap: 8px;
   position: relative; flex-shrink: 0;
 }
 .f-head h1 {
+  /* 입체 그림자를 뺀 깔끔한 굵은 고딕 */
   font-family: var(--ft); font-weight: 400;
-  color: #FFF6E2;
-  letter-spacing: .02em; line-height: 1.1;
-  font-size: clamp(24px, min(8vw, 5dvh), 44px);
-  text-shadow: 2px 2px 0 var(--red-dk);
+  color: #FFF8EF;
+  letter-spacing: .04em; line-height: 1.12;
+  font-size: clamp(19px, min(6.2vw, 3.8dvh), 32px);
 }
-.f-head.small h1 { font-size: clamp(17px, min(5.4vw, 3.2dvh), 28px); }
+.f-head.small h1 { font-size: clamp(15px, min(4.6vw, 2.7dvh), 23px); }
 .f-back {
   position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
   font-size: 18px; font-weight: 800; line-height: 1;
-  color: #FFF6E2; background: transparent; border: 3px solid #FFF6E2;
-  padding: 2px 8px; cursor: pointer; touch-action: manipulation;
+  color: #FFF8EF; background: rgba(255, 255, 255, .14);
+  border: 1px solid rgba(255, 255, 255, .5); border-radius: 7px;
+  padding: 4px 9px; cursor: pointer; touch-action: manipulation;
+  min-width: 34px; min-height: 30px;
 }
 .f-no {
   font-weight: 800; letter-spacing: .06em; color: var(--brown);
@@ -154,14 +166,15 @@ body { display: flex; align-items: center; justify-content: center; }
   flex: 1 1 auto; min-height: 0;
   width: 100%;
   display: flex; align-items: center; justify-content: center;
-  background: #fff;
-  border: 2px solid var(--ink);
-  padding: clamp(3px, .9vw, 6px);
-  box-shadow: inset 0 0 0 1px #DDD2B4, 0 1px 2px rgba(0, 0, 0, .1);
+  background: #FFFDF7;
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: clamp(3px, .9vw, 7px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .9);
 }
-.f-photo.big { border-width: 3px; }
+.f-photo.big { border-color: var(--line-mid); }
+/* 몽타주 칸 — parts.js 의 VIEW(1078 x 1148) 비율 그대로 */
 .f-art {
-  height: 100%; aspect-ratio: 272 / 330; max-width: 100%;
+  height: 100%; aspect-ratio: 1078 / 1148; max-width: 100%;
   margin: 0 auto;
   display: flex; align-items: center; justify-content: center;
 }
@@ -171,8 +184,8 @@ body { display: flex; align-items: center; justify-content: center; }
 .f-info {
   width: 100%; flex-shrink: 0;
   display: flex; flex-direction: column; gap: 1px;
-  border-top: 3px solid var(--ink);
-  padding-top: clamp(3px, .8vh, 7px);
+  border-top: 1px solid var(--line-mid);
+  padding-top: clamp(4px, .9vh, 8px);
   font-size: clamp(11px, min(3.3vw, 1.7vh), 15px);
   line-height: 1.32;
 }
@@ -191,7 +204,7 @@ body { display: flex; align-items: center; justify-content: center; }
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2px clamp(8px, 2.4vw, 16px);
-  border-top: 2px solid var(--ink);
+  border-top: 1px solid var(--line);
   padding-top: var(--gap-s);
   font-size: clamp(10px, min(3.1vw, 1.6dvh), 14px);
 }
@@ -201,22 +214,22 @@ body { display: flex; align-items: center; justify-content: center; }
   min-height: var(--row-h);
 }
 .ff-k {
-  flex: 0 0 clamp(40px, 11.5vw, 56px);
-  font-weight: 700; color: #7A5A52; letter-spacing: .06em;
+  flex: 0 0 clamp(42px, 12vw, 58px);
+  font-weight: 700; color: var(--brown); letter-spacing: .06em;
   font-size: .92em;
 }
 .ff-v {
   flex: 1 1 auto; min-width: 0;
   font-family: var(--f); font-size: inherit; font-weight: 700; color: var(--ink);
   background: transparent;
-  border: 0; border-bottom: 2px solid #C1B48E;
-  border-radius: 0; padding: 2px 2px 1px;
+  border: 0; border-bottom: 1px solid var(--line-mid);
+  border-radius: 0; padding: 3px 2px 2px;
   -webkit-user-select: text; user-select: text;
   touch-action: manipulation;
 }
-.ff-v::placeholder { color: #B4A98C; font-weight: 500; font-style: italic; }
-.ff-v:focus { outline: 0; border-bottom-color: var(--red); background: #FFFDF4; }
-.ff-v.fixed { border-bottom: 2px dotted #D5CBAC; }
+.ff-v::placeholder { color: #B7AE9C; font-weight: 500; }
+.ff-v:focus { outline: 0; border-bottom-color: var(--red); background: var(--red-soft); }
+.ff-v.fixed { border-bottom: 1px dotted var(--line-mid); }
 
 .f-desc {
   text-align: center; line-height: 1.5; color: var(--gray);
@@ -230,7 +243,7 @@ body { display: flex; align-items: center; justify-content: center; }
 }
 .f-foot {
   color: var(--gray); font-size: clamp(10px, min(3vw, 1.5vh), 13px);
-  border-top: 2px dashed #C9BE9C; padding-top: 5px; width: 100%;
+  border-top: 1px dashed var(--line-mid); padding-top: 6px; width: 100%;
   text-align: center; flex-shrink: 0;
 }
 .f-btns {
@@ -243,22 +256,30 @@ body { display: flex; align-items: center; justify-content: center; }
 /* ============================================================
    단추
    ============================================================ */
+/* 높이는 다 같고, 눈에 띄는 것은 '완성' 하나뿐이다 */
 .btn {
-  font-family: var(--f); font-weight: 800; line-height: 1.25;
-  font-size: clamp(13px, min(4.2vw, 2.2vh), 19px);
-  color: var(--paper); background: var(--ink);
-  border: 4px solid var(--ink); border-radius: 0;
-  padding: clamp(8px, 1.5vh, 13px) clamp(14px, 4vw, 24px);
+  font-family: var(--f); font-weight: 700; line-height: 1.25;
+  font-size: clamp(13px, min(4.2vw, 2.2vh), 17px);
+  color: var(--ink); background: var(--paper);
+  border: 1px solid var(--line-mid); border-radius: 9px;
+  padding: clamp(8px, 1.5vh, 12px) clamp(14px, 4vw, 22px);
+  min-height: 44px;
   cursor: pointer; touch-action: manipulation;
-  box-shadow: 3px 3px 0 rgba(0, 0, 0, .3);
+  transition: background .12s, border-color .12s;
 }
-.btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 rgba(0, 0, 0, .3); }
-.btn.big { background: var(--red); border-color: var(--ink); color: #FFF6E2; }
+.btn:hover { background: var(--paper-dk); }
+.btn:active { background: var(--line); }
+.btn.big {
+  background: var(--red); border-color: var(--red-dk); color: #FFF8EF;
+  font-weight: 800;
+}
+.btn.big:hover { background: var(--red-dk); }
 .btn.ghost { background: var(--paper); color: var(--ink); }
 .btn.soft {
-  background: var(--paper-dk); color: var(--ink);
-  font-size: clamp(11px, min(3.4vw, 1.8vh), 15px);
-  padding: clamp(6px, 1.2vh, 10px) clamp(8px, 2.6vw, 16px);
+  background: var(--paper); color: var(--ink-soft);
+  font-size: clamp(11px, min(3.4vw, 1.8vh), 14px);
+  padding: clamp(6px, 1.2vh, 10px) clamp(8px, 2.6vw, 14px);
+  min-height: clamp(36px, var(--act-h), 44px);
 }
 
 /* ============================================================
@@ -271,10 +292,10 @@ body { display: flex; align-items: center; justify-content: center; }
   grid-template-rows: var(--tab-h) var(--list-h) var(--sw-h) var(--act-h);
   gap: var(--pick-gap);
   /* 편집 보드 — 전단지보다 한 톤 어둡게 깔아 '작업 영역' 으로 읽히게 */
-  background: #EFE6CF;
-  border: 3px solid var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line-mid); border-radius: 10px;
   padding: clamp(6px, 1.2vh, 11px);
-  box-shadow: 0 2px 0 rgba(0, 0, 0, .18), inset 0 1px 0 rgba(255, 255, 255, .5);
+  box-shadow: 0 1px 2px rgba(60, 50, 35, .05);
 }
 /* 카테고리 — 한 줄로 쭉, 옆으로 밀어 본다 */
 /* 카테고리 — 두 줄 격자. 칸이 몇 개든 두 줄 안에 다 보인다.
@@ -282,29 +303,28 @@ body { display: flex; align-items: center; justify-content: center; }
 .tabs {
   height: var(--tab-h);
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   grid-auto-rows: 1fr;
   gap: clamp(3px, .8vw, 5px);
   overflow: hidden;
 }
 /* 오래된 서류철 탭 느낌 — 크림 바탕 / 먹색 테 / 고른 것은 붉은 포인트 */
 .tab {
-  font-family: var(--f); font-weight: 800; letter-spacing: -.02em;
-  font-size: clamp(9px, 2.6vw, 13px); line-height: 1.1;
-  color: #5A4A3A; background: var(--paper);
-  border: 2px solid #B9A98A; border-bottom-width: 3px;
-  border-radius: 2px 2px 0 0;
+  font-family: var(--f); font-weight: 700; letter-spacing: -.02em;
+  font-size: clamp(10px, 2.7vw, 13px); line-height: 1.1;
+  color: var(--ink-soft); background: var(--paper-dk);
+  border: 1px solid transparent; border-radius: 8px;
   padding: 0 2px;
   min-height: 24px;
   cursor: pointer; touch-action: manipulation;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   display: flex; align-items: center; justify-content: center;
+  transition: background .12s, color .12s;
 }
-.tab:hover { background: #FFFCF0; }
+.tab:hover { background: var(--line); }
 .tab.on {
-  color: #FFF6E2; background: var(--red);
-  border-color: var(--ink); border-bottom-color: var(--red-dk);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, .25);
+  color: #FFF8EF; background: var(--red);
+  border-color: var(--red-dk); font-weight: 800;
 }
 
 /* 썸네일 — 그림으로 고른다 */
@@ -326,44 +346,38 @@ body { display: flex; align-items: center; justify-content: center; }
 .opt {
   width: var(--card-w); height: var(--card-h);
   display: flex; flex-direction: column; align-items: center;
-  background: #fff;
-  border: 1.5px solid #C3B394; border-radius: 3px;
+  background: var(--paper);
+  border: 1px solid var(--line); border-radius: 8px;
   padding: 0;
   cursor: pointer; touch-action: manipulation;
   font-family: var(--f);
   overflow: hidden;
   position: relative;
-  transition: border-color .12s, box-shadow .12s;
+  transition: border-color .12s, background .12s;
 }
-.opt:hover { border-color: #8A7A5A; }
-/* 고른 카드 — 번쩍이지 않고 정돈되게 */
+.opt:hover { border-color: var(--line-mid); }
+/* 고른 카드 — 얇은 빨간 테와 옅은 바탕뿐 */
 .opt.on {
   border-color: var(--red);
-  background: #FFF7F2;
-  box-shadow: 0 0 0 1.5px var(--red), 0 1px 3px rgba(0, 0, 0, .12);
-}
-.opt.on::after {
-  content: ""; position: absolute; right: 3px; top: 3px;
-  width: 9px; height: 9px; border-radius: 50%;
-  background: var(--red);
-  box-shadow: 0 0 0 1.5px #fff;
+  background: var(--red-soft);
 }
 /* 미리보기 — 정사각. 안의 몽타주는 viewBox 비율을 지키며 들어간다
    (preserveAspectRatio 기본값이 알아서 레터박스한다). */
 .opt-art {
   width: 100%; height: var(--card-w);
-  overflow: hidden; background: #FDFBF4;
+  overflow: hidden; background: #FFFDF7;
   display: flex; align-items: center; justify-content: center;
 }
 .opt-art svg { width: 100%; height: 100%; display: block; }
+.opt-art img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .opt-name {
   width: 100%; height: var(--label-h); line-height: var(--label-h);
   font-size: clamp(9px, 2.6vw, 12px);
-  font-weight: 700; color: #5A4A3A; text-align: center;
-  border-top: 1px solid #E6DCC2;
+  font-weight: 600; color: var(--ink-soft); text-align: center;
+  border-top: 1px solid var(--line);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.opt.on .opt-name { color: var(--red); font-weight: 800; border-top-color: #F3C9BE; }
+.opt.on .opt-name { color: var(--red); font-weight: 700; border-top-color: #F2D5CF; }
 /* 지금 머리로는 못 쓰는 조합 — 숨기지 않고 흐리게 둔다 (왜 안 되는지 보이게) */
 .opt.off { opacity: .35; }
 .opt.off .opt-name { text-decoration: line-through; }
@@ -421,9 +435,10 @@ body { display: flex; align-items: center; justify-content: center; }
 .toast {
   position: fixed; left: 50%; bottom: 13%; transform: translateX(-50%) translateY(8px);
   background: var(--ink); color: var(--paper);
-  border: 3px solid var(--paper);
-  font-weight: 800; font-size: 13px;
-  padding: 8px 16px; z-index: 40;
+  border: 0; border-radius: 999px;
+  font-weight: 700; font-size: 13px;
+  padding: 9px 18px; z-index: 40;
+  box-shadow: 0 4px 14px rgba(40, 34, 28, .3);
   opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -447,13 +462,13 @@ body { display: flex; align-items: center; justify-content: center; }
 }
 .save-modal.show { display: flex; }
 .sm-inner {
-  background: var(--paper); border: 5px solid var(--ink);
-  padding: 14px; max-width: 360px; width: 100%; text-align: center;
+  background: var(--paper); border: 1px solid var(--line-mid); border-radius: 12px;
+  padding: 16px; max-width: 360px; width: 100%; text-align: center;
   max-height: 90dvh; overflow-y: auto;
 }
 .sm-title { font-weight: 800; font-size: 15px; margin-bottom: 4px; }
 .sm-sub { font-size: 12px; color: var(--gray); line-height: 1.4; margin-bottom: 10px; }
-.sm-inner img { width: 100%; border: 3px solid var(--ink); display: block; }
+.sm-inner img { width: 100%; border: 1px solid var(--line); border-radius: 8px; display: block; }
 .sm-inner .btn { margin-top: 12px; }
 
 /* ============================================================
