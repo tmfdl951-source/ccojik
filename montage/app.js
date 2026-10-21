@@ -2,87 +2,123 @@
    몽타주 만들기 — 전단지 위에 얼굴을 맞춰 그린다
    ============================================================
    얼굴 / 기본머리 / 앞머리는 그림 에셋(PNG)을 얹고, 눈·눈썹·코·입·안경·
-   특징처럼 작은 것만 코드로 그린다.
+   특징은 코드로 그린다.
 
-   좌표가 한 겹이다. 에셋이 전부 1254x1254 판에 가로 가운데(627)로 그려져
-   있어서, 코드로 그리는 파츠도 같은 판에 적어 두었다. 그래서 파츠마다
-   배율과 기준점을 따로 계산하지 않는다 — 얼굴형에 따른 가로 보정 한 번과,
-   머리를 얹는 높이 한 줄이 전부다.
+   좌표 계산과 그리기를 갈라 놓았다.
+     getResolvedLayout()  지금 고른 얼굴·머리·앞머리를 보고 최종 좌표를 낸다
+     renderCharacter()    그 좌표를 받아 그리기만 한다
+   그리는 함수 안에는 숫자가 없다. 그래서 얼굴형이나 머리를 바꾸면
+   눈·눈썹·화장·안경이 한꺼번에 다시 계산된다.
 
-   예전에는 머리를 코드로 그린 검은 도형으로 쌓았다. 네 켜가 겹쳐 같은
-   자리를 두 번 칠했고(옆머리가 뒷머리 안에 평균 85%), 앞머리가 얼굴폭의
-   1.3배라 검은 커튼처럼 보였다. 지금은 그림 한 장이 실루엣을 맡는다.
+   예전에는 작은 파츠가 '눈은 언제나 y673' 처럼 판 좌표에 박혀 있었다.
+   얼굴형을 바꿔도 눈과 눈썹이 그대로였고, 아이라인은 눈 크기와 상관없이
+   같은 자리에 그려져 따로 놀았다.
+   머리도 네모(bbox) 꼭대기끼리 맞췄다. 곱슬은 맨 위가 듬성듬성한 컬
+   끝이라 빽빽한 부분이 두개골 아래로 내려가 정수리가 비쳤다.
 
    금지: 외부 라이브러리, 이모지 */
 (() => {
   "use strict";
   const P = window.MONTAGE_PARTS;
-  const REF = P.REF;
   const $ = id => document.getElementById(id);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const r2 = v => Math.round(v * 100) / 100;
 
-  /* 정렬이 어긋날 때 어디가 문제인지 바로 보려고 켠다. 배포는 false.
-     켜면 기준선(눈썹·눈·코·입)과 얼굴 꼭대기 줄이 겹쳐 그려진다. */
+  /* 정렬이 어긋날 때 어디가 문제인지 바로 보려고 켠다. 배포는 false. */
   let DEBUG_MONTAGE = false;
   const VIEW = P.VIEW;
+  const CANVAS = P.CANVAS, CX = P.CX;
 
   /* ============================================================
-     배치 — 기준점 세 가지면 끝난다
-     ============================================================
-     (가) 얼굴  에셋을 판 그대로 얹는다. 네 얼굴이 같은 판에 같은 자리로
-          그려져 있어 보정이 필요 없다 (dx/dy/scale 자리는 남겨 뒀다).
-     (나) 머리  얼굴 꼭대기보다 TUCK 만큼 위에 머리 꼭대기가 오게 내린다.
-          머리마다 그림 속 꼭대기 줄이 달라서(114~190) 이 한 줄이 없으면
-          어떤 머리는 정수리가 비치고 어떤 머리는 붕 뜬다.
-     (다) 앞머리  에셋이 얼굴보다 크게 그려져 있어 줄여서 내린다.
-          그 값(0.727 / 109)은 합성본을 보며 맞췄다.
+     계산 — 지금 고른 것으로 최종 좌표를 낸다
      ============================================================ */
-  const CANVAS = REF.canvas;
-  /* 머리 꼭대기가 얼굴 꼭대기보다 이만큼 위에 온다 */
-  const TUCK = 14;
 
-  function getFaceTemplate() {
+  /* 머리는 얼굴마다 내리는 양이 다르다. drop 표는 '두피가 안 비치는 가장
+     낮은 자리' 를 얼굴 x 머리마다 픽셀로 찾아 적어 둔 것이다. */
+  function hairDropOf(f, h) {
+    if (!h || !h.src) return 0;
+    const d = h.drop && h.drop[f.key];
+    return (d === undefined ? 0 : d) + (h.dy || 0);
+  }
+
+  /* 앞머리는 그 얼굴의 눈썹선을 따라 내려온다. 머리와의 짝이 어색하면
+     COMBO_OVERRIDES 가 덮어쓴다. */
+  function bangsFit(f, h, b) {
+    if (!b || !b.src) return null;
+    const key = (h && h.key ? h.key : "none") + ":" + b.key;
+    const ov = P.COMBO_OVERRIDES[key] || {};
+    return {
+      src: b.src,
+      /* ov.scale 은 곱이다. 갈아끼우면 0.727 이 통째로 날아간다 */
+      scale: b.scale * (ov.scale === undefined ? 1 : ov.scale),
+      dx: (b.dx || 0) + (ov.dx || 0),
+      dy: b.dy + (f.a.brow - P.BANGS_REF_BROW) + (ov.dy || 0),
+    };
+  }
+
+  /* 지금 고른 것 전부의 최종 좌표. 그리는 쪽은 이것만 본다. */
+  function getResolvedLayout() {
+    validate();
     const f = at("face", pick.face);
-    /* 작은 파츠 가로 보정 — 넓은 얼굴은 눈 사이가 조금 벌어진다 */
-    return Object.assign({}, f, { fx: f.halfW / REF.halfW });
-  }
-  /* 기준점 — 바깥에서도 쓴다 (테스트·안내선) */
-  function getAnchorPoint(f, name) {
-    const y = { brow: REF.browY, eye: REF.eyeY, nose: REF.noseY,
-                mouth: REF.mouthY, top: f.top, chin: REF.chin }[name];
-    return { x: REF.cx, y: y === undefined ? REF.eyeY : y };
+    const h = at("hairBase", pick.hairBase);
+    const b = at("bangs", pick.bangs);
+    const eye = at("eyes", pick.eyes);
+    const a = f.a;
+    return {
+      face: f,
+      /* 얼굴 가로비율 — 작은 파츠를 이만큼만 벌린다 */
+      fx: f.halfW / 406,
+      anchors: a,
+      eyeSize: { w: eye.w || 23, h: eye.h || 21 },
+      img: {
+        face: { src: f.src, scale: f.scale || 1, dx: f.dx || 0, dy: f.dy || 0 },
+        hair: h && h.src
+          ? { src: h.src, scale: h.scale || 1, dx: h.dx || 0, dy: hairDropOf(f, h) }
+          : null,
+        bangs: bangsFit(f, h, b),
+      },
+    };
   }
 
-  /* 그림 한 장 얹기. s 는 배율, dy 는 내림, dx 는 좌우 밀기.
-     배율은 판 가운데(627)를 기준으로 건다 — 가로 가운데가 안 틀어진다. */
-  function img(src, s, dx, dy, filter) {
-    if (!src) return "";
-    const w = CANVAS * s;
-    const x = REF.cx - w / 2 + (dx || 0);
-    return '<image href="' + src + '" x="' + r2(x) + '" y="' + r2(dy || 0) +
+  /* ============================================================
+     그리기 — 받은 좌표로 얹기만 한다
+     ============================================================ */
+
+  /* 그림 한 장. 배율은 판 가운데를 기준으로 건다. */
+  function img(o, filter) {
+    if (!o || !o.src) return "";
+    const w = CANVAS * o.scale;
+    const x = CX - w / 2 + (o.dx || 0);
+    return '<image href="' + o.src + '" x="' + r2(x) + '" y="' + r2(o.dy || 0) +
       '" width="' + r2(w) + '" height="' + r2(w) + '"' +
       (filter ? ' filter="url(#' + filter + ')"' : '') +
       ' preserveAspectRatio="xMidYMid meet"/>';
   }
 
-  /* 작은 파츠 — 얼굴 가로비율만 보정해서 얹는다 */
-  function place(inner, f) {
+  /* 지역 좌표로 그린 파츠를 기준점에 옮겨 놓는다.
+       at   (x, y) 기준점
+       sx   가로 배율 (얼굴 폭 보정)
+       k    전체 배율 (눈에 붙는 것은 눈 크기로 잰다) */
+  function put(inner, x, y, sx, k) {
     if (!inner) return "";
-    if (Math.abs(f.fx - 1) < 0.005) return inner;
-    return '<g transform="translate(' + REF.cx + ' 0) scale(' + r2(f.fx) +
-      ' 1) translate(' + -REF.cx + ' 0)">' + inner + '</g>';
+    const a = (k === undefined ? 1 : k) * (sx === undefined ? 1 : sx);
+    const b = (k === undefined ? 1 : k);
+    return '<g transform="translate(' + r2(x) + ' ' + r2(y) + ') scale(' +
+      r2(a) + ' ' + r2(b) + ')">' + inner + '</g>';
+  }
+  /* 눈에 붙는 것 — 좌우 두 번. 좌표 단위가 '눈 반지름' 이라 눈을 바꾸면
+     같이 커지고 눕는다. */
+  function perEye(inner, L) {
+    if (!inner) return "";
+    const ex = L.anchors.eyeDx * L.fx, ey = L.anchors.eye;
+    const w = L.eyeSize.w, h = L.eyeSize.h;
+    const one = sgn =>
+      '<g transform="translate(' + r2(CX + sgn * ex) + ' ' + ey +
+      ') scale(' + r2(sgn * w) + ' ' + r2(h) + ')">' + inner + '</g>';
+    return one(-1) + one(1);
   }
 
-  /* 머리를 얹는 높이 — 그림 속 꼭대기 줄 차이를 메운다 */
-  function hairDrop(f, h) {
-    if (!h || !h.src) return 0;
-    return (f.top - TUCK - h.top) + (h.dy || 0);
-  }
-
-  /* 피부색·머리색 필터 — 그림을 칠한다.
-     피부는 밝기·채도만 건드리고, 머리는 어두운 그림을 색 쪽으로 끌어올린다
-     (밝기만 올리면 검정은 검정 그대로라 색이 안 바뀐다). */
+  /* 피부색·머리색 필터 */
   function defs() {
     const sk = P.SKIN[skinIdx], hc = P.HAIRCOL[hairColIdx];
     let d = '';
@@ -179,60 +215,88 @@
   }
 
   /* ============================================================
-     얼굴 그리기 — 레이어 순서가 곧 그리는 순서다
+     얼굴 그리기 — 단계별로 나눠 둔다
      ============================================================
-       1 얼굴(그림)  2 눈썹  3 눈  4 눈색  5 아이라인  6 코  7 입
-       8 특징  9 기본머리(그림)  10 앞머리(그림)  11 안경
+       1 얼굴(그림)
+       2 이목구비 — 눈썹은 눈에 매달려 있고, 화장은 눈에 붙는다
+       3 특징 — 저마다 기준점(볼·입·눈썹·눈)이 다르다
+       4 기본머리(그림) — 얼굴 위에 얹힌다. 가운데가 비어 얼굴이 비친다
+       5 앞머리(그림)
+       6 안경 — 두 눈 사이에 걸친다
 
-     머리는 얼굴 위에 얹는다 — 그림 가운데가 비어 있어 얼굴이 그대로
-     비치고, 관자놀이와 귀는 머리가 덮는다. 켜는 셋을 넘지 않는다.
-     귀와 목은 얼굴 그림에 이미 들어 있어 따로 그리지 않는다. */
-  const dFace = f => img(f.src, f.scale || 1, f.dx, f.dy, skinFx());
-  const dBrows = f => place(at("brows", pick.brows).s, f);
-  const dEyes = f => place(at("eyes", pick.eyes).s, f);
-  const dLens = f => place(at("lens", pick.lens).s, f);
-  const dLiner = f => place(at("liner", pick.liner).s, f);
-  const dNose = f => place(at("nose", pick.nose).s, f);
-  const dMouth = f => place(at("mouth", pick.mouth).s, f);
-  const dDetails = f => place(at("detail", pick.detail).s, f);
-  const dHairBase = f => {
-    const h = at("hairBase", pick.hairBase);
-    return img(h.src, h.scale || 1, h.dx, hairDrop(f, h), hairFx());
-  };
-  const dBangs = f => {
-    const b = at("bangs", pick.bangs);
-    return img(b.src, b.scale || 1, b.dx, b.dy, hairFx());
-  };
-  const dGlasses = f => place(at("glasses", pick.glasses).s, f);
+     귀와 목은 얼굴 그림에 이미 들어 있어 따로 그리지 않는다.
+     기본머리 PNG 가 실루엣 전부를 맡으므로 두피 도형도 따로 없다. */
+  function drawFace(L) {
+    return img(L.img.face, skinFx());
+  }
+  function drawFeatures(L) {
+    const a = L.anchors, f = L.face;
+    const out = [];
+    /* 눈썹 — 눈 기준점에서 browGap 만큼 위 */
+    out.push(put(at("brows", pick.brows).s, CX, a.eye - f.browGap, L.fx));
+    /* 눈 — 좌우 한 벌씩 */
+    const eye = at("eyes", pick.eyes);
+    const ex = a.eyeDx * L.fx;
+    out.push(put(eye.s, CX - ex, a.eye, -1) + put(eye.s, CX + ex, a.eye, 1));
+    /* 눈에 붙는 것 — 눈색, 아이라인 */
+    out.push(perEye(at("lens", pick.lens).s, L));
+    out.push(perEye(at("liner", pick.liner).s, L));
+    out.push(put(at("nose", pick.nose).s, CX, a.nose, L.fx));
+    out.push(put(at("mouth", pick.mouth).s, CX, a.mouth, L.fx));
+    return out.join("");
+  }
+  function drawDetail(L) {
+    const d = at("detail", pick.detail);
+    if (!d.s) return "";
+    if (d.anchor === "eye") return perEye(d.s, L);
+    const y = L.anchors[d.anchor] === undefined ? L.anchors.mouth : L.anchors[d.anchor];
+    return put(d.s, CX, y, L.fx);
+  }
+  function drawHairBase(L) { return img(L.img.hair, hairFx()); }
+  function drawBangs(L) { return img(L.img.bangs, hairFx()); }
+  function drawAccessories(L) {
+    const g = at("glasses", pick.glasses);
+    if (!g.s) return "";
+    /* 안경은 ±105 에 렌즈가 그려져 있다 — 이 얼굴의 실제 눈 간격으로 늘린다 */
+    return put(g.s, CX, L.anchors.eye, (L.anchors.eyeDx * L.fx) / 105);
+  }
 
   /* 안내선 — DEBUG_MONTAGE 일 때만 */
-  function dGuides(f) {
-    const L = (y, c) => '<path d="M120 ' + y + ' H1134" stroke="' + c +
+  function dGuides(L) {
+    const a = L.anchors;
+    const line = (y, c) => '<path d="M120 ' + y + ' H1134" stroke="' + c +
       '" stroke-width="2" stroke-dasharray="10 8" fill="none"/>';
-    return '<g opacity=".65">' + L(f.top, '#2F80ED') + L(REF.browY, '#D73A2F') +
-      L(REF.eyeY, '#D73A2F') + L(REF.noseY, '#E09F3E') + L(REF.mouthY, '#E09F3E') +
+    return '<g opacity=".7">' + line(L.face.top, '#2F80ED') +
+      line(L.face.earTop, '#7B61FF') + line(L.face.earBot, '#7B61FF') +
+      line(a.eye - L.face.browGap, '#D73A2F') + line(a.eye, '#D73A2F') +
+      line(a.nose, '#E09F3E') + line(a.mouth, '#E09F3E') +
+      line(L.face.chin, '#2F80ED') +
       '<path d="M627 60 V1180" stroke="#2F80ED" stroke-width="2" ' +
       'stroke-dasharray="10 8" fill="none"/></g>';
   }
 
-  /* 몽타주 한 장 — 레이어 차례대로 불러 모은다 */
-  function drawMontage(f) {
+  /* 몽타주 한 장 — 계산된 좌표로 차례대로 그린다 */
+  function renderCharacter(L) {
     return [
-      dFace(f),
-      dBrows(f), dEyes(f), dLens(f), dLiner(f), dNose(f), dMouth(f), dDetails(f),
-      dHairBase(f), dBangs(f), dGlasses(f),
-      DEBUG_MONTAGE ? dGuides(f) : "",
+      drawFace(L),
+      drawFeatures(L),
+      drawDetail(L),
+      drawHairBase(L),
+      drawBangs(L),
+      drawAccessories(L),
+      DEBUG_MONTAGE ? dGuides(L) : "",
     ].join("");
   }
+  /* 옛 이름 — 테스트와 썸네일이 집어 쓴다 */
+  function drawMontage() { return renderCharacter(getResolvedLayout()); }
 
   function buildSVG(opt) {
     const o = opt || {};
-    validate();
-    const f = getFaceTemplate();
+    const L = getResolvedLayout();
     const v = VIEW.split(" ").map(Number);
     const bg = o.bare ? "" : '<rect x="' + v[0] + '" y="' + v[1] + '" width="' + v[2] +
       '" height="' + v[3] + '" fill="' + (o.bg || "#FFFDF7") + '"/>';
-    const body = defs() + bg + drawMontage(f);
+    const body = defs() + bg + renderCharacter(L);
     if (o.bare) return body;
     return '<svg viewBox="' + VIEW + '" xmlns="http://www.w3.org/2000/svg">' + body + '</svg>';
   }
@@ -741,13 +805,15 @@
 
   /* 테스트가 들여다본다 */
   window.__montage = {
-    place: place, img: img, buildSVG: buildSVG, flyerInfo: flyerInfo,
+    put: put, img: img, perEye: perEye, buildSVG: buildSVG, flyerInfo: flyerInfo,
     randomize: randomize, undo: undo, resetAll: resetAll, paintAll: paintAll,
     finish: finish, buildCard: buildCard, thumb: thumb, shareText: shareText,
-    hairDrop: hairDrop, TUCK: TUCK, defs: defs,
+    getResolvedLayout: getResolvedLayout, renderCharacter: renderCharacter,
+    hairDropOf: hairDropOf, bangsFit: bangsFit, defs: defs,
+    drawFace: drawFace, drawFeatures: drawFeatures, drawDetail: drawDetail,
+    drawHairBase: drawHairBase, drawBangs: drawBangs, drawAccessories: drawAccessories,
     typed: typed, bindInputs: bindInputs,
-    getFaceTemplate: getFaceTemplate,
-    getAnchorPoint: getAnchorPoint, drawMontage: drawMontage,
+    drawMontage: drawMontage,
     validate: validate, at: at, clean: clean, posterName: posterName, MODE: MODE,
     normalizeSelection: normalizeSelection, getRandomPart: getRandomPart,
     dumpSelection: dumpSelection, VIEW: VIEW, AGES: AGES,

@@ -1,16 +1,25 @@
 /* ============================================================
    몽타주 파츠
    ============================================================
-   얼굴 / 기본머리 / 앞머리는 그림 에셋(PNG)을 쓰고,
-   눈·눈썹·코·입·안경·특징처럼 작은 것만 코드로 그린다.
+   얼굴 / 기본머리 / 앞머리는 그림 에셋(PNG), 눈·눈썹·코·입·안경·특징은
+   코드로 그린다.
 
-   좌표계 — 에셋이 전부 1254x1254 판에 가로 가운데(627)로 그려져 있다.
-   코드로 그리는 파츠도 같은 판 위에 적는다. 그래서 변환이 한 겹뿐이다.
+   좌표를 두 겹으로 나눴다.
+     (1) 판 좌표   에셋이 전부 1254x1254 판에 가로 가운데(627)로 그려져
+                   있다. 얼굴·머리·앞머리를 여기에 얹는다.
+     (2) 지역 좌표 작은 파츠는 '자기 기준점이 원점' 인 좌표로 적는다.
+                   눈이면 (0,0) 이 한쪽 눈 가운데, 입이면 입 가운데다.
+                   app.js 가 얼굴형별 기준점으로 옮겨 놓는다.
 
-   아래 숫자는 에셋을 실제로 열어 재고, 합성 결과를 눈으로 맞춘 값이다.
-     얼굴 꼭대기/반폭   알파 실루엣에서 잼
-     눈썹 618 / 눈 673 / 코 782 / 입 873   합성본을 보며 맞춤
-     앞머리 배율 0.727 / 내림 109          합성본을 보며 맞춤
+   (2) 가 이번에 바뀐 부분이다. 예전에는 모든 파츠가 '눈은 언제나 y673'
+   처럼 판 좌표에 박혀 있어서, 얼굴형을 바꿔도 눈·눈썹·화장이 같은 자리에
+   있었다. 특히 아이라인이 눈과 따로 놀았다.
+
+   아래 숫자는 전부 에셋을 열어 재고 합성본을 눈으로 맞춘 값이다.
+     얼굴 꼭대기/귀/턱/폭   알파 실루엣에서 잼
+     기준점 비율            계란형에서 눈으로 맞춘 뒤 귀 높이로 환산
+     머리 내림              얼굴마다 '두피가 안 비치는 가장 낮은 자리' 를
+                            픽셀 단위로 찾아 적음 (scratchpad/cover.ps1)
 
    금지: 외부 라이브러리, 이모지
    ============================================================ */
@@ -18,59 +27,74 @@
 "use strict";
 
 const A = "assets/opt/";
+const CANVAS = 1254;
+const CX = 627;
 
-/* 기준 얼굴 — 계란형을 기준으로 잡았다 */
-const REF = {
-  cx: 627,
-  top: 182, chin: 1005,
-  browY: 618, eyeY: 673, noseY: 782, mouthY: 873,
-  eyeDx: 105, halfW: 406,
-  /* 에셋 판 크기 */
-  canvas: 1254,
-};
-
-/* 보이는 칸 — 가장 넓은 머리(곱슬 x100~1160)와 가장 긴 머리(웨이브 y1098),
-   가장 긴 목(길쭉 y1158)이 다 들어오게 잘랐다 */
+/* 보이는 칸 — 가장 넓은 머리(곱슬 x100~1160)와 가장 긴 목(길쭉 y1158)이
+   다 들어오게 잘랐다 */
 const VIEW = "88 44 1078 1148";
 
 /* ------------------------------------------------------------
-   얼굴 — 그림 에셋
-     top    그림에서 머리꼭대기가 있는 줄 (머리를 얹는 기준)
-     halfW  가장 넓은 곳의 반폭 (작은 파츠 가로 보정에 쓴다)
-     dx/dy/scale  미세 보정 자리. 지금은 전부 기본값이면 맞는다.
+   얼굴 — 그림 에셋 + 그 얼굴만의 기준점
+     top/chin      머리꼭대기와 턱 (실루엣에서 잼)
+     earTop/earBot 귀가 튀어나온 구간. 눈썹선과 코 밑을 잇는 해부학적 기준
+     halfW         가장 넓은 곳의 반폭
+     a             기준점. 계란형에서 눈으로 맞춘 비율(귀 높이의 0.33 /
+                   0.605 / 1.15 / 1.605)을 각 얼굴의 귀에 적용한 값이다.
+                   그래서 얼굴형이 바뀌면 눈·눈썹·코·입이 같이 움직인다.
+     browGap       눈썹은 눈에서 이만큼 위 (눈에 매달려 움직인다)
    ------------------------------------------------------------ */
+function face(n, key, top, chin, earTop, earBot, halfW) {
+  const sp = earBot - earTop;
+  const brow = Math.round(earTop + 0.330 * sp);
+  const eye = Math.round(earTop + 0.605 * sp);
+  return {
+    n: n, key: key, src: A + "face-" + key + ".png",
+    top: top, chin: chin, earTop: earTop, earBot: earBot, halfW: halfW,
+    dx: 0, dy: 0, scale: 1,
+    a: {
+      brow: brow,
+      eye: eye,
+      nose: Math.round(earTop + 1.150 * sp),
+      mouth: Math.round(earTop + 1.605 * sp),
+      ear: Math.round((earTop + earBot) / 2),
+      cheek: Math.round(earTop + 1.30 * sp),
+      /* 눈 사이 반간격 — 얼굴이 넓다고 그만큼 벌어지진 않는다 (0.7 만) */
+      eyeDx: Math.round(105 * (1 + (halfW / 406 - 1) * 0.7)),
+    },
+    browGap: eye - brow,
+  };
+}
 const FACES = [
-  { n: "둥근", key: "round", src: A + "face-round.png",
-    top: 164, halfW: 442, dx: 0, dy: 0, scale: 1 },
-  { n: "계란", key: "oval", src: A + "face-oval.png",
-    top: 182, halfW: 406, dx: 0, dy: 0, scale: 1 },
-  { n: "길쭉", key: "long", src: A + "face-long.png",
-    top: 130, halfW: 388, dx: 0, dy: 0, scale: 1 },
-  { n: "각진", key: "square", src: A + "face-square.png",
-    top: 164, halfW: 436, dx: 0, dy: 0, scale: 1 },
+  face("둥근", "round", 164, 1030, 564, 754, 442),
+  face("계란", "oval", 182, 1008, 552, 752, 406),
+  face("길쭉", "long", 130, 1138, 530, 740, 388),
+  face("각진", "square", 164, 1020, 544, 764, 436),
 ];
 
 /* ------------------------------------------------------------
    기본 머리 — 그림 에셋. 하나가 정수리·옆·뒤·길이를 다 맡는다.
-     top  그림에서 머리 꼭대기가 있는 줄.
-          얼굴 꼭대기보다 14px 위에 오도록 얹는다 (app.js 가 계산).
+   drop 은 얼굴형마다 다르다. 네모(bbox) 꼭대기끼리 맞추면 안 된다 —
+   곱슬은 맨 위 픽셀이 듬성듬성한 컬 끝이라, 그걸 맞추면 빽빽한 부분이
+   두개골보다 아래로 내려가 정수리가 대머리처럼 비친다 (26~30px 차이).
+   그래서 얼굴마다 '두피가 안 비치는 가장 낮은 자리' 를 픽셀로 찾아 적었다.
    ------------------------------------------------------------ */
 const HAIR_BASE = [
   { n: "없음", src: null },
   { n: "숏컷", key: "short", src: A + "hair-base-short.png",
-    top: 174, dx: 0, dy: 0, scale: 1 },
+    drop: { round: -36, oval: -18, long: -70, square: -62 }, dx: 0, scale: 1 },
   { n: "단발", key: "bob", src: A + "hair-base-bob.png",
-    top: 140, dx: 0, dy: 0, scale: 1 },
+    drop: { round: 8, oval: 26, long: -26, square: -6 }, dx: 0, scale: 1 },
   { n: "웨이브", key: "wave", src: A + "hair-base-wave.png",
-    top: 114, dx: 0, dy: 0, scale: 1 },
+    drop: { round: 24, oval: 42, long: -10, square: 6 }, dx: 0, scale: 1 },
   { n: "곱슬", key: "curly", src: A + "hair-base-curly.png",
-    top: 190, dx: 0, dy: 0, scale: 1 },
+    drop: { round: -78, oval: -58, long: -112, square: -80 }, dx: 0, scale: 1 },
 ];
 
 /* ------------------------------------------------------------
-   앞머리 — 그림 에셋. 머리라인에서 내려와 눈썹 위에서 끝난다.
-   에셋이 얼굴보다 크게 그려져 있어 0.727 배로 줄이고 109 내린다
-   (그 값이어야 앞머리 끝이 눈 바로 위에 온다 — 합성본으로 맞춤).
+   앞머리 — 머리라인에서 내려와 눈썹 바로 위에서 끝난다.
+   에셋이 얼굴보다 크게 그려져 있어 0.727 배로 줄인다. 내리는 양은
+   얼굴의 눈썹선을 따라간다 (계란형 눈썹 618 에서 109 가 맞았다).
    ------------------------------------------------------------ */
 const BANGS = [
   { n: "없음", src: null },
@@ -79,190 +103,205 @@ const BANGS = [
   { n: "시스루", key: "seeThrough", src: A + "bangs-see-through.png",
     scale: 0.727, dy: 109, dx: 0 },
 ];
+/* 앞머리 내림의 기준이 된 눈썹선 */
+const BANGS_REF_BROW = 618;
+
+/* 머리 x 앞머리 — 어색한 짝만 여기에 적어 덮어쓴다.
+   비어 있으면 위의 기본값이 그대로 쓰인다. */
+const COMBO_OVERRIDES = {
+  /* 숏컷은 머리라인(462)이 높아 앞머리가 머리 밖으로 비어져 나온다 */
+  "short:straight": { dy: 14, scale: 0.97 },
+  "short:seeThrough": { dy: 12, scale: 0.97 },
+  /* 곱슬은 정수리가 높아 앞머리가 묻힌다 */
+  "curly:straight": { dy: -10 },
+  "curly:seeThrough": { dy: -10 },
+};
 
 /* ============================================================
-   코드로 그리는 작은 파츠
+   코드로 그리는 작은 파츠 — 전부 '지역 좌표' 다
    ============================================================
+   원점(0,0)이 그 파츠의 기준점이다.
+     brows  두 눈썹을 한 벌로. x 는 얼굴 가운데, y 는 눈썹선
+     eyes   한쪽 눈. app.js 가 좌우 두 번 찍는다
+     eyeFx  눈에 붙는 것(아이라인·눈색). 좌표가 '눈 반지름의 몇 배' 라
+            눈을 바꾸면 같이 커지고 작아진다
+     nose / mouth / detail  각자 기준점
    선을 얇게(5.5 ≈ 화면에서 2px) 두고 검정 대신 차콜브라운을 쓴다.
-   예전에는 선이 얼굴폭의 2.1% 라 굵은 막대처럼 보였다 — 지금은 0.7% 다.
-   좌우를 완전히 똑같이 두지 않아 기계적으로 안 보이게 한다.
    ============================================================ */
 const INK = "#3D322E";
 const LW = 5.5;
 const S = 'fill="none" stroke="' + INK + '" stroke-width="' + LW +
           '" stroke-linecap="round" stroke-linejoin="round"';
-const EX = REF.eyeDx;
+const PUP = "#2E2622";
 
-/* 눈썹 — y618. 굵은 막대가 아니라 얇은 결 */
-function brow(d) { return '<g ' + S + '>' + d + '</g>'; }
+/* 눈썹 — 두 벌을 한 번에. 눈 기준점에서 browGap 만큼 위에 놓인다.
+   좌우를 뒤집어 붙이지 않고 조금 다르게 그려 기계적으로 안 보이게. */
 const BROWS = [
-  { n: "기본", s: brow(
-    '<path d="M522 622 Q572 600 622 616"/><path d="M732 616 Q682 598 632 620"/>') },
-  { n: "일자", s: brow(
-    '<path d="M520 616 L622 612"/><path d="M734 613 L632 610"/>') },
-  { n: "둥근", s: brow(
-    '<path d="M524 626 Q574 594 624 622"/><path d="M730 622 Q680 592 630 626"/>') },
-  { n: "올라간", s: brow(
-    '<path d="M520 632 Q574 606 624 598"/><path d="M734 630 Q680 604 630 596"/>') },
-  { n: "처진", s: brow(
-    '<path d="M520 600 Q574 612 624 628"/><path d="M734 602 Q680 614 630 630"/>') },
+  { n: "기본", s: '<g ' + S + '><path d="M-105 4 Q-55 -18 -5 -2"/>' +
+      '<path d="M105 -2 Q55 -20 5 2"/></g>' },
+  { n: "일자", s: '<g ' + S + '><path d="M-107 -2 Q-56 -8 -5 -6"/>' +
+      '<path d="M107 -5 Q56 -11 5 -8"/></g>' },
+  { n: "둥근", s: '<g ' + S + '><path d="M-103 8 Q-53 -24 -3 4"/>' +
+      '<path d="M103 4 Q53 -26 3 8"/></g>' },
+  { n: "올라간", s: '<g ' + S + '><path d="M-107 14 Q-53 -12 -3 -20"/>' +
+      '<path d="M107 12 Q53 -14 3 -22"/></g>' },
+  { n: "처진", s: '<g ' + S + '><path d="M-107 -18 Q-53 -6 -3 10"/>' +
+      '<path d="M107 -16 Q53 -4 3 12"/></g>' },
   { n: "짙은", s: '<g fill="' + INK + '">' +
-    '<path d="M520 626 Q574 598 626 616 Q574 610 524 634z"/>' +
-    '<path d="M734 622 Q680 596 628 614 Q680 608 730 630z"/></g>' },
+      '<path d="M-107 8 Q-53 -20 -1 -2 Q-53 -8 -103 16z"/>' +
+      '<path d="M107 4 Q53 -22 1 -4 Q53 -10 103 12z"/></g>' },
   { n: "가는", s: '<g fill="none" stroke="' + INK + '" stroke-width="3.6" ' +
-    'stroke-linecap="round"><path d="M530 620 Q576 604 620 616"/>' +
-    '<path d="M726 617 Q680 601 634 614"/></g>' },
+      'stroke-linecap="round"><path d="M-97 2 Q-51 -14 -7 -2"/>' +
+      '<path d="M99 -1 Q53 -17 7 -4"/></g>' },
 ];
 
-/* 눈 — y673. 흰자·검은자 대비를 너무 세게 두지 않는다 */
-function eyes(inner) {
-  return '<g>' + inner.replace(/@/g, String(627 - EX)) + '</g>' +
-         '<g>' + inner.replace(/@/g, String(627 + EX)) + '</g>';
-}
-const PUP = '#2E2622';
+/* 눈 — 한쪽만 그린다. 원점이 그 눈의 가운데.
+   w/h 는 아이라인·눈색이 따라붙을 크기다. */
 const EYES = [
-  { n: "기본", s: eyes('<ellipse cx="@" cy="673" rx="23" ry="21" fill="' + PUP + '"/>' +
-      '<circle cx="@" cy="665" r="6.5" fill="#ffffff" fill-opacity=".85"/>') },
-  { n: "큰눈", s: eyes('<ellipse cx="@" cy="673" rx="28" ry="26" fill="' + PUP + '"/>' +
-      '<circle cx="@" cy="663" r="8" fill="#ffffff" fill-opacity=".85"/>') },
-  { n: "작은눈", s: eyes('<ellipse cx="@" cy="673" rx="17" ry="16" fill="' + PUP + '"/>' +
-      '<circle cx="@" cy="667" r="5" fill="#ffffff" fill-opacity=".8"/>') },
-  { n: "또렷한", s: eyes(
-      '<ellipse cx="@" cy="673" rx="30" ry="22" fill="#FBF7F2"/>' +
-      '<ellipse cx="@" cy="673" rx="30" ry="22" fill="none" stroke="' + INK +
-      '" stroke-width="4"/>' +
-      '<circle cx="@" cy="673" r="13" fill="' + PUP + '"/>' +
-      '<circle cx="@" cy="667" r="4.5" fill="#ffffff" fill-opacity=".9"/>') },
-  { n: "가는눈", s: '<g ' + S + '><path d="M492 673 Q522 656 552 673"/>' +
-      '<path d="M702 673 Q732 656 762 673"/></g>' +
-      eyes('<ellipse cx="@" cy="670" rx="11" ry="8" fill="' + PUP + '"/>') },
-  { n: "처진눈", s: eyes('<ellipse cx="@" cy="676" rx="23" ry="20" fill="' + PUP + '"/>' +
-      '<circle cx="@" cy="669" r="6" fill="#ffffff" fill-opacity=".85"/>') +
-      '<g ' + S + '><path d="M494 660 Q522 650 550 658"/>' +
-      '<path d="M704 658 Q732 650 760 660"/></g>' },
-  { n: "올라간눈", s: eyes('<ellipse cx="@" cy="671" rx="22" ry="20" fill="' + PUP + '"/>' +
-      '<circle cx="@" cy="664" r="6" fill="#ffffff" fill-opacity=".85"/>') +
-      '<g ' + S + '><path d="M496 658 Q524 646 552 654"/>' +
-      '<path d="M702 654 Q730 646 758 658"/></g>' },
-  { n: "감은눈", s: '<g ' + S + '><path d="M494 670 Q522 686 550 670"/>' +
-      '<path d="M704 670 Q732 686 760 670"/></g>' },
-  { n: "졸린눈", s: eyes('<ellipse cx="@" cy="678" rx="21" ry="15" fill="' + PUP + '"/>') +
-      '<g ' + S + '><path d="M496 664 L552 662"/><path d="M758 664 L702 662"/></g>' },
+  { n: "기본", w: 23, h: 21,
+    s: '<ellipse cx="0" cy="0" rx="23" ry="21" fill="' + PUP + '"/>' +
+       '<circle cx="-1" cy="-8" r="6.5" fill="#ffffff" fill-opacity=".85"/>' },
+  { n: "큰눈", w: 28, h: 26,
+    s: '<ellipse cx="0" cy="0" rx="28" ry="26" fill="' + PUP + '"/>' +
+       '<circle cx="-1" cy="-10" r="8" fill="#ffffff" fill-opacity=".85"/>' },
+  { n: "작은눈", w: 17, h: 16,
+    s: '<ellipse cx="0" cy="0" rx="17" ry="16" fill="' + PUP + '"/>' +
+       '<circle cx="-1" cy="-6" r="5" fill="#ffffff" fill-opacity=".8"/>' },
+  { n: "또렷한", w: 30, h: 22,
+    s: '<ellipse cx="0" cy="0" rx="30" ry="22" fill="#FBF7F2"/>' +
+       '<ellipse cx="0" cy="0" rx="30" ry="22" fill="none" stroke="' + INK +
+       '" stroke-width="4"/>' +
+       '<circle cx="0" cy="0" r="13" fill="' + PUP + '"/>' +
+       '<circle cx="-2" cy="-6" r="4.5" fill="#ffffff" fill-opacity=".9"/>' },
+  { n: "가는눈", w: 30, h: 10,
+    s: '<path d="M-30 0 Q0 -17 30 0" ' + S + '/>' +
+       '<ellipse cx="0" cy="-3" rx="11" ry="8" fill="' + PUP + '"/>' },
+  { n: "처진눈", w: 23, h: 20,
+    s: '<ellipse cx="0" cy="3" rx="23" ry="20" fill="' + PUP + '"/>' +
+       '<circle cx="-1" cy="-4" r="6" fill="#ffffff" fill-opacity=".85"/>' +
+       '<path d="M-28 -13 Q0 -23 28 -15" ' + S + '/>' },
+  { n: "올라간눈", w: 22, h: 20,
+    s: '<ellipse cx="0" cy="-2" rx="22" ry="20" fill="' + PUP + '"/>' +
+       '<circle cx="-1" cy="-9" r="6" fill="#ffffff" fill-opacity=".85"/>' +
+       '<path d="M-26 -15 Q0 -27 26 -19" ' + S + '/>' },
+  { n: "감은눈", w: 28, h: 8,
+    s: '<path d="M-28 -3 Q0 13 28 -3" ' + S + '/>' },
+  { n: "졸린눈", w: 21, h: 15,
+    s: '<ellipse cx="0" cy="5" rx="21" ry="15" fill="' + PUP + '"/>' +
+       '<path d="M-28 -9 L28 -11" ' + S + '/>' },
 ];
 
-/* 코 — y782. 예전 'ㄴ자' 코를 없애고 짧은 곡선만 */
+/* 코 / 입 — 자기 기준점이 원점 */
 const NOSE = [
-  { n: "기본", s: '<g ' + S + '><path d="M612 760 Q606 786 627 790"/></g>' },
-  { n: "작은", s: '<g ' + S + '><path d="M616 772 Q612 788 627 790"/></g>' },
-  { n: "둥근", s: '<g ' + S + '><path d="M608 772 Q606 794 627 792 Q646 792 646 780"/></g>' },
-  { n: "뾰족", s: '<g ' + S + '><path d="M618 756 L608 790 L630 788"/></g>' },
-  { n: "콧볼", s: '<g ' + S + '><path d="M610 770 Q604 790 627 790 Q648 790 644 772"/></g>' },
+  { n: "기본", s: '<g ' + S + '><path d="M-15 -22 Q-21 4 0 8"/></g>' },
+  { n: "작은", s: '<g ' + S + '><path d="M-11 -10 Q-15 6 0 8"/></g>' },
+  { n: "둥근", s: '<g ' + S + '><path d="M-19 -10 Q-21 12 0 10 Q19 10 19 -2"/></g>' },
+  { n: "뾰족", s: '<g ' + S + '><path d="M-9 -26 L-19 8 L3 6"/></g>' },
+  { n: "콧볼", s: '<g ' + S + '><path d="M-17 -12 Q-23 8 0 8 Q21 8 17 -10"/></g>' },
   { n: "점두개", s: '<g fill="' + INK + '" fill-opacity=".62">' +
-      '<ellipse cx="612" cy="786" rx="6" ry="4.5"/>' +
-      '<ellipse cx="644" cy="785" rx="6" ry="4.5"/></g>' },
+      '<ellipse cx="-15" cy="4" rx="6" ry="4.5"/>' +
+      '<ellipse cx="17" cy="3" rx="6" ry="4.5"/></g>' },
 ];
-
-/* 입 — y873. 완벽한 반원 금지, 살짝 비대칭 */
 const MOUTH = [
-  { n: "기본", s: '<g ' + S + '><path d="M588 868 Q628 892 668 866"/></g>' },
-  { n: "옅은미소", s: '<g ' + S + '><path d="M594 870 Q628 882 664 868"/></g>' },
-  { n: "일자", s: '<g ' + S + '><path d="M592 872 L664 870"/></g>' },
-  { n: "뾰로통", s: '<g ' + S + '><path d="M596 878 Q628 862 662 876"/></g>' },
-  { n: "벌린입", s: '<path d="M594 866 Q628 864 664 864 Q652 898 626 898 Q600 896 594 866z" ' +
+  { n: "기본", s: '<g ' + S + '><path d="M-39 -5 Q1 19 41 -7"/></g>' },
+  { n: "옅은미소", s: '<g ' + S + '><path d="M-33 -3 Q1 9 37 -5"/></g>' },
+  { n: "일자", s: '<g ' + S + '><path d="M-35 -1 L37 -3"/></g>' },
+  { n: "뾰로통", s: '<g ' + S + '><path d="M-31 5 Q1 -11 35 3"/></g>' },
+  { n: "벌린입", s: '<path d="M-33 -7 Q1 -9 37 -9 Q25 25 -1 25 Q-27 23 -33 -7z" ' +
       'fill="#8C5B52" fill-opacity=".9"/><g ' + S + '>' +
-      '<path d="M594 866 Q628 864 664 864"/></g>' },
-  { n: "웃는입", s: '<path d="M586 864 Q628 866 670 862 Q660 906 626 906 Q594 902 586 864z" ' +
+      '<path d="M-33 -7 Q1 -9 37 -9"/></g>' },
+  { n: "웃는입", s: '<path d="M-41 -9 Q1 -7 43 -11 Q33 33 -1 33 Q-33 29 -41 -9z" ' +
       'fill="#8C5B52" fill-opacity=".9"/>' +
-      '<path d="M600 884 Q628 896 656 882 Q628 890 600 884z" fill="#F7E6E2" ' +
-      'fill-opacity=".8"/><g ' + S + '><path d="M586 864 Q628 866 670 862"/></g>' },
-  { n: "삐죽", s: '<g ' + S + '><path d="M594 874 Q616 862 638 874 Q652 880 664 872"/></g>' },
-  { n: "작은입", s: '<g ' + S + '><path d="M606 870 Q628 884 652 868"/></g>' },
+      '<path d="M-27 11 Q1 23 29 9 Q1 17 -27 11z" fill="#F7E6E2" fill-opacity=".8"/>' +
+      '<g ' + S + '><path d="M-41 -9 Q1 -7 43 -11"/></g>' },
+  { n: "삐죽", s: '<g ' + S + '><path d="M-33 1 Q-11 -11 11 1 Q25 7 37 -1"/></g>' },
+  { n: "작은입", s: '<g ' + S + '><path d="M-21 -3 Q1 11 25 -5"/></g>' },
 ];
 
-/* 안경 — 두 눈 기준 */
+/* 안경 — 원점은 두 눈 사이 한가운데. 렌즈 가운데가 ±105 에 그려져 있고,
+   얼굴의 실제 눈 간격에 맞춰 app.js 가 가로로 늘린다. */
 function gl(d, w) {
   return '<g fill="none" stroke="#4A403B" stroke-width="' + (w || 6) +
          '" stroke-linecap="round">' + d + '</g>';
 }
 const GLASSES = [
   { n: "없음", s: "" },
-  { n: "동그란", s: gl('<circle cx="522" cy="673" r="62"/><circle cx="732" cy="673" r="62"/>' +
-      '<path d="M584 673 H670"/><path d="M460 660 L410 672"/><path d="M794 660 L844 672"/>') },
-  { n: "사각", s: gl('<rect x="454" y="634" width="136" height="80" rx="12"/>' +
-      '<rect x="664" y="634" width="136" height="80" rx="12"/>' +
-      '<path d="M590 672 H664"/><path d="M454 650 L404 664"/><path d="M800 650 L850 664"/>') },
-  { n: "뿔테", s: gl('<rect x="450" y="630" width="142" height="86" rx="16"/>' +
-      '<rect x="662" y="630" width="142" height="86" rx="16"/>' +
-      '<path d="M592 668 H662"/>', 11) },
-  { n: "얇은테", s: gl('<rect x="458" y="640" width="128" height="70" rx="26"/>' +
-      '<rect x="668" y="640" width="128" height="70" rx="26"/>' +
-      '<path d="M586 674 H668"/><path d="M458 654 L408 666"/><path d="M796 654 L846 666"/>', 3.6) },
-  { n: "반달", s: gl('<path d="M456 666 H588 Q576 712 522 712 Q468 712 456 666z"/>' +
-      '<path d="M666 666 H798 Q786 712 732 712 Q678 712 666 666z"/>' +
-      '<path d="M588 670 H666"/>', 4.6) },
+  { n: "동그란", s: gl('<circle cx="-105" cy="0" r="62"/><circle cx="105" cy="0" r="62"/>' +
+      '<path d="M-43 0 H43"/><path d="M-167 -13 L-217 -1"/><path d="M167 -13 L217 -1"/>') },
+  { n: "사각", s: gl('<rect x="-173" y="-39" width="136" height="80" rx="12"/>' +
+      '<rect x="37" y="-39" width="136" height="80" rx="12"/>' +
+      '<path d="M-37 -1 H37"/><path d="M-173 -23 L-223 -9"/><path d="M173 -23 L223 -9"/>') },
+  { n: "뿔테", s: gl('<rect x="-177" y="-43" width="142" height="86" rx="16"/>' +
+      '<rect x="35" y="-43" width="142" height="86" rx="16"/>' +
+      '<path d="M-35 -5 H35"/>', 11) },
+  { n: "얇은테", s: gl('<rect x="-169" y="-33" width="128" height="70" rx="26"/>' +
+      '<rect x="41" y="-33" width="128" height="70" rx="26"/>' +
+      '<path d="M-41 1 H41"/><path d="M-169 -19 L-219 -7"/><path d="M169 -19 L219 -7"/>', 3.6) },
+  { n: "반달", s: gl('<path d="M-171 -7 H-39 Q-51 39 -105 39 Q-159 39 -171 -7z"/>' +
+      '<path d="M39 -7 H171 Q159 39 105 39 Q51 39 39 -7z"/>' +
+      '<path d="M-39 -3 H39"/>', 4.6) },
   { n: "선글라스", s: '<g fill="#3A3330" fill-opacity=".82" stroke="#2C2724" ' +
-      'stroke-width="6"><rect x="450" y="632" width="140" height="82" rx="20"/>' +
-      '<rect x="664" y="632" width="140" height="82" rx="20"/></g>' +
-      gl('<path d="M590 666 H664"/>') },
-  { n: "뿔테사각", s: gl('<rect x="448" y="628" width="146" height="90" rx="8"/>' +
-      '<rect x="660" y="628" width="146" height="90" rx="8"/>' +
-      '<path d="M594 666 H660"/>', 9) },
-];
-
-/* 얼굴 특징 — 한 칸에서 하나만 고른다 (랜덤으로 붙어도 '없음'으로 뗄 수 있다) */
-const DETAIL = [
-  { n: "없음", s: "" },
-  { n: "볼점", s: '<circle cx="508" cy="806" r="9" fill="#5A4038"/>' },
-  { n: "입가점", s: '<circle cx="676" cy="852" r="8" fill="#5A4038"/>' },
-  { n: "주근깨", s: '<g fill="#B9765A" fill-opacity=".68">' +
-      '<circle cx="498" cy="776" r="6"/><circle cx="528" cy="792" r="5"/>' +
-      '<circle cx="470" cy="796" r="5.5"/><circle cx="756" cy="776" r="6"/>' +
-      '<circle cx="726" cy="792" r="5"/><circle cx="784" cy="796" r="5.5"/>' +
-      '<circle cx="606" cy="806" r="4.5"/><circle cx="650" cy="810" r="4.5"/></g>' },
-  { n: "다크서클", s: '<g fill="none" stroke="#9B7A72" stroke-width="7" ' +
-      'stroke-linecap="round" stroke-opacity=".6">' +
-      '<path d="M494 702 Q522 718 552 702"/><path d="M702 702 Q732 718 762 702"/></g>' },
-  { n: "흉터", s: '<g fill="none" stroke="#B5705E" stroke-width="5.5" ' +
-      'stroke-linecap="round"><path d="M772 630 L748 700"/>' +
-      '<path d="M756 652 L782 660"/><path d="M748 678 L772 686"/></g>' },
-  { n: "콧수염", s: '<path d="M572 846 Q600 826 627 842 Q654 826 682 846 ' +
-      'Q654 858 627 850 Q600 858 572 846z" fill="#4A3A33"/>' },
-  { n: "턱수염", s: '<path d="M546 880 Q560 962 627 972 Q694 962 708 880 ' +
-      'Q690 930 627 936 Q564 930 546 880z" fill="#4A3A33" fill-opacity=".92"/>' },
-  { n: "보조개", s: '<g fill="none" stroke="' + INK + '" stroke-width="4.4" ' +
-      'stroke-linecap="round" stroke-opacity=".55">' +
-      '<path d="M556 868 Q552 882 560 892"/>' +
-      '<path d="M698 866 Q702 880 694 890"/></g>' },
-];
-
-/* 눈색 / 아이라인 — 또렷한 눈에만 어울리지만 어느 눈에도 올릴 수 있다 */
-const LENS = [
-  { n: "없음", s: "" },
-  { n: "갈색", s: '<g fill="#7A4A28" fill-opacity=".8">' +
-      '<circle cx="522" cy="673" r="9"/><circle cx="732" cy="673" r="9"/></g>' },
-  { n: "회색", s: '<g fill="#8A8C8E" fill-opacity=".8">' +
-      '<circle cx="522" cy="673" r="9"/><circle cx="732" cy="673" r="9"/></g>' },
-  { n: "푸른", s: '<g fill="#3F6E96" fill-opacity=".8">' +
-      '<circle cx="522" cy="673" r="9"/><circle cx="732" cy="673" r="9"/></g>' },
-  { n: "초록", s: '<g fill="#4E7A52" fill-opacity=".8">' +
-      '<circle cx="522" cy="673" r="9"/><circle cx="732" cy="673" r="9"/></g>' },
-];
-const LINER = [
-  { n: "없음", s: "" },
-  { n: "옅게", s: '<g fill="none" stroke="' + INK + '" stroke-width="4.4" ' +
-      'stroke-linecap="round"><path d="M496 654 Q522 646 550 652"/>' +
-      '<path d="M704 652 Q732 646 758 654"/></g>' },
-  { n: "또렷하게", s: '<g fill="none" stroke="#2A2320" stroke-width="7" ' +
-      'stroke-linecap="round"><path d="M492 654 Q522 642 554 650 L566 642"/>' +
-      '<path d="M762 654 Q732 642 700 650 L688 642"/></g>' },
+      'stroke-width="6"><rect x="-177" y="-41" width="140" height="82" rx="20"/>' +
+      '<rect x="37" y="-41" width="140" height="82" rx="20"/></g>' +
+      gl('<path d="M-37 -7 H37"/>') },
+  { n: "뿔테사각", s: gl('<rect x="-179" y="-45" width="146" height="90" rx="8"/>' +
+      '<rect x="33" y="-45" width="146" height="90" rx="8"/>' +
+      '<path d="M-33 -7 H33"/>', 9) },
 ];
 
 /* ------------------------------------------------------------
-   피부색 / 머리색 — 그림을 색칠하는 필터 값
-   그림이 한 가지 색으로 칠해져 있어 SVG 필터로 톤을 옮긴다.
+   눈에 붙는 것 — 원점이 '그 눈의 가운데' 이고, 좌표 단위가 '눈 반지름' 이다.
+   그래서 눈을 큰눈/가는눈으로 바꾸면 아이라인도 같이 커지고 눕는다.
+   예전에는 판 좌표(x522, y654)에 박혀 있어 눈과 따로 놀았다.
+   ------------------------------------------------------------ */
+const LENS = [
+  { n: "없음", s: "" },
+  { n: "갈색", s: '<circle cx="0" cy="0" r=".42" fill="#7A4A28" fill-opacity=".8"/>' },
+  { n: "회색", s: '<circle cx="0" cy="0" r=".42" fill="#8A8C8E" fill-opacity=".8"/>' },
+  { n: "푸른", s: '<circle cx="0" cy="0" r=".42" fill="#3F6E96" fill-opacity=".8"/>' },
+  { n: "초록", s: '<circle cx="0" cy="0" r=".42" fill="#4E7A52" fill-opacity=".8"/>' },
+];
+const LINER = [
+  { n: "없음", s: "" },
+  { n: "옅게", s: '<path d="M-1.12 -0.62 Q0 -1.1 1.1 -0.66" fill="none" stroke="' + INK +
+      '" stroke-width=".17" stroke-linecap="round"/>' },
+  { n: "또렷하게", s: '<path d="M-1.18 -0.6 Q0 -1.22 1.14 -0.74 L1.46 -1.02" fill="none" ' +
+      'stroke="#2A2320" stroke-width=".26" stroke-linecap="round"/>' },
+];
+
+/* ------------------------------------------------------------
+   얼굴 특징 — 저마다 기준점이 다르다 (anchor 로 적는다)
+     eye    눈 (좌우 둘 다, 좌표 단위는 눈 반지름)
+     cheek  볼 / mouth 입 / brow 눈썹  (좌표 단위는 판 좌표 px)
+   ------------------------------------------------------------ */
+const DETAIL = [
+  { n: "없음", s: "" },
+  { n: "볼점", anchor: "cheek", s: '<circle cx="-119" cy="0" r="9" fill="#5A4038"/>' },
+  { n: "입가점", anchor: "mouth", s: '<circle cx="49" cy="-21" r="8" fill="#5A4038"/>' },
+  { n: "주근깨", anchor: "cheek", s: '<g fill="#B9765A" fill-opacity=".68">' +
+      '<circle cx="-129" cy="-30" r="6"/><circle cx="-99" cy="-14" r="5"/>' +
+      '<circle cx="-157" cy="-10" r="5.5"/><circle cx="129" cy="-30" r="6"/>' +
+      '<circle cx="99" cy="-14" r="5"/><circle cx="157" cy="-10" r="5.5"/>' +
+      '<circle cx="-21" cy="0" r="4.5"/><circle cx="23" cy="4" r="4.5"/></g>' },
+  { n: "다크서클", anchor: "eye", s: '<path d="M-1.2 1.35 Q0 2.15 1.2 1.35" fill="none" ' +
+      'stroke="#9B7A72" stroke-width=".26" stroke-linecap="round" stroke-opacity=".6"/>' },
+  { n: "흉터", anchor: "brow", s: '<g fill="none" stroke="#B5705E" stroke-width="5.5" ' +
+      'stroke-linecap="round"><path d="M145 12 L121 82"/>' +
+      '<path d="M129 34 L155 42"/><path d="M121 60 L145 68"/></g>' },
+  { n: "콧수염", anchor: "mouth", s: '<path d="M-55 -27 Q-27 -47 0 -31 ' +
+      'Q27 -47 55 -27 Q27 -15 0 -23 Q-27 -15 -55 -27z" fill="#4A3A33"/>' },
+  { n: "턱수염", anchor: "mouth", s: '<path d="M-81 7 Q-67 89 0 99 Q67 89 81 7 ' +
+      'Q63 57 0 63 Q-63 57 -81 7z" fill="#4A3A33" fill-opacity=".92"/>' },
+  { n: "보조개", anchor: "mouth", s: '<g fill="none" stroke="' + INK + '" ' +
+      'stroke-width="4.4" stroke-linecap="round" stroke-opacity=".55">' +
+      '<path d="M-71 -5 Q-75 9 -67 19"/><path d="M71 -7 Q75 7 67 17"/></g>' },
+];
+
+/* ------------------------------------------------------------
+   피부색 / 머리색 — 그림을 칠하는 필터 값
      skin  밝기·채도만 건드린다 (살색 결을 유지)
      hair  어두운 그림을 색 쪽으로 끌어올린다
-           R' = R*slope + intercept  (셋 다 따로)
+           R' = R*slope + intercept  (밝기만 올리면 검정은 검정 그대로다)
    ------------------------------------------------------------ */
 const SKIN = [
   { n: "기본", c: "#F6CDAA", f: null },
@@ -298,16 +337,8 @@ const CATS = [
   { key: "liner", label: "아이라인", list: LINER },
 ];
 
-/* "없음" 이 있는 칸 — 랜덤이 확률로 비워 둘 수 있다 */
 const OPTIONAL = ["hairBase", "bangs", "glasses", "detail", "lens", "liner"];
-const CHANCE = {
-  bangs: 0.7,
-  glasses: 0.3,
-  detail: 0.35,
-  lens: 0.15,
-  liner: 0.2,
-};
-/* 처음 열었을 때 — 랜덤이 아니라 중립 */
+const CHANCE = { bangs: 0.7, glasses: 0.3, detail: 0.35, lens: 0.15, liner: 0.2 };
 const NEUTRAL = {
   face: 1, hairBase: 1, bangs: 0,
   brows: 0, eyes: 0, nose: 0, mouth: 0,
@@ -320,7 +351,7 @@ function bangsOk(baseName, bangsName) {
 }
 
 /* ------------------------------------------------------------
-   전단지에 적을 말 — 고른 파츠에서 뽑는다
+   전단지에 적을 말
    ------------------------------------------------------------ */
 const TAGS = {
   FACES: [["둥근 얼굴형"], ["계란형 얼굴"], ["길쭉한 얼굴형"], ["각진 얼굴형"]],
@@ -342,19 +373,19 @@ const TAGS = {
   LENS: [[], ["갈색 눈동자"], ["회색 눈동자"], ["푸른 눈동자"], ["초록 눈동자"]],
   LINER: [[], ["옅은 아이라인"], ["또렷한 아이라인"]],
 };
-/* 글에 적는 차례 — 사람을 가리는 표가 앞에 온다 */
 const TAG_ORDER = ["FACES", "HAIR_BASE", "BANGS", "GLASSES", "DETAIL",
                    "EYES", "BROWS", "NOSE", "MOUTH", "LENS", "LINER"];
 
 window.MONTAGE_PARTS = {
-  REF: REF, VIEW: VIEW, ASSET_DIR: A,
+  CANVAS: CANVAS, CX: CX, VIEW: VIEW, ASSET_DIR: A,
   FACES: FACES, HAIR_BASE: HAIR_BASE, BANGS: BANGS,
+  BANGS_REF_BROW: BANGS_REF_BROW, COMBO_OVERRIDES: COMBO_OVERRIDES,
   BROWS: BROWS, EYES: EYES, NOSE: NOSE, MOUTH: MOUTH,
   GLASSES: GLASSES, DETAIL: DETAIL, LENS: LENS, LINER: LINER,
   SKIN: SKIN, HAIRCOL: HAIRCOL, CATS: CATS,
   OPTIONAL: OPTIONAL, CHANCE: CHANCE, NEUTRAL: NEUTRAL,
   TAGS: TAGS, TAG_ORDER: TAG_ORDER,
-  bangsOk: bangsOk,
-  INK: INK,
+  bangsOk: bangsOk, INK: INK,
+  REF: { cx: CX, canvas: CANVAS, halfW: 406 },
 };
 })();
