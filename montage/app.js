@@ -673,7 +673,7 @@
   }
   function box(c, x, y, w, h, fill, line) {
     if (fill) { c.fillStyle = fill; c.fillRect(x, y, w, h); }
-    if (line) { c.strokeStyle = "#1A1A16"; c.lineWidth = line; c.strokeRect(x, y, w, h); }
+    if (line) { c.strokeStyle = "#D2C9B4"; c.lineWidth = line; c.strokeRect(x, y, w, h); }
   }
   async function buildCard() {
     const W = 1080, H = 1920;
@@ -681,14 +681,15 @@
     cv.width = W; cv.height = H;
     const c = cv.getContext("2d");
     /* 종이 */
-    box(c, 0, 0, W, H, "#FBF4DF");
-    box(c, 24, 24, W - 48, H - 48, null, 10);
+    box(c, 0, 0, W, H, "#FFFDF7");
+    box(c, 24, 24, W - 48, H - 48, null, 3);
     /* 빨간 머리띠 */
-    box(c, 24, 24, W - 48, 250, "#D73A2F", 10);
-    c.fillStyle = "#FFF8E6";
+    box(c, 24, 24, W - 48, 232, "#C8382E", 0);
+    c.fillStyle = "#FFF9F2";
     c.textAlign = "center";
-    c.font = "800 136px 'Black Han Sans', Pretendard, sans-serif";
-    c.fillText("사람을 찾습니다", W / 2, 192);
+    /* 화면과 같은 글꼴·굵기로 — 저장본만 따로 놀지 않게 */
+    c.font = "800 124px Pretendard, sans-serif";
+    c.fillText("사람을 찾습니다", W / 2, 174);
     /* 사진 — 편집 UI 는 들어가지 않는다 (몽타주만 다시 그린다) */
     const v = VIEW.split(" ").map(Number);
     const PW = 820, PH = Math.round(PW * v[3] / v[2]), PX = (W - PW) / 2, PY = 330;
@@ -697,22 +698,22 @@
     try {
       svg = await inlineAssets(svg);
       const im = await svgToImg(svg);
-      box(c, PX, PY, PW, PH, "#FFFFFF", 8);
+      box(c, PX, PY, PW, PH, "#FFFFFF", 2);
       c.drawImage(im, PX, PY, PW, PH);
     } catch (_) {
-      box(c, PX, PY, PW, PH, "#EDEDE4", 8);
+      box(c, PX, PY, PW, PH, "#EDEDE4", 2);
     }
     /* 정보 */
     const i = flyerInfo();
     c.textAlign = "left";
-    c.fillStyle = "#1A1A16";
+    c.fillStyle = "#2E2A26";
     let y = 1420;
     const row = (k, v) => {
-      c.font = "800 44px Pretendard, sans-serif";
-      c.fillStyle = "#8A3F38";
+      c.font = "600 42px Pretendard, sans-serif";
+      c.fillStyle = "#8A6A52";
       c.fillText(k, 150, y);
-      c.font = "700 44px Pretendard, sans-serif";
-      c.fillStyle = "#1A1A16";
+      c.font = "500 44px Pretendard, sans-serif";
+      c.fillStyle = "#2E2A26";
       /* 길면 줄여 적는다 — 넘쳐 잘리는 것보다 낫다 */
       let t = v;
       while (t.length > 6 && c.measureText(t).width > W - 480) t = t.slice(0, -2);
@@ -724,8 +725,8 @@
     row("특 징", i.feat);
     row("인상착의", i.wear);
     c.textAlign = "center";
-    c.font = "800 40px Pretendard, sans-serif";
-    c.fillStyle = "#8A3F38";
+    c.font = "400 38px Pretendard, sans-serif";
+    c.fillStyle = "#8A6A52";
     c.fillText("찾으시면 만든 사람에게 알려 주세요 · 꼬직", W / 2, H - 70);
     return cv;
   }

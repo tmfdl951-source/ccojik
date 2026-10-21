@@ -25,8 +25,25 @@
   --brown: #8A6A52;          /* 항목 이름 */
   --gray: #6E665C;
   --navy: #2B3A55;
-  --f: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --ft: 'Black Han Sans', Pretendard, sans-serif;
+  /* 글꼴은 하나다. 제목용으로 쓰던 Black Han Sans 는 걷어냈다 —
+     굵기만 올리면 되는 자리에 서체를 하나 더 들이면 위계가 흐려진다. */
+  --f: Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+
+  /* ---- 글자 크기 단계 ----
+     제목이 가장 먼저 읽히고, 아래로 내려갈수록 작고 가볍다.
+     굵기도 같이 내린다 (전부 굵으면 위계가 없다).
+       제목     800
+       섹션     700
+       탭·단추  600
+       라벨     600
+       본문     500
+       보조     400 */
+  --t-title: clamp(28px, min(8.4vw, 5.6dvh), 46px);   /* 사람을 찾습니다 */
+  --t-title-sm: clamp(21px, min(6.2vw, 3.6dvh), 32px); /* 만들기 화면 */
+  --t-sec: clamp(12px, min(3.6vw, 2dvh), 15px);        /* 섹션 제목 */
+  --t-body: clamp(11px, min(3.3vw, 1.8dvh), 14px);     /* 본문·입력값 */
+  --t-label: clamp(10px, min(3vw, 1.6dvh), 13px);      /* 라벨 */
+  --t-small: clamp(9px, min(2.7vw, 1.4dvh), 12px);     /* 보조·사건번호 */
 
   /* ---- 하단 선택창 치수 ----
      화면 크기에 따라 같이 줄지만, 같은 화면에서는 어느 칸을 눌러도
@@ -84,14 +101,15 @@ body { display: flex; align-items: center; justify-content: center; }
 }
 .sig {
   position: absolute; right: 6px; bottom: 3px;
-  font-size: 10px; color: #8E8E80; pointer-events: none;
+  font-size: 10px; font-weight: 400; color: #B5AC9C; pointer-events: none;
 }
 .mute {
   position: absolute; top: calc(8px + env(safe-area-inset-top, 0px)); right: 10px; z-index: 20;
-  font-family: var(--f); font-size: 11px; font-weight: 800;
-  color: var(--ink-soft); background: var(--paper);
-  border: 1px solid var(--line-mid); border-radius: 999px;
-  padding: 5px 11px; cursor: pointer; touch-action: manipulation;
+  font-family: var(--f); font-size: var(--t-small); font-weight: 500;
+  color: var(--ink-soft); background: rgba(255, 253, 247, .92);
+  border: 1px solid var(--line); border-radius: 999px;
+  padding: 4px 9px; cursor: pointer; touch-action: manipulation;
+  opacity: .8;
 }
 
 /* ============================================================
@@ -125,36 +143,43 @@ body { display: flex; align-items: center; justify-content: center; }
   margin: 0 clamp(-16px, -2.6vw, -8px);
   background: var(--red);
   border-radius: 9px 9px 0 0;
-  padding: clamp(5px, 1dvh, 10px) 10px;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
+  /* 제목이 숨 쉴 자리 — 좌우는 뒤로가기·번호가 제목을 밀지 않게 넉넉히 */
+  padding: clamp(10px, 1.9dvh, 20px) clamp(44px, 12vw, 64px);
+  display: flex; align-items: center; justify-content: center;
   position: relative; flex-shrink: 0;
 }
 .f-head h1 {
-  /* 입체 그림자를 뺀 깔끔한 굵은 고딕 */
-  font-family: var(--ft); font-weight: 400;
-  color: #FFF8EF;
-  letter-spacing: .04em; line-height: 1.12;
-  font-size: clamp(19px, min(6.2vw, 3.8dvh), 32px);
+  /* 화면에서 가장 먼저 읽히는 글. 서체를 바꾸지 않고 굵기로만 세운다. */
+  font-family: var(--f); font-weight: 800;
+  color: #FFF9F2;
+  letter-spacing: -.015em; line-height: 1.08;
+  font-size: var(--t-title);
+  white-space: nowrap;
 }
-.f-head.small h1 { font-size: clamp(15px, min(4.6vw, 2.7dvh), 23px); }
+.f-head.small h1 { font-size: var(--t-title-sm); }
 .f-back {
   position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
-  font-size: 18px; font-weight: 800; line-height: 1;
-  color: #FFF8EF; background: rgba(255, 255, 255, .14);
-  border: 1px solid rgba(255, 255, 255, .5); border-radius: 7px;
-  padding: 4px 9px; cursor: pointer; touch-action: manipulation;
-  min-width: 34px; min-height: 30px;
+  font-size: 15px; font-weight: 500; line-height: 1;
+  color: #FFF9F2; background: rgba(255, 255, 255, .13);
+  border: 0; border-radius: 8px;
+  padding: 0; cursor: pointer; touch-action: manipulation;
+  min-width: 32px; min-height: 32px;
+  display: flex; align-items: center; justify-content: center;
 }
 .f-no {
-  font-weight: 800; letter-spacing: .06em; color: var(--brown);
-  font-size: clamp(10px, min(3vw, 1.5vh), 13px);
+  font-weight: 500; letter-spacing: .04em; color: var(--ink-soft);
+  font-size: var(--t-small);
   flex-shrink: 0;
 }
-.f-head .f-no { position: absolute; right: 9px; bottom: 3px; color: #FFE7D2; }
+/* 사건번호는 제목과 다투지 않게 — 구석에 작게, 흐리게 */
+.f-head .f-no {
+  position: absolute; right: 10px; bottom: 5px;
+  color: #FFE9DC; opacity: .78;
+}
 
 .f-sub {
-  font-weight: 800; letter-spacing: .22em; color: var(--brown);
-  font-size: clamp(11px, min(3.4vw, 1.8vh), 15px);
+  font-weight: 500; letter-spacing: .18em; color: var(--ink-soft);
+  font-size: var(--t-label);
   flex-shrink: 0;
 }
 
@@ -186,15 +211,16 @@ body { display: flex; align-items: center; justify-content: center; }
   display: flex; flex-direction: column; gap: 1px;
   border-top: 1px solid var(--line-mid);
   padding-top: clamp(4px, .9vh, 8px);
-  font-size: clamp(11px, min(3.3vw, 1.7vh), 15px);
-  line-height: 1.32;
+  font-size: var(--t-body);
+  line-height: 1.38;
 }
 .f-info > div { display: flex; gap: 8px; align-items: baseline; }
 .f-info dt {
   flex: 0 0 clamp(48px, 15vw, 66px);
-  font-weight: 800; color: var(--brown); letter-spacing: .08em;
+  font-weight: 600; color: var(--brown); letter-spacing: .04em;
+  font-size: var(--t-label);
 }
-.f-info dd { flex: 1 1 auto; font-weight: 700; min-width: 0; }
+.f-info dd { flex: 1 1 auto; font-weight: 500; min-width: 0; }
 
 /* 전단지 양식 — 밑줄 그어 놓은 빈 칸에 적는 느낌 */
 /* 신고서 양식 — 두 칸씩 나란히 놓아 세 줄로 줄였다 (다섯 줄이면 사진이
@@ -206,7 +232,7 @@ body { display: flex; align-items: center; justify-content: center; }
   gap: 2px clamp(8px, 2.4vw, 16px);
   border-top: 1px solid var(--line);
   padding-top: var(--gap-s);
-  font-size: clamp(10px, min(3.1vw, 1.6dvh), 14px);
+  font-size: var(--t-body);
 }
 .f-form .wide { grid-column: 1 / -1; }
 .ff-row {
@@ -215,34 +241,34 @@ body { display: flex; align-items: center; justify-content: center; }
 }
 .ff-k {
   flex: 0 0 clamp(42px, 12vw, 58px);
-  font-weight: 700; color: var(--brown); letter-spacing: .06em;
-  font-size: .92em;
+  font-weight: 600; color: var(--brown); letter-spacing: .02em;
+  font-size: var(--t-label);
 }
 .ff-v {
   flex: 1 1 auto; min-width: 0;
-  font-family: var(--f); font-size: inherit; font-weight: 700; color: var(--ink);
+  font-family: var(--f); font-size: inherit; font-weight: 500; color: var(--ink);
   background: transparent;
   border: 0; border-bottom: 1px solid var(--line-mid);
   border-radius: 0; padding: 3px 2px 2px;
   -webkit-user-select: text; user-select: text;
   touch-action: manipulation;
 }
-.ff-v::placeholder { color: #B7AE9C; font-weight: 500; }
+.ff-v::placeholder { color: #B7AE9C; font-weight: 400; }
 .ff-v:focus { outline: 0; border-bottom-color: var(--red); background: var(--red-soft); }
 .ff-v.fixed { border-bottom: 1px dotted var(--line-mid); }
 
 .f-desc {
-  text-align: center; line-height: 1.5; color: var(--gray);
-  font-size: clamp(12px, min(3.6vw, 1.9vh), 16px);
+  text-align: center; line-height: 1.55; color: var(--ink-soft);
+  font-size: var(--t-body); font-weight: 400;
   flex-shrink: 0;
 }
 .f-call {
-  font-family: var(--ft); font-weight: 400; color: var(--red);
-  font-size: clamp(15px, min(5vw, 2.5vh), 24px);
+  font-family: var(--f); font-weight: 700; color: var(--red);
+  font-size: var(--t-sec);
   flex-shrink: 0;
 }
 .f-foot {
-  color: var(--gray); font-size: clamp(10px, min(3vw, 1.5vh), 13px);
+  color: var(--ink-soft); font-weight: 400; font-size: var(--t-small);
   border-top: 1px dashed var(--line-mid); padding-top: 6px; width: 100%;
   text-align: center; flex-shrink: 0;
 }
@@ -258,8 +284,8 @@ body { display: flex; align-items: center; justify-content: center; }
    ============================================================ */
 /* 높이는 다 같고, 눈에 띄는 것은 '완성' 하나뿐이다 */
 .btn {
-  font-family: var(--f); font-weight: 700; line-height: 1.25;
-  font-size: clamp(13px, min(4.2vw, 2.2vh), 17px);
+  font-family: var(--f); font-weight: 600; line-height: 1.25;
+  font-size: var(--t-sec);
   color: var(--ink); background: var(--paper);
   border: 1px solid var(--line-mid); border-radius: 9px;
   padding: clamp(8px, 1.5vh, 12px) clamp(14px, 4vw, 22px);
@@ -270,14 +296,14 @@ body { display: flex; align-items: center; justify-content: center; }
 .btn:hover { background: var(--paper-dk); }
 .btn:active { background: var(--line); }
 .btn.big {
-  background: var(--red); border-color: var(--red-dk); color: #FFF8EF;
-  font-weight: 800;
+  background: var(--red); border-color: var(--red-dk); color: #FFF9F2;
+  font-weight: 700;
 }
 .btn.big:hover { background: var(--red-dk); }
 .btn.ghost { background: var(--paper); color: var(--ink); }
 .btn.soft {
   background: var(--paper); color: var(--ink-soft);
-  font-size: clamp(11px, min(3.4vw, 1.8vh), 14px);
+  font-weight: 600; font-size: var(--t-label);
   padding: clamp(6px, 1.2vh, 10px) clamp(8px, 2.6vw, 14px);
   min-height: clamp(36px, var(--act-h), 44px);
 }
@@ -310,8 +336,8 @@ body { display: flex; align-items: center; justify-content: center; }
 }
 /* 오래된 서류철 탭 느낌 — 크림 바탕 / 먹색 테 / 고른 것은 붉은 포인트 */
 .tab {
-  font-family: var(--f); font-weight: 700; letter-spacing: -.02em;
-  font-size: clamp(10px, 2.7vw, 13px); line-height: 1.1;
+  font-family: var(--f); font-weight: 600; letter-spacing: -.01em;
+  font-size: var(--t-label); line-height: 1.1;
   color: var(--ink-soft); background: var(--paper-dk);
   border: 1px solid transparent; border-radius: 8px;
   padding: 0 2px;
@@ -324,7 +350,7 @@ body { display: flex; align-items: center; justify-content: center; }
 .tab:hover { background: var(--line); }
 .tab.on {
   color: #FFF8EF; background: var(--red);
-  border-color: var(--red-dk); font-weight: 800;
+  border-color: var(--red-dk); font-weight: 700;
 }
 
 /* 썸네일 — 그림으로 고른다 */
@@ -372,12 +398,12 @@ body { display: flex; align-items: center; justify-content: center; }
 .opt-art img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .opt-name {
   width: 100%; height: var(--label-h); line-height: var(--label-h);
-  font-size: clamp(9px, 2.6vw, 12px);
-  font-weight: 600; color: var(--ink-soft); text-align: center;
+  font-size: clamp(11px, 2.9vw, 13px);
+  font-weight: 500; color: var(--ink-soft); text-align: center;
   border-top: 1px solid var(--line);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.opt.on .opt-name { color: var(--red); font-weight: 700; border-top-color: #F2D5CF; }
+.opt.on .opt-name { color: var(--red); font-weight: 600; border-top-color: #F2D5CF; }
 /* 지금 머리로는 못 쓰는 조합 — 숨기지 않고 흐리게 둔다 (왜 안 되는지 보이게) */
 .opt.off { opacity: .35; }
 .opt.off .opt-name { text-decoration: line-through; }
@@ -395,7 +421,7 @@ body { display: flex; align-items: center; justify-content: center; }
 .swatches.on { visibility: visible; }
 .sw-lbl {
   flex: 0 0 auto;
-  font-size: clamp(10px, 2.8vw, 12px); font-weight: 700; color: #7A6A52;
+  font-size: var(--t-small); font-weight: 500; color: var(--ink-soft);
   letter-spacing: .02em;
 }
 .sw {
@@ -436,7 +462,7 @@ body { display: flex; align-items: center; justify-content: center; }
   position: fixed; left: 50%; bottom: 13%; transform: translateX(-50%) translateY(8px);
   background: var(--ink); color: var(--paper);
   border: 0; border-radius: 999px;
-  font-weight: 700; font-size: 13px;
+  font-weight: 600; font-size: var(--t-body);
   padding: 9px 18px; z-index: 40;
   box-shadow: 0 4px 14px rgba(40, 34, 28, .3);
   opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s;
@@ -466,8 +492,9 @@ body { display: flex; align-items: center; justify-content: center; }
   padding: 16px; max-width: 360px; width: 100%; text-align: center;
   max-height: 90dvh; overflow-y: auto;
 }
-.sm-title { font-weight: 800; font-size: 15px; margin-bottom: 4px; }
-.sm-sub { font-size: 12px; color: var(--gray); line-height: 1.4; margin-bottom: 10px; }
+.sm-title { font-weight: 700; font-size: var(--t-sec); margin-bottom: 5px; }
+.sm-sub { font-size: var(--t-small); font-weight: 400; color: var(--ink-soft);
+  line-height: 1.45; margin-bottom: 10px; }
 .sm-inner img { width: 100%; border: 1px solid var(--line); border-radius: 8px; display: block; }
 .sm-inner .btn { margin-top: 12px; }
 
@@ -488,8 +515,9 @@ body { display: flex; align-items: center; justify-content: center; }
   :root { --tab-h: clamp(54px, 10vh, 58px); }
 }
 @media (max-height: 560px) {
-  .f-desc { font-size: 11px; }
-  .f-info, .f-form { font-size: 10px; }
+  /* 제목은 그대로 둔다 — 가장 먼저 읽혀야 하는 글이다 */
+  .f-desc { font-size: var(--t-label); }
+  .f-info, .f-form { font-size: var(--t-label); }
   .f-info > div:nth-child(n+4) { display: none; }
   /* 자판이 올라와 화면이 낮아지면 별명·나이대 칸부터 접는다 —
      이름과 특징은 남긴다 */
