@@ -112,12 +112,15 @@
        at   (x, y) 기준점
        sx   가로 배율 (얼굴 폭 보정)
        k    전체 배율 (눈에 붙는 것은 눈 크기로 잰다) */
-  function put(inner, x, y, sx, k) {
+  function put(inner, x, y, sx, k, rot) {
     if (!inner) return "";
     const a = (k === undefined ? 1 : k) * (sx === undefined ? 1 : sx);
     const b = (k === undefined ? 1 : k);
+    /* 돌림은 배율 안쪽에 건다 — 뒤집힌 쪽은 저절로 반대로 돌아 좌우가
+       대칭이 된다 (눈썹 바깥 끝이 양쪽 다 내려간다) */
     return '<g transform="translate(' + r2(x) + ' ' + r2(y) + ') scale(' +
-      r2(a) + ' ' + r2(b) + ')">' + inner + '</g>';
+      r2(a) + ' ' + r2(b) + ')' + (rot ? ' rotate(' + r2(rot) + ')' : '') +
+      '">' + inner + '</g>';
   }
   /* 눈에 붙는 것 — 좌우 두 번. 좌표 단위가 '눈 반지름' 이라 눈을 바꾸면
      같이 커지고 눕는다. */
@@ -247,14 +250,18 @@
     const out = [];
     /* 두 눈의 가로 자리 — 눈썹·눈·화장·안경이 전부 이 값을 쓴다 */
     const ex = a.eyeDx * L.fx;
-    /* 눈썹 — 눈마다 하나씩, 그 눈에서 browGap 만큼 위.
-       좌우를 완전히 같게 찍으면 기계로 복붙한 것처럼 보여, 한쪽만
-       아주 조금(1.5px) 올려 둔다. */
-    const brow = at("brows", pick.brows).s;
-    const by = a.eye - f.browGap;
-    out.push(put(brow, CX - ex, by, -1) + put(brow, CX + ex, by - 1.5, 1));
-    /* 눈 — 좌우 한 벌씩 */
     const eye = at("eyes", pick.eyes);
+    /* 눈썹 — 눈마다 하나씩, 그 눈에서 browGap 만큼 위.
+       눈 모양에 따라 자리와 기울기를 조금 다듬는다. 쳐진 눈에는 눈썹도
+       바깥이 내려가야 '처져 보인다' 는 인상이 읽힌다. 고른 눈썹 모양
+       자체는 건드리지 않는다.
+       좌우를 완전히 같게 찍으면 복붙처럼 보여 한쪽만 1.5px 올려 둔다. */
+    const brow = at("brows", pick.brows).s;
+    const by = a.eye - f.browGap + (eye.browDy || 0);
+    const tilt = eye.browTilt || 0;
+    out.push(put(brow, CX - ex, by, -1, 1, tilt) +
+             put(brow, CX + ex, by - 1.5, 1, 1, tilt));
+    /* 눈 — 좌우 한 벌씩 */
     out.push(put(eye.s, CX - ex, a.eye, -1) + put(eye.s, CX + ex, a.eye, 1));
     /* 눈에 붙는 것 — 눈색, 아이라인 */
     out.push(perEye(at("lens", pick.lens).s, L));

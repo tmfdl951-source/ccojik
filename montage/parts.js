@@ -152,39 +152,84 @@ const BROWS = [
 ];
 
 /* 눈 — 한쪽만 그린다. 원점이 그 눈의 가운데.
-   w/h 는 아이라인·눈색이 따라붙을 크기다. */
+   예전에는 전부 타원 하나였고 쳐진눈/올라간눈은 그 타원을 3px 올리고
+   내린 게 전부라 이름과 실제 모습이 따로 놀았다. 이제 윗꺼풀과 아랫꺼풀
+   을 잇는 닫힌 모양으로 그려 눈꼬리를 실제로 내리고 올린다.
+   그리는 방향은 오른쪽 눈 — +x 가 바깥(관자놀이) 쪽이다.
+     w/h       아이라인·눈색이 따라붙을 크기
+     browDy    이 눈일 때 눈썹을 더 내리거나(+) 올린다(-)
+     browTilt  이 눈일 때 눈썹을 기울인다 (+ 바깥쪽이 내려감)
+   눈썹 보정은 고른 눈썹 모양을 바꾸지 않고 자리만 다듬는다. */
+const SHINE = '<circle cx="-4" cy="-9" r="6" fill="#ffffff" fill-opacity=".85"/>';
 const EYES = [
-  { n: "기본", w: 23, h: 21,
-    s: '<ellipse cx="0" cy="0" rx="23" ry="21" fill="' + PUP + '"/>' +
-       '<circle cx="-1" cy="-8" r="6.5" fill="#ffffff" fill-opacity=".85"/>' },
-  { n: "큰눈", w: 28, h: 26,
-    s: '<ellipse cx="0" cy="0" rx="28" ry="26" fill="' + PUP + '"/>' +
-       '<circle cx="-1" cy="-10" r="8" fill="#ffffff" fill-opacity=".85"/>' },
-  { n: "작은눈", w: 17, h: 16,
-    s: '<ellipse cx="0" cy="0" rx="17" ry="16" fill="' + PUP + '"/>' +
-       '<circle cx="-1" cy="-6" r="5" fill="#ffffff" fill-opacity=".8"/>' },
-  { n: "또렷한", w: 30, h: 22,
-    s: '<ellipse cx="0" cy="0" rx="30" ry="22" fill="#FBF7F2"/>' +
-       '<ellipse cx="0" cy="0" rx="30" ry="22" fill="none" stroke="' + INK +
-       '" stroke-width="4"/>' +
-       '<circle cx="0" cy="0" r="13" fill="' + PUP + '"/>' +
-       '<circle cx="-2" cy="-6" r="4.5" fill="#ffffff" fill-opacity=".9"/>' },
-  { n: "가는눈", w: 30, h: 10,
-    s: '<path d="M-30 0 Q0 -17 30 0" ' + S + '/>' +
-       '<ellipse cx="0" cy="-3" rx="11" ry="8" fill="' + PUP + '"/>' },
-  { n: "처진눈", w: 23, h: 20,
-    s: '<ellipse cx="0" cy="3" rx="23" ry="20" fill="' + PUP + '"/>' +
-       '<circle cx="-1" cy="-4" r="6" fill="#ffffff" fill-opacity=".85"/>' +
-       '<path d="M-28 -13 Q0 -23 28 -15" ' + S + '/>' },
-  { n: "올라간눈", w: 22, h: 20,
-    s: '<ellipse cx="0" cy="-2" rx="22" ry="20" fill="' + PUP + '"/>' +
-       '<circle cx="-1" cy="-9" r="6" fill="#ffffff" fill-opacity=".85"/>' +
-       '<path d="M-26 -15 Q0 -27 26 -19" ' + S + '/>' },
-  { n: "감은눈", w: 28, h: 8,
-    s: '<path d="M-28 -3 Q0 13 28 -3" ' + S + '/>' },
-  { n: "졸린눈", w: 21, h: 15,
-    s: '<ellipse cx="0" cy="5" rx="21" ry="15" fill="' + PUP + '"/>' +
-       '<path d="M-28 -9 L28 -11" ' + S + '/>' },
+  { n: "기본", id: "neutral", w: 24, h: 20, browDy: 0, browTilt: 0,
+    desc: "보통 크기 눈",
+    s: '<path d="M-24 2 Q-8 -32 15 -14 Q22 -8 24 -2 Q10 24 -11 16 Q-20 11 -24 2z" ' +
+       'fill="' + PUP + '"/>' + SHINE },
+
+  { n: "큰눈", id: "big", w: 28, h: 25, browDy: -4, browTilt: 0,
+    desc: "크고 동그란 눈",
+    s: '<path d="M-28 2 Q-9 -40 17 -17 Q26 -9 28 -1 Q12 30 -13 20 Q-23 14 -28 2z" ' +
+       'fill="' + PUP + '"/>' +
+       '<circle cx="-5" cy="-11" r="7.4" fill="#ffffff" fill-opacity=".85"/>' },
+
+  { n: "작은눈", id: "small", w: 18, h: 14, browDy: 4, browTilt: 0,
+    desc: "작은 눈",
+    s: '<path d="M-18 1 Q-6 -23 11 -10 Q16 -6 18 -1 Q7 17 -8 11 Q-15 8 -18 1z" ' +
+       'fill="' + PUP + '"/>' +
+       '<circle cx="-3" cy="-6" r="4.2" fill="#ffffff" fill-opacity=".8"/>' },
+
+  { n: "또렷한눈", id: "clear", w: 29, h: 23, browDy: -2, browTilt: 0,
+    desc: "또렷한 눈",
+    s: '<path d="M-29 1 Q-9 -36 16 -16 Q26 -8 29 -1 Q12 28 -13 19 Q-24 13 -29 1z" ' +
+       'fill="#FBF7F2" stroke="' + INK + '" stroke-width="3.6" stroke-linejoin="round"/>' +
+       '<circle cx="1" cy="-2" r="12" fill="' + PUP + '"/>' +
+       '<circle cx="-2" cy="-7" r="4.4" fill="#ffffff" fill-opacity=".9"/>' },
+
+  /* ---- 눈꼬리가 확실히 내려간다. 안쪽 끝보다 바깥 끝이 20px 아래다 ---- */
+  { n: "쳐진눈", id: "droopy", w: 25, h: 22, browDy: 4, browTilt: 8,
+    desc: "눈꼬리가 처진 순한 눈",
+    s: '<path d="M-24 -11 Q-8 -36 12 -8 Q20 2 25 14 Q8 24 -11 8 Q-20 0 -24 -11z" ' +
+       'fill="' + PUP + '"/>' +
+       '<circle cx="-7" cy="-12" r="5.4" fill="#ffffff" fill-opacity=".85"/>' },
+
+  /* ---- 눈꼬리가 확실히 올라간다 ---- */
+  { n: "올라간눈", id: "sharp-up", w: 25, h: 22, browDy: -6, browTilt: -8,
+    desc: "눈꼬리가 올라간 또렷한 눈",
+    s: '<path d="M-24 10 Q-10 -18 10 -24 Q19 -27 25 -24 Q16 6 -6 16 Q-18 19 -24 10z" ' +
+       'fill="' + PUP + '"/>' +
+       '<circle cx="-8" cy="-2" r="5.2" fill="#ffffff" fill-opacity=".85"/>' +
+       '<path d="M20 -24 L32 -31" fill="none" stroke="' + INK +
+       '" stroke-width="3.8" stroke-linecap="round"/>' },
+
+  { n: "날카로운눈", id: "keen", w: 30, h: 14, browDy: -5, browTilt: -6,
+    desc: "가늘고 날카로운 눈",
+    s: '<path d="M-30 5 Q-10 -20 12 -16 Q24 -14 30 -11 Q14 10 -10 13 Q-24 13 -30 5z" ' +
+       'fill="' + PUP + '"/>' +
+       '<path d="M25 -12 L35 -17" fill="none" stroke="' + INK +
+       '" stroke-width="3.4" stroke-linecap="round"/>' },
+
+  { n: "웃는눈", id: "smiley", w: 26, h: 16, browDy: -3, browTilt: 0,
+    desc: "반달처럼 웃는 눈",
+    s: '<path d="M-26 8 Q0 -30 26 4 Q0 -12 -26 8z" fill="' + PUP + '"/>' },
+
+  { n: "무쌍눈", id: "mono", w: 24, h: 13, browDy: 3, browTilt: 0,
+    desc: "쌍꺼풀 없는 담백한 눈",
+    s: '<path d="M-24 1 Q-7 -20 12 -10 Q19 -6 24 -2 Q9 15 -10 10 Q-19 7 -24 1z" ' +
+       'fill="' + PUP + '"/>' },
+
+  { n: "감은눈", id: "closed", w: 26, h: 8,
+    browDy: 3, browTilt: 0,
+    desc: "눈을 감고 있음",
+    s: '<path d="M-26 -3 Q0 8 26 -4" fill="none" stroke="' + INK +
+       '" stroke-width="5" stroke-linecap="round"/>' },
+
+  { n: "졸린눈", id: "sleepy", w: 23, h: 15, browDy: 5, browTilt: 5,
+    desc: "졸려 보이는 눈",
+    s: '<path d="M-23 3 Q-7 -14 11 -8 Q18 -5 23 -1 Q8 18 -9 12 Q-18 9 -23 3z" ' +
+       'fill="' + PUP + '"/>' +
+       '<path d="M-23 -6 Q-5 -17 21 -7" fill="none" stroke="' + INK +
+       '" stroke-width="4.4" stroke-linecap="round"/>' },
 ];
 
 /* 코 / 입 — 자기 기준점이 원점 */
@@ -356,8 +401,8 @@ const TAGS = {
   BANGS: [[], ["일자 앞머리"], ["시스루 앞머리"]],
   BROWS: [["눈썹이 자연스러움"], ["일자 눈썹"], ["둥근 눈썹"], ["올라간 눈썹"],
           ["처진 눈썹"], ["짙은 눈썹"], ["가는 눈썹"]],
-  EYES: [["보통 크기 눈"], ["큰 눈"], ["작은 눈"], ["또렷한 눈"], ["가는 눈"],
-         ["처진 눈"], ["올라간 눈"], ["눈을 감고 있음"], ["졸린 눈"]],
+  /* 눈은 목록에 적어 둔 desc 를 그대로 쓴다 — 이름과 글이 어긋날 수 없다 */
+  EYES: EYES.map(e => [e.desc]),
   NOSE: [["보통 코"], ["작은 코"], ["둥근 코"], ["뾰족한 코"], ["콧볼이 넓음"],
          ["콧구멍이 보임"]],
   MOUTH: [["보통 입"], ["옅게 웃는 입"], ["일자 입"], ["뾰로통한 입"], ["입을 벌림"],
