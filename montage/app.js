@@ -35,24 +35,39 @@
 
   /* 머리는 얼굴마다 내리는 양이 다르다. drop 표는 '두피가 안 비치는 가장
      낮은 자리' 를 얼굴 x 머리마다 픽셀로 찾아 적어 둔 것이다. */
-  function hairDropOf(f, h) {
-    if (!h || !h.src) return 0;
+  /* 머리 — 얼굴형마다 배율과 내림이 다르다.
+     배율은 머리통 크기(f.hairK), 내림은 '두피가 안 비치는 가장 낮은
+     자리' 를 얼굴 x 머리마다 픽셀로 찾아 적어 둔 표에서 나온다. */
+  function hairFit(f, h) {
+    if (!h || !h.src) return null;
     const d = h.drop && h.drop[f.key];
-    return (d === undefined ? 0 : d) + (h.dy || 0);
+    return {
+      src: h.src,
+      scale: (h.scale || 1) * f.hairK,
+      dx: h.dx || 0,
+      dy: (d === undefined ? 0 : d) + (h.dy || 0),
+    };
   }
 
   /* 앞머리는 그 얼굴의 눈썹선을 따라 내려온다. 머리와의 짝이 어색하면
      COMBO_OVERRIDES 가 덮어쓴다. */
-  function bangsFit(f, h, b) {
+  /* 앞머리 — 끝이 눈 바로 위에 오도록 역산한다.
+     그림의 가운데 앞머리 끝(tip)이 '눈 윗선 - 틈' 에 떨어지게 내린다.
+     그래서 얼굴형이 바뀌어 눈이 657~679 로 움직여도 따라간다.
+     키는 "머리:얼굴형:앞머리" 를 먼저 보고, 없으면 "머리:앞머리" 를 본다. */
+  function bangsFit(f, h, b, eyeH) {
     if (!b || !b.src) return null;
-    const key = (h && h.key ? h.key : "none") + ":" + b.key;
-    const ov = P.COMBO_OVERRIDES[key] || {};
+    const hk = (h && h.key) ? h.key : "none";
+    const O = P.BANGS_COMBO_OVERRIDES;
+    const ov = O[hk + ":" + f.key + ":" + b.key] || O[hk + ":" + b.key] || {};
+    /* ov.scale 은 곱이다. 갈아끼우면 0.727 이 통째로 날아간다 */
+    const scale = b.scale * f.hairK * (ov.scale === undefined ? 1 : ov.scale);
+    const want = f.a.eye - eyeH - P.BANGS_EYE_GAP;      // 눈 윗선
     return {
       src: b.src,
-      /* ov.scale 은 곱이다. 갈아끼우면 0.727 이 통째로 날아간다 */
-      scale: b.scale * (ov.scale === undefined ? 1 : ov.scale),
+      scale: scale,
       dx: (b.dx || 0) + (ov.dx || 0),
-      dy: b.dy + (f.a.brow - P.BANGS_REF_BROW) + (ov.dy || 0),
+      dy: want - b.tip * scale + (ov.dy || 0),
     };
   }
 
@@ -72,10 +87,8 @@
       eyeSize: { w: eye.w || 23, h: eye.h || 21 },
       img: {
         face: { src: f.src, scale: f.scale || 1, dx: f.dx || 0, dy: f.dy || 0 },
-        hair: h && h.src
-          ? { src: h.src, scale: h.scale || 1, dx: h.dx || 0, dy: hairDropOf(f, h) }
-          : null,
-        bangs: bangsFit(f, h, b),
+        hair: hairFit(f, h),
+        bangs: bangsFit(f, h, b, eye.h || 21),
       },
     };
   }
@@ -232,11 +245,16 @@
   function drawFeatures(L) {
     const a = L.anchors, f = L.face;
     const out = [];
-    /* 눈썹 — 눈 기준점에서 browGap 만큼 위 */
-    out.push(put(at("brows", pick.brows).s, CX, a.eye - f.browGap, L.fx));
+    /* 두 눈의 가로 자리 — 눈썹·눈·화장·안경이 전부 이 값을 쓴다 */
+    const ex = a.eyeDx * L.fx;
+    /* 눈썹 — 눈마다 하나씩, 그 눈에서 browGap 만큼 위.
+       좌우를 완전히 같게 찍으면 기계로 복붙한 것처럼 보여, 한쪽만
+       아주 조금(1.5px) 올려 둔다. */
+    const brow = at("brows", pick.brows).s;
+    const by = a.eye - f.browGap;
+    out.push(put(brow, CX - ex, by, -1) + put(brow, CX + ex, by - 1.5, 1));
     /* 눈 — 좌우 한 벌씩 */
     const eye = at("eyes", pick.eyes);
-    const ex = a.eyeDx * L.fx;
     out.push(put(eye.s, CX - ex, a.eye, -1) + put(eye.s, CX + ex, a.eye, 1));
     /* 눈에 붙는 것 — 눈색, 아이라인 */
     out.push(perEye(at("lens", pick.lens).s, L));
@@ -809,7 +827,7 @@
     randomize: randomize, undo: undo, resetAll: resetAll, paintAll: paintAll,
     finish: finish, buildCard: buildCard, thumb: thumb, shareText: shareText,
     getResolvedLayout: getResolvedLayout, renderCharacter: renderCharacter,
-    hairDropOf: hairDropOf, bangsFit: bangsFit, defs: defs,
+    hairFit: hairFit, bangsFit: bangsFit, defs: defs,
     drawFace: drawFace, drawFeatures: drawFeatures, drawDetail: drawDetail,
     drawHairBase: drawHairBase, drawBangs: drawBangs, drawAccessories: drawAccessories,
     typed: typed, bindInputs: bindInputs,

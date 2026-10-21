@@ -39,14 +39,14 @@ const VIEW = "88 44 1078 1148";
      top/chin      머리꼭대기와 턱 (실루엣에서 잼)
      earTop/earBot 귀가 튀어나온 구간. 눈썹선과 코 밑을 잇는 해부학적 기준
      halfW         가장 넓은 곳의 반폭
-     a             기준점. 계란형에서 눈으로 맞춘 비율(귀 높이의 0.33 /
+     a             기준점. 계란형에서 눈으로 맞춘 비율(귀 높이의 0.375 /
                    0.605 / 1.15 / 1.605)을 각 얼굴의 귀에 적용한 값이다.
                    그래서 얼굴형이 바뀌면 눈·눈썹·코·입이 같이 움직인다.
      browGap       눈썹은 눈에서 이만큼 위 (눈에 매달려 움직인다)
    ------------------------------------------------------------ */
 function face(n, key, top, chin, earTop, earBot, halfW) {
   const sp = earBot - earTop;
-  const brow = Math.round(earTop + 0.330 * sp);
+  const brow = Math.round(earTop + 0.375 * sp);
   const eye = Math.round(earTop + 0.605 * sp);
   return {
     n: n, key: key, src: A + "face-" + key + ".png",
@@ -63,6 +63,9 @@ function face(n, key, top, chin, earTop, earBot, halfW) {
       eyeDx: Math.round(105 * (1 + (halfW / 406 - 1) * 0.7)),
     },
     browGap: eye - brow,
+    /* 머리통 크기 — 머리와 앞머리를 이만큼 키운다. 계란형이 1 이다.
+       가로만 보면 긴 얼굴에서 머리가 작아지므로 세로와 반반 섞는다. */
+    hairK: Math.round((0.5 * (halfW / 406) + 0.5 * ((chin - top) / 826)) * 1000) / 1000,
   };
 }
 const FACES = [
@@ -82,40 +85,37 @@ const FACES = [
 const HAIR_BASE = [
   { n: "없음", src: null },
   { n: "숏컷", key: "short", src: A + "hair-base-short.png",
-    drop: { round: -36, oval: -18, long: -70, square: -62 }, dx: 0, scale: 1 },
+    drop: { round: -50, oval: -18, long: -86, square: -68 }, dx: 0, scale: 1 },
   { n: "단발", key: "bob", src: A + "hair-base-bob.png",
-    drop: { round: 8, oval: 26, long: -26, square: -6 }, dx: 0, scale: 1 },
+    drop: { round: -2, oval: 26, long: -38, square: -8 }, dx: 0, scale: 1 },
   { n: "웨이브", key: "wave", src: A + "hair-base-wave.png",
-    drop: { round: 24, oval: 42, long: -10, square: 6 }, dx: 0, scale: 1 },
+    drop: { round: 16, oval: 42, long: -22, square: 14 }, dx: 0, scale: 1 },
   { n: "곱슬", key: "curly", src: A + "hair-base-curly.png",
-    drop: { round: -78, oval: -58, long: -112, square: -80 }, dx: 0, scale: 1 },
+    drop: { round: -92, oval: -58, long: -130, square: -94 }, dx: 0, scale: 1 },
 ];
 
 /* ------------------------------------------------------------
-   앞머리 — 머리라인에서 내려와 눈썹 바로 위에서 끝난다.
-   에셋이 얼굴보다 크게 그려져 있어 0.727 배로 줄인다. 내리는 양은
-   얼굴의 눈썹선을 따라간다 (계란형 눈썹 618 에서 109 가 맞았다).
+   앞머리 — 머리라인에서 내려와 눈 바로 위에서 끝난다.
+   에셋이 얼굴보다 크게 그려져 있어 0.727 배로 줄이고, 머리통 크기만큼
+   같이 키운다.
+   내리는 양은 '앞머리 끝' 을 눈에 묶어서 낸다 — 판 좌표로 박아 두면
+   얼굴형이 바뀔 때 눈을 덮거나 이마에 붕 뜬다.
+     tip  그림에서 가운데 앞머리가 끝나는 줄 (실측)
    ------------------------------------------------------------ */
 const BANGS = [
   { n: "없음", src: null },
   { n: "일자", key: "straight", src: A + "bangs-straight.png",
-    scale: 0.727, dy: 109, dx: 0 },
+    scale: 0.727, tip: 744, dx: 0 },
   { n: "시스루", key: "seeThrough", src: A + "bangs-see-through.png",
-    scale: 0.727, dy: 109, dx: 0 },
+    scale: 0.727, tip: 734, dx: 0 },
 ];
-/* 앞머리 내림의 기준이 된 눈썹선 */
-const BANGS_REF_BROW = 618;
+/* 앞머리 끝이 눈 위로 이만큼 띄워진다 */
+const BANGS_EYE_GAP = 2;
 
-/* 머리 x 앞머리 — 어색한 짝만 여기에 적어 덮어쓴다.
-   비어 있으면 위의 기본값이 그대로 쓰인다. */
-const COMBO_OVERRIDES = {
-  /* 숏컷은 머리라인(462)이 높아 앞머리가 머리 밖으로 비어져 나온다 */
-  "short:straight": { dy: 14, scale: 0.97 },
-  "short:seeThrough": { dy: 12, scale: 0.97 },
-  /* 곱슬은 정수리가 높아 앞머리가 묻힌다 */
-  "curly:straight": { dy: -10 },
-  "curly:seeThrough": { dy: -10 },
-};
+/* 머리 x 얼굴형 x 앞머리 — 어색한 짝만 여기에 적어 덮어쓴다.
+   키는 "머리:얼굴형:앞머리" 이고, "머리:앞머리" 로 적으면 네 얼굴형에
+   다 걸린다. 비어 있으면 위의 계산값이 그대로 쓰인다. */
+const BANGS_COMBO_OVERRIDES = {};
 
 /* ============================================================
    코드로 그리는 작은 파츠 — 전부 '지역 좌표' 다
@@ -134,25 +134,21 @@ const S = 'fill="none" stroke="' + INK + '" stroke-width="' + LW +
           '" stroke-linecap="round" stroke-linejoin="round"';
 const PUP = "#2E2622";
 
-/* 눈썹 — 두 벌을 한 번에. 눈 기준점에서 browGap 만큼 위에 놓인다.
-   좌우를 뒤집어 붙이지 않고 조금 다르게 그려 기계적으로 안 보이게. */
+/* 눈썹 — 눈마다 하나씩. 원점이 '그 눈의 가운데' 다.
+   예전에는 두 벌을 한 번에 그려 x 를 판 좌표로 박았는데, 눈썹 가운데가
+   눈 중심보다 45~62px 안쪽이었다 (눈 위가 아니라 눈 안쪽 모서리 위).
+   눈처럼 한쪽만 그려 두고 좌우로 찍으면 어떤 얼굴에서도 저절로 맞는다.
+   그린 방향은 오른쪽 눈 기준이다 — +x 가 바깥(관자놀이) 쪽. */
 const BROWS = [
-  { n: "기본", s: '<g ' + S + '><path d="M-105 4 Q-55 -18 -5 -2"/>' +
-      '<path d="M105 -2 Q55 -20 5 2"/></g>' },
-  { n: "일자", s: '<g ' + S + '><path d="M-107 -2 Q-56 -8 -5 -6"/>' +
-      '<path d="M107 -5 Q56 -11 5 -8"/></g>' },
-  { n: "둥근", s: '<g ' + S + '><path d="M-103 8 Q-53 -24 -3 4"/>' +
-      '<path d="M103 4 Q53 -26 3 8"/></g>' },
-  { n: "올라간", s: '<g ' + S + '><path d="M-107 14 Q-53 -12 -3 -20"/>' +
-      '<path d="M107 12 Q53 -14 3 -22"/></g>' },
-  { n: "처진", s: '<g ' + S + '><path d="M-107 -18 Q-53 -6 -3 10"/>' +
-      '<path d="M107 -16 Q53 -4 3 12"/></g>' },
+  { n: "기본", s: '<g ' + S + '><path d="M-38 5 Q2 -13 48 2"/></g>' },
+  { n: "일자", s: '<g ' + S + '><path d="M-38 -1 Q3 -6 48 -2"/></g>' },
+  { n: "둥근", s: '<g ' + S + '><path d="M-36 9 Q4 -17 46 6"/></g>' },
+  { n: "올라간", s: '<g ' + S + '><path d="M-38 11 Q2 -5 48 -13"/></g>' },
+  { n: "처진", s: '<g ' + S + '><path d="M-38 -12 Q2 -1 48 11"/></g>' },
   { n: "짙은", s: '<g fill="' + INK + '">' +
-      '<path d="M-107 8 Q-53 -20 -1 -2 Q-53 -8 -103 16z"/>' +
-      '<path d="M107 4 Q53 -22 1 -4 Q53 -10 103 12z"/></g>' },
+      '<path d="M-38 6 Q2 -16 48 0 Q4 -8 -34 13z"/></g>' },
   { n: "가는", s: '<g fill="none" stroke="' + INK + '" stroke-width="3.6" ' +
-      'stroke-linecap="round"><path d="M-97 2 Q-51 -14 -7 -2"/>' +
-      '<path d="M99 -1 Q53 -17 7 -4"/></g>' },
+      'stroke-linecap="round"><path d="M-33 3 Q3 -11 44 1"/></g>' },
 ];
 
 /* 눈 — 한쪽만 그린다. 원점이 그 눈의 가운데.
@@ -379,7 +375,7 @@ const TAG_ORDER = ["FACES", "HAIR_BASE", "BANGS", "GLASSES", "DETAIL",
 window.MONTAGE_PARTS = {
   CANVAS: CANVAS, CX: CX, VIEW: VIEW, ASSET_DIR: A,
   FACES: FACES, HAIR_BASE: HAIR_BASE, BANGS: BANGS,
-  BANGS_REF_BROW: BANGS_REF_BROW, COMBO_OVERRIDES: COMBO_OVERRIDES,
+  BANGS_EYE_GAP: BANGS_EYE_GAP, BANGS_COMBO_OVERRIDES: BANGS_COMBO_OVERRIDES,
   BROWS: BROWS, EYES: EYES, NOSE: NOSE, MOUTH: MOUTH,
   GLASSES: GLASSES, DETAIL: DETAIL, LENS: LENS, LINER: LINER,
   SKIN: SKIN, HAIRCOL: HAIRCOL, CATS: CATS,
