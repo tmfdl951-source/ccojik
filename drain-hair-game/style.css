@@ -333,3 +333,115 @@ body { display: flex; align-items: center; justify-content: center; }
 @media (prefers-reduced-motion: reduce) {
   *, *::after, *::before { animation: none !important; transition-duration: .01ms !important; }
 }
+
+/* ============================================================
+   친구 도전장
+   ============================================================
+   CTA 높이는 메인의 [뽑기 시작] 과 같다 — .btn.big 을 그대로 쓰고
+   따로 padding 을 주지 않는다. 다른 높이를 주면 화면을 옮길 때
+   단추가 한 번 튄다.
+   ============================================================ */
+
+/* 도전장 링크로 들어왔을 때 메인이 한 번 보였다 사라지지 않게 */
+html.boot-challenge #startOver { visibility: hidden; }
+
+.over-ch { gap: clamp(5px, 1.1vh, 11px); }
+.ch-tag {
+  font-weight: 800; letter-spacing: .2em;
+  font-size: clamp(11px, min(3.4vw, 1.8vh), 14px);
+  color: var(--paper); background: var(--ink);
+  padding: 4px 12px;
+}
+.ch-who {
+  font-weight: 800; color: var(--gray);
+  font-size: clamp(13px, min(4vw, 2.1vh), 17px);
+}
+.ch-who b { color: var(--ink); }
+.ch-sub {
+  font-weight: 700; color: var(--gray);
+  font-size: clamp(11px, min(3.5vw, 1.8vh), 15px);
+}
+.ch-call {
+  font-weight: 800; color: var(--ink);
+  font-size: clamp(13px, min(4.2vw, 2.2vh), 18px);
+  margin-top: clamp(2px, .6vh, 6px);
+}
+
+/* ---- 대결 결과 ---- */
+.over-battle { gap: clamp(6px, 1.3vh, 13px); }
+.b-verdict {
+  font-weight: 800; line-height: 1.25;
+  font-size: clamp(17px, min(5.6vw, 2.9vh), 26px);
+}
+.b-verdict.win { color: var(--ink); }
+.b-verdict.lose { color: var(--gray); }
+.b-verdict.draw { color: var(--gray); }
+.b-row {
+  width: 100%; max-width: 360px;
+  display: flex; align-items: center; justify-content: center;
+  gap: clamp(6px, 2.4vw, 14px);
+}
+.b-side { flex: 1 1 0; min-width: 0; text-align: center; }
+.b-name {
+  font-weight: 800; color: var(--gray);
+  font-size: clamp(11px, min(3.4vw, 1.8vh), 14px);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.b-score {
+  font-weight: 800; color: var(--ink);
+  font-size: clamp(18px, min(6vw, 3.1vh), 28px);
+}
+.b-vs {
+  flex: 0 0 auto;
+  font-weight: 800; color: var(--gray);
+  font-size: clamp(13px, min(4.2vw, 2.2vh), 18px);
+}
+.result-art.small { width: clamp(70px, 22vw, 120px); }
+
+/* ---- 닉네임 묻기 ---- */
+.modal {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(20, 20, 16, .72);
+  display: flex; align-items: center; justify-content: center;
+  padding: 18px;
+}
+.modal[hidden] { display: none; }
+.modal-box {
+  width: 100%; max-width: 330px;
+  background: var(--paper); border: 4px solid var(--ink);
+  padding: clamp(14px, 3vh, 22px) clamp(14px, 5vw, 22px);
+  display: flex; flex-direction: column; gap: clamp(7px, 1.4vh, 12px);
+  text-align: center;
+}
+.modal-title {
+  font-weight: 800; font-size: clamp(15px, min(4.8vw, 2.5vh), 20px);
+}
+.modal-sub {
+  font-weight: 700; color: var(--gray);
+  font-size: clamp(11px, min(3.4vw, 1.8vh), 14px);
+}
+.modal-input {
+  font-family: var(--f); font-weight: 800;
+  font-size: clamp(15px, min(4.8vw, 2.5vh), 20px);
+  color: var(--ink); text-align: center;
+  background: var(--paper);
+  border: 0; border-bottom: 3px solid var(--ink);
+  border-radius: 0; padding: 6px 4px;
+  -webkit-user-select: text; user-select: text;
+}
+.modal-input:focus { outline: 0; background: var(--wall); }
+.modal-input::placeholder { color: var(--gray); font-weight: 700; }
+.modal-btns { display: flex; gap: 8px; }
+.modal-btns .btn { flex: 1 1 0; padding-left: 0; padding-right: 0; }
+
+/* ---- 토스트 ---- */
+.toast {
+  position: fixed; left: 50%; bottom: 12%; z-index: 70;
+  transform: translateX(-50%) translateY(8px);
+  background: var(--ink); color: var(--paper);
+  font-weight: 800; font-size: clamp(12px, min(3.8vw, 2vh), 15px);
+  padding: 9px 18px;
+  opacity: 0; pointer-events: none;
+  transition: opacity .18s, transform .18s;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }

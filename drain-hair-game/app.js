@@ -1802,7 +1802,9 @@
     try { localStorage.setItem(BEST_KEY, String(S.bestStreak)); } catch (_) {}
     paintBest();
     sfx("result");
+    paintResultButtons();
     $("endOver").hidden = false;
+    track("game_complete");
   }
 
   /* 결과 그림 — 청소율에 따라 다른 PNG (예전엔 점수로 골랐다) */
@@ -1834,65 +1836,228 @@
   }
 
   /* ============================================================
-     결과 공유 — 다른 꼬직 게임과 같은 방식
-     ============================================================ */
-  const isIOS = /iP(hone|od|ad)/.test(navigator.userAgent) ||
-                (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  const canDownload = () =>
-    !isIOS && typeof document.createElement("a").download !== "undefined";
+     친구 도전장
+     ============================================================
+     서버가 없다. 그래서 내 결과를 주소 뒤(#battle/v1.<토큰>)에 실어 보내고,
+     그 주소로 들어온 사람에게 '도전장 도착' 화면을 먼저 보여 준다.
 
-  function buildCard() {
-    const c = document.createElement("canvas");
-    c.width = 1080; c.height = 1350;
-    const g = c.getContext("2d");
-    g.fillStyle = "#ECF1F3"; g.fillRect(0, 0, 1080, 1350);
-    g.fillStyle = "#1A1A16";
-    g.fillRect(0, 0, 1080, 18); g.fillRect(0, 1332, 1080, 18);
-    g.textAlign = "center"; g.fillStyle = "#1A1A16";
-    g.font = "800 62px Pretendard, sans-serif";
-    g.fillText("배수구 머리카락", 540, 150);
-    g.fillText("뽑기", 540, 228);
-    if (lastArt) {
-      const w = 620, h = lastArt.height / lastArt.width * w;
-      g.drawImage(lastArt, 540 - w / 2, 290, w, h);
-    }
-    const info = lastInfo || { clean: 0, length: 0, streak: 0, best: 0, next: 10 };
-    /* 길이를 제일 크게 — 공유 카드에서 제일 먼저 읽히는 숫자다 */
-    g.font = "800 190px Pretendard, sans-serif";
-    g.fillText(info.length + "cm", 540, 1000);
-    g.font = "800 52px Pretendard, sans-serif";
-    g.fillText("총 " + info.length + "cm 뽑았습니다!", 540, 1088);
-    g.font = "800 46px Pretendard, sans-serif";
-    g.fillText("한 줄 최장 " + info.streak + "cm · 청소율 " + info.clean + "%", 540, 1152);
-    g.font = "800 44px Pretendard, sans-serif";
-    g.fillStyle = "#4A5A5E";
-    g.fillText("다음 목표 " + info.next + "cm", 540, 1216);
-    g.fillStyle = "#1A1A16";
-    g.fillText("꼬직", 540, 1280);
-    return c;
+     토큰은 남이 손댈 수 있는 값이다. 버전·점수 범위·종류·길이를 전부
+     확인하고, 닉네임은 태그 문자를 지우고 12자로 자른다. 하나라도
+     어긋나면 조용히 메인으로 보낸다 (오류 화면을 띄우지 않는다).
+     ============================================================ */
+  const SHARE = {
+    URL: "https://tmfdl951-source.github.io/ccojik/drain-hair-game/",
+    TITLE: "나보다 길게 뽑을 수 있어?",
+    GAME: "배수구 머리카락 뽑기",
+    NICK_KEY: "drainHairNick",
+    MAX_TOKEN: 700,
+    MAX_SCORE: 100000,
+  };
+  const BATTLE_PREFIX = "#battle/v1.";
+  /* 이 게임의 '종류' 는 하나뿐이다. 그래도 자리를 둬서 다른 꼬직 게임의
+     토큰이 잘못 들어왔을 때 걸러낸다. */
+  const KIND = "dh";
+
+  /* base64url — 주소에 그대로 실을 수 있게 +/= 를 바꾼다 */
+  function b64urlEncode(str) {
+    const bytes = new TextEncoder().encode(str);
+    let bin = "";
+    for (let k = 0; k < bytes.length; k++) bin += String.fromCharCode(bytes[k]);
+    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  function b64urlDecode(tok) {
+    let b = String(tok).replace(/-/g, "+").replace(/_/g, "/");
+    while (b.length % 4) b += "=";
+    const bin = atob(b);
+    const bytes = new Uint8Array(bin.length);
+    for (let k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
+    return new TextDecoder().decode(bytes);
   }
 
-  async function shareResult() {
-    const card = buildCard();
-    const blob = await new Promise(r => card.toBlob(r, "image/png"));
-    if (!blob) return;
-    const file = new File([blob], "ccojik-drain-hair.png", { type: "image/png" });
-    try {
-      if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
-        await navigator.share({ files: [file], title: "꼬직 · 배수구 머리카락 뽑기" });
+  /* 닉네임 다듬기 — 태그 문자를 지우고 12자로 */
+  function cleanNick(v) {
+    return String(v == null ? "" : v)
+      .replace(/[<>&"'\\]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 12);
+  }
+
+  /* 내 결과 -> 토큰.  n 닉네임 / s 총 길이 / k 한 줄 최장 / c 청소율 */
+  function makeToken(nick, info) {
+    const body = {
+      n: cleanNick(nick) || "친구",
+      s: Math.max(0, Math.min(SHARE.MAX_SCORE, Math.round(info.length) || 0)),
+      k: Math.max(0, Math.min(SHARE.MAX_SCORE, Math.round(info.streak) || 0)),
+      c: Math.max(0, Math.min(100, Math.round(info.clean) || 0)),
+      f: KIND,
+    };
+    return b64urlEncode(JSON.stringify(body));
+  }
+
+  /* 토큰 -> 결과. 하나라도 어긋나면 null */
+  function readToken(tok) {
+    if (typeof tok !== "string" || !tok || tok.length > SHARE.MAX_TOKEN) return null;
+    if (!/^[A-Za-z0-9_-]+$/.test(tok)) return null;
+    let o;
+    try { o = JSON.parse(b64urlDecode(tok)); }
+    catch (_) { return null; }
+    if (!o || typeof o !== "object" || Array.isArray(o)) return null;
+    if (o.f !== KIND) return null;
+    const num = (v, lo, hi) =>
+      (typeof v === "number" && isFinite(v) && v >= lo && v <= hi) ? Math.round(v) : null;
+    const s = num(o.s, 0, SHARE.MAX_SCORE);
+    const c = num(o.c, 0, 100);
+    if (s === null || c === null) return null;
+    /* 한 줄 최장은 총 길이를 넘을 수 없다 */
+    const k = num(o.k, 0, s);
+    if (k === null) return null;
+    const n = cleanNick(o.n) || "친구";
+    return { nick: n, length: s, streak: k, clean: c };
+  }
+
+  /* 주소에서 도전장 읽기 */
+  function readChallengeFromURL() {
+    let h = "";
+    try { h = String(location.hash || ""); } catch (_) { return null; }
+    if (h.indexOf(BATTLE_PREFIX) !== 0) return null;
+    return readToken(h.slice(BATTLE_PREFIX.length));
+  }
+  function challengeURL(nick, info) {
+    return SHARE.URL + BATTLE_PREFIX + makeToken(nick, info);
+  }
+  function challengeText(info) {
+    return "내 " + SHARE.GAME + " 기록 " + Math.round(info.length) +
+           "cm. 이길 수 있으면 해보세요.";
+  }
+
+  /* ---- 닉네임 묻기 ---- */
+  let nickResolve = null;
+  function askNickname() {
+    return new Promise(res => {
+      const box = $("nickModal");
+      const input = $("nickInput");
+      let last = "";
+      try { last = localStorage.getItem(SHARE.NICK_KEY) || ""; } catch (_) {}
+      input.value = cleanNick(last);
+      nickResolve = res;
+      box.hidden = false;
+      setTimeout(() => { try { input.focus(); input.select(); } catch (_) {} }, 20);
+    });
+  }
+  function closeNick(value) {
+    $("nickModal").hidden = true;
+    const r = nickResolve;
+    nickResolve = null;
+    if (r) r(value);
+  }
+
+  /* ---- 토스트 ---- */
+  let toastT = 0;
+  function toast(text) {
+    const el = $("toast");
+    el.textContent = text;
+    el.classList.add("show");
+    clearTimeout(toastT);
+    toastT = setTimeout(() => el.classList.remove("show"), 2200);
+  }
+
+  /* ---- 도전장 보내기 ---- */
+  const canWebShare = () =>
+    !!navigator.share && (navigator.maxTouchPoints > 0 || /Mobi|Android/i.test(navigator.userAgent));
+
+  async function sendChallenge() {
+    if (!lastInfo) return;
+    const nick = await askNickname();
+    if (nick === null) return;                   /* 취소 */
+    const name = cleanNick(nick) || "친구";
+    try { localStorage.setItem(SHARE.NICK_KEY, name); } catch (_) {}
+    const url = challengeURL(name, lastInfo);
+    const text = challengeText(lastInfo);
+    track("challenge_share");
+    if (canWebShare()) {
+      try {
+        await navigator.share({ title: SHARE.TITLE, text: text, url: url });
         return;
-      }
-    } catch (_) {}
-    if (canDownload()) {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = "ccojik-drain-hair.png";
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-      return;
+      } catch (_) { /* 취소하거나 막히면 복사로 */ }
     }
-    try { await navigator.clipboard.writeText(location.href); say("링크를 복사했어요"); }
-    catch (_) {}
+    try {
+      await navigator.clipboard.writeText(text + " " + url);
+      toast("도전장 링크가 복사됐어요!");
+    } catch (_) {
+      toast("링크를 복사하지 못했어요");
+    }
+  }
+
+  /* 메인을 가리던 표시를 지운다. documentElement 가 없는 데(검사용 흉내
+     DOM)에서도 터지지 않게 감싼다. */
+  function unmaskBoot() {
+    try {
+      const root = document.documentElement;
+      if (root && root.classList) root.classList.remove("boot-challenge");
+    } catch (_) {}
+  }
+
+  /* ---- 도전장 도착 / 대결 화면 ---- */
+  let foe = null;                                 /* 지금 겨루는 상대 */
+
+  function drawFoeArt(boxId, clean) {
+    const box = $(boxId);
+    if (!box) return;
+    box.innerHTML = "";
+    const art = snapResult(clean);
+    art.className = "result-art-cv";
+    box.appendChild(art);
+  }
+
+  function showChallenge(data) {
+    foe = data;
+    $("cNick").textContent = data.nick;
+    $("cScore").textContent = data.length + "cm";
+    $("cSub").textContent = "한 줄 최장 " + data.streak + "cm · 청소율 " +
+      data.clean + "%";
+    drawFoeArt("cArt", data.clean);
+    $("startOver").hidden = true;
+    $("challengeOver").hidden = false;
+    unmaskBoot();
+    track("challenge_start");
+  }
+
+  function verdict(mine, theirs) {
+    const d = mine - theirs;
+    if (d > 0) return { cls: "win", text: "이겼습니다. " + d + "cm 차이." };
+    if (d < 0) return { cls: "lose", text: "졌습니다. " + (-d) + "cm 부족." };
+    return { cls: "draw", text: "무승부. 한 번 더." };
+  }
+
+  function showBattle() {
+    if (!foe || !lastInfo) return;
+    const v = verdict(lastInfo.length, foe.length);
+    $("bVerdict").textContent = v.text;
+    $("bVerdict").className = "b-verdict " + v.cls;
+    $("bMyScore").textContent = lastInfo.length + "cm";
+    $("bFoeScore").textContent = foe.length + "cm";
+    $("bFoeNick").textContent = foe.nick;
+    drawFoeArt("bMyArt", lastInfo.clean);
+    drawFoeArt("bFoeArt", foe.clean);
+    $("endOver").hidden = true;
+    $("battleOver").hidden = false;
+  }
+
+  /* 도전 중에는 결과 화면의 첫 단추가 '대결 결과 보기' 다 */
+  function paintResultButtons() {
+    const on = !!foe;
+    $("battleBtn").hidden = !on;
+    $("againBtn").classList.toggle("ghost", on);
+    $("againBtn").hidden = on;
+    $("shareBtn").classList.toggle("ghost", true);
+  }
+
+  function track(name) {
+    try {
+      if (window.SiteAnalytics && window.SiteAnalytics.track)
+        window.SiteAnalytics.track(name);
+    } catch (_) {}
   }
 
   /* ============================================================
@@ -1961,23 +2126,59 @@
 
   $("startBtn").addEventListener("click", () => {
     if (showHowToPlay) return;
-    if (assetsReady) start(false);
+    if (assetsReady) { track("game_start"); start(false); }
   });
-  $("againBtn").addEventListener("click", () => start(true));
-  $("shareBtn").addEventListener("click", shareResult);
+  $("againBtn").addEventListener("click", () => { track("replay"); start(true); });
+  $("shareBtn").addEventListener("click", sendChallenge);
+  $("battleBtn").addEventListener("click", showBattle);
+  /* 도전장 화면 */
+  $("cStartBtn").addEventListener("click", () => {
+    if (!assetsReady) return;
+    $("challengeOver").hidden = true;
+    track("game_start");
+    start(false);
+  });
+  /* 대결 화면 */
+  $("bAgainBtn").addEventListener("click", () => {
+    $("battleOver").hidden = true;
+    track("replay");
+    start(true);
+  });
+  $("bDetailBtn").addEventListener("click", () => {
+    $("battleOver").hidden = true;
+    $("endOver").hidden = false;
+  });
+  /* 닉네임 묻기 */
+  $("nickOk").addEventListener("click", () => closeNick($("nickInput").value));
+  $("nickCancel").addEventListener("click", () => closeNick(null));
+  $("nickModal").addEventListener("click", e => {
+    if (e.target === $("nickModal")) closeNick(null);
+  });
+  $("nickInput").addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); closeNick($("nickInput").value); }
+    if (e.key === "Escape" || e.key === "Esc") { e.preventDefault(); closeNick(null); }
+  });
 
   paintBest();
   paintHud();
   fitCanvas();
+  track("flow_start");
+
+  /* 도전장 링크로 들어왔나 — 깨진 링크면 조용히 메인으로 */
+  const incoming = readChallengeFromURL();
+  if (incoming) showChallenge(incoming);
+  else unmaskBoot();
 
   const btn = $("startBtn");
   btn.disabled = true;
   btn.textContent = "불러오는 중";
+  $("cStartBtn").disabled = true;
   loadAssets(
     p => { $("loadFill").style.width = Math.round(p * 100) + "%"; },
     () => {
       btn.disabled = false;
       btn.textContent = "뽑기 시작";
+      $("cStartBtn").disabled = false;
       $("loadOver").hidden = true;
       buildHair();
       drawHero();
@@ -1995,7 +2196,12 @@
     activeCm, chainCm, newPile, strandPoint, stepTail, floorAt, SEG, MOUND_BINS,
     stepChain, stepTension,
     checkMilestone, drawStrand, drawOldPiles, drawBits,
-    grabRadius, tipRest, addFx, snapResult, buildCard, shareResult,
+    grabRadius, tipRest, addFx, snapResult,
+    makeToken, readToken, cleanNick, challengeURL, challengeText, verdict,
+    readChallengeFromURL, showChallenge, showBattle, sendChallenge,
+    askNickname, closeNick, SHARE, BATTLE_PREFIX, KIND,
+    get foe() { return foe; }, set foe(v) { foe = v; },
+    get lastInfo() { return lastInfo; }, set lastInfo(v) { lastInfo = v; },
     isCoarse: () => coarse, setCoarse: v2 => { coarse = v2; },
     drawHero, paintBest, toLogical, visH, has, loadAssets, render,
     getNextTarget, ctaFor, checkMilestone, resetBestLongestPull, BEST_KEY,

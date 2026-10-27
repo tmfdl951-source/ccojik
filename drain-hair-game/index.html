@@ -13,6 +13,13 @@
 <link rel="stylesheet"
   href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.css" />
 <link rel="stylesheet" href="style.css" />
+<script>
+  /* 도전장 링크면 메인 화면이 한 번 보였다 사라지지 않게, 그리기 전에
+     표시해 둔다. app.js 가 화면을 띄우면서 이 표시를 지운다. */
+  if (String(location.hash || "").indexOf("#battle/v1.") === 0) {
+    document.documentElement.className += " boot-challenge";
+  }
+</script>
 </head>
 <body>
 <div class="app" id="app">
@@ -82,8 +89,43 @@
       </dl>
       <p class="rec-cta" id="rCta"></p>
       <div class="res-btns">
+        <!-- 도전 중에는 대결 결과 보기가 첫 단추가 되고 다시 뽑기는 숨는다 -->
+        <button class="btn big" type="button" id="battleBtn" hidden>대결 결과 보기</button>
         <button class="btn big" type="button" id="againBtn">다시 뽑기</button>
-        <button class="btn ghost" type="button" id="shareBtn">결과 공유</button>
+        <button class="btn ghost" type="button" id="shareBtn">친구에게 도전장 보내기</button>
+      </div>
+    </div>
+
+    <!-- 도전장 도착 -->
+    <div class="over over-ch" id="challengeOver" hidden>
+      <p class="ch-tag">도전장 도착</p>
+      <div class="result-art" id="cArt"></div>
+      <p class="ch-who"><b id="cNick">친구</b>의 배수구 청소 기록</p>
+      <p class="len-hero" id="cScore">0cm</p>
+      <p class="ch-sub" id="cSub"></p>
+      <p class="ch-call">이길 수 있으면 해보세요.</p>
+      <button class="btn big" type="button" id="cStartBtn">도전 시작</button>
+    </div>
+
+    <!-- 대결 결과 -->
+    <div class="over over-battle" id="battleOver" hidden>
+      <p class="b-verdict" id="bVerdict"></p>
+      <div class="b-row">
+        <div class="b-side">
+          <p class="b-name">나</p>
+          <div class="result-art small" id="bMyArt"></div>
+          <p class="b-score" id="bMyScore">0cm</p>
+        </div>
+        <p class="b-vs">VS</p>
+        <div class="b-side">
+          <p class="b-name" id="bFoeNick">친구</p>
+          <div class="result-art small" id="bFoeArt"></div>
+          <p class="b-score" id="bFoeScore">0cm</p>
+        </div>
+      </div>
+      <div class="res-btns">
+        <button class="btn big" type="button" id="bAgainBtn">다시 붙기</button>
+        <button class="btn ghost" type="button" id="bDetailBtn">내 결과 자세히 보기</button>
       </div>
     </div>
 
@@ -93,6 +135,22 @@
       <div class="load-bar"><div class="load-fill" id="loadFill"></div></div>
     </div>
   </div>
+
+  <!-- 닉네임 묻기 -->
+  <div class="modal" id="nickModal" hidden role="dialog" aria-modal="true"
+    aria-labelledby="nickTitle">
+    <div class="modal-box">
+      <h2 class="modal-title" id="nickTitle">도전장에 쓸 이름</h2>
+      <p class="modal-sub">비워 두면 &lsquo;친구&rsquo; 로 보내요</p>
+      <input class="modal-input" id="nickInput" type="text" maxlength="12"
+        autocomplete="off" enterkeyhint="done" placeholder="친구" />
+      <div class="modal-btns">
+        <button class="btn ghost" type="button" id="nickCancel">취소</button>
+        <button class="btn" type="button" id="nickOk">도전장 보내기</button>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
 
   <p class="turn-tip">세로 화면에서 플레이하면 더 편해요</p>
   <div class="sig">ccojik</div>
