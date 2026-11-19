@@ -1,0 +1,321 @@
+/* ============================================================
+   호떡 알바
+   ============================================================
+   UI 가 거의 없는 게임이다. 화면은 1080x1920 비율의 캔버스 한 장이고,
+   조리대와 도구는 모두 그 안에 그려진다. 여기서 할 일은 캔버스를
+   화면에 꽉 채우고, 끌어당기는 동안 페이지가 밀리지 않게 막는 것뿐.
+   ============================================================ */
+:root {
+  --ink:   #F0E7D8;
+  --cream: #2E2A26;
+  --paper: #3A352F;
+  --gray:  #9A9186;
+  --line:  #4A443C;
+  --f: Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0;
+    -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%;
+  background: #1A1714;
+  color: var(--ink);
+  font-family: var(--f);
+  overflow: hidden;
+  /* 도구를 끄는 동안 화면이 따라 움직이면 안 된다 */
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;
+  word-break: keep-all;
+}
+body { display: flex; align-items: center; justify-content: center; }
+
+/* 1080x1920 비율을 지키며 가운데 */
+.app {
+  position: relative;
+  width: min(100vw, 56.25vh, 620px);
+  height: min(177.78vw, 100vh);
+  height: min(177.78vw, 100dvh);
+  max-height: 100dvh;
+  background: #2E2A26;
+  overflow: hidden;
+}
+
+#cv {
+  display: block;
+  width: 100%; height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+#cv.grabbing { cursor: grabbing; }
+
+.mute {
+  position: absolute;
+  top: calc(10px + env(safe-area-inset-top, 0px)); right: 12px;
+  z-index: 20;
+  font-family: var(--f); font-size: 12px; font-weight: 600;
+  color: var(--gray); background: rgba(255, 255, 255, .9);
+  border: 2px solid var(--line); border-radius: 999px;
+  padding: 6px 12px; cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* 개발용 상태 패널. 기본은 hidden 이라 화면에 나오지 않는다. */
+.dbg {
+  position: absolute;
+  left: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  z-index: 30;
+  margin: 0; padding: 6px 8px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 9px; line-height: 1.45;
+  color: #CFE8B8; background: rgba(12, 14, 10, .78);
+  border-radius: 6px;
+  white-space: pre; pointer-events: none;
+}
+
+/* ============================================================
+   결과
+   ============================================================ */
+.over {
+  position: absolute; inset: 0; z-index: 10;
+  background: rgba(22, 19, 16, .93);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: clamp(4px, 1.1vh, 12px);
+  padding: clamp(14px, 4vh, 34px) clamp(16px, 6vw, 36px);
+  text-align: center;
+}
+.over[hidden] { display: none; }
+
+/* --- 결과 판 -------------------------------------------------
+   판 높이는 .app 을 따라 177.78vw(세로 화면에서 100vw = 판 너비)
+   라서, 칸마다 vw 로 높이를 매기면 어느 기기에서나 같은 비율로
+   들어온다 — vh 로 재면 판보다 큰 숫자가 나와 넘친다.
+
+   자세한 칸(.r-body)만 넘칠 때 스크롤되고, 아래 단추(.r-btns)는
+   스크롤 바깥에 있어서 어떤 화면에서도 잘리지 않는다. */
+.over-end {
+  justify-content: flex-start;
+  overflow: hidden;
+  gap: 0;
+  padding: 10px clamp(14px, 4vw, 28px);
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+}
+.over-end .r-body {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  display: flex; flex-direction: column; align-items: center;
+  /* 넘치지 않을 때는 가운데로 모으고, 넘칠 때는 위부터 쌓는다.
+     그냥 center 로 두면 넘친 만큼 위쪽이 잘린 채 스크롤로도
+     닿을 수 없게 된다 — safe 가 그 경우만 flex-start 로 돌린다. */
+  justify-content: center;
+  justify-content: safe center;
+  gap: min(1vw, 6px);
+}
+/* em 으로 준 글줄 너비가 판보다 넓어지면 가로로 삐져나가 잘린다.
+   어떤 경우에도 판 안쪽을 넘지 않게 한다. */
+.over-end .r-body > * { max-width: 100%; }
+.over-end .r-body > *[hidden] { display: none; }
+
+.r-show {
+  display: flex; flex-direction: column; align-items: center;
+  gap: min(1.3vw, 8px);
+  width: 100%;
+}
+.r-cap {
+  font-size: min(3.1vw, 13px);
+  font-weight: 600; color: var(--gray); letter-spacing: .3em;
+  line-height: 1.2;
+}
+/* 완성품 — 접시를 기준물로 같이 그리므로 칸은 정사각 */
+.r-art {
+  width: min(62vw, 250px); height: min(62vw, 250px);
+  display: block;
+}
+/* 갈라 본 뒤에는 자리를 양보한다 */
+/* 갈라 본 뒤에도 조각과 단면이 이 칸 안에서 보인다 — 따로 단면
+   사진을 아래에 띄우지 않으므로 너무 줄이면 안 된다 */
+.r-show.mini .r-art { width: min(50vw, 200px); height: min(50vw, 200px); }
+.r-show.mini .r-cap { display: none; }
+
+.r-size {
+  font-size: min(3.4vw, 14px);
+  font-weight: 600; color: var(--gray); line-height: 1.2;
+}
+
+/* --- 갈라보기 권유 ------------------------------------------- */
+.r-cutask {
+  display: flex; flex-direction: column; align-items: center;
+  gap: min(1.6vw, 9px);
+  margin-top: min(2vw, 10px);
+}
+.r-cutask[hidden] { display: none; }
+.r-askline {
+  font-size: min(3.9vw, 16px); font-weight: 700; color: var(--ink);
+  line-height: 1.3;
+}
+
+/* --- 결과 이름 — 이 화면에서 가장 먼저 읽히는 글자 ------------ */
+.r-name {
+  font-size: min(5.6vw, 23px); font-weight: 800; line-height: 1.25;
+  color: var(--ink);
+  margin-top: min(1.4vw, 8px);
+}
+.r-full {
+  display: flex; flex-direction: column; align-items: center;
+  gap: min(0.9vw, 5px);
+  width: 100%;
+}
+.r-full[hidden] { display: none; }
+
+/* 주문 / 잘한 점 / 다음에 바꿀 것 */
+.r-order, .r-good, .r-advice, .r-dex {
+  font-size: min(3.5vw, 14px); line-height: 1.4; font-weight: 600;
+  max-width: 24em;
+}
+.r-order { color: #F7C843; }
+.r-order.miss { color: var(--gray); }
+.r-good { color: #CFE8B8; }
+.r-advice { color: var(--ink); font-weight: 700; }
+.r-dex { color: var(--gray); font-size: min(3.1vw, 12px); font-weight: 600; }
+.r-dex.fresh { color: #F7C843; }
+
+/* 도감 — 숙제가 아니라 구경거리라서 기본은 접어 둔다 */
+.btn.tiny { min-height: 30px; height: 30px; font-size: min(3.1vw, 12px);
+            padding: 0 10px; }
+.r-dexlist {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 2px min(3vw, 12px);
+  width: 100%; max-width: 320px;
+  font-size: min(3.1vw, 12px); font-weight: 600;
+  color: var(--gray); text-align: left;
+}
+.r-dexlist[hidden] { display: none; }
+.r-dexlist li.got { color: var(--ink); }
+
+/* 등급이 결과의 중심 정보다 — 총평보다 한 단 크게 */
+.r-grade {
+  display: flex; align-items: center; gap: .5em;
+  font-size: min(4.6vw, 19px); font-weight: 800; line-height: 1.25;
+}
+.r-grade em { font-style: normal; }
+.r-gradepip .pip {
+  display: inline-block; width: .6em; height: .6em; margin-right: .26em;
+  border-radius: 50%; border: 1.5px solid var(--gray); vertical-align: middle;
+}
+.r-gradepip .pip.on { background: var(--ink); border-color: var(--ink); }
+
+/* 축약 총평. 두 문제를 한 문장으로 묶어 두므로 줄바꿈을 살린다. */
+.r-line {
+  font-size: min(4.1vw, 17px);
+  font-weight: 700; line-height: 1.38;
+  white-space: pre-line;
+  max-width: 22em;
+}
+
+/* 평가 — 세 줄. 이름과 칸, 두 칸짜리 표. */
+.r-stars {
+  display: grid; grid-template-columns: auto auto;
+  align-items: center; justify-content: center;
+  gap: min(.9vw, 5px) min(3vw, 14px);
+  margin: min(.8vw, 5px) 0 0;
+  font-size: min(3.6vw, 15px);
+}
+.r-stars dt { color: var(--gray); font-weight: 600; text-align: right; }
+.r-stars dd { margin: 0; text-align: left; line-height: 1; }
+/* 칸은 글자가 아니라 점으로 — 기호 글자는 이 프로젝트에서 안 쓴다 */
+.r-stars .pip {
+  display: inline-block; width: .6em; height: .6em; margin-right: .3em;
+  border-radius: 50%; border: 1.5px solid var(--gray);
+  vertical-align: middle;
+}
+.r-stars .pip.on { background: var(--ink); border-color: var(--ink); }
+
+/* 단추는 스크롤 바깥이다. 자세한 내용이 아무리 길어져도
+   '다시 만들기' 가 화면에서 잘리는 일은 없다. */
+.r-btns {
+  width: 100%; max-width: 320px;
+  flex: 0 0 auto;
+  margin: min(2vw, 10px) auto 0;
+  display: flex; flex-direction: column; gap: min(1.6vw, 8px);
+}
+.r-btns[hidden] { display: none; }
+/* 결과 판 단추는 높이를 고정한다 — 여기가 커지면 판을 넘긴다 */
+.r-btns .btn {
+  font-size: min(4.2vw, 18px);
+  padding: 0 clamp(18px, 6vw, 32px);
+  min-height: 50px; height: 50px;
+}
+/* 세 번째 단추(공유)는 한 단 낮게 — 주요 행동과 섞이지 않게 */
+.btn.flat {
+  color: var(--gray); background: transparent;
+  border-color: transparent;
+  font-weight: 700;
+}
+.btn.flat:active { color: var(--ink); background: transparent; }
+.r-btns .btn.flat { min-height: 40px; height: 40px; font-size: min(3.6vw, 15px); }
+.btn.thin { min-height: 44px; height: 44px; font-size: min(3.8vw, 16px); }
+
+.btn {
+  font-family: var(--f); font-weight: 800; line-height: 1.25;
+  font-size: clamp(15px, min(4.8vw, 2.4vh), 20px);
+  color: var(--paper); background: var(--ink);
+  border: 3px solid var(--ink); border-radius: 0;
+  padding: clamp(10px, 1.8vh, 15px) clamp(18px, 6vw, 32px);
+  min-height: 48px;
+  cursor: pointer; touch-action: manipulation;
+}
+.btn:active { background: var(--gray); border-color: var(--gray); }
+.btn.ghost { color: var(--ink); background: var(--paper); }
+.btn.ghost:active { background: var(--line); }
+
+/* 낮은 화면 — 장식부터 접는다 */
+@media (max-height: 560px) {
+  .r-cap { display: none; }
+}
+
+/* ============================================================
+   그림 받는 중 / 시작
+   ============================================================ */
+.over-load { background: #1A1714; }
+.t-load {
+  font-size: clamp(13px, min(4vw, 2vh), 18px);
+  font-weight: 600; color: var(--gray); letter-spacing: .2em;
+}
+/* --- 시작 안내 ------------------------------------------------
+   제목 / 세 줄 설명 / 단추 하나. 셋을 한 덩어리로 화면 한가운데
+   모은다 — 단추가 화면 맨 아래에 따로 붙으면 설명과 멀어진다.
+   주문서는 이 화면에 없다. 조리 화면 위쪽에 있는 것이 주문서다. */
+.over-start { gap: 0; }
+.over-start .s-body {
+  width: 100%;
+  display: flex; flex-direction: column; align-items: center;
+  gap: min(2.4vw, 12px);
+}
+.over-start .s-body > * { max-width: 100%; }
+.t-title {
+  font-size: clamp(32px, min(10.5vw, 5vh), 52px);
+  font-weight: 800; line-height: 1.05; letter-spacing: -.02em;
+  color: var(--ink);
+}
+.t-sub {
+  font-size: min(4vw, 16px);
+  font-weight: 500; color: var(--gray); line-height: 1.65;
+  max-width: 22em;
+}
+.over-start .btn {
+  margin-top: min(3.2vw, 16px);
+  min-width: min(62vw, 250px);
+  min-height: 54px; height: 54px;
+  font-size: min(4.6vw, 19px);
+}
+
+.btn:disabled { background: var(--line); border-color: var(--line); color: var(--gray); }
+.r-art { background: transparent; }
