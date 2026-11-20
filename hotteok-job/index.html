@@ -7,14 +7,15 @@
 <title>꼬직 · 호떡 알바</title>
 <meta property="og:type" content="website" />
 <meta property="og:title" content="꼬직 · 호떡 알바" />
-<meta property="og:description" content="도구를 직접 잡아 호떡을 만들어 보세요." />
+<meta property="og:description" content="90초 동안 호떡을 몇 개나 만들 수 있을까요." />
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
 <link rel="stylesheet"
   href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.css" />
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-<!-- UI 는 최소한만. 조리는 전부 캔버스 안에서 직접 만진다. -->
+<!-- UI 는 최소한만. 조리는 전부 캔버스 안에서 직접 만진다.
+     남은 시간과 완성 개수도 캔버스 위쪽 띠에 그린다. -->
 <div class="app" id="app">
   <canvas id="cv"></canvas>
 
@@ -28,56 +29,25 @@
     <p class="t-load">호떡 준비 중</p>
   </div>
 
-  <!-- 시작 안내 — 무엇을 하는 게임인지 세 줄로 알려 주고 들여보낸다.
-       주문서는 여기 두지 않는다. 조리 화면 위쪽에 늘 붙어 있는 것이
-       주문서이고, 시작을 누르는 순간 거기서 한 번 밝아진다. -->
+  <!-- 시작 안내 — 무엇을 하는 게임인지, 무엇이 한 개로 세어지는지.
+       여기를 지나기 전에는 시간이 가지 않는다. -->
   <div class="over over-start" id="startOver" hidden>
     <div class="s-body" id="sBody">
       <h1 class="t-title">호떡 알바</h1>
-      <p class="t-sub" id="sIntro">주문에 맞춰 호떡을 만들어보세요.<br />
-        반죽에 속을 넣고 봉합한 뒤, 철판에서 구워주세요.<br />
-        완성하면 집게로 접시에 담으세요.</p>
+      <p class="t-sub" id="sIntro">90초 동안 호떡을 몇 개나 만들 수 있을까요.<br />
+        반죽에 속을 넣고 봉합한 뒤, 철판에서 구워주세요.</p>
+      <p class="t-rule" id="sRule">속을 넣고 양면을 구운 뒤 접시에 담으세요</p>
       <button class="btn" type="button" id="startBtn" disabled>게임 시작</button>
     </div>
   </div>
 
-  <!-- 결과 — 두 단계다.
-       1) 완성품을 먼저 본다. 접시를 기준으로 크기가 그대로 보인다.
-       2) 직접 갈라야 단면과 이름과 평가가 열린다.
-       자세한 칸은 넘치면 스크롤되지만, 아래 단추는 늘 자리를 지킨다. -->
+  <!-- 시간 종료 — 몇 개를 만들었나, 그리고 다시 도전 -->
   <div class="over over-end" id="endOver" hidden>
-    <div class="r-body" id="rBody">
-      <!-- 1단계: 완성품 감상 -->
-      <div class="r-show" id="rShow">
-        <p class="r-cap" id="rCap">오늘의 호떡</p>
-        <canvas class="r-art" id="resCv" width="300" height="300"></canvas>
-        <p class="r-size" id="rSize">-</p>
-      </div>
-      <div class="r-cutask" id="rCutAsk">
-        <p class="r-askline">가운데를 그어 반으로 갈라보세요</p>
-        <button class="btn ghost thin" type="button" id="cutBtn">톡 눌러서 갈라보기</button>
-        <button class="btn flat" type="button" id="skipBtn">바로 결과 보기</button>
-      </div>
-
-      <!-- 2단계: 갈라 본 뒤 -->
-      <div class="r-full" id="rFull" hidden>
-        <p class="r-name" id="rName">-</p>
-        <p class="r-grade"><span class="r-gradepip" id="rGradePip"></span><em id="rGrade">-</em></p>
-        <p class="r-line" id="rLine">-</p>
-        <dl class="r-stars" id="rStars"></dl>
-        <p class="r-order" id="rOrder" hidden>-</p>
-        <p class="r-good" id="rGood">-</p>
-        <p class="r-advice" id="rAdvice">-</p>
-        <p class="r-dex" id="rDex">-</p>
-        <button class="btn flat tiny" type="button" id="dexBtn" aria-expanded="false">도감 보기</button>
-        <ul class="r-dexlist" id="rDexList" hidden></ul>
-      </div>
-    </div>
-
-    <div class="r-btns" id="rBtns" hidden>
-      <button class="btn" type="button" id="againBtn">같은 조건으로 다시</button>
-      <button class="btn ghost" type="button" id="orderBtn">다른 주문으로</button>
-      <button class="btn flat" type="button" id="shareBtn">공유하기</button>
+    <div class="e-body">
+      <p class="e-title">시간 종료!</p>
+      <p class="e-sub" id="eSub">90초 동안 만든 호떡</p>
+      <p class="e-count" id="eCount">0개</p>
+      <button class="btn" type="button" id="againBtn">다시 도전</button>
     </div>
   </div>
 </div>
