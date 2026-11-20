@@ -148,12 +148,23 @@ body { display: flex; align-items: center; justify-content: center; }
 }
 
 /* --- 시간 종료 ------------------------------------------------
-   한 번만 뜬다. 등급도 평가도 없고 개수 하나가 전부다. */
+   한 번만 뜬다. 등급도 평가도 없고, 개수와 이번에 만든 호떡들이
+   전부다. 호떡이 많아 넘치면 이 칸만 스크롤된다. */
 .over-end { gap: 0; }
 .over-end .e-body {
   width: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   display: flex; flex-direction: column; align-items: center;
   gap: min(1.6vw, 8px);
+}
+/* 이번 판에 만든 호떡들 — 높이는 코드가 줄 수에 맞춰 정한다 */
+.e-shelf {
+  display: block;
+  width: 100%; max-width: 420px; height: 0;
+  margin-top: min(1.6vw, 8px);
 }
 .over-end .e-body > * { max-width: 100%; }
 .e-title {

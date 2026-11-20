@@ -54,6 +54,33 @@
      오른쪽 끝을 1080 까지 끌지 않는 것은 그 자리에 소리 단추(DOM)가
      있기 때문이다 — 끝까지 끌면 완성 개수가 단추 뒤로 숨는다. */
   const HUD = { x: 26, y: 24, w: 868, h: 96 };
+
+  /* ------------------------------------------------------------
+     완성 호떡 전시대
+     ------------------------------------------------------------
+     철판 위쪽, 반죽통과 설탕통 사이의 빈 조리대에 올린다. 양쪽 통의
+     판정 타원과 겹치지 않는 자리다 (반죽통은 x 337 왼쪽에서 끝나고,
+     설탕통은 이 높이에서 x 733 오른쪽에만 있다).
+
+     inner / base 는 그림 안에서 '실제 트레이 안쪽' 이 어디인가를
+     비율로 적어 둔 것이다. 알파 경계로 잘라낸 그림(2172x392)에서
+     밝기가 꺾이는 자리를 재서 넣었다 — 뒤 테두리는 0.19 에서 끝나고
+     앞 테두리는 0.745 에서 시작한다. 그림을 갈아 끼우면 이 값만
+     다시 재면 된다. */
+  const TRAY = {
+    x: 530, y: 666, w: 388,      /* 화면에서 차지하는 자리 (높이는 비율에서) */
+    ratio: 5.541,                /* 그림이 아직 안 왔을 때 쓸 가로/세로 */
+    inner: { x0: 0.06, x1: 0.94, y0: 0.20, y1: 0.745 },
+    base: 0.70,                  /* 호떡 밑이 닿는 자리 */
+    front: 0.735,                /* 여기부터 아래가 앞 테두리 */
+    scale: 0.25,                 /* 조리 중 크기 -> 전시 크기 (모두 같은 배율) */
+    squash: 0.92,                /* 전시대 시점에서의 세로 눌림 */
+    pitch: 80,                   /* 한 칸의 너비 */
+    rise: 260,                   /* 호떡이 뒤 테두리 위로 솟을 수 있는 높이 */
+    flySec: 0.5,                 /* 접시에서 전시대까지 */
+    holdSec: 1.6,                /* 손으로 민 뒤 자동 이동을 쉬는 시간 */
+  };
+
   /* 반죽이 퍼질 수 있는 한계 — 철판의 82% (명세 2/5) */
   const MAX_R = LAY.pan.rx * 0.82;
   /* 이만큼 얇아져야 '충분히 펼쳐진 반죽' 으로 본다 — 설탕은 그때부터 */
@@ -200,6 +227,9 @@
     charred:   "hotteok-bottom-burnt.webp",
     burnt:     "hotteok-burnt.webp",
     burst:     "hotteok-burst.webp",
+
+    /* 완성 호떡을 올려 두는 전시대 — 투명 배경 그대로 쓴다 */
+    tray:      "hotteok-display-tray.webp",
 
     oilSheen:  "oil-sheen-overlay.webp",
     bubble:    "sugar-bubble.webp",
@@ -522,6 +552,13 @@
     made: 0,                        /* 접시로 보낸 호떡 수 */
     over: false,                    /* 시간이 다 됐나 */
     pops: [],                       /* 접시 옆 "+1" 같은 짧은 표시 */
+    /* --- 전시대 ---------------------------------------------------
+       shelf 에 든 것은 조리 중인 호떡이 아니라 그때 그대로를 떠낸
+       사본이다. 다음 반죽을 아무리 주물러도 여기 있는 것은 안 바뀐다. */
+    shelf: [],
+    shelfScroll: 0,                 /* 지금 보고 있는 가로 위치 */
+    shelfHold: 0,                   /* 손으로 민 뒤 자동 이동을 쉬는 시간 */
+    shelfDrag: null,                /* 전시대를 직접 미는 중 */
     elapsed: 0,
     running: false,               /* [시작] 을 누른 뒤부터 만질 수 있다 */
     assetsReady: false,
@@ -540,6 +577,11 @@
     S.hint = ""; S.hintT = 0;
     S.timeLeft = MODE.timeLimit; S.made = 0; S.over = false;
     S.pops.length = 0;
+    /* 지난 판의 전시물과 날아오던 것, 스크롤 자리까지 모두 지운다.
+       배열을 갈아 끼우지 않고 비우는 것은, 지난 판의 애니메이션이
+       들고 있던 참조로 새 판에 호떡을 밀어 넣지 못하게 하기 위해서다. */
+    S.shelf.length = 0;
+    S.shelfScroll = 0; S.shelfHold = 0; S.shelfDrag = null;
     S.elapsed = 0; S.toast = ""; S.toastT = 0; S.shake = 0;
     S.panRing = null;
     /* 이번 판에 한 말은 지운다. 다시 떠들기 위해서가 아니라, 아직
@@ -1667,6 +1709,31 @@
     }
   }
 
+  /* --- 전시대에 올릴 사본 ----------------------------------------
+     조리 중인 객체를 그대로 들고 있으면, 다음 반죽을 만들 때 같이
+     바뀌거나 계속 익는다. 그래서 그 순간의 값을 통째로 떠낸다.
+     모양(rad)·찢김·탄 자국·샌 자국은 그대로 가져오고, '지금 무엇을
+     하는 중' 을 뜻하는 신호들만 0 으로 눕힌다. */
+  function shelfClone(h) {
+    const c = {};
+    for (const k in h) {
+      const v = h[k];
+      if (Array.isArray(v))
+        c[k] = v.map(e => (e && typeof e === "object") ? Object.assign({}, e) : e);
+      else if (v && typeof v === "object") c[k] = Object.assign({}, v);
+      else c[k] = v;
+    }
+    /* 더 익지도, 들리지도, 흔들리지도 않는다 */
+    c.held = false; c.onPan = false;
+    c.lift = 0; c.flipT = 0; c.wobble = 0; c.insert = 0;
+    c.pull = 0; c.hiss = 0; c.stick = 0;
+    c.pressure = 0;                 /* 부풀어 오르는 숨쉬기도 멈춘다 */
+    c.push = null; c.sealFlash = 0; c.pressRing = 0; c.landT = 0;
+    c.thickGood = 0; c.liftHint = 0; c.insertAng = undefined;
+    c.onShelf = true;               /* 조리 중에만 도는 연출을 끈다 */
+    return c;
+  }
+
   /* 접시에 놓았다. 타이머도 철판도 건드리지 않는다 — 한 판 전체에
      속한 것이기 때문이다. 호떡만 손에서 떠난다. */
   function submit() {
@@ -1680,7 +1747,11 @@
       SFX.drop();
       return;
     }
+    /* 세는 것과 전시대에 올리는 것은 여기 한 번뿐이다.
+       날아가는 연출이 끝날 때 다시 세지 않는다. */
     S.made++;
+    S.shelf.push({ h: shelfClone(h), fly: 1, x0: LAY.plate.x, y0: LAY.plate.y - 30 });
+    S.shelfHold = 0;                 /* 새로 올린 자리를 보여 준다 */
     learn("plate");
     popPlate("+1", true);
     SFX.clink(); buzz(16);
@@ -1703,8 +1774,122 @@
     S.spoonLoad = 0;
     PTR.down = false; PTR.id = null;
     S.hint = ""; S.hintT = 0;
+    /* 날아가던 호떡은 제자리에 내려놓는다. 이미 센 것들이라
+       연출이 끝나지 않았다는 이유로 빠지면 안 된다. */
+    for (const s of S.shelf) s.fly = 0;
+    S.shelfDrag = null;
     track("game_complete");
     showEnd();
+  }
+
+  /* ============================================================
+     전시대 — 만든 것이 쌓이는 자리
+     ============================================================
+     트레이 그림은 투명 배경이다. 통째로 덮어 호떡을 가리지 않는다.
+     그리는 차례: 트레이 -> 안쪽에 가둔 호떡 -> 앞 테두리만 다시. */
+  function trayRect() {
+    const im = IMG.tray;
+    const r = im ? (im.width / im.height) : TRAY.ratio;
+    const w = TRAY.w, h = w / r;
+    return { x: TRAY.x - w / 2, y: TRAY.y - h / 2, w: w, h: h };
+  }
+  /* 실제 트레이 안쪽 바닥 — 투명 여백과 테두리를 뺀 자리 */
+  function trayInner() {
+    const r = trayRect();
+    const i = TRAY.inner;
+    return {
+      x: r.x + r.w * i.x0, y: r.y + r.h * i.y0,
+      w: r.w * (i.x1 - i.x0), h: r.h * (i.y1 - i.y0),
+      base: r.y + r.h * TRAY.base,
+      top: r.y, bottom: r.y + r.h,
+    };
+  }
+  function shelfSpan() { return TRAY.pitch * S.shelf.length; }
+  function shelfMaxScroll() {
+    return Math.max(0, shelfSpan() - trayInner().w);
+  }
+  /* i 번째 자리의 화면 x */
+  function shelfSlotX(i) {
+    return trayInner().x + TRAY.pitch * (i + 0.5) - S.shelfScroll;
+  }
+  function stepShelf(dt) {
+    for (const s of S.shelf) if (s.fly > 0) s.fly = Math.max(0, s.fly - dt / TRAY.flySec);
+    const max = shelfMaxScroll();
+    if (S.shelfDrag) { S.shelfScroll = clamp(S.shelfScroll, 0, max); return; }
+    if (S.shelfHold > 0) { S.shelfHold = Math.max(0, S.shelfHold - dt); return; }
+    /* 새로 올린 자리가 보이도록 부드럽게 따라간다 */
+    S.shelfScroll += (clamp(max, 0, max) - S.shelfScroll) * Math.min(1, dt * 6);
+    S.shelfScroll = clamp(S.shelfScroll, 0, max);
+  }
+
+  /* 전시대 위에서 시작한 드래그인가 (조리 조작으로 넘기지 않는다) */
+  function inTray(x, y) {
+    const r = trayRect();
+    return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+  }
+  function shelfDown(p) {
+    S.shelfDrag = { x: p.x, scroll: S.shelfScroll, moved: 0 };
+    S.shelfHold = TRAY.holdSec;
+  }
+  function shelfMove(p) {
+    const d = S.shelfDrag;
+    if (!d) return;
+    d.moved = Math.max(d.moved, Math.abs(p.x - d.x));
+    S.shelfScroll = clamp(d.scroll - (p.x - d.x), 0, shelfMaxScroll());
+    S.shelfHold = TRAY.holdSec;
+  }
+
+  /* 전시된 호떡 하나. 트레이 바닥에 밑을 붙여 놓는다. */
+  function drawShelfOne(g, h, cx, baseY, sc) {
+    const e = extents(h);
+    const half = e.ry * sc * SQ;
+    g.save();
+    /* 세로 눌림은 바닥선을 기준으로 — 밑이 뜨거나 파묻히지 않는다 */
+    g.translate(cx, baseY);
+    g.scale(1, TRAY.squash);
+    g.translate(-cx, -baseY);
+    drawHotteok(g, h, cx, baseY - half * 0.82, sc);
+    g.restore();
+  }
+
+  function drawShelf(g) {
+    const r = trayRect();
+    /* 트레이 그림이 아직 없으면 전시대 자체를 그리지 않는다 —
+       도형으로 대신 그리지 않는다 (제공된 그림만 쓴다). */
+    if (!art(g, "tray", TRAY.x, TRAY.y, TRAY.w)) return;
+    if (!S.shelf.length) return;
+
+    const inn = trayInner();
+    g.save();
+    /* 가로로는 트레이 안을 벗어나지 않는다. 위로는 뒤 테두리 너머로
+       솟아도 되므로 (실제 전시대도 그렇다) 거기만 넉넉히 연다. */
+    g.beginPath();
+    g.rect(inn.x, r.y - TRAY.rise, inn.w, (r.y + r.h) - (r.y - TRAY.rise));
+    g.clip();
+    for (let i = 0; i < S.shelf.length; i++) {
+      const s = S.shelf[i];
+      const tx = shelfSlotX(i);
+      if (s.fly > 0) {
+        /* 접시에서 날아오는 중 — 크기도 같이 줄어든다 */
+        const k = 1 - Math.pow(s.fly, 1.6);        /* 0 -> 1 */
+        const x = lerp(s.x0, tx, k);
+        const y = lerp(s.y0, inn.base, k) - Math.sin(k * Math.PI) * 90;
+        drawShelfOne(g, s.h, x, y, lerp(1, TRAY.scale, k));
+      } else {
+        if (tx < inn.x - TRAY.pitch || tx > inn.x + inn.w + TRAY.pitch) continue;
+        drawShelfOne(g, s.h, tx, inn.base, TRAY.scale);
+      }
+    }
+    g.restore();
+
+    /* 앞 테두리만 다시 올린다 — 트레이 전체를 덮으면 호떡이 사라진다 */
+    const im = IMG.tray;
+    if (im) {
+      const f = TRAY.front;
+      const sy = Math.round(im.height * f);
+      g.drawImage(im, 0, sy, im.width, im.height - sy,
+                  r.x, r.y + r.h * f, r.w, r.h * (1 - f));
+    }
   }
 
   /* ============================================================
@@ -2052,7 +2237,10 @@
     /* 터지기 직전이면 눌린 쪽이 부풀어 오른다 (명세 31).
        모양값(rad)을 건드리지 않고 그릴 때만 부풀린다 — 압력이
        빠지면 도로 가라앉아야 하는 것이라 상태에 새기면 안 된다. */
-    const risk = ruptureRisk(h);
+    /* 전시대에 올라간 것은 이미 끝난 호떡이다. 터지기 직전의 숨쉬기는
+       조리 중에만 뜻이 있다 — 선반 위에서 계속 부풀면 아직 조리 중인
+       것처럼 보인다. */
+    const risk = h.onShelf ? 0 : ruptureRisk(h);
     const swell = risk > 0.35 ? clamp((risk - 0.35) / 0.5, 0, 1) : 0;
     const breath = swell > 0 ? 1 + Math.sin(clock * 5) * 0.012 * swell : 1;
 
@@ -2795,6 +2983,8 @@
 
     /* 배경 사진 -> 철판 위 효과 -> 음식 -> 손에 든 도구 -> UI */
     drawBackdrop(g);
+    /* 전시대는 뒤쪽 조리대 위에 있다 — 철판 효과보다 먼저 */
+    drawShelf(g);
     drawEmptySlots(g);
     drawPanFx(g, clock);
     drawPanRing(g);
@@ -2873,6 +3063,22 @@
     audioUnlock();
     if (S.over || !S.running) return;
     if (S.hintT > 0.5) S.hintT = 0.5;
+
+    /* 0) 전시대에서 시작한 드래그는 전시대의 것이다 — 도구 집기나
+       조리로 넘기지 않는다. 다른 데서 시작해 전시대 위를 지나가는
+       드래그는 여기로 오지 않는다 (누른 순간에만 자리를 본다).
+
+       다만 손에 도구를 들고 있거나, 만들던 반죽이 바로 그 자리에
+       있으면 조리가 먼저다. 전시대는 뒤쪽 조리대에 얹힌 선반이라
+       그 아래에 반죽을 둘 수 있는데, 거기서 손이 안 먹으면
+       빠져나올 길이 없어진다. */
+    const near = S.h && !S.h.held &&
+                 Math.hypot(p.x - S.h.x, p.y - S.h.y) < avgR(S.h) * 1.18;
+    if (!S.active && !near && inTray(p.x, p.y)) {
+      shelfDown(p);
+      S.grab = { kind: "shelf" };
+      return;
+    }
 
     /* 1) 도구 제자리 — 집기 / 내려놓기 / 바꾸기 */
     const t = hitTool(p);
@@ -3011,7 +3217,8 @@
     const g = S.grab;
     if (!g || !PTR.down) return;
     const p = { x: PTR.x, y: PTR.y }, q = { x: PTR.px, y: PTR.py };
-    if (g.kind === "tear") tearMove(p, dt);
+    if (g.kind === "shelf") shelfMove(p);
+    else if (g.kind === "tear") tearMove(p, dt);
     else if (g.kind === "carry") { if (S.h) dragHot(S.h, p.x, p.y); }
     else if (g.kind === "knob") knobStep(p);
     else if (g.kind === "touch") touchStep(p, q, dt);
@@ -3039,6 +3246,7 @@
     const g = S.grab;
     PTR.down = false; PTR.id = null; PTR.sp = 0;
     if (!g) return;
+    if (g.kind === "shelf") { S.shelfDrag = null; S.grab = null; return; }
     if (g.kind === "carry" || (g.kind === "touch" && g.mode === "carry")) {
       placeDown(p);
       S.grab = null;
@@ -3176,6 +3384,7 @@
     }
     stepParts(dt);
     stepPops(dt);
+    stepShelf(dt);
     S.hintT = Math.max(0, S.hintT - dt);
     S.toastT = Math.max(0, S.toastT - dt);
     if (S.h && !S.h.held) S.h.lift = Math.max(0, S.h.lift - dt * 5);
@@ -3211,6 +3420,35 @@
     track("game_start");
   }
 
+  /* --- 결과 화면의 전시대 -----------------------------------------
+     같은 S.shelf 를 그대로 읽는다. 여기서 다시 담지 않으므로
+     개수가 두 번 세어질 일이 없다. 한 줄에 다 안 들어가면 줄을
+     늘린다 — 줄이거나 버리지 않는다. */
+  function drawEndShelf() {
+    const cv2 = $("eShelf");
+    if (!cv2) return;
+    const dpr = Math.min(2.5, window.devicePixelRatio || 1);
+    const w = cv2.clientWidth || 300;
+    const per = Math.max(1, Math.floor(w / TRAY.pitch));
+    const rows = Math.max(1, Math.ceil(S.shelf.length / per));
+    const rowH = TRAY.pitch * 0.92;
+    const hh = rows * rowH;
+    cv2.style.height = Math.round(hh) + "px";
+    cv2.width = Math.max(1, Math.round(w * dpr));
+    cv2.height = Math.max(1, Math.round(hh * dpr));
+    const g = cv2.getContext("2d");
+    if (!g) return;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, w, hh);
+    if (!S.shelf.length) return;
+    for (let i = 0; i < S.shelf.length; i++) {
+      const r = Math.floor(i / per), c = i % per;
+      const n = Math.min(per, S.shelf.length - r * per);
+      const x = w / 2 + (c - (n - 1) / 2) * TRAY.pitch;
+      drawShelfOne(g, S.shelf[i].h, x, (r + 1) * rowH - rowH * 0.12, TRAY.scale);
+    }
+  }
+
   /* 시간 종료 화면 — 한 번만 뜬다 */
   function showEnd() {
     const set = (id, v) => { const e = $(id); if (e) e.textContent = v; };
@@ -3218,6 +3456,9 @@
     set("eCount", S.made + "개");
     const o = $("endOver");
     if (o) o.hidden = false;
+    /* 칸을 먼저 열고 나서 그린다 — 숨어 있는 동안에는 clientWidth 가
+       0 이라 엉뚱한 자리에 그려진다. */
+    drawEndShelf();
   }
 
   /* [다시 도전] — 판 전체를 처음으로 되돌리고 안내 화면으로 */
@@ -3294,7 +3535,11 @@
     S: S, LAY: LAY, TOOLS: TOOLS, TIP: TIP, CFG: CFG, MODE: MODE,
     ASSET_MAP: ASSET_MAP, ART_DIR: ART_DIR, IMG: IMG, MISSING: MISSING,
     HOTTEOK_ASSETS: HOTTEOK_ASSETS, HOTTEOK_ART: HOTTEOK_ART, HOT_ART: HOT_ART,
-    HUD: HUD, PASS: PASS, THICK_OK: THICK_OK,
+    HUD: HUD, PASS: PASS, THICK_OK: THICK_OK, TRAY: TRAY,
+    trayRect: trayRect, trayInner: trayInner, inTray: inTray,
+    shelfClone: shelfClone, shelfSlotX: shelfSlotX,
+    shelfMaxScroll: shelfMaxScroll, shelfSpan: shelfSpan,
+    stepShelf: stepShelf, drawShelf: drawShelf, drawEndShelf: drawEndShelf,
     moveRatio: moveRatio, heatAt: heatAt, sugarAt: sugarAt, pressRelease: pressRelease,
     DOUGH_ELASTIC: DOUGH_ELASTIC,
     ruptureRisk: ruptureRisk, riskStage: riskStage, sealHold: sealHold,
@@ -3333,6 +3578,7 @@
       }
       stepParts(d);
       stepPops(d);
+      stepShelf(d);
       S.hintT = Math.max(0, S.hintT - d);
       S.toastT = Math.max(0, S.toastT - d);
       if (S.h && !S.h.held) S.h.lift = Math.max(0, S.h.lift - d * 5);
