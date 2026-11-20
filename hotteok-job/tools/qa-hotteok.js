@@ -555,27 +555,85 @@ console.log("\n--- 3. 간소화한 조리 ---");
 }
 
 {
-  /* --- 기름병 한 번 --- */
+  /* --- 기름은 문지른 자리에만 --- */
   reset();
   S.oils.length = 0;
   ok(G.panOiled() < 0.01, "처음에는 기름이 없다");
   const t = G.TOOLS.filter(t => t.id === "oil")[0];
+  /* 병을 집는다 */
   G.down({ x: t.home.x, y: t.home.y });
   release();
-  ok(S.active !== "oil", "기름병은 집히지 않는다 (누르면 바로 둘러진다)", S.active);
-  ok(G.panOiled() >= CFG.oilGood, "한 번에 들러붙지 않을 만큼 둘러진다",
-     G.panOiled().toFixed(3) + " >= " + CFG.oilGood);
-  /* 여러 개를 굽는 동안 남아 있다가 서서히 마른다 */
-  const a0 = G.panOiled();
-  S.heat = 0.7;
-  wait(12);
-  const a1 = G.panOiled();
-  ok(a1 < a0, "뜨거우면 서서히 마른다", a0.toFixed(3) + " -> " + a1.toFixed(3));
-  ok(a1 > a0 * 0.4, "열두 번 굽는 동안 다 마르지는 않는다", a1.toFixed(3));
+  ok(S.active === "oil", "기름병이 손에 들린다", S.active);
+  ok(G.panOiled() < 0.01, "집었다고 저절로 둘러지지 않는다",
+     G.panOiled().toFixed(3));
+
+  /* 철판 왼쪽만 문지른다 */
+  const P = LAY.pan, ty = -G.TIP.oil.y;
+  const left = { x: P.x - 180, y: P.y + ty };
+  const right = { x: P.x + 180, y: P.y + ty };
+  G.down({ x: left.x, y: left.y - 60 });
+  drag([{ x: left.x, y: left.y }, { x: left.x, y: left.y + 60 },
+        { x: left.x - 40, y: left.y }], 0.4);
+  release();
+  const oL = G.oilAt(P.x - 180, P.y);
+  const oR = G.oilAt(P.x + 180, P.y);
+  ok(oL > 0, "지나간 자리에는 발린다", oL.toFixed(3));
+  ok(oR === 0, "안 지나간 자리에는 안 발린다", oR.toFixed(3));
+  ok(oL > oR, "한 곳에 둘렀다고 철판 전체가 같아지지 않는다",
+     oL.toFixed(3) + " vs " + oR.toFixed(3));
+  ok(S.active === null, "한 번 문지르고 나면 병은 제자리로", S.active);
+
+  /* 클릭만으로는 안 둘러진다 */
+  reset();
+  S.oils.length = 0;
+  G.down({ x: t.home.x, y: t.home.y });
+  release();
+  G.down({ x: P.x, y: P.y + ty });
+  release();
+  ok(G.panOiled() < 0.01, "집어서 눌렀다 떼기만 해서는 안 둘러진다",
+     G.panOiled().toFixed(3));
+
+  /* 철판 밖에서는 안 발린다 */
+  reset();
+  S.oils.length = 0;
+  pick("oil");
+  G.down({ x: 120, y: 1700 });
+  drag([{ x: 240, y: 1700 }, { x: 360, y: 1700 }], 0.3);
+  release();
+  ok(S.oils.length === 0, "철판 밖을 문질러도 안 발린다", S.oils.length);
 }
 
 {
-  /* --- 기름이 없으면 눌어붙는다 --- */
+  /* --- 세 자리가 각자 다른 기름을 받는다 --- */
+  reset();
+  S.heat = 0.8; S.panTemp = 0.8;
+  S.oils.length = 0;
+  /* 왼쪽 자리만 덮어 바른다 */
+  pick("oil");
+  const sl = G.PREP.slots[0], ty = -G.TIP.oil.y;
+  const pts = [];
+  for (const dy of [60, 0, -60])
+    for (const dx of [-90, 0, 90]) pts.push({ x: sl.x + dx, y: sl.y + dy + ty });
+  G.down({ x: pts[0].x, y: pts[0].y });
+  drag(pts, 1.0);
+  release();
+  ok(G.oilAt(sl.x, sl.y) > G.oilAt(G.PREP.slots[2].x, G.PREP.slots[2].y),
+     "왼쪽 자리에만 기름이 있다",
+     G.oilAt(sl.x, sl.y).toFixed(3) + " vs " +
+     G.oilAt(G.PREP.slots[2].x, G.PREP.slots[2].y).toFixed(3));
+
+  /* 세 개를 올려 같은 시간 구우면 기름 받은 쪽만 안 붙는다 */
+  const hs = [];
+  for (let i = 0; i < 3; i++) { tearToPan(); hs.push(S.h); }
+  wait(6);
+  ok(hs[0].stick < hs[2].stick, "기름 받은 호떡이 덜 들러붙는다",
+     hs[0].stick.toFixed(2) + " vs " + hs[2].stick.toFixed(2));
+  ok(hs[0].contactOil > hs[2].contactOil, "닿는 면의 기름도 다르다",
+     hs[0].contactOil.toFixed(3) + " vs " + hs[2].contactOil.toFixed(3));
+}
+
+{
+  /* --- 기름이 없으면 눌어붙고, 나중에 둘러도 상처는 그대로 --- */
   reset();
   S.heat = 0.7;
   S.oils.length = 0;
@@ -600,14 +658,12 @@ console.log("\n--- 3. 간소화한 조리 ---");
      stickDry.toFixed(2) + " vs " + stickWet.toFixed(2));
   ok(dryHurt > wetHurt, "그래서 뒤집을 때 더 다친다",
      dryHurt.toFixed(3) + " vs " + wetHurt.toFixed(3));
-  /* 나중에 기름을 둘러도 이미 난 상처는 안 없어진다 */
   const was = dry.scar;
   oilPan();
   wait(0.5);
   ok(dry.scar >= was, "나중에 기름을 둘러도 상처는 그대로",
      was.toFixed(3) + " -> " + dry.scar.toFixed(3));
 }
-
 
 /* ============================================================
    9. 굽기 (MVP 10, 22/23절)
@@ -666,10 +722,13 @@ console.log("\n--- 10. 기름 ---");
   const t = G.TOOLS.filter(t => t.id === "oil")[0];
   G.down({ x: t.home.x, y: t.home.y });
   release();
-  ok(S.active === null, "기름병은 손에 들리지 않는다", S.active);
-  ok(G.panOiled() >= CFG.oilGood, "한 번에 철판 전체가 둘러진다",
+  ok(S.active === "oil", "기름병이 손에 들린다", S.active);
+  ok(G.panOiled() < 0.01, "집었다고 저절로 둘러지지 않는다",
      G.panOiled().toFixed(3));
-  /* 세 자리 모두 둘러진다 — 어디에 올려도 안 붙는다 */
+  /* 철판 전체를 문지르면 세 자리 모두 둘러진다 */
+  oilPan();
+  ok(G.panOiled() >= CFG.oilGood, "문지르면 철판이 둘러진다",
+     G.panOiled().toFixed(3));
   for (const sl of G.PREP.slots)
     ok(G.oilAt(sl.x, sl.y) > 0, "자리마다 기름이 묻는다",
        Math.round(sl.x) + " " + G.oilAt(sl.x, sl.y).toFixed(3));
@@ -901,53 +960,89 @@ function cooked(sec) {
 }
 
 {
-  /* --- 접시로 끌면 진열된다 --- */
+  /* --- 집게로 집어 접시에 놓으면 진열된다 --- */
   reset();
   S.heat = 0.7;
   const h = cooked();
   flip();
   wait(3.4);
   const made0 = S.made, stock0 = S.shelf.length;
-  ok(S.active !== "tong", "집게를 고르지 않는다", S.active);
+  const ty = -G.TIP.tong.y;
+  /* 손가락으로 직접 끌어서는 제출되지 않는다 */
   G.down({ x: h.x, y: h.y });
-  drag([{ x: h.x, y: h.y + 80 }, { x: LAY.plate.x, y: LAY.plate.y }], 0.3);
+  drag([{ x: LAY.plate.x, y: LAY.plate.y }], 0.3);
   release();
-  ok(S.made === made0 + 1, "접시에 놓으면 한 개", S.made);
+  ok(S.made === made0, "맨손으로 끌어서는 제출되지 않는다", S.made);
+  ok(S.pan.indexOf(h) >= 0, "철판에 그대로 있다");
+  ok(h.held === false, "들리지도 않는다");
+
+  /* 집게로 집어 접시에 놓는다 */
+  pick("tong");
+  ok(S.active === "tong", "집게를 집었다", S.active);
+  G.down({ x: h.x, y: h.y + ty });
+  ok(h.held === true, "집게 끝에 닿은 호떡이 집힌다");
+  ok(h.onPan === false, "집히면 철판에서 떨어진다");
+  const cook0 = G.cookDown(h);
+  wait(2);
+  ok(G.cookDown(h) === cook0, "집힌 뒤로는 더 안 익는다",
+     cook0.toFixed(1) + " -> " + G.cookDown(h).toFixed(1));
+  /* 접시 위를 지나가는 것만으로는 제출되지 않는다 */
+  drag([{ x: LAY.plate.x, y: LAY.plate.y + ty }], 0.2);
+  ok(S.made === made0, "접시 위를 지나가기만 해서는 안 센다", S.made);
+  drag([{ x: LAY.plate.x + 10, y: LAY.plate.y + ty }], 0.1);
+  release();
+  ok(S.made === made0 + 1, "놓아야 한 개", S.made);
   ok(S.shelf.length === stock0 + 1, "전시대에도 올라간다", S.shelf.length);
-  ok(S.pan.indexOf(h) < 0, "철판에서 빠진다");
+  ok(S.pan.indexOf(h) < 0, "철판 목록에서도 빠진다");
+  ok(S.active === null, "놓고 나면 집게는 제자리로", S.active);
+  /* 같은 호떡을 두 번 세지 않는다 */
+  G.submit(h);
+  ok(S.made === made0 + 1, "다시 제출해도 안 오른다", S.made);
 }
 
 {
-  /* --- 짧게 끌면 클릭, 많이 끌어야 옮기기 --- */
+  /* --- 잘못 놓거나 취소돼도 사라지지 않는다 --- */
   reset();
   S.heat = 0.7;
   const a = cooked(1.0);
   tearToPan();
   const b = S.h;
-  /* a 를 아주 조금만 끈다 */
-  const x0 = a.x, y0 = a.y;
-  G.down({ x: a.x, y: a.y });
-  drag([{ x: a.x + G.PREP.dragMin * 0.4, y: a.y }], 0.1);
-  release();
-  ok(S.h === a, "짧게 끌면 고르기만 한다");
-  ok(a.held === false, "들리지 않는다");
-  ok(Math.abs(a.x - x0) < 1 && Math.abs(a.y - y0) < 1, "자리도 그대로");
-  ok(S.pan.indexOf(a) >= 0, "철판에 그대로 있다");
-  /* 충분히 끌면 들린다 */
-  G.down({ x: a.x, y: a.y });
-  drag([{ x: a.x + G.PREP.dragMin * 2, y: a.y + 40 }], 0.2);
-  ok(a.held === true, "많이 끌면 들린다");
-  /* 접시 밖에서 놓으면 제 자리로 돌아간다 */
-  drag([{ x: 120, y: 1700 }], 0.1);
+  const ty = -G.TIP.tong.y;
+  const slot = G.PREP.slots[a.slot];
+
+  /* 접시도 철판도 아닌 데서 놓는다 */
+  pick("tong");
+  G.down({ x: a.x, y: a.y + ty });
+  ok(a.held === true, "집었다");
+  drag([{ x: 120, y: 1700 }], 0.2);
   release();
   ok(a.held === false, "놓으면 내려온다");
   ok(a.onPan === true, "철판으로 돌아온다");
   ok(S.pan.indexOf(a) >= 0, "사라지지 않는다");
-  const slot = G.PREP.slots[a.slot];
   ok(Math.abs(a.x - slot.x) < 1 && Math.abs(a.y - slot.y) < 1,
-     "제 자리로 돌아간다", Math.round(a.x) + "," + Math.round(a.y));
+     "집기 전 제 자리로 돌아간다", Math.round(a.x) + "," + Math.round(a.y));
   ok(S.made === 0, "접시 밖이니 세지 않는다", S.made);
   ok(S.pan.indexOf(b) >= 0, "다른 호떡은 그대로");
+
+  /* 입력이 취소돼도(포인터 취소) 마찬가지다 */
+  pick("tong");
+  G.down({ x: a.x, y: a.y + ty });
+  drag([{ x: LAY.pan.x, y: LAY.pan.y - 300 }], 0.15);
+  G.up();
+  G.step(0.016);
+  ok(S.pan.indexOf(a) >= 0, "취소돼도 사라지지 않는다");
+  ok(a.held === false, "들린 채로 멈추지도 않는다");
+  ok(S.made === 0, "제출되지도 않는다", S.made);
+
+  /* 철판 위에 놓으면 거기에 앉는다 */
+  pick("tong");
+  G.down({ x: a.x, y: a.y + ty });
+  const spot = { x: LAY.pan.x - 40, y: LAY.pan.y + 60 };
+  drag([{ x: spot.x, y: spot.y + ty }], 0.2);
+  release();
+  ok(a.onPan === true, "철판 위에 내려놓인다");
+  ok(S.made === 0, "그래도 제출은 아니다", S.made);
+  ok(G.inPan(a.x, a.y), "철판 안에 있다", Math.round(a.x) + "," + Math.round(a.y));
 }
 
 {
@@ -1322,16 +1417,19 @@ function flip(which) {
 /* 접시에 놓으면 S.h 가 비워지므로, 놓기 직전의 호떡을 들고 있는다.
    등급 평가는 없어졌다 — 검사는 원래 수치를 그대로 본다. */
 var LAST = null;
-/* 집게를 고르지 않는다 — 호떡을 접시까지 끌면 된다 */
+/* 집게를 집어 호떡을 물고 접시까지 옮겨 놓는다 */
 function toPlate(which) {
   const h = which || S.h;
   if (!h) return;
   LAST = h;
-  G.down({ x: h.x, y: h.y });
-  drag([{ x: h.x, y: h.y + 60 },
-        { x: (h.x + LAY.plate.x) / 2, y: (h.y + LAY.plate.y) / 2 },
-        { x: LAY.plate.x, y: LAY.plate.y }], 0.3);
+  const ty = -G.TIP.tong.y;
+  pick("tong");
+  G.down({ x: h.x, y: h.y + ty });
+  drag([{ x: (h.x + LAY.plate.x) / 2, y: (h.y + LAY.plate.y) / 2 + ty },
+        { x: LAY.plate.x, y: LAY.plate.y + ty },
+        { x: LAY.plate.x, y: LAY.plate.y + ty }], 0.3);
   release();
+  if (S.active === "tong") pick("tong");
 }
 function lastOf() {
   const h = LAST;
@@ -1351,11 +1449,19 @@ function lastOf() {
   };
 }
 /* 호떡이 앉을 자리를 면으로 덮어 바른다 (기름은 닿는 면 전체로 판정한다) */
-/* 기름병을 한 번 누르면 철판 전체에 기본량이 둘러진다 */
+/* 기름병을 집어 철판 위를 문질러 두르고 내려놓는다.
+   세 자리 모두 덮어야 어디에 올려도 안 붙는다. */
 function oilPan() {
-  const t = G.TOOLS.filter(t => t.id === "oil")[0];
-  G.down({ x: t.home.x, y: t.home.y });
+  if (S.active !== "oil") pick("oil");
+  const P = LAY.pan, ty = -G.TIP.oil.y;
+  const pts = [];
+  for (const dy of [120, 60, 0, -60, -120])
+    for (const dx of [-230, -115, 0, 115, 230])
+      pts.push({ x: P.x + dx, y: P.y + dy + ty });
+  G.down({ x: pts[0].x, y: pts[0].y });
+  drag(pts, 1.6);
   release();
+  if (S.active === "oil") pick("oil");    /* 혹시 들려 있으면 내려놓는다 */
 }
 
 {
@@ -1407,7 +1513,7 @@ function oilPan() {
   flip();
   ok(S.h.flips === 1, "뒤집었다");
   wait(3.4);
-  ok(G.hintTarget() === "plate", "양면이 익으면 접시", G.hintTarget());
+  ok(G.hintTarget() === "tong", "양면이 익으면 집게", G.hintTarget());
   toPlate();
   ok(S.made === 1, "접시에 담으면 한 개로 센다", S.made);
   const r = lastOf();
@@ -1551,7 +1657,8 @@ console.log("\n--- 24. 상태 보존 ---");
   wait(3.4);
   toPlate();
   const rC = lastOf();
-  ok(rC.good === true, "정상 호떡은 흠이 없다", rC.flaws);
+  ok(rC.good === true, "정상 호떡은 흠이 없다",
+     rC.flaws + " 굽기 " + rC.cookA.toFixed(0) + "/" + rC.cookB.toFixed(0));
   ok(rC.burstAmount === 0, "터지지 않았다");
   ok(rC.tearAmount === 0, "찢어지지도 않았다");
 
@@ -1691,9 +1798,10 @@ console.log("\n--- 25. 행동 -> 결과 ---");
   S.heat = 0.8;
   tearToPan(); flatten();
   wait(7);
-  /* 살짝 끌어 떼어 낸다 */
-  G.down({ x: S.h.x, y: S.h.y });
-  drag([{ x: S.h.x + G.PREP.dragMin * 2, y: S.h.y }], 0.15);
+  /* 집게로 들어 올렸다 다시 내려놓는다 */
+  pick("tong");
+  G.down({ x: S.h.x, y: S.h.y - G.TIP.tong.y });
+  drag([{ x: S.h.x + 30, y: S.h.y - G.TIP.tong.y }], 0.15);
   release();
   const scarred = S.h.scar, tore = S.h.tear;
   ok(scarred > 0, "들어 올리다 뜯겼다", scarred.toFixed(2));
@@ -2310,13 +2418,14 @@ function baseH() {
 {
   reset();
   S.heat = 0.7;
-  oilPan(); tearToPan(); flatten(); sugar(1.0); seal(4);
-  pressN(2, 0.35);                  /* 봉합한 뒤 살살 눌러 납작하게 — 이게 호떡이다 */
-  wait(6); flip(); wait(6);
+  oilPan(); tearToPan(); sugar(); seal();
+  pressN(1, 0.5);                   /* 속을 넣고 살살 눌러 납작하게 — 이게 호떡이다 */
+  wait(3.2); flip(); wait(3.2);
   const h = S.h;
   toPlate();
   const r = lastOf();
-  ok(r.good === true, "제대로 만든 호떡은 흠이 없다", r.flaws);
+  ok(r.good === true, "제대로 만든 호떡은 흠이 없다",
+     r.flaws + " 굽기 " + r.cookA.toFixed(0) + "/" + r.cookB.toFixed(0));
   ok(G.thickCm(h) < 2.75, "속을 넣고 눌러 마무리해야 호떡 두께가 된다",
      G.thickCm(h).toFixed(2) + "cm");
   ok(G.coreRatio(h) >= 0.8, "속까지 익었다", G.coreRatio(h).toFixed(2));
@@ -2736,7 +2845,7 @@ console.log("\n--- 31. 안내 ---");
      Math.round(Math.min(h.cookA, h.cookB)));
   ok(G.coreRatio(h) < 0.8, "그런데 속은 아직", G.coreRatio(h).toFixed(2));
   ok(G.thickCm(h) <= 3.3, "두께는 이미 적당하다", G.thickCm(h).toFixed(1));
-  ok(G.hintTarget() === "plate", "안내 선을 넘었으니 접시라고 한다",
+  ok(G.hintTarget() === "tong", "안내 선을 넘었으니 집게라고 한다",
      G.hintTarget());
   ok(G.qualityOf(h).raw === false,
      "안내가 집게라고 할 때는 손님도 덜 익었다고 안 한다");
@@ -2764,7 +2873,7 @@ console.log("\n--- 31. 안내 ---");
     else if (t === "heat") S.heat = 0.75;
     else if (t === "press") pressN(1, 0.5);
     else if (t === "flip") flip();
-    else if (t === "plate") toPlate();
+    else if (t === "tong") toPlate();
     else wait(0.3);
   }
   ok(S.made === 1, "안내만 따라가도 호떡 하나가 세어진다", guard + "번");
@@ -2800,23 +2909,20 @@ console.log("\n--- 32. 피드백 ---");
   wait(0.12);
   ok(h0.held === false, "가만히 쥐고만 있으면 안 들린다");
   wait(0.5);
-  ok(h0.held === false, "오래 쥐고 있어도 안 들린다 — 끈 거리로 가른다");
-  /* 조금만 끌면 아직 고르기다 */
-  drag([{ x: h0.x + G.PREP.dragMin * 0.5, y: h0.y }], 0.05);
-  ok(h0.held === false, "조금 끄는 것으로는 안 들린다");
-  /* 넘기면 들린다 */
-  drag([{ x: h0.x + G.PREP.dragMin * 2, y: h0.y }], 0.08);
-  ok(h0.held === true, "충분히 끌면 들린다");
+  ok(h0.held === false, "오래 쥐고 있어도 안 들린다");
+  drag([{ x: h0.x + 120, y: h0.y + 60 }], 0.15);
+  ok(h0.held === false, "끌어도 맨손으로는 안 들린다 — 집게로만 든다");
   const d0 = h0.deform;
   release();
-  ok(h0.deform === d0, "내려놓았다고 깎지 않는다", h0.deform);
-  ok(h0.onPan === true, "철판으로 돌아온다");
+  ok(h0.deform === d0, "눌렀다고 깎지 않는다", h0.deform);
+  ok(h0.onPan === true, "철판에 그대로 있다");
 
-  /* 화면 밖에서 놓아도 제 자리로 돌아온다 */
+  /* 집게로 화면 밖에서 놓아도 제 자리로 돌아온다 */
   freshGame();
   tearToPan();
   const h1 = S.h;
-  G.down({ x: h1.x, y: h1.y });
+  pick("tong");
+  G.down({ x: h1.x, y: h1.y - G.TIP.tong.y });
   drag([{ x: -400, y: -400 }], 0.1);
   release();
   ok(h1.x > 0 && h1.y > G.HUD.y + G.HUD.h, "화면 밖으로 빠져나가지 않는다",
@@ -3121,6 +3227,10 @@ function freshGame() {
   ok(S.timeLeft === G.MODE.timeLimit, "남은 시간이 처음으로", S.timeLeft);
   ok(S.made === 0, "개수도 처음으로", S.made);
   ok(S.h === null, "반죽도 없다");
+  ok(S.active === null && S.grab === null, "도구와 운반 상태도 처음으로");
+  ok(G.TOOLS.every(t => S.toolPos[t.id].x === t.home.x && S.toolPos[t.id].y === t.home.y),
+     "도구가 제자리로 돌아간다");
+  ok(S.pan.length === 0, "철판도 비었다");
   ok(S.panTemp <= 0.12 && S.heat === 0.7, "철판과 불도 처음으로",
      S.panTemp + " / " + S.heat);
   ok(S.oils.length === 0 && S.mess.length === 0, "기름과 자국도 지워진다");
@@ -3247,12 +3357,13 @@ console.log("\n--- 35. 작업대 제거 ---");
     ok(G.inPan(sl.x, sl.y), "세 자리가 모두 철판 안이다",
        Math.round(sl.x) + "," + Math.round(sl.y));
 
-  /* 끌어다 놓아도 철판을 벗어나지 않는다 */
+  /* 집게로 끌어다 놓아도 철판을 벗어나지 않는다 */
   freshGame();
   tearToPan();
   const far = S.h;
   const d0 = far.deform;
-  G.down({ x: far.x, y: far.y });
+  pick("tong");
+  G.down({ x: far.x, y: far.y - G.TIP.tong.y });
   drag([{ x: -400, y: -400 }], 0.1);
   release();
   ok(far.x > 0 && far.y > G.HUD.y + G.HUD.h, "화면 밖으로 빠져나가지 않는다",
@@ -3588,7 +3699,7 @@ console.log("\n--- 37. 전시대 ---");
   putAt(LAY.pan.x, LAY.pan.y);
   const h = S.h;
   G.down({ x: h.x, y: h.y });
-  ok(S.grab && S.grab.kind === "hold", "반죽에서 시작한 드래그는 조리다",
+  ok(S.grab && S.grab.kind === "tap", "반죽에서 시작한 누르기는 조리다",
      S.grab && S.grab.kind);
   const mid2 = { x: G.trayRect().x + G.trayRect().w * 0.5,
                  y: G.trayRect().y + G.trayRect().h * 0.5 };
@@ -3597,7 +3708,7 @@ console.log("\n--- 37. 전시대 ---");
     G.move({ x: (h.x + (mid2.x - h.x) * (i / 8)), y: (h.y + (mid2.y - h.y) * (i / 8)) });
     G.step(0.016);
   }
-  ok(S.grab && S.grab.kind === "hold", "전시대 위를 지나도 조리 그대로",
+  ok(S.grab && S.grab.kind === "tap", "전시대 위를 지나도 조리 그대로",
      S.grab && S.grab.kind);
   ok(S.shelfScroll === sc0, "지나갔다고 전시대가 밀리지 않는다");
   G.up();
