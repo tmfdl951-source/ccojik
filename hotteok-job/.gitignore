@@ -5,3 +5,5 @@
 # 버전 관리에 넣고 싶으면 이 파일을 지우고 `git add -f assets` 하면 된다.
 assets/*.png
 assets/hotteok/**/*.png
+# 받은 철망 원본은 확장자가 없어 위 규칙에 안 걸린다. 이름은 그대로 둔다.
+전시대

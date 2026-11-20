@@ -34,9 +34,9 @@
   <div class="over over-start" id="startOver" hidden>
     <div class="s-body" id="sBody">
       <h1 class="t-title">호떡 알바</h1>
-      <p class="t-sub" id="sIntro">90초 동안 호떡을 몇 개나 만들 수 있을까요.<br />
+      <p class="t-sub" id="sIntro">90초 동안 호떡을 구워 손님에게 파는 게임입니다.<br />
         반죽에 속을 넣고 봉합한 뒤, 철판에서 구워주세요.</p>
-      <p class="t-rule" id="sRule">속을 넣고 양면을 구운 뒤 접시에 담으세요</p>
+      <p class="t-rule" id="sRule">접시에 담아 전시대에 쌓고, 손님이 오면 건네주세요</p>
       <button class="btn" type="button" id="startBtn" disabled>게임 시작</button>
     </div>
   </div>
@@ -47,7 +47,14 @@
       <p class="e-title">시간 종료!</p>
       <p class="e-sub" id="eSub">90초 동안 만든 호떡</p>
       <p class="e-count" id="eCount">0개</p>
-      <!-- 이번 판에 만든 호떡들. 조리 화면의 전시대와 같은 목록이다. -->
+      <!-- 만든 호떡 = 판매한 호떡 + 남은 호떡 -->
+      <dl class="e-stats">
+        <div><dt>판매</dt><dd id="eSold">0개</dd></div>
+        <div><dt>남은 호떡</dt><dd id="eLeft">0개</dd></div>
+        <div><dt>만족 손님</dt><dd id="eHappy">0명</dd></div>
+        <div><dt>불만 손님</dt><dd id="eUpset">0명</dd></div>
+      </dl>
+      <!-- 판매하고 남은 호떡들. 조리 화면의 전시대와 같은 목록이다. -->
       <canvas class="e-shelf" id="eShelf"></canvas>
       <button class="btn" type="button" id="againBtn">다시 도전</button>
     </div>

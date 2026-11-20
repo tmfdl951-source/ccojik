@@ -181,6 +181,22 @@ body { display: flex; align-items: center; justify-content: center; }
   font-weight: 800; line-height: 1.05; letter-spacing: -.03em;
   color: #F7C843;
 }
+/* 만든 호떡 아래 네 가지 — 판매 / 남은 / 만족 / 불만 */
+.e-stats {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: min(1.6vw, 8px) min(4vw, 20px);
+  margin: min(3vw, 15px) 0 0; padding: 0;
+  width: 100%; max-width: 320px;
+}
+.e-stats div {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: min(2vw, 10px);
+  border-bottom: 1px solid rgba(247,200,67,.18);
+  padding-bottom: min(1.2vw, 6px);
+}
+.e-stats dt { margin: 0; font-size: min(3.6vw, 15px); color: #B9A88C; }
+.e-stats dd { margin: 0; font-size: min(4.4vw, 19px); font-weight: 800; color: #F3E9D6; }
+
 .over-end .btn {
   margin-top: min(4.4vw, 22px);
   min-width: min(62vw, 250px);

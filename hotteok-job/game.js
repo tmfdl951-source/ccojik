@@ -56,27 +56,35 @@
   const HUD = { x: 26, y: 24, w: 868, h: 96 };
 
   /* ------------------------------------------------------------
-     완성 호떡 전시대
+     완성 호떡 전시대 — 철망 받침
      ------------------------------------------------------------
-     철판 위쪽, 반죽통과 설탕통 사이의 빈 조리대에 올린다. 양쪽 통의
-     판정 타원과 겹치지 않는 자리다 (반죽통은 x 337 왼쪽에서 끝나고,
-     설탕통은 이 높이에서 x 733 오른쪽에만 있다).
+     철판 바로 위에 가로로 길게 눕힌다. 화면 너비의 74% 다.
+     아래쪽 끝(다리)이 철판 타원 위끝(y 786) 바로 위에 서고, 위로는
+     양쪽 통 사이의 빈 배경까지 올라간다.
 
-     inner / base 는 그림 안에서 '실제 트레이 안쪽' 이 어디인가를
-     비율로 적어 둔 것이다. 알파 경계로 잘라낸 그림(2172x392)에서
-     밝기가 꺾이는 자리를 재서 넣었다 — 뒤 테두리는 0.19 에서 끝나고
-     앞 테두리는 0.745 에서 시작한다. 그림을 갈아 끼우면 이 값만
-     다시 재면 된다. */
+     그림은 뒤 아치 받침 + 바닥 철망 + 앞 테두리 + 다리가 한 장에
+     들어 있다. 아래 비율은 알파 경계로 잘라낸 그림(2171x688)에서
+     행마다 덮인 넓이를 세어 꺾이는 자리를 찾아 넣은 값이다.
+
+       0.00~0.07  뒤 아치 윗 가로대
+       0.07~0.22  아치 다리만 (13% 만 덮임 — 배경이 그대로 보인다)
+       0.225      바닥 철망 뒤끝
+       0.845      바닥 철망 앞끝 = 앞 테두리 시작
+       0.90~1.00  다리
+
+     그림을 갈아 끼우면 이 값만 다시 재면 된다. */
   const TRAY = {
-    x: 530, y: 666, w: 388,      /* 화면에서 차지하는 자리 (높이는 비율에서) */
-    ratio: 5.541,                /* 그림이 아직 안 왔을 때 쓸 가로/세로 */
-    inner: { x0: 0.06, x1: 0.94, y0: 0.20, y1: 0.745 },
-    base: 0.70,                  /* 호떡 밑이 닿는 자리 */
-    front: 0.735,                /* 여기부터 아래가 앞 테두리 */
-    scale: 0.25,                 /* 조리 중 크기 -> 전시 크기 (모두 같은 배율) */
-    squash: 0.92,                /* 전시대 시점에서의 세로 눌림 */
-    pitch: 80,                   /* 한 칸의 너비 */
-    rise: 260,                   /* 호떡이 뒤 테두리 위로 솟을 수 있는 높이 */
+    x: 540, y: 664, w: 760,      /* 화면에서 차지하는 자리 (높이는 비율에서) */
+    ratio: 3.1555,               /* 그림이 아직 안 왔을 때 쓸 가로/세로 */
+    inner: { x0: 0.03, x1: 0.97, y0: 0.225, y1: 0.845 },
+    base: 0.62,                  /* 호떡 밑이 철망에 닿는 자리 — 뒤쪽 받침 가까이 */
+    front: 0.845,                /* 여기부터 아래가 앞 테두리 — 호떡 밑을 가린다 */
+    scale: 0.56,                 /* 조리 중 크기 -> 전시 크기 (모두 같은 배율) */
+    stand: 1.34,                 /* 비스듬히 기대어 세운 만큼 세로를 되살린다 */
+    pitch: 0.44,                 /* 중심 간격 — 전시 지름에 대한 비율 */
+    tilt: 0.13,                  /* 기울기 폭 (라디안, 등록할 때 한 번 뽑는다) */
+    jitter: 16,                  /* 높이 차 폭 */
+    rise: 300,                   /* 호떡이 뒤 아치 위로 솟을 수 있는 높이 */
     flySec: 0.5,                 /* 접시에서 전시대까지 */
     holdSec: 1.6,                /* 손으로 민 뒤 자동 이동을 쉬는 시간 */
   };
@@ -177,11 +185,46 @@
   /* 한 판의 길이. 여기 한 줄만 바꾸면 된다. */
   const MODE = { timeLimit: 90, warnAt: 10 };
 
-  /* 개수로 세어 줄 최소 조건. 등급이 아니라 문턱이다 —
-     이 선만 넘으면 찌그러졌든 조금 샜든 한 개로 센다. */
-  const PASS = {
-    fill: 0.1,    /* 속을 넣은 기록 (fillPut) */
-    cook: 40,     /* 양면 각각 이만큼은 익어야 한다 (cookA / cookB) */
+  /* --- 호떡의 흠 ------------------------------------------------
+     진열을 막는 문턱이 아니다. 못 만든 호떡도 전시대에 올라가고
+     팔린다 — 다만 그것을 산 손님이 한마디 한다.
+
+     세 가지를 따로 적는다. 한 호떡의 한쪽은 타고 반대쪽은 덜 익을
+     수 있어서, 하나로 뭉뚱그리면 그 경우를 잃는다.
+
+     문턱은 그림이 갈리는 자리에서 잡았다 (COOK_STOPS):
+       34 부터 노릇해 보이므로 그 아래는 생반죽이다.
+       거뭇한 그림은 96 부터 섞이기 시작하는데, 96 은 아직 0% 라
+       노릇한 호떡이다. 실제로 까매 보이는 것은 110 언저리다.
+       108 로 잡은 것은 그 사이이면서, 안내만 따라갔을 때 나오는
+       최대치(104)보다 위라서다 — 시키는 대로 했는데 손님이
+       탔다고 하면 안내가 아니라 함정이다. */
+  const QUAL = {
+    raw: 34,       /* 양면 중 덜 익은 쪽이 이 아래면 덜 익은 것 */
+    core: 0.45,    /* 속까지 익은 정도 (coreRatio) 가 이 아래여도 덜 익은 것 */
+    burn: 108,     /* 양면 중 더 익은 쪽이 이 위면 탄 것 */
+    fill: 0.1,     /* 속을 넣은 기록 (fillPut) 이 이 아래면 속 없음 */
+  };
+
+  /* --- 손님 ------------------------------------------------------
+     만들어 둔 재고를 사 간다. 주문을 받아 그때부터 만드는 것이
+     아니다. 한 번에 한 명만 온다. */
+  const CUST = {
+    firstDelay: 3.5,       /* 첫 호떡이 진열된 뒤 이만큼 있다가 첫 손님 */
+    gapMin: 6, gapMax: 11, /* 그다음부터의 방문 간격 */
+    wantMin: 1, wantMax: 3,
+    waitSec: 16,           /* 재고가 모자라면 이만큼 기다리다 간다 */
+    saySec: 1.9,           /* 한줄평을 읽을 시간 */
+    inSec: 0.45, outSec: 0.4,
+    giveSec: 0.55,         /* 호떡이 손님에게 건너가는 시간 */
+    x: 430,                /* 손님이 서는 자리 (카운터 너머) */
+    bottom: 578,           /* 허리께 — 이 아래는 철망과 조리대가 가린다 */
+    height: 408,           /* 성인 키 (투명 여백 뺀 실제 인물 높이) */
+    kid: 0.82,             /* 꼬마는 조금 작게 */
+    /* 손님 오른쪽. 설탕 숟가락 집는 자리(x 865 부터)를 넘지 않도록
+       오른쪽 끝을 862 에서 끊는다. */
+    bubble: { x: 712, y: 262, w: 384, h: 128 },
+    btn: { x: 712, y: 420, w: 300, h: 84 },
   };
 
   const KEY = { mute: "hotteokMuted", skill: "hotteokSkill" };
@@ -229,7 +272,13 @@
     burst:     "hotteok-burst.webp",
 
     /* 완성 호떡을 올려 두는 전시대 — 투명 배경 그대로 쓴다 */
-    tray:      "hotteok-display-tray.webp",
+    tray:      "hotteok-wire-rack.webp",   /* 완성 호떡을 기대어 놓는 철망 */
+
+    /* 손님 넷 — 받은 그림 그대로. 도형이나 이모지로 대신 그리지 않는다. */
+    custWoman:   "customer-woman.webp",
+    custMan:     "customer-man.webp",
+    custGrandma: "customer-grandma.webp",
+    custKid:     "customer-kid.webp",
 
     oilSheen:  "oil-sheen-overlay.webp",
     bubble:    "sugar-bubble.webp",
@@ -549,7 +598,13 @@
        시간과 개수는 호떡 하나가 아니라 판 전체에 속한다. 제출해도
        건드리지 않는다. */
     timeLeft: MODE.timeLimit,
-    made: 0,                        /* 접시로 보낸 호떡 수 */
+    /* 만든 호떡 = 판매한 호떡 + 지금 재고(shelf). 이 셋은 따로 센다.
+       made 는 품질과 상관없는 '진열한 누적 수' 다. */
+    made: 0,
+    sold: 0,                        /* 손님에게 건넨 누적 수 */
+    happy: 0,                       /* 산 것이 모두 멀쩡했던 손님 */
+    upset: 0,                       /* 흠 있는 것을 섞어 산 손님 */
+    seq: 0,                         /* 호떡마다 붙는 번호 */
     over: false,                    /* 시간이 다 됐나 */
     pops: [],                       /* 접시 옆 "+1" 같은 짧은 표시 */
     /* --- 전시대 ---------------------------------------------------
@@ -559,6 +614,13 @@
     shelfScroll: 0,                 /* 지금 보고 있는 가로 위치 */
     shelfHold: 0,                   /* 손으로 민 뒤 자동 이동을 쉬는 시간 */
     shelfDrag: null,                /* 전시대를 직접 미는 중 */
+    /* --- 손님 -----------------------------------------------------
+       한 번에 한 명. cust 가 null 이면 아무도 없는 것이고, nextIn 은
+       다음 손님까지 남은 시간이다. */
+    cust: null,
+    nextIn: 0,
+    lastWho: "",                    /* 같은 손님이 내리 오지 않게 */
+    flyout: [],                     /* 손님에게 건너가는 중인 호떡 */
     elapsed: 0,
     running: false,               /* [시작] 을 누른 뒤부터 만질 수 있다 */
     assetsReady: false,
@@ -575,8 +637,13 @@
     S.oils.length = 0; S.mess.length = 0; S.parts.length = 0;
     S.active = null; S.spoonLoad = 0; S.grab = null;
     S.hint = ""; S.hintT = 0;
-    S.timeLeft = MODE.timeLimit; S.made = 0; S.over = false;
+    S.timeLeft = MODE.timeLimit; S.over = false;
+    S.made = 0; S.sold = 0; S.happy = 0; S.upset = 0; S.seq = 0;
     S.pops.length = 0;
+    /* 손님도 처음으로 — 서 있던 사람, 대기시간, 말풍선, 건너가던
+       호떡이 모두 사라진다. 배열은 갈아 끼우지 않고 비운다. */
+    S.cust = null; S.nextIn = 0; S.lastWho = "";
+    S.flyout.length = 0;
     /* 지난 판의 전시물과 날아오던 것, 스크롤 자리까지 모두 지운다.
        배열을 갈아 끼우지 않고 비우는 것은, 지난 판의 애니메이션이
        들고 있던 참조로 새 판에 호떡을 밀어 넣지 못하게 하기 위해서다. */
@@ -1680,22 +1747,29 @@
   function coreRatio(h) { return clamp(h.core / CFG.coreFull, 0, 1); }
 
   /* ============================================================
-     제출 — 접시에 놓으면 한 개
+     제출 — 접시에 놓으면 진열대로
      ============================================================
-     등급을 매기지 않는다. 세는 데 필요한 최소 조건만 본다.
-     모양이 찌그러졌거나 조금 터져 속이 샜다는 이유로는 떨어뜨리지
-     않는다 — 그건 '못 만든 호떡' 이지 '호떡이 아닌 것' 은 아니다.
-     막는 것은 하나뿐이다: 생반죽을 접시에 던져 개수를 불리는 것. */
-  function passReason(h) {
-    if (!h) return "none";
-    if (h.fillPut < PASS.fill) return "nofill";
-    if (Math.min(h.cookA, h.cookB) < PASS.cook) return "raw";
-    return null;
+     등급을 매기지 않고, 떨어뜨리지도 않는다. 탄 것도 덜 익은 것도
+     속을 빼먹은 것도 만든 그대로 진열된다 — 그것을 사 간 손님이
+     한마디 할 뿐이다.
+
+     흠은 셋을 따로 적는다. 한쪽만 탄 호떡, 속만 빠진 호떡이 각각
+     다른 말을 듣게 하려면 하나로 뭉치면 안 된다. */
+  function qualityOf(h) {
+    const lo = Math.min(h.cookA, h.cookB);
+    const hi = Math.max(h.cookA, h.cookB);
+    const cr = coreRatio(h);
+    const raw = lo < QUAL.raw || cr < QUAL.core;
+    const burnt = hi >= QUAL.burn;
+    const nofill = h.fillPut < QUAL.fill;
+    return {
+      cookA: h.cookA, cookB: h.cookB, core: h.core, coreRatio: cr,
+      fillPut: h.fillPut, up: h.up,
+      burst: h.burst, leak: h.leak, tear: h.tear, deform: h.deform,
+      raw: raw, burnt: burnt, nofill: nofill,
+      ok: !raw && !burnt && !nofill,
+    };
   }
-  const PASS_SAY = {
-    nofill: "속을 넣지 않았어요",
-    raw:    "양면을 더 구워주세요",
-  };
 
   /* 접시 옆에 잠깐 뜨는 표시. 조리를 가리지 않는다. */
   function popPlate(text, good) {
@@ -1734,24 +1808,44 @@
     return c;
   }
 
+  /* --- 전시대 한 자리 --------------------------------------------
+     기울기와 높이 차는 여기서 한 번만 뽑는다. 매 프레임 다시 뽑으면
+     진열이 쉬지 않고 떨린다.
+
+     자리(off)도 올릴 때 정한다. 앞 호떡 지름의 pitch 만큼 나아가므로
+     큰 호떡 뒤는 그만큼 더 벌어지고, 뒤에 무엇이 올라오든 이미 놓인
+     자리는 움직이지 않는다. */
+  function shelfEntry(c) {
+    const dia = extents(c).rx * 2 * TRAY.scale;
+    const prev = S.shelf[S.shelf.length - 1];
+    return {
+      h: c, dia: dia,
+      id: ++S.seq,                   /* 고유 번호 — 만든 차례이기도 하다 */
+      q: qualityOf(c),               /* 그 순간의 조리 상태. 뒤에 안 바뀐다 */
+      off: prev ? prev.off + prev.dia * TRAY.pitch : dia * 0.5,
+      tilt: rnd(-TRAY.tilt, TRAY.tilt),
+      dy: rnd(-TRAY.jitter, 0),
+      fly: 1, x0: LAY.plate.x, y0: LAY.plate.y - 30,
+    };
+  }
+
   /* 접시에 놓았다. 타이머도 철판도 건드리지 않는다 — 한 판 전체에
      속한 것이기 때문이다. 호떡만 손에서 떠난다. */
   function submit() {
     const h = S.h;
+    /* 호떡이 아니면 아무것도 올라가지 않는다. S.h 를 먼저 비워서
+       같은 호떡이 두 번 올라갈 길도 막는다. */
     if (!h || S.over) return;
-    const bad = passReason(h);
-    S.h = null;                      /* 같은 호떡이 두 번 세어지지 않는다 */
+    S.h = null;
     S.grab = null;
-    if (bad) {
-      popPlate(PASS_SAY[bad] || "다시 만들어주세요", false);
-      SFX.drop();
-      return;
-    }
     /* 세는 것과 전시대에 올리는 것은 여기 한 번뿐이다.
        날아가는 연출이 끝날 때 다시 세지 않는다. */
     S.made++;
-    S.shelf.push({ h: shelfClone(h), fly: 1, x0: LAY.plate.x, y0: LAY.plate.y - 30 });
+    S.shelf.push(shelfEntry(shelfClone(h)));
     S.shelfHold = 0;                 /* 새로 올린 자리를 보여 준다 */
+    /* 첫 손님은 첫 호떡이 진열된 뒤에 온다 — 빈 전시대 앞에
+       세워 두지 않는다. */
+    if (S.made === 1) S.nextIn = CUST.firstDelay;
     learn("plate");
     popPlate("+1", true);
     SFX.clink(); buzz(16);
@@ -1778,8 +1872,326 @@
        연출이 끝나지 않았다는 이유로 빠지면 안 된다. */
     for (const s of S.shelf) s.fly = 0;
     S.shelfDrag = null;
+    /* 손님에게 건너가던 호떡도 자리를 정리한다. 그 거래는 누를 때
+       이미 확정됐으므로 판매 수와 만족·불만은 그대로 남는다. */
+    S.flyout.length = 0;
+    /* 아직 못 사고 기다리던 손님은 불만 손님이 아니다 — 품질 때문에
+       돌아선 것이 아니기 때문이다. 세지 않고 그냥 보낸다. */
+    S.cust = null;
+    S.nextIn = 0;
     track("game_complete");
     showEnd();
+  }
+
+  /* ============================================================
+     손님 — 만들어 둔 재고를 사 간다
+     ============================================================
+     주문을 받아 그때부터 만드는 방식이 아니다. 손님이 와서 수량을
+     말하면, 전시대에 이미 있는 것 중 먼저 만든 것부터 건넨다.
+     손님이 서 있는 동안에도 조리는 멈추지 않는다. */
+  const WHO = [
+    { id: "custWoman",   name: "여자 손님",   kid: false },
+    { id: "custMan",     name: "남자 손님",   kid: false },
+    { id: "custGrandma", name: "할머니 손님", kid: false },
+    { id: "custKid",     name: "꼬마 손님",   kid: true },
+  ];
+  const ASK_SAY = [
+    function (n) { return "호떡 " + n + "개 주세요~"; },
+    function (n) { return n + "개 포장해주세요!"; },
+    function (n) { return n === 1 ? "하나만 주세요!" : n + "개만 주세요!"; },
+  ];
+  /* 한줄평. 흠이 여러 가지여도 한 문장만 나온다.
+     차례는 덜 익음 -> 탐 -> 속 없음 으로 늘 같다. */
+  const SAY = {
+    good:   ["너무 맛있겠다~", "노릇노릇 잘 구워졌네요!",
+             "따끈따끈하겠다~", "잘 먹을게요!"],
+    raw:    ["웩, 호떡이 왜 이래!", "안이 아직 덜 익었어요!",
+             "이거 생반죽 같은데요?"],
+    burnt:  ["앗, 호떡이 탔잖아요!", "으악, 쓴맛 날 것 같아요!",
+             "호떡이 너무 까매요..."],
+    nofill: ["어? 속이 없는데요?", "설탕은 어디 갔어요?"],
+    leave:  ["다음에 다시 올게요~", "담에 또 올게요!"],
+  };
+  const pickOne = a => a[Math.floor(Math.random() * a.length)];
+
+  /* 산 묶음만 본다. 전시대에 남은 것도, 지금 굽는 것도 보지 않는다. */
+  function verdictOf(bought) {
+    if (bought.some(s => s.q.raw))    return { mood: "raw",    say: pickOne(SAY.raw) };
+    if (bought.some(s => s.q.burnt))  return { mood: "burnt",  say: pickOne(SAY.burnt) };
+    if (bought.some(s => s.q.nofill)) return { mood: "nofill", say: pickOne(SAY.nofill) };
+    return { mood: "good", say: pickOne(SAY.good) };
+  }
+
+  function nextGap() { return rnd(CUST.gapMin, CUST.gapMax); }
+
+  function spawnCustomer() {
+    /* 같은 손님이 내리 오지 않게 한 번만 다시 뽑는다 */
+    let w = WHO[Math.floor(Math.random() * WHO.length)];
+    if (w.id === S.lastWho) w = WHO[(WHO.indexOf(w) + 1 + Math.floor(Math.random() * 3)) % WHO.length];
+    S.lastWho = w.id;
+    const want = Math.floor(rnd(CUST.wantMin, CUST.wantMax + 1));
+    S.cust = {
+      who: w, want: want,
+      phase: "in", t: 0, wait: 0,
+      say: pickOne(ASK_SAY)(want),
+      mood: "ask", done: false,
+    };
+  }
+
+  /* 지금 건넬 수 있나 */
+  function canSell() {
+    const c = S.cust;
+    return !!c && !S.over && c.phase === "ask" && !c.done &&
+           S.shelf.length >= c.want;
+  }
+
+  /* --- 건네기 ----------------------------------------------------
+     먼저 만든 것부터 N 개. 화면에 보이는 순서가 아니라 재고의
+     오래된 순서다 (shelf 는 만든 차례로 쌓인다).
+     고르지 않는다 — 탄 것이 그 차례에 있으면 그대로 나간다. */
+  function sellTo() {
+    const c = S.cust;
+    if (!canSell()) return false;
+    c.done = true;                   /* 연타해도 여기서 막힌다 */
+    const bought = S.shelf.splice(0, c.want);
+    S.sold += bought.length;
+    const v = verdictOf(bought);
+    c.mood = v.mood; c.say = v.say;
+    if (v.mood === "good") S.happy++; else S.upset++;
+    c.phase = "give"; c.t = 0;
+    /* 건너가는 연출. 개수는 이미 올라갔다 — 이 연출이 끝날 때
+       다시 세지 않는다. */
+    /* 손님의 손께로 간다. 가슴께로 보내면 가는 길에 얼굴을 덮는다. */
+    const bx = CUST.x, by = CUST.bottom - CUST.height * 0.3;
+    for (let i = 0; i < bought.length; i++) {
+      const s = bought[i];
+      s.fly = 0;
+      S.flyout.push({ h: s.h, dia: s.dia, t: 0,
+                      x0: shelfSlotX(i) || trayInner().x, y0: trayInner().base,
+                      x1: bx + rnd(-40, 40), y1: by + rnd(-24, 24),
+                      tilt: s.tilt });
+    }
+    reflowShelf();
+    SFX.clink(); buzz(18);
+    track("sell");
+    return true;
+  }
+
+  /* 앞에서 몇 개가 빠졌으니 남은 것들의 자리를 당긴다.
+     자리는 여전히 앞 호떡 지름의 pitch 만큼씩이다. */
+  function reflowShelf() {
+    let prev = null;
+    for (const s of S.shelf) {
+      s.off = prev ? prev.off + prev.dia * TRAY.pitch : s.dia * 0.5;
+      prev = s;
+    }
+    S.shelfScroll = clamp(S.shelfScroll, 0, shelfMaxScroll());
+  }
+
+  /* --- 손님 그리기 ------------------------------------------------
+     카운터 너머에 선다. 허리 아래는 철망과 조리대가 가린다 —
+     그래서 배경 바로 다음, 철망보다 먼저 그린다. */
+  function custRect() {
+    const c = S.cust;
+    if (!c) return null;
+    const im = IMG[c.who.id];
+    const hgt = CUST.height * (c.who.kid ? CUST.kid : 1);
+    const ratio = im ? im.width / im.height : 0.58;
+    let dy = 0, a = 1;
+    if (c.phase === "in") { const k = clamp(c.t / CUST.inSec, 0, 1); dy = (1 - k) * 70; a = k; }
+    if (c.phase === "out") { const k = clamp(c.t / CUST.outSec, 0, 1); dy = k * 70; a = 1 - k; }
+    /* 서 있는 동안 아주 약하게 들썩인다. 말풍선만으로도 반응은
+       읽히므로 표정을 덧그리지 않는다 (그럴 에셋이 없다). */
+    if (c.phase === "ask" || c.phase === "say" || c.phase === "give")
+      dy += Math.sin(clock * (c.mood === "good" ? 4.2 : 3.0)) * (c.phase === "say" ? 5 : 2.5);
+    return { x: CUST.x, bottom: CUST.bottom + dy, w: hgt * ratio, h: hgt, alpha: a };
+  }
+  /* 손님 그림은 허리에서 잘려 있다. 그대로 놓으면 잘린 선이 가로로
+     그어진 채 보인다 — 배경 사진의 조리대는 손님보다 먼저 그려지므로
+     가려 주지 못하고, 철망은 틈이 많아 비친다.
+     그래서 아래 끝을 흐리게 지운 사본을 한 번 만들어 두고 그걸 쓴다. */
+  const FADED = {};
+  function fadedCust(key) {
+    if (FADED[key] !== undefined) return FADED[key];
+    const im = IMG[key];
+    if (!im) return null;              /* 아직 안 왔으면 다음 프레임에 다시 */
+    let c = null;
+    try {
+      c = document.createElement("canvas");
+      c.width = im.width; c.height = im.height;
+      const g2 = c.getContext("2d");
+      if (!g2) throw new Error("no ctx");
+      g2.drawImage(im, 0, 0);
+      /* destination-in 은 '칠하지 않은 데' 까지 지운다. 그래서 아래쪽
+         띠만 칠하면 안 되고, 그림 전체를 덮되 아래만 옅어지는
+         그라디언트로 한 번에 칠해야 한다. */
+      const gr = g2.createLinearGradient(0, 0, 0, im.height);
+      gr.addColorStop(0, "rgba(0,0,0,1)");
+      gr.addColorStop(0.78, "rgba(0,0,0,1)");
+      gr.addColorStop(1, "rgba(0,0,0,0)");
+      g2.globalCompositeOperation = "destination-in";
+      g2.fillStyle = gr;
+      g2.fillRect(0, 0, im.width, im.height);
+    } catch (_) { c = im; }            /* 못 만들면 원본 그대로 */
+    FADED[key] = c;
+    return c;
+  }
+
+  function drawCustomer(g) {
+    const r = custRect();
+    if (!r) return;
+    /* 그림이 없으면 아무도 안 그린다 — 도형이나 글자로 대신하지 않는다 */
+    const im = fadedCust(S.cust.who.id);
+    if (!im) return;
+    g.save();
+    g.globalAlpha *= r.alpha;
+    g.drawImage(im, r.x - r.w / 2, r.bottom - r.h, r.w, r.h);
+    g.restore();
+  }
+
+  /* 손님에게 건너가는 호떡 */
+  function drawFlyout(g) {
+    for (const f of S.flyout) {
+      const k = clamp(f.t, 0, 1);
+      const e = 1 - Math.pow(1 - k, 2);
+      const x = lerp(f.x0, f.x1, e);
+      const y = lerp(f.y0, f.y1, e) - Math.sin(e * Math.PI) * 70;
+      g.save();
+      g.globalAlpha = 1 - Math.max(0, k - 0.75) * 4;
+      drawShelfOne(g, { h: f.h, tilt: f.tilt }, x, y, TRAY.scale);
+      g.restore();
+    }
+  }
+
+  function roundRect(g, x, y, w, h, r) {
+    g.beginPath();
+    g.moveTo(x + r, y);
+    g.arcTo(x + w, y, x + w, y + h, r);
+    g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r);
+    g.arcTo(x, y, x + w, y, r);
+    g.closePath();
+  }
+
+  /* 두 줄까지 끊어 담는다 */
+  function wrapTwo(g, text, maxW) {
+    if (g.measureText(text).width <= maxW) return [text];
+    const words = text.split(" ");
+    let a = "", b = "";
+    for (const w of words) {
+      const t = a ? a + " " + w : w;
+      if (g.measureText(t).width <= maxW || !a) a = t; else b = b ? b + " " + w : w;
+    }
+    return b ? [a, b] : [a];
+  }
+
+  function sellLabel() {
+    const c = S.cust;
+    if (!c) return "";
+    return S.shelf.length >= c.want
+      ? c.want + "개 건네기"
+      : S.shelf.length + "/" + c.want + "개 준비됨";
+  }
+  /* 버튼은 손님이 수량을 말하는 동안에만 있다 */
+  function sellBtnOn() {
+    const c = S.cust;
+    return !!c && !S.over && c.phase === "ask" && !c.done;
+  }
+  function inSellBtn(x, y) {
+    if (!sellBtnOn()) return false;
+    const b = CUST.btn;
+    return Math.abs(x - b.x) <= b.w / 2 && Math.abs(y - b.y) <= b.h / 2;
+  }
+
+  /* 말풍선과 버튼은 맨 위에 그린다. 조리대 위 어느 것도 가리지
+     않는 자리다 (철망은 y 543 부터, 설탕통은 y 493 부터). */
+  function drawBubble(g) {
+    const c = S.cust;
+    if (!c || c.phase === "in" || c.phase === "out") return;
+    const b = CUST.bubble;
+    const x = b.x - b.w / 2, y = b.y - b.h / 2;
+    g.save();
+    g.globalAlpha = 0.96;
+    roundRect(g, x, y, b.w, b.h, 26);
+    g.fillStyle = c.mood === "ask" || c.mood === "good" || c.mood === "leave"
+      ? "rgba(255,249,235,.96)" : "rgba(255,233,224,.96)";
+    g.fill();
+    stroke(g, c.mood === "ask" || c.mood === "good" || c.mood === "leave"
+      ? "rgba(60,44,28,.5)" : "rgba(150,52,32,.6)", 4);
+    /* 꼬리 — 손님 쪽으로 */
+    g.beginPath();
+    g.moveTo(x + 28, y + b.h - 14);
+    g.lineTo(x - 26, y + b.h + 28);
+    g.lineTo(x + 76, y + b.h - 10);
+    g.closePath();
+    g.fill();
+    g.globalAlpha = 1;
+    g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillStyle = c.mood === "ask" || c.mood === "good" || c.mood === "leave"
+      ? "#2A2017" : "#7A2A16";
+    g.font = "800 38px Pretendard, sans-serif";
+    const lines = wrapTwo(g, c.say, b.w - 56);
+    for (let i = 0; i < lines.length; i++)
+      g.fillText(lines[i], b.x, b.y + (i - (lines.length - 1) / 2) * 44);
+    g.restore();
+  }
+
+  function drawSellBtn(g) {
+    if (!sellBtnOn()) return;
+    const b = CUST.btn, on = canSell();
+    g.save();
+    roundRect(g, b.x - b.w / 2, b.y - b.h / 2, b.w, b.h, 20);
+    g.fillStyle = on ? "rgba(214,120,40,.96)" : "rgba(40,32,24,.78)";
+    g.fill();
+    stroke(g, on ? "rgba(255,232,190,.9)" : "rgba(180,164,140,.5)", 3);
+    g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillStyle = on ? "#FFF6E2" : "#B6A88F";
+    g.font = "800 34px Pretendard, sans-serif";
+    g.fillText(sellLabel(), b.x, b.y + 2);
+    g.restore();
+  }
+
+  function stepCustomer(dt) {
+    for (let i = S.flyout.length - 1; i >= 0; i--) {
+      S.flyout[i].t += dt / CUST.giveSec;
+      if (S.flyout[i].t >= 1) S.flyout.splice(i, 1);
+    }
+    if (S.over) return;
+    const c = S.cust;
+    if (!c) {
+      /* 첫 손님은 첫 호떡이 진열된 뒤에 온다 — 빈 전시대 앞에서
+         기다리게 하지 않는다. */
+      if (!S.made) return;
+      S.nextIn -= dt;
+      if (S.nextIn <= 0) spawnCustomer();
+      return;
+    }
+    c.t += dt;
+    if (c.phase === "in") {
+      if (c.t >= CUST.inSec) { c.phase = "ask"; c.t = 0; c.wait = 0; }
+      return;
+    }
+    if (c.phase === "ask") {
+      c.wait += dt;
+      /* 자동으로 만들어 주지 않는다. 재고가 찰 때까지 기다릴 뿐이다. */
+      if (c.wait >= CUST.waitSec) {
+        c.mood = "leave"; c.say = pickOne(SAY.leave);
+        c.phase = "say"; c.t = 0;    /* 기다리다 간 손님은 불만으로 세지 않는다 */
+      }
+      return;
+    }
+    if (c.phase === "give") {
+      if (c.t >= CUST.giveSec) { c.phase = "say"; c.t = 0; }
+      return;
+    }
+    if (c.phase === "say") {
+      if (c.t >= CUST.saySec) { c.phase = "out"; c.t = 0; }
+      return;
+    }
+    if (c.phase === "out" && c.t >= CUST.outSec) {
+      S.cust = null;
+      S.nextIn = nextGap();
+    }
   }
 
   /* ============================================================
@@ -1804,13 +2216,25 @@
       top: r.y, bottom: r.y + r.h,
     };
   }
-  function shelfSpan() { return TRAY.pitch * S.shelf.length; }
+  function shelfSpan() {
+    const s = S.shelf[S.shelf.length - 1];
+    return s ? s.off + s.dia * 0.5 : 0;
+  }
   function shelfMaxScroll() {
     return Math.max(0, shelfSpan() - trayInner().w);
   }
+  /* 줄이 철망을 다 채우기 전에는 가운데로 모은다 — 몇 개 없을 때
+     왼쪽 끝에만 붙어 있으면 진열이 아니라 밀려난 것처럼 보인다.
+     다 차고 나면 왼쪽 끝에 붙고 그때부터 스크롤이 일한다. */
+  function shelfBaseX() {
+    const inn = trayInner();
+    const span = shelfSpan();
+    return span < inn.w ? inn.x + (inn.w - span) / 2 : inn.x;
+  }
   /* i 번째 자리의 화면 x */
   function shelfSlotX(i) {
-    return trayInner().x + TRAY.pitch * (i + 0.5) - S.shelfScroll;
+    const s = S.shelf[i];
+    return shelfBaseX() + (s ? s.off : 0) - S.shelfScroll;
   }
   function stepShelf(dt) {
     for (const s of S.shelf) if (s.fly > 0) s.fly = Math.max(0, s.fly - dt / TRAY.flySec);
@@ -1822,10 +2246,18 @@
     S.shelfScroll = clamp(S.shelfScroll, 0, max);
   }
 
-  /* 전시대 위에서 시작한 드래그인가 (조리 조작으로 넘기지 않는다) */
+  /* 전시대 위에서 시작한 드래그인가 (조리 조작으로 넘기지 않는다).
+
+     철망이 넓어지면서 반죽통·설탕통·숟가락 자리 위를 지나간다.
+     그 자리는 전시대가 가져가지 않는다 — 가져가면 재료를 집을 수가
+     없다. 철망은 그 위를 지나갈 뿐 그 자리의 주인이 아니다. */
   function inTray(x, y) {
     const r = trayRect();
-    return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+    if (x < r.x || x > r.x + r.w || y < r.y || y > r.y + r.h) return false;
+    if (inZone(LAY.dough, x, y) || inZone(LAY.fill, x, y)) return false;
+    for (const t of TOOLS)
+      if (Math.hypot(x - t.home.x, y - t.home.y) < t.hit) return false;
+    return true;
   }
   function shelfDown(p) {
     S.shelfDrag = { x: p.x, scroll: S.shelfScroll, moved: 0 };
@@ -1839,56 +2271,85 @@
     S.shelfHold = TRAY.holdSec;
   }
 
-  /* 전시된 호떡 하나. 트레이 바닥에 밑을 붙여 놓는다. */
-  function drawShelfOne(g, h, cx, baseY, sc) {
+  /* 전시된 호떡 하나. 철망에 밑을 대고 뒤로 비스듬히 기대어 선다.
+
+     조리 중 그림에는 위에서 내려다본 눌림(SQ)이 들어가 있다. 전시대
+     에서는 기대어 세워 두므로 그 눌림을 stand 만큼 되살린다 — 납작한
+     동전이 아니라 구운 면과 두께가 보이는 호떡이 된다.
+
+     k 는 날아오는 도중의 진행도다. 접시에 있을 때(0)는 철판에서처럼
+     누운 채로, 자리에 앉으면서(1) 기울어지며 선다. */
+  function drawShelfOne(g, s, cx, baseY, sc, k) {
+    const h = s.h, t = k === undefined ? 1 : k;
     const e = extents(h);
-    const half = e.ry * sc * SQ;
+    const stand = lerp(1, TRAY.stand, t);
+    /* 철망에 닿는 자리. 몸통과 함께 기울지 않고 바닥에 깔려 있어야
+       호떡이 떠 보이지 않는다 — 그래서 기울이기 전에 그린다. */
+    if (t > 0.5) {
+      ell(g, cx, baseY + e.ry * sc * SQ * 0.12, e.rx * sc * 0.5, e.ry * sc * SQ * 0.2);
+      g.fillStyle = "rgba(24,16,8," + (0.26 * (t - 0.5) * 2).toFixed(3) + ")";
+      g.fill();
+    }
     g.save();
-    /* 세로 눌림은 바닥선을 기준으로 — 밑이 뜨거나 파묻히지 않는다 */
+    /* 기울기도 세로 늘임도 바닥선을 기준으로 — 늘여도 밑이 뜨거나
+       파묻히지 않는다 */
     g.translate(cx, baseY);
-    g.scale(1, TRAY.squash);
+    g.rotate((s.tilt || 0) * t);
+    g.scale(1, stand);
     g.translate(-cx, -baseY);
-    drawHotteok(g, h, cx, baseY - half * 0.82, sc);
+    /* 몸통 아래쪽이 조금 바닥선 밑으로 들어가야 철망에 닿아 보인다 */
+    drawHotteok(g, h, cx, baseY - e.ry * sc * SQ * 0.86, sc);
     g.restore();
   }
 
   function drawShelf(g) {
     const r = trayRect();
-    /* 트레이 그림이 아직 없으면 전시대 자체를 그리지 않는다 —
+    /* 철망 그림이 아직 없으면 전시대 자체를 그리지 않는다 —
        도형으로 대신 그리지 않는다 (제공된 그림만 쓴다). */
     if (!art(g, "tray", TRAY.x, TRAY.y, TRAY.w)) return;
     if (!S.shelf.length) return;
 
     const inn = trayInner();
+    const im = IMG.tray;
+
+    /* --- 자리에 앉은 것 ------------------------------------------
+       가로로는 철망 안을 벗어나지 않는다. 위로는 뒤 아치 너머로 솟아도
+       되므로 (실제 전시대도 그렇다) 거기를 넉넉히 연다 — 윗부분이
+       잘리면 안 된다.
+       앞에서부터 차례로 그려 뒤에 올린 것이 앞 것에 겹쳐 기댄다. */
     g.save();
-    /* 가로로는 트레이 안을 벗어나지 않는다. 위로는 뒤 테두리 너머로
-       솟아도 되므로 (실제 전시대도 그렇다) 거기만 넉넉히 연다. */
     g.beginPath();
     g.rect(inn.x, r.y - TRAY.rise, inn.w, (r.y + r.h) - (r.y - TRAY.rise));
     g.clip();
     for (let i = 0; i < S.shelf.length; i++) {
       const s = S.shelf[i];
+      if (s.fly > 0) continue;
       const tx = shelfSlotX(i);
-      if (s.fly > 0) {
-        /* 접시에서 날아오는 중 — 크기도 같이 줄어든다 */
-        const k = 1 - Math.pow(s.fly, 1.6);        /* 0 -> 1 */
-        const x = lerp(s.x0, tx, k);
-        const y = lerp(s.y0, inn.base, k) - Math.sin(k * Math.PI) * 90;
-        drawShelfOne(g, s.h, x, y, lerp(1, TRAY.scale, k));
-      } else {
-        if (tx < inn.x - TRAY.pitch || tx > inn.x + inn.w + TRAY.pitch) continue;
-        drawShelfOne(g, s.h, tx, inn.base, TRAY.scale);
-      }
+      if (tx < inn.x - s.dia || tx > inn.x + inn.w + s.dia) continue;
+      drawShelfOne(g, s, tx, inn.base + s.dy, TRAY.scale);
     }
     g.restore();
 
-    /* 앞 테두리만 다시 올린다 — 트레이 전체를 덮으면 호떡이 사라진다 */
-    const im = IMG.tray;
+    /* 앞 테두리만 다시 올려 호떡 밑을 가린다 — 철망 전체를 덮으면
+       철사가 호떡을 뚫고 지나간 것처럼 보인다 */
     if (im) {
       const f = TRAY.front;
       const sy = Math.round(im.height * f);
       g.drawImage(im, 0, sy, im.width, im.height - sy,
                   r.x, r.y + r.h * f, r.w, r.h * (1 - f));
+    }
+
+    /* --- 날아오는 중 --------------------------------------------
+       접시에서 철망까지 가는 길이다. 아직 줄에 낀 것이 아니라서
+       철망 안쪽에 가두지 않는다 — 가두면 길의 대부분이 안 보인다.
+       테두리보다 뒤에 그리면 철망에 가리므로 여기서 그린다. */
+    for (let i = 0; i < S.shelf.length; i++) {
+      const s = S.shelf[i];
+      if (s.fly <= 0) continue;
+      const k = 1 - Math.pow(s.fly, 1.6);          /* 0 -> 1 */
+      const x = lerp(s.x0, shelfSlotX(i), k);
+      const y = lerp(s.y0, inn.base + s.dy, k) - Math.sin(k * Math.PI) * 90;
+      drawShelfOne(g, s, x, y, lerp(1, TRAY.scale, k), k);
     }
   }
 
@@ -2648,13 +3109,19 @@
     g.fillText(mmss(left), 0, 0);
     g.restore();
 
-    g.textAlign = "right";
-    g.fillStyle = "#C3B49A";
-    g.font = "700 30px Pretendard, sans-serif";
-    g.fillText("완성", c.x + c.w - 150, my);
-    g.fillStyle = "#FFF6E2";
-    g.font = "800 54px Pretendard, sans-serif";
-    g.fillText(S.made + "개", c.x + c.w - 28, my);
+    /* 오른쪽에 두 칸만 — 만든 것과 판 것. 재고는 전시대를 보면
+       바로 알 수 있으므로 띠에 또 적지 않는다. */
+    const cell = (label, value, right) => {
+      g.textAlign = "right";
+      g.fillStyle = "#C3B49A";
+      g.font = "700 26px Pretendard, sans-serif";
+      g.fillText(label, right - 76, my);
+      g.fillStyle = "#FFF6E2";
+      g.font = "800 44px Pretendard, sans-serif";
+      g.fillText(String(value), right, my);
+    };
+    cell("만든", S.made, c.x + c.w - 196);
+    cell("판매", S.sold, c.x + c.w - 24);
     g.restore();
   }
 
@@ -2827,13 +3294,18 @@
        것처럼 몰아가게 된다. 도톰한 호떡도 호떡이다. */
     if (thickCm(h) > THICK_OK) return "press";
     const dn = cookDown(h), up = cookUp(h);
-    /* 세어 주는 선(PASS.cook)을 넘겨야 집게를 들라고 한다. 안내대로
-       했는데 접시에서 "덜 익었다" 는 말이 나오면 안내가 아니라
+    /* 손님이 "덜 익었다" 고 할 선(QUAL.raw)보다 넉넉히 넘겨야 집게를
+       들라고 한다. 안내대로 했는데 손님이 투덜대면 안내가 아니라
        함정이다. */
-    if (dn > PASS.cook && up > PASS.cook) return "tong";
-    if (dn > PASS.cook + 5) return "flip";
+    if (dn > GUIDE_COOK && up > GUIDE_COOK) return "tong";
+    if (dn > GUIDE_COOK + 5) return "flip";
     return null;
   }
+
+  /* 안내가 "이제 집게" 라고 말하는 선. 손님이 덜 익었다고 하는
+     선(QUAL.raw = 34)보다 넉넉히 위에 둔다 — 안내를 따랐는데
+     손님이 투덜대면 안내가 아니라 함정이다. */
+  const GUIDE_COOK = 48;
 
   /* 안내가 "더 누르세요" 를 멈추는 두께 */
   const THICK_OK = 3.3;
@@ -2983,6 +3455,9 @@
 
     /* 배경 사진 -> 철판 위 효과 -> 음식 -> 손에 든 도구 -> UI */
     drawBackdrop(g);
+    /* 손님은 카운터 너머에 선다 — 배경 바로 다음에 그려서, 철망과
+       조리대가 허리 아래를 자연스럽게 가리게 한다 */
+    drawCustomer(g);
     /* 전시대는 뒤쪽 조리대 위에 있다 — 철판 효과보다 먼저 */
     drawShelf(g);
     drawEmptySlots(g);
@@ -3006,8 +3481,12 @@
     }
     drawParts(g);
     drawHintPulse(g, clock);
+    /* 손님에게 건너가는 호떡은 철판 위를 지나간다 */
+    drawFlyout(g);
     drawPops(g);
     /* UI 는 맨 위에 — 남은 시간과 개수는 무엇에도 가리지 않는다 */
+    drawBubble(g);
+    drawSellBtn(g);
     drawHud(g);
     drawHint(g);
   }
@@ -3072,6 +3551,14 @@
        있으면 조리가 먼저다. 전시대는 뒤쪽 조리대에 얹힌 선반이라
        그 아래에 반죽을 둘 수 있는데, 거기서 손이 안 먹으면
        빠져나올 길이 없어진다. */
+    /* 건네기 단추가 제일 먼저다. 손님 말풍선 아래, 조리대 위쪽의
+       빈 자리에 있어서 전시대 스크롤이나 도구와 겹치지 않는다. */
+    if (inSellBtn(p.x, p.y)) {
+      if (canSell()) sellTo();
+      S.grab = { kind: "sell" };     /* 이 드래그는 여기서 끝난다 */
+      return;
+    }
+
     const near = S.h && !S.h.held &&
                  Math.hypot(p.x - S.h.x, p.y - S.h.y) < avgR(S.h) * 1.18;
     if (!S.active && !near && inTray(p.x, p.y)) {
@@ -3217,6 +3704,7 @@
     const g = S.grab;
     if (!g || !PTR.down) return;
     const p = { x: PTR.x, y: PTR.y }, q = { x: PTR.px, y: PTR.py };
+    if (g.kind === "sell") return;        /* 단추는 누르는 그 순간이 전부다 */
     if (g.kind === "shelf") shelfMove(p);
     else if (g.kind === "tear") tearMove(p, dt);
     else if (g.kind === "carry") { if (S.h) dragHot(S.h, p.x, p.y); }
@@ -3246,6 +3734,7 @@
     const g = S.grab;
     PTR.down = false; PTR.id = null; PTR.sp = 0;
     if (!g) return;
+    if (g.kind === "sell") { S.grab = null; return; }
     if (g.kind === "shelf") { S.shelfDrag = null; S.grab = null; return; }
     if (g.kind === "carry" || (g.kind === "touch" && g.mode === "carry")) {
       placeDown(p);
@@ -3354,7 +3843,7 @@
       "fillOffset     " + n(h.fillOff) + "   sugarUnder " + n(sugarAt(h.x, h.y)),
       "ruptureRisk    " + n(ruptureRisk(h)) + "   stage " + riskStage(ruptureRisk(h)) +
         "   moveRatio " + n(moveRatio(h)),
-      "pass           " + (passReason(h) || "ok") + "        made " + S.made + "  left " + n(S.timeLeft, 1),
+      "made " + S.made + "  sold " + S.sold + "  stock " + S.shelf.length + "  left " + n(S.timeLeft, 1),
     ].join("\n");
   }
 
@@ -3385,6 +3874,7 @@
     stepParts(dt);
     stepPops(dt);
     stepShelf(dt);
+    stepCustomer(dt);
     S.hintT = Math.max(0, S.hintT - dt);
     S.toastT = Math.max(0, S.toastT - dt);
     if (S.h && !S.h.held) S.h.lift = Math.max(0, S.h.lift - dt * 5);
@@ -3429,9 +3919,16 @@
     if (!cv2) return;
     const dpr = Math.min(2.5, window.devicePixelRatio || 1);
     const w = cv2.clientWidth || 300;
-    const per = Math.max(1, Math.floor(w / TRAY.pitch));
+    /* 결과 화면은 좁다. 여기서는 겹치지 않게 한 칸씩 늘어놓고, 배율은
+       제일 큰 것이 한 칸에 들어가도록 하나만 정한다 — 모두 같은 배율
+       이라 호떡끼리의 크기 차이는 그대로 남는다. */
+    const CELL = 56;
+    let maxDia = 1;
+    for (const s of S.shelf) if (s.dia > maxDia) maxDia = s.dia;
+    const fit = (CELL * 0.92) / maxDia;
+    const per = Math.max(1, Math.floor(w / CELL));
     const rows = Math.max(1, Math.ceil(S.shelf.length / per));
-    const rowH = TRAY.pitch * 0.92;
+    const rowH = CELL * 0.95;
     const hh = rows * rowH;
     cv2.style.height = Math.round(hh) + "px";
     cv2.width = Math.max(1, Math.round(w * dpr));
@@ -3444,8 +3941,9 @@
     for (let i = 0; i < S.shelf.length; i++) {
       const r = Math.floor(i / per), c = i % per;
       const n = Math.min(per, S.shelf.length - r * per);
-      const x = w / 2 + (c - (n - 1) / 2) * TRAY.pitch;
-      drawShelfOne(g, S.shelf[i].h, x, (r + 1) * rowH - rowH * 0.12, TRAY.scale);
+      const x = w / 2 + (c - (n - 1) / 2) * CELL;
+      drawShelfOne(g, S.shelf[i], x, (r + 1) * rowH - rowH * 0.12,
+                   TRAY.scale * fit);
     }
   }
 
@@ -3454,6 +3952,10 @@
     const set = (id, v) => { const e = $(id); if (e) e.textContent = v; };
     set("eSub", MODE.timeLimit + "초 동안 만든 호떡");
     set("eCount", S.made + "개");
+    set("eSold", S.sold + "개");
+    set("eLeft", S.shelf.length + "개");
+    set("eHappy", S.happy + "명");
+    set("eUpset", S.upset + "명");
     const o = $("endOver");
     if (o) o.hidden = false;
     /* 칸을 먼저 열고 나서 그린다 — 숨어 있는 동안에는 clientWidth 가
@@ -3535,16 +4037,22 @@
     S: S, LAY: LAY, TOOLS: TOOLS, TIP: TIP, CFG: CFG, MODE: MODE,
     ASSET_MAP: ASSET_MAP, ART_DIR: ART_DIR, IMG: IMG, MISSING: MISSING,
     HOTTEOK_ASSETS: HOTTEOK_ASSETS, HOTTEOK_ART: HOTTEOK_ART, HOT_ART: HOT_ART,
-    HUD: HUD, PASS: PASS, THICK_OK: THICK_OK, TRAY: TRAY,
+    HUD: HUD, GUIDE_COOK: GUIDE_COOK, THICK_OK: THICK_OK, TRAY: TRAY,
     trayRect: trayRect, trayInner: trayInner, inTray: inTray,
-    shelfClone: shelfClone, shelfSlotX: shelfSlotX,
-    shelfMaxScroll: shelfMaxScroll, shelfSpan: shelfSpan,
+    shelfClone: shelfClone, shelfSlotX: shelfSlotX, shelfEntry: shelfEntry,
+    shelfMaxScroll: shelfMaxScroll, shelfSpan: shelfSpan, shelfBaseX: shelfBaseX,
     stepShelf: stepShelf, drawShelf: drawShelf, drawEndShelf: drawEndShelf,
     moveRatio: moveRatio, heatAt: heatAt, sugarAt: sugarAt, pressRelease: pressRelease,
     DOUGH_ELASTIC: DOUGH_ELASTIC,
     ruptureRisk: ruptureRisk, riskStage: riskStage, sealHold: sealHold,
     coreRatio: coreRatio, tearStep: tearStep,
-    passReason: passReason, submit: submit, endGame: endGame,
+    qualityOf: qualityOf, submit: submit, endGame: endGame,
+    QUAL: QUAL, CUST: CUST, WHO: WHO, SAY: SAY, ASK_SAY: ASK_SAY,
+    verdictOf: verdictOf, spawnCustomer: spawnCustomer, stepCustomer: stepCustomer,
+    canSell: canSell, sellTo: sellTo, reflowShelf: reflowShelf,
+    sellLabel: sellLabel, sellBtnOn: sellBtnOn, inSellBtn: inSellBtn,
+    custRect: custRect, drawCustomer: drawCustomer, drawBubble: drawBubble,
+    drawSellBtn: drawSellBtn, drawFlyout: drawFlyout,
     showEnd: showEnd, restart: restart,
     showBrief: showBrief, beginPlay: beginPlay,
     drawHud: drawHud, drawPops: drawPops, mmss: mmss, popPlate: popPlate,
@@ -3579,6 +4087,7 @@
       stepParts(d);
       stepPops(d);
       stepShelf(d);
+      stepCustomer(d);
       S.hintT = Math.max(0, S.hintT - d);
       S.toastT = Math.max(0, S.toastT - d);
       if (S.h && !S.h.held) S.h.lift = Math.max(0, S.h.lift - d * 5);

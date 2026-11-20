@@ -36,7 +36,7 @@ function makeCtx() {
     save() {}, restore() {},
     translate() {}, scale() {}, rotate() {}, beginPath() {}, closePath() {},
     moveTo() {}, lineTo() {}, quadraticCurveTo() {}, bezierCurveTo() {},
-    arc() {}, ellipse() {}, rect() {}, fill() {}, stroke() {}, clip() {},
+    arc() {}, arcTo() {}, ellipse() {}, rect() {}, fill() {}, stroke() {}, clip() {},
     fillText(txt) { c._texts.push(String(txt)); },
     strokeText() {}, setLineDash() {},
     createLinearGradient() { return { addColorStop() {} }; },
@@ -79,6 +79,7 @@ function attrOf(id, attr) {
   return !!(m && m[0].indexOf(attr) >= 0);
 }
 ["cv", "muteBtn", "againBtn", "endOver", "eSub", "eCount", "eShelf",
+ "eSold", "eLeft", "eHappy", "eUpset",
  "sBody", "sIntro", "sRule",
  "loadOver", "startOver", "startBtn"]
   .forEach(id => {
@@ -974,8 +975,11 @@ console.log("\n--- 15. 집게 / 완성 ---");
   LAST = S.h;
   ok(S.h !== null, "아직 접시에 안 놓았다");
   release();
-  ok(S.made === made0, "속을 안 넣은 것은 세지 않는다", S.made);
-  ok(lastOf().why === "nofill", "이유는 속을 안 넣은 것", lastOf().why);
+  /* 이제는 속을 빼먹어도 진열된다 — 그걸 산 손님이 한마디 할 뿐이다 */
+  ok(S.made === made0 + 1, "속이 없어도 만든 호떡에 들어간다", S.made);
+  ok(lastOf().nofill === true, "다만 속 없음으로 적힌다", lastOf().flaws);
+  ok(S.shelf[S.shelf.length - 1].q.nofill === true,
+     "전시대에도 그 기록이 같이 올라간다");
   ok(S.h === null, "그 호떡은 조리 대상에서 빠진다");
   ok(S.running === true && S.over === false, "그래도 게임은 계속된다");
   ok(els.endOver.hidden === true, "결과 화면이 뜨지 않는다");
@@ -1020,8 +1024,9 @@ console.log("\n--- 17. 그리기 ---");
   ok(t1.length > 0, "조리대에 글자가 있다");
   /* 조리 수치를 숫자로 보여 주지 않는다. 위쪽 띠의 시간과 개수는
      빼고 센다 — 그 둘은 이번 방식에서 보여 줘야 하는 것이다. */
-  const hudTexts = t1.filter(t => /^[0-9]+:[0-9]{2}$/.test(t) || /^[0-9]+개$/.test(t));
-  ok(hudTexts.length === 2, "위쪽 띠에 남은 시간과 개수가 있다", hudTexts.join("|"));
+  const hudTexts = t1.filter(t => /^[0-9]+:[0-9]{2}$/.test(t) || /^[0-9]+$/.test(t));
+  ok(hudTexts.length === 3, "위쪽 띠에 남은 시간과 만든/판매 수가 있다",
+     hudTexts.join("|"));
   const nums = t1.filter(t => (/[0-9]/.test(t) || t.indexOf("%") >= 0) &&
                               hudTexts.indexOf(t) < 0);
   ok(nums.length === 0, "그 둘 말고는 숫자가 없다", nums.join("|"));
@@ -1033,7 +1038,7 @@ console.log("\n--- 17. 그리기 ---");
   wait(3);
   const t2 = paint("굽는 중");
   const noNum = t2.filter(t => /[0-9]/.test(t) &&
-                            !/^[0-9]+:[0-9]{2}$/.test(t) && !/^[0-9]+개$/.test(t));
+                            !/^[0-9]+:[0-9]{2}$/.test(t) && !/^[0-9]+$/.test(t));
   ok(noNum.length === 0, "굽는 중에도 익힘 숫자가 안 뜬다", noNum.join("|"));
   wait(14);
   ok(G.cookDown(S.h) > 110, "탔다");
@@ -1065,8 +1070,9 @@ console.log("\n--- 17. 그리기 ---");
   putAt(LAY.pan.x, LAY.pan.y);
   const n2 = S.made;
   toPlate();
-  ok(S.made === n2, "생반죽은 개수에 안 들어간다", S.made);
-  ok(lastOf().why === "nofill", "이유는 속을 안 넣은 것", lastOf().why);
+  ok(S.made === n2 + 1, "생반죽도 만든 호떡에 들어간다", S.made);
+  ok(lastOf().nofill === true && lastOf().raw === true,
+     "속 없음과 덜 익음이 적힌다", lastOf().flaws);
   ok(S.h === null, "그래도 다음 반죽으로 넘어간다");
 }
 
@@ -1436,6 +1442,7 @@ function toPlate() {
 function lastOf() {
   const h = LAST;
   if (!h) return null;
+  const q = G.qualityOf(h);
   return {
     diameter: G.diameterCm(h), thickness: G.thickCm(h),
     burstAmount: h.burst, leakAmount: h.leak, tearAmount: h.tear,
@@ -1443,7 +1450,10 @@ function lastOf() {
     coreScore: G.coreRatio(h), fillPut: h.fillPut, sealed: h.sealed,
     cookA: h.cookA, cookB: h.cookB,
     cookMax: Math.max(h.cookA, h.cookB), cookMin: Math.min(h.cookA, h.cookB),
-    counted: G.passReason(h) === null, why: G.passReason(h),
+    q: q,
+    /* 이제는 품질과 상관없이 다 진열된다. 보는 것은 "흠이 있나" 다. */
+    good: q.ok, raw: q.raw, burnt: q.burnt, nofill: q.nofill,
+    flaws: ["raw", "burnt", "nofill"].filter(k => q[k]).join("+") || "none",
   };
 }
 /* 호떡이 앉을 자리를 면으로 덮어 바른다 (기름은 닿는 면 전체로 판정한다) */
@@ -1536,7 +1546,7 @@ function oilPan() {
   ok(S.made === 1, "접시에 담으면 한 개로 센다", S.made);
   const r = lastOf();
   console.log("     -> 지름 " + r.diameter.toFixed(1) + "cm  두께 " + r.thickness.toFixed(1) + "cm");
-  ok(r.counted === true, "순서대로 하면 세어지는 호떡", r.why);
+  ok(r.good === true, "순서대로 하면 흠 없는 호떡", r.flaws);
   ok(r.burstAmount === 0 && r.tearAmount === 0, "터지지도 찢어지지도 않았다");
   ok(r.coreScore >= 0.8, "속까지 익었다", r.coreScore.toFixed(2));
 }
@@ -1569,17 +1579,17 @@ function oilPan() {
       r => r.sealed < 0.6 || r.leakAmount > 0 || r.burstAmount > 0],
     ["너무 많이 누름",  { press: 3.0 },
       r => r.thickness < 1.9 || r.tearAmount > 0 || r.burstAmount > 0],
-    ["빨리 뒤집기",     { cookA: 1, cookB: 2 },   r => r.counted === false],
+    ["빨리 뒤집기",     { cookA: 1, cookB: 2 },   r => r.raw === true],
     ["늦게 뒤집기",     { cookA: 18, cookB: 16 }, r => r.cookMax > 104],
-    ["덜 익은 채 꺼냄", { cookA: 1, flip: false, cookB: 0.2 }, r => r.counted === false],
+    ["덜 익은 채 꺼냄", { cookA: 1, flip: false, cookB: 0.2 }, r => r.raw === true],
     ["태운 뒤 꺼냄",    { heat: 1, cookA: 16, cookB: 16 },     r => r.cookMax > 104],
-    ["설탕 안 넣음",    { sugar: 0 },             r => r.why === "nofill"],
+    ["설탕 안 넣음",    { sugar: 0 },             r => r.nofill === true],
   ];
   for (const [name, opt, want] of cases) {
     const r = play(opt);
     if (process.env.QA_DEBUG) console.log("     [" + name + "] " + JSON.stringify(r));
     ok(want(r), name + " 은 그대로 수치에 남는다",
-       "센다=" + r.counted + " 터짐=" + r.burstAmount.toFixed(2) +
+       "흠=" + r.flaws + " 터짐=" + r.burstAmount.toFixed(2) +
        " 샘=" + r.leakAmount.toFixed(2) + " 겉=" + r.cookMax.toFixed(0) +
        " 두께=" + r.thickness.toFixed(1));
   }
@@ -1622,8 +1632,8 @@ console.log("\n--- 24. 상태 보존 ---");
      "뒤 단계 그림을 앞당겨 쓰지 않는다", mixA.a);
   toPlate();
   const rA = lastOf();
-  ok(rA.counted === false && rA.why === "nofill",
-     "속을 안 넣었으니 세지 않는다", rA.why);
+  ok(rA.good === false && rA.nofill === true,
+     "속을 안 넣었으니 속 없음으로 적힌다", rA.flaws);
   ok(rA.burstAmount === 0 && rA.leakAmount === 0,
      "터짐/누출은 0 으로 남는다");
 }
@@ -1675,7 +1685,7 @@ console.log("\n--- 24. 상태 보존 ---");
   wait(8);
   toPlate();
   const rC = lastOf();
-  ok(rC.counted === true, "정상 호떡은 세어진다", rC.why);
+  ok(rC.good === true, "정상 호떡은 흠이 없다", rC.flaws);
   ok(rC.burstAmount === 0, "터지지 않았다");
   ok(rC.tearAmount === 0, "찢어지지도 않았다");
 
@@ -1900,7 +1910,15 @@ console.log("\n--- 25. 행동 -> 결과 ---");
   ok(h.leak > 0.5, "샌 양은 그대로 남아 있다", h.leak.toFixed(2));
   near(h.filling + h.fillLoose + h.leak + h.fillSpill, h.fillPut, 1e-6, "총량은 맞는다");
   ok(h.fillPut > 0.5, "넣었던 기록이 남아 있다", h.fillPut.toFixed(2));
-  ok(G.passReason(h) === null, "그래도 양면이 익었으면 한 개로 센다", G.passReason(h));
+  /* 속이 다 새어 나가도 "속 없음" 은 아니다 — 넣은 기록(fillPut)이
+     남아 있기 때문이다. 이 호떡은 오래 구워 탄 쪽으로 잡히는데,
+     그것은 익힘이 따로 적힌다는 뜻이지 속 판정이 흔들린다는 뜻이
+     아니다. */
+  ok(G.qualityOf(h).nofill === false,
+     "속이 다 새어도 속 없음으로 보지는 않는다",
+     "fillPut " + h.fillPut.toFixed(2) + " 남은속 " + h.filling.toFixed(2));
+  ok(G.qualityOf(h).raw === false, "양면이 익은 것도 그대로 읽는다",
+     h.cookA.toFixed(0) + "/" + h.cookB.toFixed(0));
   toPlate();
   ok(lastOf().leakAmount > 0.5, "접시에서도 흔적이 남는다", lastOf().leakAmount);
 }
@@ -2165,7 +2183,7 @@ let stickyScar = 0, stickyTear = 0;
   const r = lastOf();
   ok(Math.abs(r.cookA - r.cookB) > 30, "양면 익힘이 다르다",
      r.cookA.toFixed(0) + " / " + r.cookB.toFixed(0));
-  ok(r.counted === false, "한쪽만 구운 것은 세지 않는다", r.why);
+  ok(r.raw === true, "한쪽만 구운 것은 덜 익은 것으로 적힌다", r.flaws);
 }
 
 /* --- TEST 8. 두꺼운 호떡을 짧게 -> 속이 설익는다 -------------- */
@@ -2433,9 +2451,9 @@ function baseH() {
      Math.max(h.cookA, h.cookB).toFixed(0) + " vs 속 " + h.core.toFixed(0));
   toPlate();
   ok(lastOf().coreScore < 0.6, "접시에 놓인 뒤에도 속익힘이 낮다", lastOf().coreScore);
-  ok(lastOf().counted === false && lastOf().why === "raw",
-     "두껍게 짧게 구우면 겉도 덜 익어 세지 않는다",
-     lastOf().why + " / 겉 " + lastOf().cookMin.toFixed(0));
+  ok(lastOf().raw === true,
+     "두껍게 짧게 구우면 겉도 덜 익어 덜 익음으로 적힌다",
+     lastOf().flaws + " / 겉 " + lastOf().cookMin.toFixed(0));
 }
 
 /* --- TEST G. 제대로 만들면 perfect 단면 ----------------------
@@ -2450,7 +2468,7 @@ function baseH() {
   const h = S.h;
   toPlate();
   const r = lastOf();
-  ok(r.counted === true, "제대로 만든 호떡은 세어진다", r.why);
+  ok(r.good === true, "제대로 만든 호떡은 흠이 없다", r.flaws);
   ok(G.thickCm(h) < 2.75, "속을 넣고 눌러 마무리해야 호떡 두께가 된다",
      G.thickCm(h).toFixed(2) + "cm");
   ok(G.coreRatio(h) >= 0.8, "속까지 익었다", G.coreRatio(h).toFixed(2));
@@ -2722,10 +2740,10 @@ console.log("\n--- 29. 손맛 ---");
   ok(thin.thickness < mid.thickness && mid.thickness < thick.thickness,
      "세 가지 두께가 실제로 다르다",
      [thin, mid, thick].map(r => r.thickness.toFixed(1)).join(" / "));
-  /* 두께에 정답이 하나뿐이지 않다 — 셋 다 한 개로 센다 */
-  ok(thin.counted && mid.counted && thick.counted,
-     "얇게 만든 것도 도톰하게 만든 것도 똑같이 한 개로 센다",
-     [thin, mid, thick].map(r => r.why || "ok").join(" / "));
+  /* 두께에 정답이 하나뿐이지 않다 — 셋 다 흠 없는 호떡이다 */
+  ok(thin.good && mid.good && thick.good,
+     "얇게 만든 것도 도톰하게 만든 것도 똑같이 멀쩡한 호떡",
+     [thin, mid, thick].map(r => r.flaws + "(" + r.cookMax.toFixed(0) + ")").join(" / "));
 }
 
 /* --- 명세 62. 안내는 두 판째부터 안 뜬다 --------------------- */
@@ -2917,9 +2935,10 @@ console.log("\n--- 31. 안내 ---");
      Math.round(Math.min(h.cookA, h.cookB)));
   ok(G.coreRatio(h) < 0.8, "그런데 속은 아직", G.coreRatio(h).toFixed(2));
   ok(G.thickCm(h) <= 3.3, "두께는 이미 적당하다", G.thickCm(h).toFixed(1));
-  ok(G.hintTarget() === "tong", "세어 주는 선을 넘었으니 집게라고 한다",
+  ok(G.hintTarget() === "tong", "안내 선을 넘었으니 집게라고 한다",
      G.hintTarget());
-  ok(G.passReason(h) === null, "실제로도 세어진다", G.passReason(h));
+  ok(G.qualityOf(h).raw === false,
+     "안내가 집게라고 할 때는 손님도 덜 익었다고 안 한다");
   /* 안내가 규칙보다 엄하지 않다 — 없는 조건을 요구하지 않는다 */
   ok(G.GUIDE.slow === undefined, "속까지 익히라는 안내는 없앴다");
 
@@ -2951,7 +2970,8 @@ console.log("\n--- 31. 안내 ---");
   }
   ok(S.made === 1, "안내만 따라가도 호떡 하나가 세어진다", guard + "번");
   const r = lastOf();
-  ok(r.counted === true, "안내대로 했는데 안 세어지는 일이 없다", r.why);
+  ok(r.good === true, "안내대로 했는데 손님이 투덜댈 호떡이 안 나온다",
+     r.flaws + "(" + r.cookMax.toFixed(0) + ")");
   ok(r.cookMax <= 104, "타지도 않는다", r.cookMax.toFixed(0));
 }
 
@@ -3128,9 +3148,11 @@ function freshGame() {
   ok(G.MODE.timeLimit === 90, "기본 제한시간은 90초", G.MODE.timeLimit);
   ok(typeof G.MODE.warnAt === "number" && G.MODE.warnAt > 0,
      "마지막 경고 구간도 설정값", G.MODE.warnAt);
-  ok(typeof G.PASS.fill === "number" && typeof G.PASS.cook === "number",
-     "집계 문턱도 설정값으로 나와 있다",
-     G.PASS.fill + " / " + G.PASS.cook);
+  for (const k of ["raw", "core", "burn", "fill"])
+    ok(typeof G.QUAL[k] === "number", "품질 문턱 " + k + " 이 설정값이다", G.QUAL[k]);
+  for (const k of ["firstDelay", "gapMin", "gapMax", "wantMin", "wantMax",
+                   "waitSec", "saySec"])
+    ok(typeof G.CUST[k] === "number", "손님 설정값 " + k + " 이 따로 있다", G.CUST[k]);
   ok(SRC.indexOf("MODE.timeLimit") >= 0, "제한시간을 한 곳에서 읽는다");
 }
 
@@ -3264,37 +3286,41 @@ function freshGame() {
 }
 
 {
-  /* --- 생반죽은 세지 않고, 이유를 알려 주고, 다음으로 넘어간다 --- */
+  /* --- 못 만든 것도 그대로 진열된다 (흠만 적힌다) --- */
   freshGame();
   S.heat = 0.7;
   tearToPan();
   const n = S.made;
-  S.pops.length = 0;
   toPlate();
-  ok(S.made === n, "생반죽은 개수에 안 들어간다", S.made);
-  ok(S.pops.length === 1 && S.pops[0].good === false,
-     "대신 짧게 이유를 띄운다", S.pops.length && S.pops[0].text);
-  ok(S.pops[0].text.indexOf("속") >= 0, "이유가 적혀 있다", S.pops[0].text);
-  ok(S.h === null, "그래도 다음 반죽으로 넘어간다");
+  ok(S.made === n + 1, "생반죽도 만든 호떡에 들어간다", S.made);
+  const rawOne = S.shelf[S.shelf.length - 1];
+  ok(rawOne.q.raw === true && rawOne.q.nofill === true,
+     "덜 익음과 속 없음이 둘 다 적힌다",
+     JSON.stringify([rawOne.q.raw, rawOne.q.burnt, rawOne.q.nofill]));
+  ok(rawOne.q.ok === false, "멀쩡한 호떡으로는 안 센다");
+  ok(S.h === null, "다음 반죽으로 넘어간다");
   ok(S.over === false, "게임이 멈추지도 않는다");
 
   /* 속은 넣었지만 덜 구운 것 */
   oilPan(); tearToPan(); flatten(); sugar(1.0); seal(4);
   wait(2);
-  const why = G.passReason(S.h);
-  ok(why === "raw", "덜 구우면 덜 구웠다고 한다", why);
+  ok(G.qualityOf(S.h).raw === true, "덜 구우면 덜 익음으로 적힌다");
   toPlate();
-  ok(S.made === n, "역시 안 센다", S.made);
+  ok(S.made === n + 2, "그래도 진열은 된다", S.made);
+  ok(S.shelf[S.shelf.length - 1].q.raw === true, "전시대에도 덜 익음");
 
-  /* 찌그러지거나 조금 샌 것은 떨어뜨리지 않는다 */
+  /* 찌그러지거나 조금 샌 것만으로는 흠이 아니다 */
   oilPan(); tearToPan(); flatten(); sugar(1.2); sugar(1.2); seal(1);
   pressN(4, 0.5);
   wait(6); flip(); wait(6);
   const h = S.h;
   ok(h.leak > 0 || h.burst > 0 || h.deform > 0, "터지거나 샜거나 일그러졌다",
      h.leak.toFixed(2) + " / " + h.burst.toFixed(2) + " / " + h.deform.toFixed(2));
+  const qd = G.qualityOf(h);
+  ok(qd.raw === false && qd.nofill === false,
+     "모양이 일그러졌다는 이유만으로 불량이 되지 않는다", JSON.stringify(qd.ok));
   toPlate();
-  ok(S.made === n + 1, "그래도 속 넣고 양면 구웠으면 한 개", S.made);
+  ok(S.made === n + 3, "역시 한 개", S.made);
 }
 
 {
@@ -3370,11 +3396,13 @@ console.log("\n--- 34. 위쪽 띠 ---");
   G.beginPlay();
   const now = painted();
   ok(now.indexOf("1:30") >= 0, "시작하면 남은 시간이 뜬다", now.join("|"));
-  ok(now.indexOf("0개") >= 0, "완성 개수도 뜬다", now.join("|"));
-  ok(now.indexOf("남은 시간") >= 0 && now.indexOf("완성") >= 0,
-     "무엇인지 적혀 있다", now.join("|"));
-  /* 이 둘 말고는 아무것도 없다 */
-  const extra = now.filter(t => ["남은 시간", "완성", "1:30", "0개"].indexOf(t) < 0);
+  ok(now.indexOf("0") >= 0, "만든/판매 개수도 뜬다", now.join("|"));
+  ok(now.indexOf("남은 시간") >= 0 && now.indexOf("만든") >= 0 &&
+     now.indexOf("판매") >= 0, "무엇인지 적혀 있다", now.join("|"));
+  ok(now.indexOf("완성") < 0, "집계를 뜻하던 옛 말은 쓰지 않는다", now.join("|"));
+  /* 이 셋 말고는 아무것도 없다 */
+  const extra = now.filter(t =>
+    ["남은 시간", "만든", "판매", "1:30", "0"].indexOf(t) < 0);
   ok(extra.length === 0, "위쪽 띠에 다른 것이 없다", extra.join("|"));
 
   /* 띠가 조리에 쓰는 것을 가리지 않는다 */
@@ -3411,8 +3439,10 @@ console.log("\n--- 34. 위쪽 띠 ---");
   /* 개수가 오르면 띠도 따라 바뀐다 */
   S.timeLeft = 60;
   S.made = 7;
+  S.sold = 4;
   const seven = painted();
-  ok(seven.indexOf("7개") >= 0, "개수가 바뀌면 띠도 바뀐다", seven.join("|"));
+  ok(seven.indexOf("7") >= 0 && seven.indexOf("4") >= 0,
+     "만든 수와 판 수가 바뀌면 띠도 바뀐다", seven.join("|"));
 }
 
 /* ============================================================
@@ -3476,11 +3506,14 @@ console.log("\n--- 36. 시작 화면 ---");
   ok(html.indexOf("호떡 알바") >= 0, "제목이 있다");
   ok(els.startBtn.textContent === "게임 시작" ||
      html.indexOf(">게임 시작<") >= 0, "단추는 '게임 시작'");
-  /* 무엇이 한 개로 세어지는지 알려 준다 */
+  /* 무엇을 하는 게임인지 알려 준다 — 접시에 담고, 손님에게 건넨다 */
   const rule = (html.match(/id="sRule"[^>]*>([^<]*)</) || [])[1] || "";
-  ok(/속/.test(rule) && /구/.test(rule) && /접시/.test(rule),
-     "집계 조건을 짧게 알려 준다", rule);
+  ok(/접시/.test(rule) && /전시대/.test(rule) && /손님/.test(rule),
+     "조리에서 판매까지의 흐름을 짧게 알려 준다", rule);
   ok(html.indexOf("90초") >= 0, "제한시간도 알려 준다");
+  for (const id of ["eSold", "eLeft", "eHappy", "eUpset"])
+    ok(html.indexOf('id="' + id + '"') >= 0,
+       "결과 화면에 " + id + " 칸이 있다");
   /* 설명과 단추가 한 묶음 */
   ok(html.indexOf('id="sBody"') >= 0, "설명과 단추가 한 묶음이다");
   ok(css.indexOf(".over-start .s-body") >= 0, "그 묶음을 가운데로 모은다");
@@ -3511,21 +3544,32 @@ console.log("\n--- 37. 전시대 ---");
 
 {
   /* --- 그림과 자리 --- */
-  ok(G.ASSET_MAP.tray === "hotteok-display-tray.webp",
-     "전시대 그림을 에셋 목록으로 읽는다", G.ASSET_MAP.tray);
-  ok(G.ART_DIR + G.ASSET_MAP.tray === "assets/opt/hotteok-display-tray.webp",
+  ok(G.ASSET_MAP.tray === "hotteok-wire-rack.webp",
+     "철망 그림을 에셋 목록으로 읽는다", G.ASSET_MAP.tray);
+  ok(G.ART_DIR + G.ASSET_MAP.tray === "assets/opt/hotteok-wire-rack.webp",
      "프로젝트 기준 상대 경로다", G.ART_DIR + G.ASSET_MAP.tray);
+  /* 바뀐 그림이 남아서 겹쳐 나오지 않는다 */
+  ok(!/hotteok-display-tray/.test(SRC), "예전 트레이 그림을 더 읽지 않는다");
+  ok(!fs.existsSync(path.join(ROOT, "assets/opt/hotteok-display-tray.webp")),
+     "예전 트레이 webp 를 걷어냈다");
   /* 작업용 경로가 코드에 박히지 않았나. http(s):// 까지 걸리지 않도록
      윈도 드라이브 경로와 작업 폴더 이름만 본다. */
   ok(!/[A-Za-z]:[\\/]{1,2}Users|\.codex|chatgpt-projects|file:\/\//.test(SRC),
      "작업용 절대 경로를 코드에 넣지 않았다");
-  ok(fs.existsSync(path.join(ROOT, "assets/opt/hotteok-display-tray.webp")),
+  ok(fs.existsSync(path.join(ROOT, "assets/opt/hotteok-wire-rack.webp")),
      "webp 사본이 있다");
-  ok(fs.existsSync(path.join(ROOT, "assets/hotteok-display-tray.png")),
-     "원본 PNG 도 지우지 않았다");
+  /* 받은 원본은 확장자가 없다. 이름을 바꾸지도 지우지도 않는다. */
+  ok(fs.existsSync(path.join(ROOT, "assets/\uc804\uc2dc\ub300")),
+     "받은 원본을 그대로 두었다");
+  {
+    const b = fs.readFileSync(path.join(ROOT, "assets/\uc804\uc2dc\ub300"));
+    ok(b.readUInt32BE(0) === 0x89504e47, "원본은 PNG 다");
+    ok(b.readUInt32BE(16) === 2176 && b.readUInt32BE(20) === 722,
+       "원본 크기 2176x722", b.readUInt32BE(16) + "x" + b.readUInt32BE(20));
+  }
   /* webp 가 투명한가 — VP8L / VP8X(알파 플래그) 둘 중 하나여야 한다 */
   {
-    const b = fs.readFileSync(path.join(ROOT, "assets/opt/hotteok-display-tray.webp"));
+    const b = fs.readFileSync(path.join(ROOT, "assets/opt/hotteok-wire-rack.webp"));
     const tag = b.slice(12, 16).toString("ascii");
     const alpha = tag === "VP8L" || (tag === "VP8X" && (b[20] & 0x10) !== 0);
     ok(alpha, "webp 가 투명도를 들고 있다", tag);
@@ -3537,35 +3581,51 @@ console.log("\n--- 37. 전시대 ---");
   const inn = G.trayInner();
   ok(Math.abs(r.w / r.h - G.TRAY.ratio) < 0.2, "가로세로 비율을 지킨다",
      (r.w / r.h).toFixed(2));
+  /* 투명 여백을 뺀 실제 철망 넓이에서 나온 비율인가 (원본 알파 경계
+     2171x688 -> 3.1555). 캔버스 통째 비율(2176/722=3.014)이면 틀렸다. */
+  ok(Math.abs(G.TRAY.ratio - 3.1555) < 0.01,
+     "투명 여백이 아니라 철망 넓이로 잰 비율이다", G.TRAY.ratio);
   ok(inn.x > r.x && inn.x + inn.w < r.x + r.w, "안쪽 바닥이 그림 안에 있다");
   ok(inn.base > inn.y && inn.base < r.y + r.h * G.TRAY.front,
      "호떡 기준선이 바닥 위, 앞 테두리 앞이다",
      Math.round(inn.base) + " / " + Math.round(r.y + r.h * G.TRAY.front));
-  for (const k of ["inner", "base", "scale", "pitch", "squash"])
+  for (const k of ["inner", "base", "front", "scale", "stand", "pitch",
+                   "tilt", "jitter", "rise"])
     ok(G.TRAY[k] !== undefined, "배치 값 " + k + " 이 따로 나와 있다");
 }
 
 {
   /* --- 조리 영역과 도구를 가리지 않는다 --- */
   const r = G.trayRect();
-  const zones = { 반죽통: LAY.dough, 설탕통: LAY.fill, 철판: LAY.pan, 접시: LAY.plate };
-  for (const k in zones) {
-    const z = zones[k];
+  /* 철판과 접시는 아예 닿지 않는다 */
+  for (const k of ["pan", "plate"]) {
+    const z = LAY[k];
     const hit = z.x + z.rx > r.x && z.x - z.rx < r.x + r.w &&
                 z.y + z.ry > r.y && z.y - z.ry < r.y + r.h;
-    ok(!hit, "전시대가 " + k + " 을 가리지 않는다");
+    ok(!hit, "전시대가 " + k + " 자리에 닿지 않는다");
   }
-  for (const t of G.TOOLS) {
-    const hit = t.home.x + t.hit > r.x && t.home.x - t.hit < r.x + r.w &&
-                t.home.y + t.hit > r.y && t.home.y - t.hit < r.y + r.h;
-    ok(!hit, "전시대가 " + t.name + " 집는 자리를 가리지 않는다");
-  }
+  /* 양쪽 통과 도구 자리는 철망이 위를 지나간다. 지나갈 뿐이고,
+     누르면 전시대가 아니라 그 자리가 받아야 한다. */
+  ok(!G.inTray(LAY.dough.x, LAY.dough.y), "반죽통 자리를 전시대가 안 가져간다");
+  ok(!G.inTray(LAY.fill.x, LAY.fill.y), "설탕통 자리를 전시대가 안 가져간다");
+  for (const t of G.TOOLS)
+    ok(!G.inTray(t.home.x, t.home.y),
+       t.name + " 집는 자리를 전시대가 안 가져간다");
+  /* 통 안의 내용물은 촘촘한 바닥 철망 위에 있어야 보인다 —
+     바닥 철망이 시작하는 높이가 두 통의 중심보다 아래여야 한다. */
+  const meshTop = r.y + r.h * G.TRAY.inner.y0;
+  ok(meshTop > LAY.dough.y, "반죽통 속이 바닥 철망 위에 있다",
+     Math.round(meshTop) + " > " + LAY.dough.y);
+  ok(meshTop > LAY.fill.y, "설탕통 속이 바닥 철망 위에 있다",
+     Math.round(meshTop) + " > " + LAY.fill.y);
   const c = G.HUD;
   ok(r.y > c.y + c.h, "상단 타이머 아래에 있다",
      Math.round(r.y) + " > " + Math.round(c.y + c.h));
   ok(r.y + r.h < LAY.pan.y - LAY.pan.ry, "철판 위에서 끝난다",
      Math.round(r.y + r.h) + " < " + Math.round(LAY.pan.y - LAY.pan.ry));
-  /* 390px 화면에서도 트레이 안이 손가락만 하다 */
+  /* 작은 빈틈에 끼워 넣지 않았나 — 화면 너비의 70% 이상 */
+  ok(r.w / 1080 >= 0.7, "철망이 화면 너비의 70% 이상이다",
+     (r.w / 1080 * 100).toFixed(0) + "%");
   ok(G.trayInner().w * (390 / 1080) > 100, "실제 화면에서 100px 이상 폭",
      (G.trayInner().w * (390 / 1080)).toFixed(0) + "px");
 }
@@ -3582,11 +3642,12 @@ console.log("\n--- 37. 전시대 ---");
   ok(S.made === 3 && S.shelf.length === 3, "연달아 만들어도 개수와 전시가 같다",
      S.made + " / " + S.shelf.length);
 
-  /* 세지 않는 것은 전시하지 않는다 */
+  /* 못 만든 것도 전시된다 — 흠만 적힌다 */
   tearToPan();
   toPlate();
-  ok(S.made === 3 && S.shelf.length === 3, "생반죽은 전시도 안 된다",
+  ok(S.made === 4 && S.shelf.length === 4, "생반죽도 전시된다",
      S.made + " / " + S.shelf.length);
+  ok(S.shelf[3].q.ok === false, "다만 흠 있는 호떡으로 적힌다");
 
   /* 연출이 끝날 때 또 세지 않는다 */
   const n = S.made, k = S.shelf.length;
@@ -3676,23 +3737,32 @@ console.log("\n--- 37. 전시대 ---");
   freshGame();
   S.heat = 0.7;
   const inn = G.trayInner();
-  const fit = Math.floor(inn.w / G.TRAY.pitch);
-  ok(fit >= 3, "한 줄에 적어도 세 개는 보인다", fit);
 
   makeMany(2);
   wait(2);
   const x0 = G.shelfSlotX(0), x1 = G.shelfSlotX(1);
+  const step = x1 - x0;
   ok(x1 > x0, "완성 순서대로 왼쪽부터", Math.round(x0) + " -> " + Math.round(x1));
-  ok(x1 - x0 >= G.TRAY.pitch * 0.9, "서로 완전히 포개지지 않는다",
-     Math.round(x1 - x0));
+  /* 겹치되 완전히 포개지지는 않는다 — 앞 호떡 지름의 35~50% 만큼 나아간다 */
+  {
+    const d0 = S.shelf[0].dia;
+    const k = step / d0;
+    ok(k > 0.3 && k < 0.55, "중심 간격이 지름의 30~55% 다", k.toFixed(2));
+    ok(step < d0, "앞 호떡과 겹친다", Math.round(step) + " < " + Math.round(d0));
+  }
+  const fit = Math.max(1, Math.floor(inn.w / step));
+  ok(fit >= 3, "한 줄에 적어도 세 개는 보인다", fit);
 
   /* 한 줄이 넘도록 만든다 — 줄이지도, 버리지도 않는다 */
   const n0 = S.shelf.length;
+  const firstDia = S.shelf[0].dia;
   makeMany(fit + 2);
   ok(S.shelf.length === n0 + fit + 2, "넘쳐도 다 보관한다", S.shelf.length);
   ok(S.made === S.shelf.length, "개수와 전시 수가 끝까지 같다",
      S.made + " / " + S.shelf.length);
-  ok(G.TRAY.scale === 0.25, "칸이 모자라다고 배율을 줄이지 않는다", G.TRAY.scale);
+  ok(Math.abs(S.shelf[0].dia - firstDia) < 0.01,
+     "칸이 모자라다고 먼저 올린 호떡을 줄이지 않는다",
+     firstDia.toFixed(1) + " -> " + S.shelf[0].dia.toFixed(1));
   ok(G.shelfMaxScroll() > 0, "대신 스크롤이 생긴다",
      Math.round(G.shelfMaxScroll()));
 
@@ -3847,6 +3917,423 @@ console.log("\n--- 37. 전시대 ---");
   S.shelf.length = 0;
   try { G.draw(); } catch (e) { err = String(e); }
   ok(err === null, "비어 있어도 안 터진다", err);
+}
+
+
+/* ============================================================
+   38. 손님 — 재고를 사 가고 한마디 한다
+   ============================================================ */
+console.log("\n--- 38. 손님 ---");
+
+/* 품질을 마음대로 정한 호떡을 전시대에 바로 올린다. 손님 쪽 규칙만
+   보려는 것이라, 매번 구워 만들면 시간도 오래 걸리고 원하는 흠을
+   정확히 낼 수도 없다. 조리 경로 자체는 다른 절에서 본다. */
+function shelveFake(opt) {
+  const h = G.shelfClone(S.h || fakeDough());
+  h.cookA = opt.cookA === undefined ? 70 : opt.cookA;
+  h.cookB = opt.cookB === undefined ? 70 : opt.cookB;
+  h.core = opt.core === undefined ? 55 : opt.core;
+  h.fillPut = opt.fillPut === undefined ? 1.0 : opt.fillPut;
+  S.made++;
+  S.shelf.push(G.shelfEntry(h));
+  if (S.made === 1) S.nextIn = G.CUST.firstDelay;
+  return S.shelf[S.shelf.length - 1];
+}
+function fakeDough() {
+  tearToPan();
+  const h = S.h;
+  S.h = null;
+  return h;
+}
+function stockUp(list) {
+  for (const o of list) shelveFake(o);
+}
+function painted() {
+  const ctx = els.cv.getContext();
+  ctx._texts.length = 0;
+  G.draw();
+  return ctx._texts.slice();
+}
+const GOOD = {}, BURNT = { cookA: 70, cookB: 130 }, RAW = { cookA: 10, cookB: 70 },
+      NOFILL = { fillPut: 0 };
+
+{
+  /* --- 그림 넷 --- */
+  const want = ["custWoman", "custMan", "custGrandma", "custKid"];
+  for (const k of want) {
+    ok(typeof G.ASSET_MAP[k] === "string", k + " 가 에셋 목록에 있다", G.ASSET_MAP[k]);
+    const rel = G.ART_DIR + G.ASSET_MAP[k];
+    ok(rel.indexOf("assets/opt/") === 0, k + " 는 프로젝트 기준 상대 경로", rel);
+    ok(fs.existsSync(path.join(ROOT, rel)), k + " webp 파일이 있다", rel);
+    /* 투명한가 — VP8L 이거나 VP8X 의 알파 플래그 */
+    const b = fs.readFileSync(path.join(ROOT, rel));
+    const tag = b.slice(12, 16).toString("ascii");
+    ok(tag === "VP8L" || (tag === "VP8X" && (b[20] & 0x10) !== 0),
+       k + " 가 투명도를 들고 있다", tag);
+  }
+  /* 받은 원본도 그대로 둔다 */
+  for (const f of ["customer-woman", "customer-man", "customer-grandma", "customer-kid"])
+    ok(fs.existsSync(path.join(ROOT, "assets/" + f + ".png")),
+       f + " 원본 PNG 를 지우지 않았다");
+  /* 네 사람이 돌아가며 나온다 */
+  ok(G.WHO.length === 4, "손님은 넷", G.WHO.length);
+  ok(G.WHO.filter(w => w.kid).length === 1, "그중 하나가 꼬마");
+  /* 도형이나 글자로 대신 그리지 않는다 */
+  ok(/fadedCust\(S\.cust\.who\.id\)/.test(SRC) && /g\.drawImage\(im,/.test(SRC),
+     "손님은 받은 그림으로만 그린다 (도형 대체 없음)");
+  ok(/const im = fadedCust\(S\.cust\.who\.id\);\n\s*if \(!im\) return;/.test(SRC),
+     "그림이 없으면 아무도 안 그린다");
+}
+
+{
+  /* --- 서는 자리 --- */
+  freshGame();
+  S.cust = { who: G.WHO[0], want: 2, phase: "ask", t: 0, wait: 0, say: "x", mood: "ask", done: false };
+  const r = G.custRect();
+  ok(r !== null, "손님 자리가 나온다");
+  const top = r.bottom - r.h;
+  ok(top > G.HUD.y + G.HUD.h, "타이머 띠 아래에서 시작한다",
+     Math.round(top) + " > " + (G.HUD.y + G.HUD.h));
+  /* 카운터 너머 — 허리 아래는 철망과 조리대가 가린다 */
+  ok(r.bottom > G.trayRect().y, "허리께가 철망에 걸친다",
+     Math.round(r.bottom) + " > " + Math.round(G.trayRect().y));
+  ok(r.bottom < LAY.pan.y - LAY.pan.ry, "철판 위로는 안 내려온다",
+     Math.round(r.bottom) + " < " + Math.round(LAY.pan.y - LAY.pan.ry));
+  /* 배경 바로 다음, 철망보다 먼저 그린다 */
+  ok(SRC.indexOf("drawCustomer(g);") < SRC.indexOf("drawShelf(g);"),
+     "손님을 철망보다 먼저 그린다 (철망이 앞을 가린다)");
+  /* 꼬마가 더 작다 */
+  S.cust.who = G.WHO.find(w => w.kid);
+  const kid = G.custRect();
+  S.cust.who = G.WHO.find(w => !w.kid);
+  const adult = G.custRect();
+  ok(kid.h < adult.h, "꼬마는 어른보다 작다",
+     Math.round(kid.h) + " < " + Math.round(adult.h));
+  /* 말풍선과 단추가 조리대 위 어느 것도 안 가린다 */
+  const b = G.CUST.bubble, bt = G.CUST.btn;
+  for (const box of [b, bt]) {
+    const x0 = box.x - box.w / 2, x1 = box.x + box.w / 2;
+    const y0 = box.y - box.h / 2, y1 = box.y + box.h / 2;
+    ok(y0 > G.HUD.y + G.HUD.h, "타이머 띠를 안 가린다", Math.round(y0));
+    ok(y1 < G.trayRect().y, "전시대를 안 가린다",
+       Math.round(y1) + " < " + Math.round(G.trayRect().y));
+    for (const k of ["dough", "fill", "pan", "plate"]) {
+      const z = LAY[k];
+      const hit = z.x + z.rx > x0 && z.x - z.rx < x1 && z.y + z.ry > y0 && z.y - z.ry < y1;
+      ok(!hit, "말풍선/단추가 " + k + " 를 안 가린다");
+    }
+    for (const t of G.TOOLS) {
+      const hit = t.home.x + t.hit > x0 && t.home.x - t.hit < x1 &&
+                  t.home.y + t.hit > y0 && t.home.y - t.hit < y1;
+      ok(!hit, "말풍선/단추가 " + t.name + " 자리를 안 가린다");
+    }
+  }
+  S.cust = null;
+}
+
+{
+  /* --- 언제 오나 --- */
+  freshGame();
+  wait(20);
+  ok(S.cust === null, "호떡이 하나도 없으면 손님이 안 온다");
+  shelveFake(GOOD);
+  ok(S.cust === null, "첫 호떡을 올린 그 순간에 바로 오지도 않는다");
+  wait(G.CUST.firstDelay + 0.3);
+  ok(S.cust !== null, "조금 있다가 첫 손님이 온다");
+  ok(S.cust.want >= G.CUST.wantMin && S.cust.want <= G.CUST.wantMax,
+     "1~3개를 달라고 한다", S.cust && S.cust.want);
+  ok(/[0-9]/.test(S.cust.say) && S.cust.say.indexOf("개") >= 0,
+     "수량이 말에 들어 있다", S.cust.say);
+  /* 한 번에 한 명 */
+  const who = S.cust;
+  wait(2);
+  ok(S.cust === who, "손님은 한 번에 한 명뿐이다");
+}
+
+{
+  /* --- 재고가 모자라면 못 판다 --- */
+  freshGame();
+  stockUp([GOOD]);
+  wait(G.CUST.firstDelay + 0.5);
+  S.cust.want = 3;
+  ok(G.canSell() === false, "재고가 모자라면 못 건넨다");
+  ok(G.sellLabel() === "1/3개 준비됨", "얼마나 모았는지 보여 준다", G.sellLabel());
+  const made0 = S.made;
+  G.sellTo();
+  ok(S.sold === 0 && S.shelf.length === 1, "눌러도 아무 일이 없다",
+     S.sold + " / " + S.shelf.length);
+  ok(S.made === made0, "모자란 호떡을 저절로 만들지 않는다", S.made);
+  stockUp([GOOD, GOOD]);
+  ok(G.canSell() === true, "수량이 차면 건넬 수 있다");
+  ok(G.sellLabel() === "3개 건네기", "단추 글이 바뀐다", G.sellLabel());
+}
+
+{
+  /* --- 오래 기다리면 그냥 간다 --- */
+  freshGame();
+  stockUp([GOOD]);
+  wait(G.CUST.firstDelay + 0.5);
+  S.cust.want = 3;
+  wait(G.CUST.waitSec + 0.5);
+  ok(S.cust && S.cust.phase === "say", "기다리다 한마디 하고 돌아선다",
+     S.cust && S.cust.phase);
+  ok(G.SAY.leave.indexOf(S.cust.say) >= 0, "다음에 온다고 한다", S.cust.say);
+  ok(S.upset === 0, "기다리다 간 손님은 불만 손님이 아니다", S.upset);
+  ok(S.happy === 0, "만족 손님도 아니다", S.happy);
+  ok(S.sold === 0 && S.shelf.length === 1, "재고는 그대로다");
+  wait(G.CUST.saySec + G.CUST.outSec + 0.3);
+  ok(S.cust === null, "떠났다");
+}
+
+{
+  /* --- 먼저 만든 것부터 나간다 --- */
+  freshGame();
+  stockUp([GOOD, GOOD, GOOD, GOOD, GOOD]);
+  const ids = S.shelf.map(s => s.id);
+  wait(G.CUST.firstDelay + 0.5);
+  S.cust.want = 2;
+  ok(G.sellTo() === true, "건넸다");
+  ok(S.sold === 2, "판매 수가 오른다", S.sold);
+  ok(S.shelf.length === 3, "재고가 그만큼 준다", S.shelf.length);
+  ok(S.shelf[0].id === ids[2], "앞의 둘이 나갔다 (선입선출)",
+     S.shelf.map(s => s.id).join(","));
+  ok(S.made === 5, "만든 수는 안 줄어든다", S.made);
+  ok(S.made === S.sold + S.shelf.length, "만든 = 판매 + 재고",
+     S.made + " = " + S.sold + " + " + S.shelf.length);
+  /* 남은 것들의 자리가 당겨진다 */
+  ok(Math.abs(S.shelf[0].off - S.shelf[0].dia * 0.5) < 0.01,
+     "남은 것이 맨 앞으로 당겨진다", S.shelf[0].off.toFixed(1));
+  /* 연타 */
+  const sold0 = S.sold, stock0 = S.shelf.length;
+  G.sellTo(); G.sellTo(); G.sellTo();
+  ok(S.sold === sold0 && S.shelf.length === stock0,
+     "연타해도 두 번 나가지 않는다", S.sold + " / " + S.shelf.length);
+}
+
+{
+  /* --- 산 묶음만 보고 말한다 --- */
+  /* 모두 멀쩡 */
+  freshGame();
+  stockUp([GOOD, GOOD, BURNT, RAW]);     /* 뒤의 둘은 안 판다 */
+  wait(G.CUST.firstDelay + 0.5);
+  S.cust.want = 2;
+  G.sellTo();
+  ok(S.cust.mood === "good", "앞의 둘만 샀으니 좋은 말", S.cust.mood);
+  ok(G.SAY.good.indexOf(S.cust.say) >= 0, "긍정 문구다", S.cust.say);
+  ok(S.happy === 1 && S.upset === 0, "만족 손님 하나", S.happy + "/" + S.upset);
+  ok(S.shelf.length === 2, "안 판 불량은 그대로 남아 있다");
+
+  /* 멀쩡한 것 사이에 탄 것 하나 */
+  freshGame();
+  stockUp([GOOD, BURNT, GOOD]);
+  wait(G.CUST.firstDelay + 0.5);
+  S.cust.want = 3;
+  G.sellTo();
+  ok(S.cust.mood === "burnt", "하나만 타도 불만", S.cust.mood);
+  ok(G.SAY.burnt.indexOf(S.cust.say) >= 0, "탄 것에 대한 말", S.cust.say);
+  ok(S.upset === 1 && S.happy === 0, "불만 손님 하나", S.happy + "/" + S.upset);
+
+  /* 덜 익은 것 */
+  freshGame();
+  stockUp([GOOD, RAW]);
+  wait(G.CUST.firstDelay + 0.5);
+  S.cust.want = 2;
+  G.sellTo();
+  ok(S.cust.mood === "raw", "덜 익은 것이 섞이면 그 말", S.cust.mood);
+  ok(G.SAY.raw.indexOf(S.cust.say) >= 0, "덜 익음 문구", S.cust.say);
+
+  /* 속이 없는 것 */
+  freshGame();
+  stockUp([GOOD, NOFILL]);
+  wait(G.CUST.firstDelay + 0.5);
+  S.cust.want = 2;
+  G.sellTo();
+  ok(S.cust.mood === "nofill", "속 없는 것이 섞이면 그 말", S.cust.mood);
+  ok(G.SAY.nofill.indexOf(S.cust.say) >= 0, "속 없음 문구", S.cust.say);
+
+  /* 섞이면 한 문장만, 차례는 늘 같다: 덜 익음 -> 탐 -> 속 없음 */
+  const both = [{ q: { raw: true, burnt: true, nofill: true } }];
+  ok(G.verdictOf(both).mood === "raw", "여러 흠이면 덜 익음이 먼저");
+  ok(G.verdictOf([{ q: { raw: false, burnt: true, nofill: true } }]).mood === "burnt",
+     "그다음이 탐");
+  ok(G.verdictOf([{ q: { raw: false, burnt: false, nofill: true } }]).mood === "nofill",
+     "그다음이 속 없음");
+  ok(G.verdictOf([{ q: { raw: false, burnt: false, nofill: false } }]).mood === "good",
+     "다 멀쩡하면 좋은 말");
+}
+
+{
+  /* --- 안 판 재고는 반응을 바꾸지 않는다 --- */
+  freshGame();
+  stockUp([GOOD]);
+  wait(G.CUST.firstDelay + 0.5);
+  S.cust.want = 1;
+  /* 전시대에 탄 것과 생것을 잔뜩 쌓아 둔다 — 사 가는 것은 앞의 하나뿐 */
+  stockUp([BURNT, BURNT, RAW, NOFILL]);
+  G.sellTo();
+  ok(S.cust.mood === "good", "안 판 불량 때문에 말이 바뀌지 않는다", S.cust.mood);
+  ok(S.happy === 1 && S.upset === 0, "만족으로 센다");
+}
+
+{
+  /* --- 손님이 있어도 조리는 계속된다 --- */
+  freshGame();
+  stockUp([GOOD]);
+  wait(G.CUST.firstDelay + 0.5);
+  ok(S.cust !== null, "손님이 와 있다");
+  const made0 = S.made;
+  oilPan(); tearToPan(); flatten(); sugar(1.0); seal(4);
+  wait(6); flip(); wait(6);
+  ok(S.h !== null, "손님이 말하는 동안에도 반죽을 만질 수 있다");
+  toPlate();
+  ok(S.made === made0 + 1, "제출도 된다", S.made);
+  ok(S.cust !== null, "그 사이 손님은 그대로 서 있다");
+  /* 전체 화면으로 덮지 않는다 */
+  ok(els.endOver.hidden === true && els.startOver.hidden === true,
+     "손님 때문에 다른 화면이 뜨지 않는다");
+}
+
+{
+  /* --- 단추가 조리를 막지 않는다 --- */
+  freshGame();
+  stockUp([GOOD, GOOD]);
+  wait(G.CUST.firstDelay + 0.5);
+  S.cust.want = 1;
+  const b = G.CUST.btn;
+  ok(G.inSellBtn(b.x, b.y) === true, "단추 자리는 단추가 받는다");
+  ok(G.inTray(b.x, b.y) === false, "거기는 전시대가 안 가져간다");
+  ok(G.inSellBtn(LAY.pan.x, LAY.pan.y) === false, "철판 위는 단추가 아니다");
+  ok(G.inSellBtn(LAY.dough.x, LAY.dough.y) === false, "반죽통도 아니다");
+  /* 손님이 없으면 단추도 없다 */
+  S.cust = null;
+  ok(G.sellBtnOn() === false, "손님이 없으면 단추가 안 보인다");
+  ok(G.inSellBtn(b.x, b.y) === false, "그 자리를 눌러도 아무 일 없다");
+  /* 실제 포인터로 눌러 본다 */
+  freshGame();
+  stockUp([GOOD, GOOD]);
+  wait(G.CUST.firstDelay + 0.5);
+  S.cust.want = 2;
+  G.down({ x: b.x, y: b.y });
+  ok(S.grab && S.grab.kind === "sell", "그 자리를 누르면 판매로 간다",
+     S.grab && S.grab.kind);
+  ok(S.sold === 2, "실제로 팔렸다", S.sold);
+  G.move({ x: b.x + 60, y: b.y });
+  release();
+  ok(S.grab === null, "손을 떼면 끝난다");
+  ok(S.sold === 2, "끌어도 더 팔리지 않는다", S.sold);
+}
+
+{
+  /* --- 시간 종료 --- */
+  freshGame();
+  stockUp([GOOD, GOOD, GOOD]);
+  wait(G.CUST.firstDelay + 0.5);
+  S.cust.want = 2;
+  G.sellTo();
+  const sold0 = S.sold, happy0 = S.happy, stock0 = S.shelf.length;
+  ok(S.flyout.length === 2, "건너가는 중이다", S.flyout.length);
+  S.timeLeft = 0.01;
+  wait(0.1);
+  ok(S.over === true, "시간이 끝났다");
+  ok(S.sold === sold0 && S.happy === happy0,
+     "건너가던 중에 끝나도 확정된 거래는 남는다", S.sold + "/" + S.happy);
+  ok(S.shelf.length === stock0, "재고도 어긋나지 않는다", S.shelf.length);
+  ok(S.made === S.sold + S.shelf.length, "만든 = 판매 + 재고",
+     S.made + " = " + S.sold + " + " + S.shelf.length);
+  ok(S.cust === null, "손님은 보낸다");
+  /* 끝난 뒤에는 아무것도 안 일어난다 */
+  const n = S.sold;
+  G.spawnCustomer();
+  ok(G.canSell() === false, "종료 뒤에는 못 판다");
+  S.cust = null;
+  wait(30);
+  ok(S.cust === null, "새 손님도 안 온다");
+  ok(S.sold === n, "판매 수도 안 바뀐다", S.sold);
+  /* 결과 화면에 다섯 가지 */
+  ok(els.eSold.textContent === sold0 + "개", "결과에 판매 수", els.eSold.textContent);
+  ok(els.eLeft.textContent === stock0 + "개", "결과에 남은 수", els.eLeft.textContent);
+  ok(els.eHappy.textContent === happy0 + "명", "결과에 만족 손님", els.eHappy.textContent);
+  ok(els.eUpset.textContent === S.upset + "명", "결과에 불만 손님", els.eUpset.textContent);
+}
+
+{
+  /* --- 기다리던 손님은 불만이 아니다 (종료 시) --- */
+  freshGame();
+  stockUp([GOOD]);
+  wait(G.CUST.firstDelay + 0.5);
+  S.cust.want = 3;
+  ok(G.canSell() === false, "못 사고 기다리는 중");
+  S.timeLeft = 0.01;
+  wait(0.1);
+  ok(S.upset === 0, "못 사고 끝난 손님을 불만으로 세지 않는다", S.upset);
+  ok(S.happy === 0, "만족으로도 안 센다", S.happy);
+}
+
+{
+  /* --- 다시 도전 --- */
+  freshGame();
+  stockUp([GOOD, GOOD, BURNT]);
+  wait(G.CUST.firstDelay + 0.5);
+  S.cust.want = 2;
+  G.sellTo();
+  S.timeLeft = 0.01; wait(0.1);
+  const oldShelf = S.shelf, oldFly = S.flyout;
+  G.restart();
+  ok(S.made === 0 && S.sold === 0, "만든 수와 판 수가 0", S.made + "/" + S.sold);
+  ok(S.happy === 0 && S.upset === 0, "손님 기록도 0");
+  ok(S.shelf.length === 0, "재고도 비었다");
+  ok(S.flyout.length === 0, "건너가던 것도 없다");
+  ok(S.cust === null && S.nextIn === 0, "손님도 대기시간도 처음으로");
+  ok(S.seq === 0, "호떡 번호도 처음부터");
+  ok(oldShelf === S.shelf && oldFly === S.flyout,
+     "배열을 갈아 끼우지 않고 비운다 (지난 판 참조가 새 판에 못 쓴다)");
+  /* 지난 판 손님이 들고 있던 것으로 새 판을 건드릴 수 없다 */
+  G.beginPlay();
+  stockUp([GOOD]);
+  wait(G.CUST.firstDelay + 0.5);
+  ok(S.made === 1 && S.sold === 0, "새 판은 새로 센다", S.made + "/" + S.sold);
+}
+
+{
+  /* --- 품질은 올린 뒤에 안 바뀐다 --- */
+  freshGame();
+  S.heat = 0.7;
+  oilPan(); tearToPan(); flatten(); sugar(1.0); seal(4);
+  wait(5); flip(); wait(5);
+  toPlate();
+  const kept = S.shelf[0];
+  const q0 = JSON.stringify(kept.q);
+  /* 다음 반죽을 만들어 실컷 태운다 */
+  oilPan(); tearToPan(); flatten(); sugar(1.0); seal(4);
+  wait(16); flip(); wait(16);
+  ok(JSON.stringify(kept.q) === q0, "다음 반죽을 태워도 올린 호떡의 품질은 그대로",
+     JSON.stringify(kept.q));
+  ok(kept.id === 1, "고유 번호가 있다", kept.id);
+  ok(S.shelf[0].id < (S.shelf[1] ? S.shelf[1].id : 99), "번호가 만든 차례다");
+  for (const k of ["cookA", "cookB", "core", "fillPut"])
+    ok(typeof kept.q[k] === "number", "품질에 " + k + " 가 적혀 있다", kept.q[k]);
+}
+
+{
+  /* --- 그려도 안 터진다 --- */
+  freshGame();
+  stockUp([GOOD, GOOD]);
+  wait(G.CUST.firstDelay + 0.5);
+  ok(G.paint() === true, "손님이 서 있어도 그릴 수 있다", G.paint());
+  S.cust.want = 2;
+  G.sellTo();
+  ok(G.paint() === true, "건네는 중에도 그릴 수 있다", G.paint());
+  wait(G.CUST.giveSec + 0.1);
+  ok(G.paint() === true, "한줄평 중에도 그릴 수 있다", G.paint());
+  wait(G.CUST.saySec + G.CUST.outSec + 0.3);
+  ok(G.paint() === true, "손님이 간 뒤에도 그릴 수 있다", G.paint());
+  /* 말풍선 글이 실제로 그려진다 */
+  freshGame();
+  stockUp([GOOD]);
+  wait(G.CUST.firstDelay + 0.5);
+  const txt = painted();
+  ok(txt.indexOf(S.cust.say) >= 0, "말풍선 글이 화면에 나온다", S.cust.say);
+  ok(txt.indexOf(G.sellLabel()) >= 0, "단추 글도 나온다", G.sellLabel());
 }
 
 console.log("\n" + (fail ? "XX  " + fail + "개 실패 (" + pass + "개 통과)"
