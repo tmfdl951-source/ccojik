@@ -2350,13 +2350,23 @@
   }
 
   /* 집어 든 도구가 있던 자리는 비어 보여야 한다 */
+  /* 집어 든 도구가 있던 자리는 비어 보여야 한다. 다만 어둡게만 두면
+     "여기 뭔가 있었다" 로만 읽히고 "여기 누르면 내려놓는다" 로는
+     안 읽힌다 — 그래서 은은한 윤곽을 한 겹 올린다. */
   function drawEmptySlots(g) {
     if (!S.active) return;
     const t = TOOL[S.active];
     if (!t) return;
-    ell(g, t.home.x, t.home.y, t.hit * 0.82, t.hit * 0.66);
+    const rx = t.hit * 0.82, ry = t.hit * 0.66;
+    ell(g, t.home.x, t.home.y, rx, ry);
     g.fillStyle = "rgba(14,11,9,.62)";
     g.fill();
+    g.save();
+    g.setLineDash([14, 11]);
+    g.globalAlpha = 0.34 + Math.sin(clock * 2.2) * 0.1;
+    ell(g, t.home.x, t.home.y, rx * 0.92, ry * 0.92);
+    stroke(g, "rgba(247,200,67,.9)", 3);
+    g.restore();
   }
 
   /* 철판 위에서만 일어나는 것들 — 기름막, 눌어붙은 자국, 열기 */
@@ -3452,15 +3462,14 @@
     if (g.kind === "tool") {
       /* 집게에 들려 있던 호떡을 놓는다. 접시면 진열, 철판이면 거기에,
          그 밖이면 집기 전 자리로 — 어느 쪽이든 사라지지 않는다.
-         놓고 나면 집게는 제자리로 돌아간다. */
+
+         비우는 것은 '물고 있던 호떡' 뿐이고 '집게를 들었다' 는 그대로
+         간다. 세 개를 옮기려고 집게를 세 번 집는 것은 조작이 아니라
+         시중이다. 손을 뗐다는 것만으로 내려놓지도 않는다 —
+         내려놓기는 보관 자리를 눌렀을 때만이다. */
       if (g.tool === "tong") {
-        if (g.carry) {
-          placeDown(g.carry, tipOf("tong", p));
-          dropTool();
-          S.grab = null;
-          return;
-        }
-        S.grab = { kind: "tool", tool: "tong" };
+        if (g.carry) placeDown(g.carry, tipOf("tong", p));
+        S.grab = { kind: "tool", tool: "tong" };   /* carry 만 비운다 */
         return;
       }
       /* 한 번 문지르고 나면 기름병도 제자리로 */

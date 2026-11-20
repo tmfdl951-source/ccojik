@@ -994,10 +994,111 @@ function cooked(sec) {
   ok(S.made === made0 + 1, "놓아야 한 개", S.made);
   ok(S.shelf.length === stock0 + 1, "전시대에도 올라간다", S.shelf.length);
   ok(S.pan.indexOf(h) < 0, "철판 목록에서도 빠진다");
-  ok(S.active === null, "놓고 나면 집게는 제자리로", S.active);
+  ok(S.active === "tong", "놓아도 집게는 손에 남는다", S.active);
+  ok(!(S.grab && S.grab.carry), "물고 있던 호떡만 비워진다");
   /* 같은 호떡을 두 번 세지 않는다 */
   G.submit(h);
   ok(S.made === made0 + 1, "다시 제출해도 안 오른다", S.made);
+}
+
+{
+  /* --- 한 번 집고 세 개를 연달아 옮긴다 --- */
+  reset();
+  S.heat = 0.7;
+  oilPan();
+  const ty = -G.TIP.tong.y;
+  const hs = [];
+  for (let i = 0; i < 3; i++) {
+    tearToPan(); sugar(); seal(); pressN(1, 0.4);
+    hs.push(S.h);
+  }
+  wait(3);
+  pick("tong");
+  ok(S.active === "tong", "집게를 한 번 집었다");
+  const picks = [];
+  for (let i = 0; i < 3; i++) {
+    const h2 = S.pan[0];
+    G.down({ x: h2.x, y: h2.y + ty });
+    picks.push(S.grab && S.grab.carry === h2);
+    drag([{ x: LAY.plate.x, y: LAY.plate.y + ty }], 0.15);
+    release();
+    ok(S.active === "tong", (i + 1) + "번째 뒤에도 집게는 그대로", S.active);
+  }
+  ok(picks.every(Boolean), "세 번 다 집게 끝에 닿은 것을 집었다",
+     JSON.stringify(picks));
+  ok(S.made === 3, "세 개가 다 세어졌다", S.made);
+  ok(S.shelf.length === 3, "세 개가 다 진열됐다", S.shelf.length);
+  ok(S.pan.length === 0, "철판이 비었다", S.pan.length);
+  ok(new Set(S.shelf.map(e => e.id)).size === 3, "서로 다른 호떡이다");
+
+  /* 집게를 든 채로는 반죽통이 받지 않는다 (한 손으로 둘 다 못 한다) */
+  const n0 = S.pan.length;
+  tearToPan();
+  ok(S.pan.length === n0, "집게를 들고는 반죽을 못 올린다", S.pan.length);
+  /* 내려놓고 만들면 된다 */
+  pick("tong");
+  tearToPan();
+  const fresh = S.h;
+  ok(fresh !== null, "내려놓으면 올라간다");
+  ok(fresh.held === false, "새 반죽을 저절로 집지 않는다");
+  /* 다시 집어 옮긴다 */
+  pick("tong");
+  G.down({ x: fresh.x, y: fresh.y + ty });
+  drag([{ x: LAY.plate.x, y: LAY.plate.y + ty }], 0.15);
+  release();
+  ok(S.made === 4, "하나 더 옮겼다", S.made);
+  ok(!(S.grab && S.grab.carry), "손을 뗀 뒤에는 아무것도 안 물고 있다");
+  ok(S.active === "tong", "그래도 집게는 손에 남는다", S.active);
+}
+
+{
+  /* --- 내려놓기와 도구 전환 --- */
+  reset();
+  S.heat = 0.7;
+  oilPan();
+  tearToPan();
+  const h = S.h;
+  const tongHome = G.TOOLS.filter(t => t.id === "tong")[0].home;
+  pick("tong");
+  ok(S.active === "tong", "집게를 들었다");
+  /* 빈 집게로 철판을 눌렀다 떼도 안 내려놓는다 */
+  G.down({ x: LAY.pan.x + 300, y: LAY.pan.y + 190 });
+  release();
+  ok(S.active === "tong", "빈 데를 눌러도 집게는 그대로", S.active);
+  /* 보관 자리를 누르면 내려놓는다 */
+  G.down({ x: tongHome.x, y: tongHome.y });
+  release();
+  ok(S.active === null, "보관 자리를 누르면 내려놓는다", S.active);
+  ok(S.toolPos.tong.x === tongHome.x && S.toolPos.tong.y === tongHome.y,
+     "제자리로 돌아간다");
+  /* 들고 있을 때 보관 자리를 알아볼 표시가 있다 */
+  pick("tong");
+  ok(/function drawEmptySlots/.test(SRC) && /setLineDash/.test(SRC),
+     "들고 있는 동안 보관 자리에 표시를 남긴다");
+  ok(G.paint() === true, "그 표시를 그려도 안 터진다", G.paint());
+  /* 다른 도구를 고르면 안전하게 바뀐다 */
+  pick("press");
+  ok(S.active === "press", "다른 도구로 바뀐다", S.active);
+  ok(S.toolPos.tong.x === tongHome.x && S.toolPos.tong.y === tongHome.y,
+     "집게는 제자리에 놓인다");
+  ok(S.pan.indexOf(h) >= 0 && h.held === false,
+     "도구를 바꿨다고 호떡이 사라지지 않는다");
+  pick("press");
+
+  /* 집게를 든 채로도 다른 호떡은 계속 익는다 */
+  pick("tong");
+  const c0 = G.cookDown(h);
+  wait(2);
+  ok(G.cookDown(h) > c0, "집게를 들고 있어도 철판 위 호떡은 익는다",
+     c0.toFixed(0) + " -> " + G.cookDown(h).toFixed(0));
+
+  /* 시간이 끝나면 집게도 운반도 정리된다 */
+  S.timeLeft = 0.01;
+  wait(0.1);
+  ok(S.active === null, "종료하면 집게를 놓는다", S.active);
+  ok(S.pan.every(x => !x.held), "들고 있던 것도 내려놓는다");
+  G.restart();
+  ok(S.active === null && S.grab === null, "다시 도전하면 도구도 운반도 없다");
 }
 
 {
@@ -2766,8 +2867,14 @@ console.log("\n--- 29. 손맛 ---");
      여기서 잡으려는 것은 "검은 원반이 될 만큼 몰리는가" 이지 한두 개의
      흔들림이 아니다. 몇 배로 뿜기 시작하면 이 선에 걸린다. */
   ok(smoke.length <= 20, "연기가 한꺼번에 몰리지 않는다", smoke.length + "개");
-  /* 좁은 자리에 쌓이면 검은 원반이 되어 호떡을 가린다 */
-  if (smoke.length > 2) {
+  /* 좁은 자리에 쌓이면 검은 원반이 되어 호떡을 가린다.
+
+     연기는 호떡 중심에서 ±0.85R 에 고르게 난다 (너비 1.7R). 표본이
+     적으면 그 너비에서도 우연히 좁게 몰린다 — 세 개만 보고 0.5R 를
+     요구하면 스무 번에 네 번쯤 애먼 실패가 난다. 여덟 개를 모아
+     보면 천 번에 한 번꼴로 떨어진다. 한 점에서 뿜는 쪽으로 망가지면
+     표본이 몇이든 몇십 px 에 머물러 그대로 걸린다. */
+  if (smoke.length >= 8) {
     let minX = 1e9, maxX = -1e9;
     for (const p of smoke) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); }
     ok(maxX - minX > G.avgR(S.h) * 0.5, "넓게 퍼져 올라간다",
@@ -3920,8 +4027,10 @@ const GOOD = {}, BURNT = { cookA: 70, cookB: 130 }, RAW = { cookA: 10, cookB: 70
   ok(S.cust !== null, "조금 있다가 첫 손님이 온다");
   ok(S.cust.want >= G.CUST.wantMin && S.cust.want <= G.CUST.wantMax,
      "1~3개를 달라고 한다", S.cust && S.cust.want);
-  ok(/[0-9]/.test(S.cust.say) && S.cust.say.indexOf("개") >= 0,
-     "수량이 말에 들어 있다", S.cust.say);
+  /* 한 개짜리 문구 하나는 숫자 없이 "하나만 주세요!" 라고 한다 —
+     수를 말하는 방식이 다를 뿐 수량은 들어 있다. */
+  ok(/[0-9]/.test(S.cust.say) || (S.cust.want === 1 && S.cust.say.indexOf("하나") >= 0),
+     "수량이 말에 들어 있다", S.cust.want + " / " + S.cust.say);
   /* 한 번에 한 명 */
   const who = S.cust;
   wait(2);
