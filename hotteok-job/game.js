@@ -125,17 +125,16 @@
 
   /* 도구는 사진 속 제자리에서 집어 든다. 제자리에 있는 동안은 사진이
      보여 주므로 따로 그리지 않고, 집어 들었을 때만 그린다. */
+  /* 집어서 쓰는 도구는 둘뿐이다. 기름병은 누르면 바로 둘러지고,
+     숟가락과 집게는 통 클릭과 접시 드래그로 대신해 없앴다.
+     사진 속 숟가락과 집게는 그대로 있지만 집히지 않는다. */
   const TOOLS = [
-    { id: "oil",   name: "식용유",     home: { x: 93,  y: 843 },  hit: 115,
-      hint: "철판 위에 문질러 기름을 두르세요" },
-    { id: "spoon", name: "설탕 숟가락", home: { x: 975, y: 520 },  hit: 110,
-      hint: "설탕통 안을 눌러 담고 반죽 가운데에 톡" },
-    { id: "press", name: "누르개",      home: { x: 969, y: 1027 }, hit: 118,
-      hint: "철판 위 반죽을 꾹 눌러 펴세요" },
-    { id: "flip",  name: "뒤집개",      home: { x: 150, y: 1420 }, hit: 125,
-      hint: "호떡 아래로 밀어 넣고 휙" },
-    { id: "tong",  name: "집게",        home: { x: 967, y: 1587 }, hit: 120,
-      hint: "호떡을 집어 접시로" },
+    { id: "oil",   name: "식용유",  home: { x: 93,  y: 843 },  hit: 115,
+      hint: "눌러서 철판에 기름을 두르세요" },
+    { id: "press", name: "누르개",  home: { x: 969, y: 1027 }, hit: 118,
+      hint: "호떡을 잠깐 눌러 펴세요" },
+    { id: "flip",  name: "뒤집개",  home: { x: 150, y: 1420 }, hit: 125,
+      hint: "호떡을 눌러 뒤집으세요" },
   ];
   const TOOL = {};
   for (const t of TOOLS) TOOL[t.id] = t;
@@ -146,10 +145,8 @@
     /* 손가락이 투입점을 가리면 어디에 들어갈지를 볼 수가 없다.
        숟가락 끝을 손끝보다 한참 위에 두어, 조준 고리가 손가락
        바깥에서 보이게 한다 (390px 화면에서 약 33px 위). */
-    spoon: { x: 0, y: -92 },
     press: { x: 0, y: 0 },      /* 누르개는 바닥 전체가 끝 */
     flip:  { x: 0, y: -90 },    /* 날 끝 */
-    tong:  { x: 0, y: -76 },
   };
 
   /* ============================================================
@@ -160,17 +157,17 @@
        지름 26cm 쯤으로 보고 맞췄다 — 잘 편 호떡이 12cm 언저리가 된다. */
     pxPerCm: 24.5,
     tearDist: 148,            /* 반죽통에서 이만큼 끌면 떨어진다 */
-    /* 강불에서 1초에 오르는 익힘. 기름 판정이 면 평균으로 바뀌면서
-       기름 보정(oilMul)이 덜 깎이게 되어, 같은 시간에 더 익던 것을 되돌렸다. */
-    cookRate: 16,
+    /* 강불에서 1초에 오르는 익힘.
+       90초에 여러 개를 만들어 팔려면 한 면이 3~4초에 노릇해야 한다.
+       기본 불(0.7)·기본 두께에서 1초에 약 19 가 올라 한 면 노릇(60)이
+       3.2초, 타는 선(108)이 5.7초다 — 뒤집거나 꺼낼 틈이 2.5초 남는다.
+       타는 속도를 같이 올리지 않으려고 이 여유를 확인하며 맞췄다. */
+    cookRate: 34,
     panLag: 2.6,              /* 철판이 불을 따라가는 느림 */
     /* 이만큼 발라야 안 들러붙는다. 중심 한 점이 아니라 닿는 면 전체의
        평균으로 재기 때문에, 한 점만 보던 때(0.26)보다 낮게 잡는다. */
     oilGood: 0.18,
     oilMax: 140,              /* 기름 자국 개수 상한 */
-    hotToTouch: 34,           /* 이보다 익으면 손으로 못 집는다 */
-    flickSpeed: 1350,         /* 뒤집기로 보는 속도 (가상 px/s) */
-    insertOK: 0.7,            /* 이만큼 넣고 휙 해야 깔끔하게 뒤집힌다 */
     partMax: 240,
     /* 봉합 그림이 갈리는 자리. 이 아래로는 아직 오므리지도 않은 것으로 본다. */
     sealTight: 0.7,
@@ -184,6 +181,24 @@
 
   /* 한 판의 길이. 여기 한 줄만 바꾸면 된다. */
   const MODE = { timeLimit: 90, warnAt: 10 };
+
+  /* --- 간소화한 제작 ---------------------------------------------
+     손으로 떼고 펴고 오므리던 과정을 통 클릭 한 번씩으로 줄였다.
+     줄인 것은 '조작 수' 이지 '결과' 가 아니다 — 생반죽에서 시작하고,
+     덜 굽거나 태우거나 속을 빼먹는 일은 그대로 일어난다. */
+  const PREP = {
+    maxOnPan: 3,           /* 철판에 동시에 올릴 수 있는 수 */
+    amount: 0.85,          /* 반죽통 한 번에 나오는 기본 양 */
+    spread: 0.5,           /* 나올 때 두께 — 이미 적당히 펴진 상태 */
+    fillDose: 0.62,        /* 속재료통 한 번에 들어가는 양 */
+    sealSec: 0.3,          /* 자동 봉합 연출 길이 */
+    dragMin: 26,           /* 이만큼 끌어야 '옮기기' — 그 아래는 클릭 */
+    oilDose: 0.18,         /* 기름병 한 번에 두르는 양 — 한 번으로 들러붙는 문턱(oilGood 0.18)을 넘는다 */
+    oilSec: 0.5,           /* 기름 두르는 연출 길이 */
+    /* 철판 위의 세 자리. 서로 안 겹치게 재서 넣었다 (철판은
+       x 195~871, y 786~1242 의 타원이다). */
+    slots: [{ x: 356, y: 1072 }, { x: 533, y: 906 }, { x: 710, y: 1072 }],
+  };
 
   /* --- 호떡의 흠 ------------------------------------------------
      진열을 막는 문턱이 아니다. 못 만든 호떡도 전시대에 올라가고
@@ -245,10 +260,6 @@
 
     press:     "hotteok_press.webp",
     spatula:   "spatula.webp",
-    tongsOpen: "tongs-open.webp",
-    tongsShut: "tongs-closed.webp",
-    spoonEmpty:"spoon-empty.webp",
-    spoonFull: "spoon-filled.webp",
     oilBottle: "oil_bottle.webp",
 
     doughPiece:"dough_piece.webp",
@@ -577,15 +588,20 @@
 
   /* 세상 */
   const S = {
-    h: null,                        /* 지금 만들고 있는 호떡 (하나) */
-    heat: 0.5,                      /* 불 0 ~ 1 */
+    /* 철판 위의 호떡들. 각자 속·두께·익힘·윗면·점착·손상을 따로
+       들고 있는 독립된 객체다 (최대 PREP.maxOnPan 개).
+       h 는 그중 '지금 고른 것' 을 가리키는 바로가기일 뿐이고,
+       언제나 pan 안의 하나이거나 null 이다. */
+    pan: [],
+    h: null,
+    heat: 0.7,                      /* 불 0 ~ 1 */
     panTemp: 0.12,                  /* 철판 온도 — 불을 늦게 따라온다 */
+    oilFx: 0,                       /* 기름 두르는 연출이 남은 시간 */
     oils: [],                       /* 철판 기름 자국 */
     mess: [],                       /* 흘린 설탕 / 샌 시럽 / 붙은 자국 */
     parts: [],                      /* 연기 거품 가루 */
     active: null,                   /* 들고 있는 도구 */
     toolPos: {},                    /* 도구가 지금 놓인 자리 */
-    spoonLoad: 0,                   /* 숟가락에 담긴 설탕 */
     grab: null,                     /* 진행 중인 조작 */
     hint: "",                       /* 짧은 힌트 한 줄 */
     hintT: 0,
@@ -633,9 +649,11 @@
      남은 시간, 개수, 반죽, 철판, 기름, 도구, 종료 상태가 모두 여기서
      돌아간다. */
   function resetWorld() {
-    S.h = null; S.heat = 0.5; S.panTemp = 0.12;
+    S.pan.length = 0; S.h = null;
+    S.heat = 0.7; S.panTemp = 0.12;
     S.oils.length = 0; S.mess.length = 0; S.parts.length = 0;
-    S.active = null; S.spoonLoad = 0; S.grab = null;
+    S.oilFx = 0;
+    S.active = null; S.grab = null;
     S.hint = ""; S.hintT = 0;
     S.timeLeft = MODE.timeLimit; S.over = false;
     S.made = 0; S.sold = 0; S.happy = 0; S.upset = 0; S.seq = 0;
@@ -915,8 +933,8 @@
   /* ============================================================
      굽기 — 철판 위에 있으면 아래쪽 면이 익는다
      ============================================================ */
+  /* 철판 전체 — 불, 기름, 흘린 자국. 호떡이 몇 개든 한 번만 돈다. */
   function stepCook(dt) {
-    const h = S.h;
     /* 철판은 불을 천천히 따라간다 */
     S.panTemp += (S.heat - S.panTemp) * clamp(dt / CFG.panLag, 0, 1);
     /* 뜨거우면 기름이 마른다 */
@@ -934,7 +952,15 @@
       if (S.panRing.t <= 0) S.panRing = null;
     }
 
-    if (!h) return;
+    if (S.oilFx > 0) S.oilFx = Math.max(0, S.oilFx - dt);
+
+    /* 철판 위의 호떡들을 하나씩. 서로의 상태를 보지 않는다 —
+       하나를 꺼내도 나머지는 그대로 익는다. */
+    for (let i = 0; i < S.pan.length; i++) stepOne(S.pan[i], dt);
+  }
+
+  function stepOne(h, dt) {
+    stepSeal(h, dt);
     /* 눈으로만 쓰는 신호들은 전부 여기서 꺼진다 */
     h.sealFlash = Math.max(0, h.sealFlash - dt * 2.4);
     h.pressRing = Math.max(0, h.pressRing - dt * 3);
@@ -968,7 +994,14 @@
     /* 두꺼우면 겉도 조금 더디다 — 데울 살이 많으니까 */
     const thickMul = lerp(1, 0.62, norm01(h.thickness, 0.3, 1.45));
     /* 철판 어디에 놓았는지 — 구석은 덜 뜨겁다 */
-    const d = dt * CFG.cookRate * S.panTemp * oilMul * thickMul * con.heat;
+    /* 노릇해진 뒤부터는 천천히 탄다. 겉이 익는 속도만 올리고 타는
+       속도까지 같이 올리면, 세 개를 동시에 굽는 동안 손쓸 틈이 없다.
+       겉면의 물기가 날아간 뒤로는 색이 더디 가는 것이기도 하다.
+       그래서 노릇(60)까지는 3초대, 거기서 타는 선(108)까지는 다시
+       3초 넘게 걸린다 — 뒤집거나 꺼낼 틈이 생긴다. */
+    const done = cookDown(h);
+    const slow = done > 60 ? lerp(1, 0.42, clamp((done - 60) / 50, 0, 1)) : 1;
+    const d = dt * CFG.cookRate * S.panTemp * oilMul * thickMul * con.heat * slow;
     addCookDown(h, d);
     addCookUp(h, d * 0.1);            /* 여열 */
     /* 면별 접촉 시간 — 언제 뒤집었는지가 여기 남는다 */
@@ -979,7 +1012,7 @@
     const coreMul = lerp(1, 0.34, norm01(h.thickness, 0.3, 1.45));
     const wet = lerp(1, 0.78, clamp(fillRatio(h), 0, 1.2) / 1.2);
     const surf = (h.cookA + h.cookB) * 0.5;
-    h.core += clamp((surf - h.core) * dt * 0.5 * coreMul * wet, 0, 99);
+    h.core += clamp((surf - h.core) * dt * 0.85 * coreMul * wet, 0, 99);
 
     /* --- 속이 익는 것을 밖에서 읽는 길 ---------------------------
        단면은 접시에 담기 전까지 볼 수 없다. 그래서 속이 익을수록
@@ -1145,12 +1178,13 @@
      움직여도 타이머가 풀려서, 잘하고 있는 사람은 아무 말도 안 듣는다. */
   const STUCK_SEC = 8;
   function progressTag() {
-    const h = S.h;
-    if (!h) return "none";
-    return [h.onPan ? 1 : 0, h.held ? 1 : 0,
-            Math.round(h.thickness * 6), Math.round(h.fillPut * 4),
-            Math.round(h.sealed * 4), Math.round(cookDown(h) / 12),
-            h.flips, Math.round(S.heat * 5)].join(",");
+    if (!S.pan.length) return "none:" + S.made;
+    /* 철판 위의 전부를 본다 — 하나가 멈춰 있어도 다른 하나를
+       만지고 있으면 막힌 것이 아니다. */
+    return S.pan.map(h => [Math.round(h.thickness * 6),
+                           Math.round(h.fillPut * 4),
+                           Math.round(cookDown(h) / 12), h.flips].join(","))
+      .join("|") + ";" + Math.round(S.heat * 5) + ";" + S.made;
   }
   function stepGuide(dt) {
     if (S.over || !S.running) return;
@@ -1165,152 +1199,10 @@
 
   /* --- 반죽 떼기 ------------------------------------------------
      반죽통을 눌러서 끌어당긴다. 끌수록 늘어나고, 오래 잡고 있을수록
-     덩어리가 커진다. 일정 거리를 넘으면 뚝 떨어진다. */
-  function tearStart(p) {
-    S.grab = { kind: "tear", t: 0, x: p.x, y: p.y, amount: 0.5 };
-    say("끌어서 떼어내세요", "tear");
-  }
-  function tearMove(p, dt) {
-    const g = S.grab, b = LAY.dough;
-    g.x = p.x; g.y = p.y; g.t += dt;
-    const d = Math.hypot(p.x - b.x, p.y - b.y);
-    /* 오래 잡고 있을수록, 문턱을 넘겨 더 끌수록 큰 덩어리 */
-    const br = (b.rx + b.ry) / 2;
-    g.amount = clamp(0.45 + g.t * 0.5 + Math.max(0, d - br - CFG.tearDist) / 320, 0.45, 1.6);
-    if (d > br + CFG.tearDist) {
-      const h = newHotteok(g.amount, p.x, p.y);
-      h.held = true; h.lift = 1;
-      S.h = h;
-      S.grab = { kind: "carry" };
-      SFX.tear(); buzz(18);
-      learn("tear");
-      spawn("crumb", p.x, p.y, 5, { sp: 60, r: 5, col: "#E8D5AC", life: 0.5 });
-      S.started = true;
-    }
-  }
 
-  /* --- 손으로 펼치기 / 오므리기 -------------------------------- */
-  function spreadAt(h, p, px, py) {
-    const dx = p.x - px, dy = p.y - py;
-    const len = Math.hypot(dx, dy);
-    if (len < 1.2) return;
-    const ang = Math.atan2(p.y - h.y, p.x - h.x);
-    const t0 = h.thickness;
-    h.thickness = Math.max(0.2, h.thickness - len * 0.00085 - 0.0004);
-    /* 민 방향으로 늘어난 자국을 잠깐 남긴다. 숫자를 띄우는 대신
-       "지금 이쪽으로 밀렸다" 를 손이 떠난 자리에 보여 준다. */
-    h.push = { a: Math.atan2(dy, dx), k: clamp(len / 26, 0.25, 1), t: 1 };
-    if (t0 > FLAT_ENOUGH && h.thickness <= FLAT_ENOUGH) learn("spread");
-    /* 부피를 지킨다 — 얇아진 만큼 넓어진다 */
-    const grow = Math.sqrt(t0 / Math.max(0.2, h.thickness));
-    /* 누른 방향으로 더 넓어진다 */
-    for (let i = 0; i < NA; i++) {
-      const a = (i / NA) * TAU;
-      let dd = Math.abs(((a - ang + Math.PI * 3) % TAU) - Math.PI);
-      const w = 0.15 + 1.6 * Math.max(0, 1 - dd / 1.5);
-      h.rad[i] *= 1 + (grow - 1) * w;
-    }
-    recalcDeform(h);
-    if (Math.random() < 0.25) spawn("crumb", p.x, p.y, 1, { sp: 24, r: 3, col: "#EADCBB", life: 0.4 });
-  }
 
-  function sealAt(h, p, px, py) {
-    const d0 = Math.hypot(px - h.x, py - h.y);
-    const d1 = Math.hypot(p.x - h.x, p.y - h.y);
-    const inward = d0 - d1;
-    if (inward <= 0.6) return;
-    const r = avgR(h);
-    const add = clamp(inward / r, 0, 0.35) * 0.5;
-    const was = h.sealed;
-    const ang = Math.atan2(py - h.y, px - h.x);
-    /* 어느 쪽을 당겼는지 센다 — 한쪽만 백 번 당겨도 안 닫힌다 */
-    const q = (Math.round((ang / TAU) * 4) + 4) % 4;
-    h.sealDirs[q] = Math.min(1, h.sealDirs[q] + add * 2);
-    let dirs = 0;
-    for (const d of h.sealDirs) if (d > 0.3) dirs++;
-    /* 속이 한쪽으로 쏠려 있으면 아무리 당겨도 끝까지 안 닫힌다 —
-       가장자리에 부은 설탕이 입구에 끼어 있는 셈이다. */
-    const cap = 0.25 * dirs * (1 - clamp(h.fillOff - 0.3, 0, 0.5) * 0.5);
-    h.sealed = clamp(Math.min(h.sealed + add, cap), 0, 1);
-    /* 가장 덜 오므린 쪽 — 결과에서 어느 쪽을 더 모으라고 말하려면
-       숫자가 아니라 방향이 있어야 한다 */
-    let wq = 0;
-    for (let i = 1; i < 4; i++) if (h.sealDirs[i] < h.sealDirs[wq]) wq = i;
-    h.weakDir = wq;
-    h.sealMark.push({ a: ang, s: add });
-    if (h.sealMark.length > 40) h.sealMark.shift();
-    /* 오므리면 조금 좁아지고 두꺼워진다 */
-    for (let i = 0; i < NA; i++) {
-      const a = (i / NA) * TAU;
-      let dd = Math.abs(((a - ang + Math.PI * 3) % TAU) - Math.PI);
-      if (dd < 0.9) h.rad[i] *= 1 - add * 0.5 * (1 - dd / 0.9);
-    }
-    /* 오므리면 가장자리가 가운데로 모여 조금 두꺼워진다. 다만 '얼마로
-       만든다' 가 아니라 '조금 더한다' 여야 한다. 한 값(1.05)으로 모으면
-       납작하게 편 반죽과 안 편 반죽이 봉합을 거치는 순간 같아져서,
-       플레이어가 편 만큼이 지워진다. 천장은 속을 넣을 때와 같은 1.7. */
-    h.thickness = Math.min(1.7, h.thickness + add * 0.25);
-    recalcDeform(h);
-    /* 닫힌 순간은 분명해야 한다 — 한 번만, 짧게. 그 뒤로는 아무리
-       더 당겨도 이 신호가 다시 나오지 않는다. */
-    if (was < 0.75 && h.sealed >= 0.75) {
-      SFX.seal(); buzz(14);
-      h.sealFlash = 1;
-      learn("seal");
-      toast("잘 오므려졌다");
-    } else if (Math.random() < 0.3) SFX.seal();
-  }
 
-  /* --- 들고 옮기기 --------------------------------------------- */
-  function canHandLift(h) { return Math.max(h.cookA, h.cookB) < CFG.hotToTouch; }
 
-  function placeDown(p) {
-    const h = S.h;
-    if (!h) return;
-    h.held = false; h.lift = 0;
-    const onPan = inPan(p.x, p.y, 1.06);
-    const onPlate = inZone(LAY.plate, p.x, p.y, 1.1);
-    if (onPlate) { submit(); return; }
-    if (onPan) {
-      const was = h.onPan;
-      h.onPan = true;
-      /* 가장자리에 걸치면 철판 안으로 당겨 앉힌다 */
-      clampToPan(h);
-      h.wobble = 1;
-      SFX.plop();
-      /* --- 철판에 닿는 순간 ---------------------------------------
-         준비가 끝나고 조리가 시작되는 지점이다. 여기만큼은 분명해야
-         한다 — 치익 소리와 함께 닿은 자리에서 김이 퍼져 나간다. */
-      if (!was) {
-        h.hiss = 1;
-        h.panOil0 = contactOil(h).avg;
-        S.panRing = { x: h.x, y: h.y, r: avgR(h) * 0.7, t: 1 };
-        learn("pan");
-        if (S.panTemp > 0.18) {
-          SFX.oil();
-          spawn("bubble", h.x, h.y, 14,
-            { sp: 70, r: 7, life: 0.6, col: "rgba(255,255,255,.8)" });
-          spawn("steam", h.x, h.y - 8, 3,
-            { sp: 14, rise: 60, r: 14, life: 1.1, col: "rgba(215,205,190,.3)" });
-        } else {
-          /* 불이 꺼져 있으면 치익 소리가 날 리 없다. 그 침묵이 곧 신호다. */
-          say("불을 올려야 익기 시작합니다", "coldpan");
-        }
-      } else {
-        h.hiss = 0.5;
-        spawn("bubble", h.x, h.y, 6, { sp: 50, r: 6, life: 0.5, col: "rgba(255,255,255,.7)" });
-      }
-    } else {
-      /* 조리대다. 전용 작업대는 없앴다 — 펴든 속을 넣든 오므리든
-         여기서도 철판 위에서도 그대로 된다. 내려놓았다는 이유로
-         반죽이 일그러지지는 않는다. */
-      h.onPan = false;
-      clampToCounter(h);
-      SFX.drop();
-      spawn("crumb", h.x, h.y + 14, 7, { sp: 70, r: 4, col: "#D8C9AA", life: 0.5 });
-      h.wobble = 1;
-    }
-  }
 
   /* --- 누르개 --------------------------------------------------
      닿은 동안 계속 압력이 들어간다. 중심에서 벗어나 누르면 그 쪽만
@@ -1435,42 +1327,7 @@
 
   /* --- 뒤집개 --------------------------------------------------
      날 끝이 호떡 아래로 들어간 만큼 insert 가 오른다. 들러붙어
-     있으면 잘 안 들어간다. 충분히 넣고 휙 해야 깔끔하게 뒤집힌다. */
-  function flipStep(p, dt) {
-    const h = S.h;
-    if (!h || h.held) return;
-    const tip = { x: p.x + TIP.flip.x, y: p.y + TIP.flip.y };
-    const R = avgR(h);
-    const d = Math.hypot(tip.x - h.x, tip.y - h.y);
-    if (d > R * 1.2) { h.insert = Math.max(0, h.insert - dt * 1.6); return; }
-    const want = clamp(1 - d / (R * 0.95), 0, 1) * (1 - h.stick * 0.55);
-    /* 날이 어느 쪽에서 들어갔나 — 그려 줄 때 쓴다 */
-    if (d > 4) h.insertAng = Math.atan2(tip.y - h.y, tip.x - h.x);
-    if (want > h.insert) {
-      const was = h.insert;
-      h.insert = want;
-      /* 충분히 걸린 순간 — 호떡이 날 위에 올라앉는다. 여기서부터는
-         휘두르면 깔끔하게 넘어간다는 것을 손으로 알 수 있어야 한다. */
-      if (was < CFG.insertOK && want >= CFG.insertOK) {
-        SFX.press(); buzz(10);
-        h.wobble = 0.6;
-        say("이제 휙 넘기세요", "flickhint");
-      } else if (Math.random() < 0.3) SFX.creak();
-    }
-    /* 눌어붙어 있으면 날이 더 안 들어간다 — 들어가는 대신 살이 긁힌다 */
-    if (h.insert > 0.25 && h.stick > 0.35 && Math.random() < 3 * dt)
-      spawn("crumb", tip.x, tip.y, 1, { sp: 30, r: 4, col: "#C79C5C", life: 0.4 });
-  }
 
-  function foldDeform(h, amt) {
-    const a0 = rnd(0, TAU);
-    for (let i = 0; i < NA; i++) {
-      const a = (i / NA) * TAU;
-      const dd = Math.abs(((a - a0 + Math.PI * 3) % TAU) - Math.PI);
-      h.rad[i] *= 1 - amt * Math.max(0, 1 - dd / 1.8) * rnd(0.6, 1.2);
-    }
-    recalcDeform(h);
-  }
 
   /* --- 뒤집으면 좌우가 바뀐다 ----------------------------------
      찌그러진 모양은 그대로 남아야 한다. 다만 뒤집힌 호떡은 아까
@@ -1529,222 +1386,179 @@
     return hurt;
   }
 
-  /* --- 눌어붙은 것을 끌 때 -------------------------------------
-     포인터와 호떡을 1:1 로 붙여 놓으면, 달라붙었다는 사실이 손에
-     전혀 전해지지 않는다. 붙은 만큼 덜 따라오게 해서 끈적임을
-     조작감으로 알린다. 숫자나 문구로 알리지 않는다. */
-  function moveRatio(h) {
-    const s = Math.max(h.onPan ? h.stick : 0, h.pull);
-    return clamp(1 - s * 0.75, 0.25, 1);
-  }
-  function dragHot(h, x, y) {
-    const k = moveRatio(h);
-    h.x += (x - h.x) * k;
-    h.y += (y - h.y) * k;
-  }
 
-  function doFlip(ang, sp) {
-    const h = S.h;
-    if (!h) return;
-    const ins = h.insert;
-    h.flips++;
-    h.flipT = 1;
-    /* 얼마나 거칠게 휘둘렀나. 1 = 간신히 뒤집히는 속도 */
-    h.flipShock = clamp((sp === undefined ? CFG.flickSpeed : sp) / CFG.flickSpeed, 0, 3);
-    /* 뒤집히면 모양은 남고 좌우만 바뀐다 */
-    const swap = () => { h.up = h.up === "A" ? "B" : "A"; mirrorShape(h, ang); };
 
-    if (ins >= CFG.insertOK) {
-      swap();
-      h.spin = rnd(-0.3, 0.3);
-      /* 거칠게 휘두르면 더 멀리 떨어진다 */
-      const far = 8 * (1 + h.flipShock * 0.6);
-      h.x += Math.cos(ang) * far; h.y += Math.sin(ang) * far;
-      h.deform = Math.min(1, h.deform + 0.012);
-      h.landT = 1;
-      learn("flip");
-      SFX.flip(); buzz(14);
-    } else if (ins >= 0.3) {
-      swap();
-      foldDeform(h, 0.42);
-      /* 접히면서 속이 밀려 나온다 — 속이 있을 때만 */
-      drainFill(h, 0.1);
-      h.tear += 0.05;
-      tearStep(h);
-      h.x += Math.cos(ang) * 44; h.y += Math.sin(ang) * 44;
-      SFX.fail(); toast("반쯤 접혔다");
-    } else {
-      h.x += Math.cos(ang) * 74; h.y += Math.sin(ang) * 74;
-      foldDeform(h, 0.14);
-      h.slipFlips++;
-      SFX.fail(); toast("덜 넣고 휙 했다");
-      say("아래로 더 밀어 넣어 보세요", null);
+
+
+
+
+  function coreRatio(h) { return clamp(h.core / CFG.coreFull, 0, 1); }
+
+  /* ============================================================
+     간소화한 조리 — 통 하나에 클릭 한 번
+     ============================================================ */
+
+  /* 고른 호떡. 속 투입과 누르기는 여기에만 간다. */
+  function select(h) { S.h = h && S.pan.indexOf(h) >= 0 ? h : null; }
+
+  /* 철판의 빈 자리 번호. 없으면 -1 */
+  function freeSlot() {
+    for (let i = 0; i < PREP.slots.length; i++) {
+      let used = false;
+      for (const h of S.pan) if (h.slot === i) { used = true; break; }
+      if (!used) return i;
     }
+    return -1;
+  }
 
-    /* 들러붙은 채로 떼면 살이 뜯긴다.
-       덜 넣고 들쑤실수록, 아직 생반죽일수록, 얇을수록 더 뜯긴다.
-       그리고 거칠게 휘두를수록 더 뜯긴다 — 붙은 정도 x 뒤집기 충격. */
-    if (h.stick > 0.35) {
-      tearOffPan(h, (1 - ins * 0.5) * (0.55 + h.flipShock * 0.5));
-      toast("철판에 붙었다");
+  /* 누른 자리에 있는 호떡 (없으면 null) */
+  function hotAt(x, y, k) {
+    let best = null, bd = 1e9;
+    for (const h of S.pan) {
+      const R = avgR(h) * (k === undefined ? 1.1 : k);
+      const d = Math.hypot(x - h.x, (y - h.y) / SQ);
+      if (d < R && d < bd) { best = h; bd = d; }
     }
-    if (h.flips > 4) addScar(h, 0.012);
+    return best;
+  }
 
-    h.insert = 0;
-    h.wobble = 1;
-    /* 철판 밖으로 밀려나면 철판에서 내려온다 */
-    if (!inPan(h.x, h.y, 1.1)) { h.onPan = false; SFX.drop(); }
-    else clampToPan(h);
+  /* --- 반죽통 클릭 ------------------------------------------------
+     떼고, 옮기고, 손으로 펴던 과정을 없앴다. 대신 '이미 적당히 펴진
+     생반죽' 이 빈 자리에 바로 생긴다. 익힘은 0 에서 시작한다 —
+     만들어 주는 것은 모양이지 조리가 아니다. */
+  function spawnDough() {
+    if (S.pan.length >= PREP.maxOnPan || freeSlot() < 0) {
+      toast("철판이 가득 찼어요");
+      return null;
+    }
+    const i = freeSlot(), s = PREP.slots[i];
+    const h = newHotteok(PREP.amount, s.x, s.y);
+    h.slot = i;
+    h.onPan = true;
+    h.landT = 1; h.hiss = 1;
+    /* 펴 놓은 만큼 넓어진다 — 부피는 지킨다 */
+    const t0 = h.thickness;
+    h.thickness = PREP.spread;
+    const grow = Math.sqrt(t0 / h.thickness);
+    for (let k = 0; k < NA; k++) h.rad[k] *= grow;
     recalcDeform(h);
+    S.pan.push(h);
+    select(h);
+    S.panRing = { x: s.x, y: s.y, t: 1 };
+    SFX.drop(); buzz(12);
+    /* 말을 먼저 하고 나서 센다 — 센 뒤에 말하면 두 번째에 벌써
+       "할 줄 안다" 가 되어 입을 다문다 */
+    say(GUIDE.sugar, "dough");
+    learn("dough"); learn("spread");
+    return h;
   }
 
-  /* --- 집게 ---------------------------------------------------- */
-  function tongGrab(p) {
+  /* --- 속재료통 클릭 ----------------------------------------------
+     고른 호떡 한가운데에 기본 1회분. 또 누르면 더 들어간다 —
+     많이 넣으면 부풀고, 누르면 터지는 기존 결과는 그대로다. */
+  function addFilling() {
     const h = S.h;
-    if (!h) return false;
-    const g = { x: p.x + TIP.tong.x, y: p.y + TIP.tong.y };
-    if (Math.hypot(g.x - h.x, g.y - h.y) > avgR(h) * 1.3) return false;
-    h.held = true; h.lift = 1;
-    /* 집게라고 눌어붙음을 비껴가지 않는다 */
-    if (h.onPan && tearOffPan(h, 0.8) > 0) toast("철판에 붙었다");
-    h.onPan = false;
-    SFX.tong(); buzz(10);
-    learn("tong");
+    if (!h) { toast("먼저 반죽을 올리세요"); return false; }
+    const got = PREP.fillDose;
+    /* 한가운데에 부으므로 흘리는 몫은 없다 (fillSpill 0).
+       보존식 fillPut = filling + fillLoose + leak + fillSpill 은 그대로. */
+    h.fillPut += got;
+    /* 이미 닫힌 뒤에 더 부으면 표면에 쌓이고 봉합이 헐거워진다 */
+    const open = clamp(1 - h.sealed, 0, 1);
+    const inAmt = got * open, onTop = got - inAmt;
+    h.filling += inAmt;
+    h.fillLoose += onTop;
+    if (onTop > 0.02) {
+      h.sealed = clamp(h.sealed - onTop * 0.4, 0, 1);
+      for (let i = 0; i < 4; i++) h.sealDirs[i] = Math.min(h.sealDirs[i], h.sealed + 0.2);
+    }
+    /* 넣은 만큼 부푼다 */
+    const ratio = got / Math.max(0.25, h.amount);
+    h.thickness = Math.min(1.7, h.thickness + ratio * 0.2);
+    const grow = 1 + ratio * 0.05;
+    for (let i = 0; i < NA; i++) {
+      h.rad[i] *= grow;
+      if (h.R * h.rad[i] > MAX_R) h.rad[i] = MAX_R / h.R;
+    }
+    recalcDeform(h);
+    /* 보이는 알갱이 */
+    const R = avgR(h);
+    for (let i = 0; i < 7; i++) {
+      const a = Math.random() * TAU, r = Math.sqrt(Math.random()) * R * 0.5;
+      h.bits.push({ dx: Math.cos(a) * r, dy: Math.sin(a) * r, r: 3 + Math.random() * 4 });
+    }
+    if (h.bits.length > 42) h.bits.splice(0, h.bits.length - 42);
+    /* 0.3초 짧은 연출로 저절로 오므라든다. 연출이 도는 동안에도
+       다른 호떡과 도구는 그대로 만질 수 있다 (상태 하나만 켤 뿐이다). */
+    h.sealT = PREP.sealSec;
+    h.sealFlash = 1;
+    spawn("crumb", h.x, h.y, 5, { sp: 30, r: 3, col: "#C98A3A", life: 0.4 });
+    SFX.press();
+    say(GUIDE.press, "sugar");
+    learn("sugar"); learn("seal");
     return true;
   }
 
-  /* --- 설탕 숟가락 --------------------------------------------- */
-  function scoopStep(dt) {
-    const was = S.spoonLoad;
-    S.spoonLoad = clamp(S.spoonLoad + dt * 1.15, 0, 1.5);
-    if (Math.random() < 4 * dt) SFX.scoop();
-    if (was < 0.5 && S.spoonLoad >= 0.5) learn("scoop");
-    if (was < 1.5 && S.spoonLoad >= 1.5) toast("숟가락이 넘친다");
+  /* 자동 봉합 — 찢어짐·터짐·누출은 건드리지 않는다.
+     줄이려던 것은 '오므리는 조작' 이지 이미 생긴 손상이 아니다. */
+  function stepSeal(h, dt) {
+    if (!h.sealT) return;
+    h.sealT = Math.max(0, h.sealT - dt);
+    const k = 1 - h.sealT / PREP.sealSec;
+    h.sealed = Math.max(h.sealed, clamp(k, 0, 1));
+    for (let i = 0; i < 4; i++) h.sealDirs[i] = Math.max(h.sealDirs[i], h.sealed);
+    h.weakDir = 0;
+    if (h.sealT === 0 && h.sealMark.length < 8) {
+      for (let i = 0; i < 8; i++) h.sealMark.push({ a: (i / 8) * TAU, s: 0.12 });
+      learn("seal");
+    }
   }
 
-  function dumpFilling(p) {
-    const h = S.h;
-    if (S.spoonLoad <= 0.02) { say("설탕통 안을 눌러 담으세요", "scoop"); return; }
-    const onDough = h && !h.held && Math.hypot(p.x - h.x, p.y - h.y) < avgR(h) * 1.25;
-    /* 순서를 막지 않는다. 덜 편 반죽에도, 철판 밖 반죽에도 부을 수 있다.
-       대신 그 결과(두꺼워짐 / 가장자리로 흘러내림)가 그대로 남는다. */
-    const load = S.spoonLoad;
-    S.spoonLoad = 0;
-    if (onDough) {
-      const R = Math.max(1, avgR(h));
-      /* 가운데를 벗어나 부으면 그만큼 반죽 밖으로 흘러내린다 */
-      const off = Math.hypot(p.x - h.x, p.y - h.y) / R;
-      const spill = load * clamp((off - 0.55) / 0.7, 0, 0.6);
-      const got = load - spill;
-
-      /* 어디에 부었는지를 남긴다. 여러 번 부으면 넣은 양으로 가중한
-         평균 — 한가운데 한 번 + 가장자리 한 번이면 그 사이가 된다. */
-      if (got > 0.01) {
-        const was = Math.max(0, h.filling + h.fillLoose);
-        const w = was + got;
-        h.fillOffX = (h.fillOffX * was + ((p.x - h.x) / R) * got) / w;
-        h.fillOffY = (h.fillOffY * was + ((p.y - h.y) / (R * SQ)) * got) / w;
-        h.fillOff = clamp(Math.hypot(h.fillOffX, h.fillOffY), 0, 1.4);
-      }
-
-      h.fillPut += load;
-      h.fillSpill += spill;
-      /* 이미 닫힌 호떡에는 순간이동하듯 들어가지 않는다.
-         봉합된 만큼은 표면에 쌓이고, 그 무게로 봉합이 헐거워진다. */
-      const open = clamp(1 - h.sealed, 0, 1);
-      const inAmt = got * open;
-      const onTop = got - inAmt;
-      h.filling += inAmt;
-      h.fillLoose += onTop;
-      if (onTop > 0.02) {
-        h.sealed = clamp(h.sealed - onTop * 0.4, 0, 1);
-        for (let i = 0; i < 4; i++)
-          h.sealDirs[i] = Math.min(h.sealDirs[i], h.sealed + 0.2);
-        toast("봉합 위에 쌓였다");
-      }
-      /* 속이 들어간 만큼 부푼다 — 절대량이 아니라 반죽 양 대비 비율로 */
-      const ratio = got / Math.max(0.25, h.amount);
-      h.thickness = Math.min(1.7, h.thickness + ratio * 0.2);
-      const grow = 1 + ratio * 0.05;
-      for (let i = 0; i < NA; i++) {
-        h.rad[i] *= grow;
-        if (h.R * h.rad[i] > MAX_R) h.rad[i] = MAX_R / h.R;
-      }
-      recalcDeform(h);
-
-      if (got > 0.05) learn("fill");
-      h.fillSpread = clamp(h.fillSpread + got * 0.5, 0, 1);
-      const n = Math.round(6 + got * 14);
-      /* 부은 자리에 쌓인다 — 한가운데 부으면 가운데, 가장자리에 부으면
-         그쪽으로. 눈으로 어디에 넣었는지가 보여야 한다. */
-      const cx = h.fillOffX * R, cy = h.fillOffY * R * 0.8;
+  /* --- 기름병 클릭 ------------------------------------------------
+     철판 전체에 기본량을 한 번에 두른다. 문지르는 조작은 없앴다.
+     기름은 여러 개를 굽는 동안 남아 있고 (stepCook 에서) 천천히 마른다. */
+  function oilPanOnce() {
+    const p = LAY.pan;
+    S.oilFx = PREP.oilSec;
+    paintOil(p.x, p.y, 150, PREP.oilDose);
+    for (let ring = 0; ring < 2; ring++) {
+      const rr = ring === 0 ? 0.46 : 0.8;
+      const n = ring === 0 ? 6 : 9;
       for (let i = 0; i < n; i++) {
-        const a = rnd(0, TAU);
-        const r = Math.sqrt(Math.random()) * R * 0.5 * (0.5 + h.fillSpread);
-        h.bits.push({ dx: cx + Math.cos(a) * r, dy: cy + Math.sin(a) * r * 0.8,
-                      r: rnd(3, 7) });
+        const a = (i / n) * TAU + ring * 0.4;
+        paintOil(p.x + Math.cos(a) * p.rx * rr, p.y + Math.sin(a) * p.ry * rr,
+                 132, PREP.oilDose);
       }
-      if (h.bits.length > 90) h.bits.splice(0, h.bits.length - 90);
-      if (spill > 0.02) {
-        const m = Math.round(2 + spill * 6);
-        for (let i = 0; i < m; i++) {
-          const a = rnd(0, TAU), rr = R * rnd(1, 1.25);
-          S.mess.push({ x: h.x + Math.cos(a) * rr, y: h.y + Math.sin(a) * rr * SQ,
-                        r: rnd(5, 10), burn: 0, kind: "sugar", rot: rnd(0, TAU) });
-        }
-        if (S.mess.length > 80) S.mess.splice(0, S.mess.length - 80);
-        toast("가장자리로 흘렀다");
-      }
-      SFX.sugar();
-      spawn("sugar", p.x, p.y, 7, { sp: 40, r: 4, col: "#6B3F16", life: 0.5 });
-    } else {
-      /* 철판이나 조리대에 흘렸다 */
-      const n = Math.round(3 + load * 5);
-      for (let i = 0; i < n; i++)
-        S.mess.push({ x: p.x + rnd(-26, 26), y: p.y + rnd(-18, 18),
-                      r: rnd(5, 11), burn: 0, kind: "sugar", rot: rnd(0, TAU) });
-      if (S.mess.length > 80) S.mess.splice(0, S.mess.length - 80);
-      SFX.sugar();
-      spawn("sugar", p.x, p.y, 6, { sp: 60, r: 4, col: "#6B3F16", life: 0.5 });
-      toast("설탕을 흘렸다");
     }
+    spawn("bubble", p.x, p.y, 8, { sp: 60, r: 5, life: 0.5, col: "rgba(255,241,196,.75)" });
+    SFX.oil(); buzz(10);
+    learn("oil");
   }
 
-  /* --- 기름 솔 -------------------------------------------------- */
-  function oilStep(p, q) {
-    const pan = LAY.pan;
-    const g = S.grab;
-    /* 문지른 길이만큼만 발린다. 한 자리에 들고 있어도 쌓이지 않는다. */
-    const last = g.oilAt || (g.oilAt = { x: p.x, y: p.y });
-    const moved = Math.hypot(p.x - last.x, p.y - last.y);
-    if (moved < 20) return;
-    const n = clamp(Math.round(moved / 20), 1, 10);
-    let any = false;
-    for (let i = 1; i <= n; i++) {
-      const t = i / n;
-      const hx = lerp(last.x, p.x, t) + TIP.oil.x;
-      const hy = lerp(last.y, p.y, t) + TIP.oil.y;
-      if (!inPan(hx, hy)) continue;
-      paintOil(hx, hy, 58, 0.085);
-      any = true;
-    }
-    g.oilAt = { x: p.x, y: p.y };
-    if (!any) return;
-    const head = { x: p.x + TIP.oil.x, y: p.y + TIP.oil.y };
-    g.oilT = (g.oilT || 0) + 1;
-    if (g.oilT % 6 === 1) {
-      SFX.oil();
-      if (S.panTemp > 0.3)
-        spawn("bubble", head.x, head.y, 2,
-          { sp: 30, r: 4, life: 0.35, col: "rgba(255,255,255,.6)" });
-    }
-    if (!g.oiled && oilAt(head.x, head.y) >= CFG.oilGood) { g.oiled = 1; learn("oil"); }
-    const h = S.h;
-    if (h && !h.held && Math.hypot(head.x - h.x, head.y - h.y) < avgR(h))
-      h.oil = Math.min(2.4, h.oil + 0.02);
+  /* --- 뒤집개 클릭 ------------------------------------------------
+     깊이 밀어 넣고 휙 하던 조작을 없앴다. 한 번 누르면 한 번 뒤집힌다.
+     다만 눌어붙어 있으면 뒤집을 때 뜯기는 기존 결과는 그대로다. */
+  function flipOnce(h) {
+    if (!h || h.flipT > 0) return false;      /* 돌아가는 중에는 또 안 뒤집는다 */
+    /* 늘 같은 축(좌우)으로 뒤집는다. 축이 매번 달라지면 두 번
+       뒤집어도 모양이 제자리로 안 돌아온다. */
+    const ang = 0;
+    h.flips++;
+    h.flipT = 1;
+    h.flipShock = 1;
+    h.up = h.up === "A" ? "B" : "A";
+    mirrorShape(h, ang);
+    h.spin = rnd(-0.22, 0.22);
+    h.landT = 1;
+    h.wobble = 1;
+    /* 기름이 모자라 들러붙어 있으면 그만큼 뜯긴다 */
+    if (h.stick > 0.12) tearOffPan(h, h.stick);
+    h.stick = 0;
+    h.insert = 0;
+    learn("flip");
+    SFX.flip(); buzz(14);
+    return true;
   }
-
-  function coreRatio(h) { return clamp(h.core / CFG.coreFull, 0, 1); }
 
   /* ============================================================
      제출 — 접시에 놓으면 진열대로
@@ -1831,12 +1645,15 @@
 
   /* 접시에 놓았다. 타이머도 철판도 건드리지 않는다 — 한 판 전체에
      속한 것이기 때문이다. 호떡만 손에서 떠난다. */
-  function submit() {
-    const h = S.h;
-    /* 호떡이 아니면 아무것도 올라가지 않는다. S.h 를 먼저 비워서
-       같은 호떡이 두 번 올라갈 길도 막는다. */
+  function submit(which) {
+    const h = which || S.h;
+    /* 호떡이 아니면, 또는 이미 빠진 것이면 아무것도 올라가지 않는다.
+       철판 목록에서 먼저 빼서 같은 호떡이 두 번 올라갈 길도 막는다. */
     if (!h || S.over) return;
-    S.h = null;
+    const i = S.pan.indexOf(h);
+    if (i < 0) return;
+    S.pan.splice(i, 1);
+    if (S.h === h) S.h = S.pan[S.pan.length - 1] || null;
     S.grab = null;
     /* 세는 것과 전시대에 올리는 것은 여기 한 번뿐이다.
        날아가는 연출이 끝날 때 다시 세지 않는다. */
@@ -1861,11 +1678,12 @@
     S.over = true;
     S.running = false;
     S.timeLeft = 0;
-    if (S.h) S.h.held = false;
+    /* 들고 있던 것은 내려놓는다. 철판 위의 호떡은 그대로 남지만
+       더 익지 않는다 (stepCook 이 S.running 안에서만 돈다). */
+    for (const h of S.pan) { h.held = false; h.lift = 0; }
     S.grab = null;
     if (S.active) { S.toolPos[S.active] = { x: TOOL[S.active].home.x, y: TOOL[S.active].home.y }; }
     S.active = null;
-    S.spoonLoad = 0;
     PTR.down = false; PTR.id = null;
     S.hint = ""; S.hintT = 0;
     /* 날아가던 호떡은 제자리에 내려놓는다. 이미 센 것들이라
@@ -2712,11 +2530,7 @@
     cy += e.cy * sc * SQ;
     /* 뒤집는 동안에는 살짝 들렸다가 내려앉는다 */
     if (h.flipT > 0) cy -= Math.sin((1 - h.flipT) * Math.PI) * 46 * sc;
-    /* 날이 충분히 들어가면 호떡이 날 위로 올라앉는다. 그림자와
-       사이가 벌어져서 "걸렸다" 가 눈에 보인다. 모양값은 안 건드린다. */
-    const lifted = !h.held && h.insert >= CFG.insertOK
-                   ? (h.insert - CFG.insertOK) / (1 - CFG.insertOK) : 0;
-    const liftPx = lifted * 15 * sc;
+    const lifted = 0, liftPx = 0;
 
     /* 그림자 — 두꺼울수록 짙고 넓다. 들려 있으면 그림자는 철판에
        남으므로 몸통만 올라가고 사이가 벌어진다. */
@@ -2821,16 +2635,34 @@
   }
 
   /* 들고 있을 때는 조금 크게 그리고 아래에 그림자를 남긴다 */
+  /* 철판 위의 호떡 전부. 뒤에 있는 것부터 그려야 겹침이 자연스럽다.
+     들고 있는 것은 맨 위다. */
   function drawHotteokWorld(g) {
-    const h = S.h;
-    if (!h) return;
-    if (h.held || h.lift > 0) {
-      ell(g, h.x, h.y + 46, h.R * 1.0, h.R * 0.4);
-      g.fillStyle = "rgba(31,27,22,.14)"; g.fill();
-      drawHotteok(g, h, h.x, h.y - 26, 1.1);
-    } else {
-      drawHotteok(g, h, h.x, h.y, 1);
+    const list = S.pan.slice().sort((a, b) =>
+      (a.held ? 1 : 0) - (b.held ? 1 : 0) || a.y - b.y);
+    for (const h of list) {
+      if (h.held || h.lift > 0) {
+        ell(g, h.x, h.y + 46, h.R * 1.0, h.R * 0.4);
+        g.fillStyle = "rgba(31,27,22,.14)"; g.fill();
+        drawHotteok(g, h, h.x, h.y - 26, 1.1);
+      } else {
+        drawHotteok(g, h, h.x, h.y, 1);
+      }
     }
+    drawPicked(g);
+  }
+
+  /* 고른 호떡 표시 — 속이 들어갈 자리를 눈으로 가린다.
+     여럿이 올라가 있을 때만 그린다. 하나뿐이면 헷갈릴 일이 없다. */
+  function drawPicked(g) {
+    const h = S.h;
+    if (!h || S.pan.length < 2 || h.held) return;
+    const R = avgR(h) * 1.2;
+    g.save();
+    g.globalAlpha = 0.5 + Math.sin(clock * 3) * 0.12;
+    ell(g, h.x, h.y, R, R * SQ);
+    stroke(g, "rgba(255,226,150,.9)", 4);
+    g.restore();
   }
 
   /* ============================================================
@@ -2956,40 +2788,6 @@
       g.restore();
     }
 
-    /* --- 뒤집개가 들어간 깊이 -----------------------------------
-       날이 호떡 밑으로 얼마나 들어갔는지를 그려 준다. 충분히
-       들어가면 그쪽 가장자리가 날 위로 올라앉는다. */
-    if (!h.held && h.insert > 0.04 && S.active === "flip") {
-      const a = h.insertAng === undefined ? Math.PI : h.insertAng;
-      const deep = clamp(h.insert, 0, 1);
-      const enough = h.insert >= CFG.insertOK;
-      /* 뒤집개 그림이 호떡 위를 덮으므로, 들어간 깊이는 호떡 바깥
-         테두리를 따라 그린다. 호를 반대쪽으로 한 바퀴 돌리는 길이가
-         곧 들어간 깊이다 — 숫자가 아니라 길이로 읽는다. */
-      const span = Math.PI * 1.7 * deep;
-      g.save();
-      g.lineCap = "round";
-      g.globalAlpha = 0.45;
-      g.strokeStyle = "rgba(30,20,8,.9)"; g.lineWidth = 13;
-      g.beginPath();
-      for (let i = 0; i <= 24; i++) {
-        const ang = a - span / 2 + (span * i) / 24;
-        const x = cx + Math.cos(ang) * R * 1.14, y = cy + Math.sin(ang) * R * 1.14 * SQ;
-        if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
-      }
-      g.stroke();
-      g.globalAlpha = enough ? 0.95 : 0.7;
-      g.strokeStyle = enough ? "#CFE8B8" : "#F7C843";
-      g.lineWidth = enough ? 8 : 6;
-      g.beginPath();
-      for (let i = 0; i <= 24; i++) {
-        const ang = a - span / 2 + (span * i) / 24;
-        const x = cx + Math.cos(ang) * R * 1.14, y = cy + Math.sin(ang) * R * 1.14 * SQ;
-        if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
-      }
-      g.stroke();
-      g.restore();
-    }
 
     /* --- 막 착지했다 --------------------------------------------- */
     if (h.landT > 0) {
@@ -3005,51 +2803,6 @@
   /* --- 숟가락 조준 ------------------------------------------------
      어디에 떨어질지를 붓기 전에 보여 준다. 숟가락 끝은 손끝보다
      위에 있으므로 손가락에 가리지 않는다. 가운데를 벗어나면 그만큼
-     밖으로 흐른다는 것을 고리 색으로 미리 알린다. */
-  function drawAim(g) {
-    if (S.active !== "spoon" || S.spoonLoad <= 0.02) return;
-    const pos = S.toolPos.spoon;
-    if (!pos) return;
-    const t = { x: pos.x + TIP.spoon.x, y: pos.y + TIP.spoon.y };
-    const h = S.h;
-    const on = h && !h.held && Math.hypot(t.x - h.x, t.y - h.y) < avgR(h) * 1.25;
-    const off = on ? Math.hypot(t.x - h.x, t.y - h.y) / Math.max(1, avgR(h)) : 2;
-    const spill = clamp((off - 0.55) / 0.7, 0, 0.6);
-    g.save();
-    /* 반죽 위라면 '여기까지는 안 흘러내린다' 는 선을 먼저 보여 준다.
-       0.55R 이라는 숫자를 외우게 하는 대신 눈으로 알게 한다. */
-    if (h && !h.held) {
-      const safe = avgR(h) * 0.55;
-      g.globalAlpha = 0.32;
-      g.strokeStyle = "#FFF1CE"; g.lineWidth = 3;
-      g.setLineDash([12, 12]);
-      ell(g, h.x, h.y, safe, safe * SQ);
-      g.stroke();
-      g.setLineDash([]);
-    }
-    /* 떨어질 자리 — 숟가락 그림에 가리지 않게 넉넉히 크게 그리고,
-       밝은 반죽 위에서도 읽히게 어두운 선을 먼저 깐다.
-       고리 크기가 곧 담긴 양이다. */
-    const r = 30 + S.spoonLoad * 26;
-    const col = !on ? "#C9C4BA" : spill > 0.05 ? "#E8732B" : "#F7C843";
-    g.globalAlpha = 0.5;
-    g.strokeStyle = "rgba(42,26,10,.8)"; g.lineWidth = 11;
-    ell(g, t.x, t.y, r, r * SQ);
-    g.stroke();
-    g.globalAlpha = 0.9;
-    g.strokeStyle = col; g.lineWidth = 5;
-    ell(g, t.x, t.y, r, r * SQ);
-    g.stroke();
-    /* 가운데를 벗어났으면 그만큼 밖으로 흐른다 — 붓기 전에 알린다 */
-    if (on && spill > 0.05) {
-      g.globalAlpha = 0.85;
-      g.font = "700 26px Pretendard, sans-serif";
-      g.textAlign = "center"; g.textBaseline = "middle";
-      g.fillStyle = "#E8732B";
-      g.fillText("흘러내림", t.x, t.y - r * SQ - 22);
-    }
-    g.restore();
-  }
 
   /* --- 철판에 닿는 순간 ------------------------------------------ */
   function drawPanRing(g) {
@@ -3168,18 +2921,12 @@
   const TOOL_ART = {
     press: { key: "press",      w: 188, ax: 0.50, ay: 0.84, rot: 0 },
     flip:  { key: "spatula",    w: 118, ax: 0.50, ay: 0.95, rot: Math.PI },
-    tong:  { key: "tongsOpen",  w: 250, ax: 0.12, ay: 0.84, rot: 2.3 },
-    spoon: { key: "spoonEmpty", w: 215, ax: 0.14, ay: 0.44, rot: Math.PI / 2 },
     oil:   { key: "oilBottle",  w: 100, ax: 0.50, ay: 0.08, rot: 2.5 },
   };
 
   function toolSprite(id) {
     const a = TOOL_ART[id];
     if (!a) return null;
-    if (id === "tong" && S.h && S.h.held && S.active === "tong")
-      return { key: "tongsShut", w: a.w, ax: 0.10, ay: 0.86, rot: a.rot };
-    if (id === "spoon" && S.spoonLoad > 0.02)
-      return { key: "spoonFull", w: 112, ax: 0.50, ay: 0.16, rot: 0 };
     return a;
   }
 
@@ -3198,19 +2945,6 @@
       g.moveTo(-42, -14); g.lineTo(42, -14); g.lineTo(36, -92); g.lineTo(-36, -92);
       g.closePath();
       g.fillStyle = C.steel; g.fill(); stroke(g, "#15120F", 6);
-    } else if (id === "tong") {
-      const open = S.h && S.h.held && S.active === "tong" ? 12 : 26;
-      g.strokeStyle = C.steel; g.lineWidth = 18;
-      g.beginPath(); g.moveTo(-8, 54); g.quadraticCurveTo(-open, -20, -open - 4, -80); g.stroke();
-      g.beginPath(); g.moveTo(8, 54); g.quadraticCurveTo(open, -20, open + 4, -80); g.stroke();
-    } else if (id === "spoon") {
-      box(g, -8, -24, 16, 80); g.fillStyle = C.steel; g.fill(); stroke(g, "#15120F", 4);
-      ell(g, 0, -56, 36, 27); g.fillStyle = C.steel; g.fill(); stroke(g, "#15120F", 6);
-      if (S.spoonLoad > 0.02) {
-        const k = clamp(S.spoonLoad / 1.5, 0, 1);
-        ell(g, 0, -58, 11 + 16 * k, 8 + 11 * k);
-        g.fillStyle = "#6B3F16"; g.fill();
-      }
     } else if (id === "oil") {
       box(g, -22, -70, 44, 92); g.fillStyle = "#E6C878"; g.fill(); stroke(g, "#15120F", 5);
       box(g, -8, -92, 16, 24); g.fillStyle = C.steel; g.fill(); stroke(g, "#15120F", 4);
@@ -3227,16 +2961,6 @@
     if (held) {
       const t = TIP[id] || { x: 0, y: 0 };
       artAt(g, a.key, x + t.x, y + t.y, a.w * k, a.ax, a.ay, a.rot);
-      /* 숟가락 그림은 "담겼다 / 비었다" 두 장뿐이라 양이 안 보인다.
-         담긴 만큼 설탕 더미를 얹어서 반 술과 한 술을 구별하게 한다. */
-      if (id === "spoon" && S.spoonLoad > 0.02) {
-        const q = clamp(S.spoonLoad / 1.5, 0, 1);
-        g.save();
-        g.globalAlpha = 0.85;
-        ell(g, x + t.x, y + t.y + 4, 9 + 17 * q, (6 + 11 * q) * 0.8);
-        g.fillStyle = "#6B3F16"; g.fill();
-        g.restore();
-      }
     } else {
       art(g, a.key, x, y, a.w, { rot: a.restRot === undefined ? a.rot : a.restRot });
     }
@@ -3262,43 +2986,23 @@
      막지 않는다. 다만 안내가 가리키는 쪽은 실제 상태와 맞아야 한다 —
      시킨 대로 했는데 결과에서 그 일로 깎이면 안내가 아니라 함정이다.
 
-     준비(철판 밖) 와 조리(철판 위) 를 갈라서 본다. */
+     준비와 조리를 가르던 구분은 없앴다 — 이제 반죽은 철판에서 난다. */
+  /* 지금 할 수 있는 일이 어디 있는지. 권장일 뿐 강제가 아니다 —
+     다만 가리키는 쪽은 실제 상태와 맞아야 한다. 고른 호떡 하나만 본다. */
   function hintTarget() {
-    const h = S.h;
     if (S.over) return null;
-    if (!h) return "dough";
+    if (S.panTemp < 0.12 && S.heat < 0.12) return 'heat';
+    if (panOiled() < CFG.oilGood * 0.7) return 'oil';
+    const h = S.h;
+    if (!h) return 'dough';
     if (h.held) return null;
-
-    if (!h.onPan) {
-      /* --- 철판 밖 --- */
-      /* 속이 들어간 뒤에는 "더 펴라" 고 하지 않는다 — 그 말을 따르면
-         설탕이 밀려 나온다. 먼저 오므리라고 알려 주는 쪽이 맞다. */
-      if (h.fillPut < 0.1) return h.thickness > FLAT_ENOUGH ? "hand" : "spoon";
-      if (h.sealed < 0.6) return "seal";
-      /* 기름은 반죽을 올리기 전에 둘러야 한다. 올린 뒤에 두르면
-         이미 눌어붙기 시작한 뒤다. */
-      /* 들러붙는 문턱(oilGood)보다 조금 느슨하게 본다. 이미 거의 다
-         두른 사람에게 "기름부터 두르세요" 를 또 하면 잔소리가 된다. */
-      if (panOiled() < CFG.oilGood * 0.7) return "oil";
-      return "pan";
-    }
-
-    /* --- 철판 위 --- */
-    if (S.panTemp < 0.12 && S.heat < 0.12) return "heat";
-    /* 철판 위에서도 속을 넣고 오므릴 수 있다 — 준비 공간은 권장이지
-       강제가 아니다. 다만 그동안 아래쪽은 계속 익는다. */
-    if (h.fillPut < 0.1) return h.thickness > FLAT_ENOUGH ? "press" : "spoon";
-    if (h.sealed < 0.6) return "seal";
-    /* 더 누르라는 말은 정말 두꺼울 때만 한다. 적정 구간에 들어온
-       호떡에게까지 "더 누르세요" 라고 하면 두께에 정답이 하나뿐인
-       것처럼 몰아가게 된다. 도톰한 호떡도 호떡이다. */
-    if (thickCm(h) > THICK_OK) return "press";
+    if (h.fillPut < QUAL.fill) return 'sugar';
+    if (thickCm(h) > THICK_OK) return 'press';
     const dn = cookDown(h), up = cookUp(h);
-    /* 손님이 "덜 익었다" 고 할 선(QUAL.raw)보다 넉넉히 넘겨야 집게를
-       들라고 한다. 안내대로 했는데 손님이 투덜대면 안내가 아니라
-       함정이다. */
-    if (dn > GUIDE_COOK && up > GUIDE_COOK) return "tong";
-    if (dn > GUIDE_COOK + 5) return "flip";
+    /* 손님이 '덜 익었다' 고 할 선(QUAL.raw)보다 넉넉히 넘겨야 접시라고
+       한다. 안내대로 했는데 손님이 투덜대면 안내가 아니라 함정이다. */
+    if (dn > GUIDE_COOK && up > GUIDE_COOK) return 'plate';
+    if (dn > GUIDE_COOK + 5) return 'flip';
     return null;
   }
 
@@ -3312,16 +3016,13 @@
 
   /* 짧은 안내 한 줄 */
   const GUIDE = {
-    dough: "반죽통에서 반죽을 떼어내세요",
-    hand:  "반죽을 문질러 펼치세요",
-    spoon: "숟가락으로 속을 떠서 가운데에 넣으세요",
-    seal:  "벌어진 가장자리를 가운데로 모으세요",
-    oil:   "철판에 기름을 두르세요",
-    pan:   "반죽을 철판으로 옮기세요",
+    oil:   "기름병을 눌러 철판에 기름을 두르세요",
+    dough: "반죽통을 눌러 반죽을 올리세요",
+    sugar: "속재료통을 눌러 속을 넣으세요",
     heat:  "노브를 돌려 불을 올리세요",
-    press: "누르개로 살짝 눌러주세요",
-    flip:  "뒤집개를 충분히 넣고 뒤집으세요",
-    tong:  "완성됐어요. 집게로 접시에 담으세요",
+    press: "누르개로 잠깐 눌러주세요",
+    flip:  "뒤집개로 호떡을 눌러 뒤집으세요",
+    plate: "다 익었어요. 접시로 끌어 담으세요",
   };
   function guideText() {
     const k = hintTarget();
@@ -3335,11 +3036,8 @@
     if (k <= 0) return;
     g.strokeStyle = "rgba(247,200,67," + k.toFixed(3) + ")";
     g.lineWidth = 5;
-    if ((key === "seal" || key === "hand") && S.h) {
-      circle(g, S.h.x, S.h.y, avgR(S.h) * 1.35);
-      g.stroke();
-    } else if (key === "pan") {
-      ell(g, LAY.pan.x, LAY.pan.y, LAY.pan.rx * 0.9, LAY.pan.ry * 0.9);
+    if (key === "sugar") {
+      ell(g, LAY.fill.x, LAY.fill.y, LAY.fill.rx * 1.05, LAY.fill.ry * 1.05);
       g.stroke();
     } else if (key === "plate") {
       ell(g, LAY.plate.x, LAY.plate.y, LAY.plate.rx * 0.96, LAY.plate.ry * 0.96);
@@ -3366,28 +3064,6 @@
     return 0;
   }
 
-  /* --- 떼어내는 중인 반죽 ---------------------------------------- */
-  function drawTearing(g) {
-    const grb = S.grab;
-    if (!grb || grb.kind !== "tear") return;
-    const b = LAY.dough;
-    const r = 18 + grb.amount * 26;
-    const ang = Math.atan2(grb.y - b.y, grb.x - b.x) - Math.PI / 2;
-    /* 늘어난 반죽 그림이 있으면 그것만으로 충분하다 */
-    if (art(g, "strand", grb.x, grb.y - r * 0.5, r * 3.4, { rot: ang })) return;
-
-    const mx = (b.x + grb.x) / 2, my = (b.y + grb.y) / 2;
-    const d = Math.hypot(grb.x - b.x, grb.y - b.y);
-    const w = Math.max(7, 34 - d * 0.1);
-    g.strokeStyle = "#F7EBCF"; g.lineWidth = w; g.lineCap = "round";
-    g.beginPath();
-    g.moveTo(b.x, b.y);
-    g.quadraticCurveTo(mx, my + 18, grb.x, grb.y);
-    g.stroke();
-    g.lineCap = "butt";
-    ell(g, grb.x, grb.y, r, r * 0.88);
-    g.fillStyle = "#F7EBCF"; g.fill(); stroke(g, "#15120F", 5);
-  }
 
   /* --- 입자 ------------------------------------------------------ */
   function drawParts(g) {
@@ -3465,10 +3141,8 @@
     drawPanRing(g);
     drawKnob(g);
     /* 철판 위 호떡 -> 조작 신호 -> 들고 있는 호떡 -> 손에 든 도구 */
-    if (S.h && !S.h.held) { drawHotteokWorld(g); drawFeel(g); }
-    drawTearing(g);
-    if (S.h && S.h.held) { drawHotteokWorld(g); drawFeel(g); }
-    drawAim(g);
+    drawHotteokWorld(g);
+    drawFeel(g);
     if (S.active) {
       const p = S.toolPos[S.active];
       /* 누르고 있는 동안 누르개가 실제로 가라앉는다 — 닿기 전과
@@ -3543,123 +3217,112 @@
     if (S.over || !S.running) return;
     if (S.hintT > 0.5) S.hintT = 0.5;
 
-    /* 0) 전시대에서 시작한 드래그는 전시대의 것이다 — 도구 집기나
-       조리로 넘기지 않는다. 다른 데서 시작해 전시대 위를 지나가는
-       드래그는 여기로 오지 않는다 (누른 순간에만 자리를 본다).
-
-       다만 손에 도구를 들고 있거나, 만들던 반죽이 바로 그 자리에
-       있으면 조리가 먼저다. 전시대는 뒤쪽 조리대에 얹힌 선반이라
-       그 아래에 반죽을 둘 수 있는데, 거기서 손이 안 먹으면
-       빠져나올 길이 없어진다. */
-    /* 건네기 단추가 제일 먼저다. 손님 말풍선 아래, 조리대 위쪽의
-       빈 자리에 있어서 전시대 스크롤이나 도구와 겹치지 않는다. */
+    /* 1) 손님에게 건네는 단추가 제일 먼저다 */
     if (inSellBtn(p.x, p.y)) {
       if (canSell()) sellTo();
-      S.grab = { kind: "sell" };     /* 이 드래그는 여기서 끝난다 */
+      S.grab = { kind: "sell" };
       return;
     }
 
-    const near = S.h && !S.h.held &&
-                 Math.hypot(p.x - S.h.x, p.y - S.h.y) < avgR(S.h) * 1.18;
-    if (!S.active && !near && inTray(p.x, p.y)) {
+    /* 2) 전시대에서 시작한 드래그는 전시대의 것이다. 다만 그 자리에
+       호떡이 있거나 손에 도구를 들고 있으면 조리가 먼저다 — 전시대는
+       조리대에 얹힌 선반이라 그 아래에 호떡이 놓일 수 있다. */
+    const under = hotAt(p.x, p.y, 1.18);
+    if (!S.active && !under && inTray(p.x, p.y)) {
       shelfDown(p);
       S.grab = { kind: "shelf" };
       return;
     }
 
-    /* 1) 도구 제자리 — 집기 / 내려놓기 / 바꾸기 */
-    const t = hitTool(p);
-    if (t) {
-      if (S.active === t.id) dropTool();
-      else pickTool(t.id, p);
-      return;
-    }
-
-    /* 2) 들고 있는 도구의 일 */
-    if (S.active) {
-      S.toolPos[S.active] = { x: p.x, y: p.y };
-      const id = S.active;
-      if (id === "tong") {
-        S.grab = { kind: "tool", tool: "tong", carry: tongGrab(p) };
-      } else if (id === "spoon") {
-        const tip = tipOf("spoon", p);
-        if (inZone(LAY.fill, tip.x, tip.y, 1.05)) S.grab = { kind: "tool", tool: "spoon", scoop: true };
-        /* 누르는 순간 쏟지 않는다. 누르고 있는 동안은 겨누는 중이고
-           (drawAim 이 떨어질 자리를 고리로 보여 준다), 손을 뗄 때
-           그 자리에 붓는다. 손가락은 호버가 없으므로, 이렇게 해야
-           "어디에 들어갈지" 를 붓기 전에 볼 수 있다. */
-        else S.grab = { kind: "tool", tool: "spoon", aim: true };
-      } else {
-        S.grab = { kind: "tool", tool: id };
-      }
-      return;
-    }
-
-    /* 3) 맨손 */
+    /* 3) 불 */
     if (Math.hypot(p.x - LAY.knob.x, p.y - LAY.knob.y) <= LAY.knob.r + 45) {
       S.grab = { kind: "knob", a0: Math.atan2(p.y - LAY.knob.y, p.x - LAY.knob.x) };
       say("돌려서 불을 조절하세요", "knob");
       return;
     }
-    /* 설탕통을 누르면 거기 꽂힌 숟가락이 잡힌다 */
-    if (inZone(LAY.fill, p.x, p.y, 1.05)) {
-      pickTool("spoon", p);
+
+    /* 4) 도구 자리. 기름병은 집는 것이 아니라 한 번에 두른다 —
+       끌어서 문지르던 조작을 없앴다. */
+    const t = hitTool(p);
+    if (t) {
+      if (t.id === "oil") oilPanOnce();
+      else if (S.active === t.id) dropTool();
+      else pickTool(t.id, p);
+      S.grab = { kind: "tap" };
       return;
     }
-    /* 반죽통을 누르면 반죽을 뗀다 */
+
+    /* 5) 통 두 개 — 각각 클릭 한 번이다 */
     if (inZone(LAY.dough, p.x, p.y, 1.0)) {
-      if (S.h) { say("호떡 하나를 먼저 끝내세요", null); return; }
-      tearStart(p);
+      spawnDough();
+      S.grab = { kind: "tap" };
       return;
     }
-    const h = S.h;
-    if (h && !h.held) {
-      const R = avgR(h);
-      const d = Math.hypot(p.x - h.x, p.y - h.y);
-      if (d < R * 1.18) {
-        S.grab = { kind: "touch", t: 0, moved: 0, inner: d < R * 0.52 };
+    if (inZone(LAY.fill, p.x, p.y, 1.05)) {
+      addFilling();
+      S.grab = { kind: "tap" };
+      return;
+    }
+
+    /* 6) 호떡 — 누르면 골라지고, 든 도구가 있으면 그 도구의 일을 한다 */
+    if (under) {
+      select(under);
+      if (S.active === "press") {
+        S.toolPos.press = { x: p.x, y: p.y };
+        S.grab = { kind: "tool", tool: "press" };
         return;
       }
+      if (S.active === "flip") {
+        S.toolPos.flip = { x: p.x, y: p.y };
+        flipOnce(under);
+        S.grab = { kind: "tap" };
+        return;
+      }
+      S.grab = { kind: "hold", h: under, x0: p.x, y0: p.y, moved: 0, drag: false };
+      return;
+    }
+
+    /* 7) 든 도구를 빈 철판에 대면 도구만 따라간다 */
+    if (S.active) {
+      S.toolPos[S.active] = { x: p.x, y: p.y };
+      S.grab = { kind: "tool", tool: S.active };
+      return;
     }
     S.grab = null;
   }
 
-  function touchStep(p, q, dt) {
-    const h = S.h;
-    if (!h) { S.grab = null; return; }
-    const g = S.grab;
-    g.t += dt;
-    g.moved += Math.hypot(p.x - q.x, p.y - q.y);
-    /* 아직 어느 쪽인지 안 갈렸다. 가만히 쥐고 있으면 들어 올리는
-       쪽으로 가고, 밀면 펴는 쪽으로 간다 — 그 갈림을 고리로 보여
-       준다. 안 보여 주면 옮기려다 펴 버리는 일이 계속 생긴다. */
-    if (g.mode === undefined && g.moved <= 12)
-      h.liftHint = clamp(g.t / 0.26, 0, 1);
-    else h.liftHint = 0;
-    if (g.mode === undefined) {
-      if (g.moved > 12)
-        g.mode = (!g.inner && h.fillPut > 0.05 && h.sealed < 1) ? "seal" : "spread";
-      else if (g.t > 0.26) {
-        if (canHandLift(h)) {
-          g.mode = "carry";
-          h.liftHint = 0;
-          h.held = true; h.lift = 1;
-          /* 맨손도 마찬가지다 — 붙어 있으면 뜯긴다 */
-          if (h.onPan && tearOffPan(h, 1.1) > 0) toast("철판에 붙었다");
-          h.onPan = false;
-          SFX.plop(); buzz(10);
-        } else {
-          g.mode = "hot";
-          toast("뜨겁다");
-          say("집게로 집어 보세요", "usetong");
-          spawn("smoke", p.x, p.y, 3, { sp: 10, rise: 26, r: 12, life: 0.9 });
-        }
-      }
+  /* --- 호떡 끌기 --------------------------------------------------
+     짧게 누르면 고르기만 하고, dragMin 을 넘게 끌어야 들린다.
+     고르려다 옮겨 버리는 일이 없어야 한다. */
+  function holdStep(p, q, dt) {
+    const g = S.grab, h = g.h;
+    if (!h || S.pan.indexOf(h) < 0) { S.grab = null; return; }
+    g.moved = Math.max(g.moved, Math.hypot(p.x - g.x0, p.y - g.y0));
+    if (!g.drag && g.moved > PREP.dragMin) {
+      g.drag = true;
+      h.held = true;
+      h.lift = 1;
+      /* 기름이 모자라 붙어 있으면 뗄 때 뜯긴다 — 그 결과는 그대로다 */
+      if (h.onPan && tearOffPan(h, 1.1) > 0) toast("철판에 붙었다");
+      h.onPan = false;
+      SFX.plop(); buzz(10);
     }
-    if (g.mode === "spread") spreadAt(h, p, q.x, q.y);
-    else if (g.mode === "seal") sealAt(h, p, q.x, q.y);
-    else if (g.mode === "carry") { h.x = p.x; h.y = p.y; }
+    if (g.drag) { h.x = p.x; h.y = p.y; }
   }
+
+  /* 끌어다 놓았다. 접시면 진열하고, 아니면 제 자리로 돌아간다. */
+  function dropHot(h, p) {
+    h.held = false;
+    h.lift = 0;
+    if (inZone(LAY.plate, p.x, p.y, 1.25)) { submit(h); return; }
+    const s = PREP.slots[h.slot] || { x: LAY.pan.x, y: LAY.pan.y };
+    h.x = s.x; h.y = s.y;
+    h.onPan = true;
+    h.landT = 1; h.hiss = 0.6;
+    S.panRing = { x: h.x, y: h.y, t: 1 };
+    SFX.plop();
+  }
+
 
   function knobStep(p) {
     const g = S.grab, k = LAY.knob;
@@ -3675,84 +3338,44 @@
 
   function toolStep(p, q, dt) {
     const g = S.grab;
-    switch (g.tool) {
-      case "press": pressStep(p, dt); break;
-      case "flip": {
-        flipStep(p, dt);
-        /* 깊이 넣었으면 살살 들어 올려도 넘어간다. 속도 하나로만 보면
-           마우스로는 쉽고 손가락으로는 영영 안 넘어가는 판정이 된다.
-           좌표는 가상(1080 폭) 이라 화면 크기와는 상관이 없다. */
-        const ins = S.h ? S.h.insert : 0;
-        const need = CFG.flickSpeed * (1 - clamp(ins, 0, 1) * 0.42);
-        if (PTR.sp > need && S.h && !S.h.held && S.h.flipT <= 0 && S.h.insert > 0.02)
-          doFlip(Math.atan2(p.y - q.y, p.x - q.x), PTR.sp);
-        break;
-      }
-      case "tong":
-        if (g.carry && S.h) { const t = tipOf("tong", p); dragHot(S.h, t.x, t.y); }
-        break;
-      case "oil": oilStep(p, q); break;
-      case "spoon": {
-        const t = tipOf("spoon", p);
-        if (g.scoop && inZone(LAY.fill, t.x, t.y, 1.05)) scoopStep(dt);
-        break;
-      }
-    }
+    /* 누르개만 끌고 있는 동안 할 일이 있다. 뒤집개는 누르는 순간
+       한 번 뒤집고 끝이고, 기름은 아예 집지 않는다. */
+    if (g.tool === "press") pressStep(p, dt);
   }
 
   function stepInput(dt) {
     const g = S.grab;
     if (!g || !PTR.down) return;
     const p = { x: PTR.x, y: PTR.y }, q = { x: PTR.px, y: PTR.py };
-    if (g.kind === "sell") return;        /* 단추는 누르는 그 순간이 전부다 */
+    if (g.kind === "sell" || g.kind === "tap") return;  /* 누르는 순간이 전부 */
     if (g.kind === "shelf") shelfMove(p);
-    else if (g.kind === "tear") tearMove(p, dt);
-    else if (g.kind === "carry") { if (S.h) dragHot(S.h, p.x, p.y); }
+    else if (g.kind === "hold") holdStep(p, q, dt);
     else if (g.kind === "knob") knobStep(p);
-    else if (g.kind === "touch") touchStep(p, q, dt);
     else if (g.kind === "tool") toolStep(p, q, dt);
   }
 
   /* 여기서 놓으면 쓸모가 있나? 없으면 도구는 제자리로 돌아간다. */
   function toolUseful(id, p) {
-    const h = S.h;
     const onPan = inPan(p.x, p.y, 1.2);
-    const onFood = h && Math.hypot(p.x - h.x, p.y - h.y) <= avgR(h) * 2.2;
-    switch (id) {
-      case "press":
-      case "flip":  return onPan || onFood;
-      case "tong":  return onPan || onFood ||
-                    inZone(LAY.plate, p.x, p.y, 1.3);
-      /* 숟가락은 철판에 설탕을 흘릴 수도 있으니 철판도 쓸 자리로 본다 */
-      case "spoon": return onPan || onFood || inZone(LAY.fill, p.x, p.y, 1.6);
-      case "oil":   return onPan;
-    }
-    return false;
+    return (id === "press" || id === "flip") && (onPan || !!hotAt(p.x, p.y, 2.2));
   }
 
   function onUp(p) {
     const g = S.grab;
     PTR.down = false; PTR.id = null; PTR.sp = 0;
     if (!g) return;
-    if (g.kind === "sell") { S.grab = null; return; }
+    if (g.kind === "sell" || g.kind === "tap") { S.grab = null; return; }
     if (g.kind === "shelf") { S.shelfDrag = null; S.grab = null; return; }
-    if (g.kind === "carry" || (g.kind === "touch" && g.mode === "carry")) {
-      placeDown(p);
+    if (g.kind === "knob") { S.grab = null; return; }
+    /* 끌고 있던 호떡 — 접시면 진열, 아니면 제 자리로. 끌지 않았으면
+       고르기만 한 것이라 아무 일도 안 일어난다. */
+    if (g.kind === "hold") {
+      if (g.drag && g.h) dropHot(g.h, p);
       S.grab = null;
       return;
     }
-    if (g.kind === "tool" && g.tool === "tong" && g.carry) {
-      placeDown(tipOf("tong", p));
-      S.grab = { kind: "tool", tool: "tong" };
-      return;
-    }
-    if (g.kind === "tear") { S.grab = null; return; }
-    if (g.kind === "knob") { S.grab = null; return; }
-    if (g.kind === "touch") { if (S.h) S.h.liftHint = 0; S.grab = null; return; }
     /* 누르개를 떼면 생반죽은 조금 돌아온다 */
     if (g.kind === "tool" && g.tool === "press") pressRelease(g);
-    /* 숟가락은 손을 뗄 때 붓는다 — 겨눈 자리 그대로 */
-    if (g.kind === "tool" && g.tool === "spoon" && g.aim) dumpFilling(tipOf("spoon", p));
     /* 쓸 만한 자리에서 놓으면 계속 들고 있고, 엉뚱한 데서 놓으면 제자리로.
        단 제자리에서 막 집은 참이면(아직 안 움직였으면) 그대로 들고 있는다. */
     if (g.kind === "tool") {
@@ -3827,7 +3450,8 @@
     const h = S.h;
     const n = (v, d) => v.toFixed(d === undefined ? 2 : d);
     if (!h) {
-      DBG.el.textContent = "반죽 없음   불 " + n(S.heat) + "   철판 " + n(S.panTemp);
+      DBG.el.textContent = "철판 비었음   불 " + n(S.heat) + "   철판 " + n(S.panTemp) +
+        "   made " + S.made + "  sold " + S.sold;
       return;
     }
     DBG.el.textContent = [
@@ -3842,8 +3466,8 @@
       "heatLevel      " + n(S.heat) + "   pan " + n(S.panTemp) + "  here " + n(heatAt(h.x, h.y)),
       "fillOffset     " + n(h.fillOff) + "   sugarUnder " + n(sugarAt(h.x, h.y)),
       "ruptureRisk    " + n(ruptureRisk(h)) + "   stage " + riskStage(ruptureRisk(h)) +
-        "   moveRatio " + n(moveRatio(h)),
-      "made " + S.made + "  sold " + S.sold + "  stock " + S.shelf.length + "  left " + n(S.timeLeft, 1),
+
+      "onPan " + S.pan.length + "   made " + S.made + "  sold " + S.sold + "  stock " + S.shelf.length + "  left " + n(S.timeLeft, 1),
     ].join("\n");
   }
 
@@ -4042,11 +3666,14 @@
     shelfClone: shelfClone, shelfSlotX: shelfSlotX, shelfEntry: shelfEntry,
     shelfMaxScroll: shelfMaxScroll, shelfSpan: shelfSpan, shelfBaseX: shelfBaseX,
     stepShelf: stepShelf, drawShelf: drawShelf, drawEndShelf: drawEndShelf,
-    moveRatio: moveRatio, heatAt: heatAt, sugarAt: sugarAt, pressRelease: pressRelease,
+    heatAt: heatAt, sugarAt: sugarAt, pressRelease: pressRelease,
     DOUGH_ELASTIC: DOUGH_ELASTIC,
     ruptureRisk: ruptureRisk, riskStage: riskStage, sealHold: sealHold,
     coreRatio: coreRatio, tearStep: tearStep,
     qualityOf: qualityOf, submit: submit, endGame: endGame,
+    PREP: PREP, spawnDough: spawnDough, addFilling: addFilling,
+    oilPanOnce: oilPanOnce, flipOnce: flipOnce, select: select,
+    hotAt: hotAt, freeSlot: freeSlot, dropHot: dropHot, stepOne: stepOne,
     QUAL: QUAL, CUST: CUST, WHO: WHO, SAY: SAY, ASK_SAY: ASK_SAY,
     verdictOf: verdictOf, spawnCustomer: spawnCustomer, stepCustomer: stepCustomer,
     canSell: canSell, sellTo: sellTo, reflowShelf: reflowShelf,
