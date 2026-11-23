@@ -642,6 +642,9 @@
     nextIn: 0,
     lastWho: "",                    /* 같은 손님이 내리 오지 않게 */
     flyout: [],                     /* 손님에게 건너가는 중인 호떡 */
+    /* 이번 판에 만든 것들의 모습. 팔리면 shelf 에서는 빠지지만
+       결과 화면은 "무엇을 만들어 팔았나" 를 보여 줘야 한다. */
+    roundLook: [],
     elapsed: 0,
     running: false,               /* [시작] 을 누른 뒤부터 만질 수 있다 */
     assetsReady: false,
@@ -670,6 +673,7 @@
        호떡이 모두 사라진다. 배열은 갈아 끼우지 않고 비운다. */
     S.cust = null; S.nextIn = 0; S.lastWho = "";
     S.flyout.length = 0;
+    S.roundLook.length = 0;
     /* 지난 판의 전시물과 날아오던 것, 스크롤 자리까지 모두 지운다.
        배열을 갈아 끼우지 않고 비우는 것은, 지난 판의 애니메이션이
        들고 있던 참조로 새 판에 호떡을 밀어 넣지 못하게 하기 위해서다. */
@@ -1751,7 +1755,10 @@
     /* 세는 것과 전시대에 올리는 것은 여기 한 번뿐이다.
        날아가는 연출이 끝날 때 다시 세지 않는다. */
     S.made++;
-    S.shelf.push(shelfEntry(shelfClone(h)));
+    const made = shelfEntry(shelfClone(h));
+    S.shelf.push(made);
+    /* 결과 화면용 기록 — 팔려 나가도 남는다 */
+    if (S.roundLook.length < 14) S.roundLook.push(made);
     S.shelfHold = 0;                 /* 새로 올린 자리를 보여 준다 */
     /* 첫 손님은 첫 호떡이 진열된 뒤에 온다 — 빈 전시대 앞에
        세워 두지 않는다. */
@@ -2939,7 +2946,8 @@
     return m + ":" + (r < 10 ? "0" + r : String(r));
   }
   function drawHud(g) {
-    if (!S.running && !S.over) return;      /* 시작 전에는 띠도 없다 */
+    /* 시작 전에도, 끝난 뒤에도 띠는 없다 — 결과 화면에는 결과만 둔다 */
+    if (!S.running) return;
     const c = HUD;
     const left = S.timeLeft;
     const warn = left <= MODE.warnAt;
@@ -3641,48 +3649,215 @@
      같은 S.shelf 를 그대로 읽는다. 여기서 다시 담지 않으므로
      개수가 두 번 세어질 일이 없다. 한 줄에 다 안 들어가면 줄을
      늘린다 — 줄이거나 버리지 않는다. */
+  /* --- 결과 장면 -------------------------------------------------
+     이번 판에 만든 호떡을 접시에 담아 보여 준다. 팔린 것도 남은 것도
+     같이 올린다 — 팔렸다고 없던 일이 되지는 않는다.
+     16:10 칸을 꽉 채우고, 호떡은 늘 쓰던 그리개로 그린다. */
+  const SHOT = { ratio: 16 / 10, plate: 0.76, rows: [0.60, 0.80] };
+
   function drawEndShelf() {
     const cv2 = $("eShelf");
     if (!cv2) return;
+    const box = cv2.parentElement;
+    const w = (box && box.clientWidth) || cv2.clientWidth || 300;
+    const h = Math.round(w / SHOT.ratio);
     const dpr = Math.min(2.5, window.devicePixelRatio || 1);
-    const w = cv2.clientWidth || 300;
-    /* 결과 화면은 좁다. 여기서는 겹치지 않게 한 칸씩 늘어놓고, 배율은
-       제일 큰 것이 한 칸에 들어가도록 하나만 정한다 — 모두 같은 배율
-       이라 호떡끼리의 크기 차이는 그대로 남는다. */
-    const CELL = 56;
-    let maxDia = 1;
-    for (const s of S.shelf) if (s.dia > maxDia) maxDia = s.dia;
-    const fit = (CELL * 0.92) / maxDia;
-    const per = Math.max(1, Math.floor(w / CELL));
-    const rows = Math.max(1, Math.ceil(S.shelf.length / per));
-    const rowH = CELL * 0.95;
-    const hh = rows * rowH;
-    cv2.style.height = Math.round(hh) + "px";
     cv2.width = Math.max(1, Math.round(w * dpr));
-    cv2.height = Math.max(1, Math.round(hh * dpr));
+    cv2.height = Math.max(1, Math.round(h * dpr));
     const g = cv2.getContext("2d");
     if (!g) return;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    g.clearRect(0, 0, w, hh);
-    if (!S.shelf.length) return;
-    for (let i = 0; i < S.shelf.length; i++) {
-      const r = Math.floor(i / per), c = i % per;
-      const n = Math.min(per, S.shelf.length - r * per);
-      const x = w / 2 + (c - (n - 1) / 2) * CELL;
-      drawShelfOne(g, S.shelf[i], x, (r + 1) * rowH - rowH * 0.12,
-                   TRAY.scale * fit);
+    paintEndShot(g, w, h);
+  }
+
+  /* 칸 하나를 통째로 그린다. 결과 저장도 같은 함수를 쓴다 —
+     화면에서 본 것과 내려받은 그림이 달라지면 안 된다. */
+  function paintEndShot(g, w, h) {
+    g.save();
+    /* 칸 밖으로 넘지 않는다. 화면에서는 캔버스가 알아서 잘라 주지만
+       저장할 때는 한 장에 같이 그리므로 여기서 잘라야 한다. */
+    g.beginPath();
+    g.rect(0, 0, w, h);
+    g.clip();
+    /* 바탕 — 조리대의 따뜻한 색을 옅게 */
+    const gr = g.createLinearGradient(0, 0, 0, h);
+    gr.addColorStop(0, "#F7F3EC");
+    gr.addColorStop(1, "#E9E2D6");
+    g.fillStyle = gr;
+    g.fillRect(0, 0, w, h);
+
+    /* 접시 */
+    const pw = w * SHOT.plate;
+    if (!art(g, "plate", w / 2, h * 0.63, pw)) {
+      ell(g, w / 2, h * 0.63, pw / 2, pw / 2 * 0.3);
+      g.fillStyle = "#D8D4CC"; g.fill();
+      stroke(g, "rgba(0,0,0,.18)", 2);
     }
+
+    const list = S.roundLook;
+    if (!list.length) {
+      g.textAlign = "center"; g.textBaseline = "middle";
+      g.fillStyle = "rgba(60,52,42,.45)";
+      g.font = "700 " + Math.round(h * 0.085) + "px Pretendard, sans-serif";
+      g.fillText("호떡을 하나도 못 만들었어요", w / 2, h * 0.42);
+      g.restore();
+      return;
+    }
+
+    /* 접시 위에 두 줄로 겹쳐 올린다. 많으면 두 줄에 나눠 담고,
+       아주 많으면 앞의 것부터 담고 남은 수를 적는다. */
+    const show = list.slice(0, 10);
+    const back = show.slice(0, Math.ceil(show.length / 2));
+    const front = show.slice(Math.ceil(show.length / 2));
+    let maxDia = 1;
+    for (const e of show) if (e.dia > maxDia) maxDia = e.dia;
+    const per = Math.max(back.length, front.length, 1);
+    /* 겹치며 늘어서므로 칸 하나는 지름의 절반쯤이면 된다 */
+    const step = Math.min(pw * 0.9 / Math.max(1, per - 0.3), w * 0.2);
+    const sc = TRAY.scale * (step / Math.max(1, maxDia * 0.56));
+
+    const row = (arr, y) => {
+      for (let i = 0; i < arr.length; i++) {
+        const x = w / 2 + (i - (arr.length - 1) / 2) * step;
+        drawShelfOne(g, arr[i], x, y, sc);
+      }
+    };
+    row(back, h * SHOT.rows[0]);
+    row(front, h * SHOT.rows[1]);
+
+    if (list.length > show.length) {
+      g.textAlign = "right"; g.textBaseline = "bottom";
+      g.fillStyle = "rgba(40,34,26,.55)";
+      g.font = "800 " + Math.round(h * 0.072) + "px Pretendard, sans-serif";
+      g.fillText("+" + (list.length - show.length), w - h * 0.05, h - h * 0.05);
+    }
+    g.restore();
+  }
+
+  /* --- 짧은 알림 ------------------------------------------------- */
+  let toastT = null;
+  function uiToast(text) {
+    const el = $("toast");
+    if (!el) return;
+    el.textContent = text;
+    el.hidden = false;
+    if (toastT) clearTimeout(toastT);
+    toastT = setTimeout(() => { el.hidden = true; toastT = null; }, 1800);
+  }
+
+  /* --- 도전장 보내기 ----------------------------------------------
+     공유를 지원하면 공유창을, 아니면 링크를 복사한다. 어느 쪽도
+     안 되면 조용히 실패하지 않고 알려 준다. */
+  function shareScore() {
+    const n = S.sold;
+    const text = "호떡집 운영 90초, 나는 " + n + "개 팔았어! 도전해봐";
+    const url = location.href.split("#")[0];
+    track("share");
+    if (navigator.share) {
+      navigator.share({ title: "꼬직 · 호떡 알바", text: text, url: url })
+        .catch(() => {});
+      return "share";
+    }
+    const full = text + "\n" + url;
+    const done = () => uiToast("복사되었습니다");
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(full).then(done, () => uiToast("복사하지 못했어요"));
+      return "clipboard";
+    }
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = full;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      done();
+      return "exec";
+    } catch (_) {
+      uiToast("복사하지 못했어요");
+      return "fail";
+    }
+  }
+
+  /* --- 결과 저장 --------------------------------------------------
+     화면에서 본 장면 그대로에 숫자와 한 줄을 얹어 한 장으로 만든다. */
+  function saveShot() {
+    let c;
+    try { c = document.createElement("canvas"); } catch (_) { return false; }
+    const W = 1080, SH = Math.round(W / SHOT.ratio);
+    const H = 1200;
+    c.width = W; c.height = H;
+    const g = c.getContext("2d");
+    if (!g) return false;
+    g.fillStyle = "#fff";
+    g.fillRect(0, 0, W, H);
+    g.save();
+    g.translate(0, 0);
+    paintEndShot(g, W, SH);
+    g.restore();
+    g.strokeStyle = "#111"; g.lineWidth = 2;
+    g.strokeRect(1, 1, W - 2, SH - 2);
+
+    g.textAlign = "center";
+    g.fillStyle = "#111";
+    g.textBaseline = "alphabetic";
+    g.font = "800 46px Pretendard, sans-serif";
+    g.fillText("시간 종료!", W / 2, SH + 110);
+    /* 숫자 폭을 재서 단위를 그 오른쪽 아래에 붙인다 — 두 자리가
+       되어도 겹치거나 떨어지지 않는다. */
+    const num = String(S.sold);
+    g.font = "900 168px Pretendard, sans-serif";
+    const numW = g.measureText(num).width;
+    g.font = "800 40px Pretendard, sans-serif";
+    const unitW = g.measureText("개").width;
+    const left = (W - (numW + 6 + unitW)) / 2;
+    g.textAlign = "left";
+    g.font = "900 168px Pretendard, sans-serif";
+    g.fillText(num, left, SH + 290);
+    g.font = "800 40px Pretendard, sans-serif";
+    g.fillText("개", left + numW + 6, SH + 290);
+    g.textAlign = "center";
+    g.font = "800 40px Pretendard, sans-serif";
+    g.fillText("판매한 호떡 " + S.sold + "개", W / 2, SH + 360);
+    g.font = "500 30px Pretendard, sans-serif";
+    g.fillStyle = "#888";
+    g.fillText(endLine(), W / 2, SH + 420);
+    g.font = "500 26px Pretendard, sans-serif";
+    g.fillStyle = "#999";
+    g.fillText("@ccojik", W / 2, H - 40);
+
+    try {
+      const a = document.createElement("a");
+      a.href = c.toDataURL("image/png");
+      a.download = "hotteok-" + S.sold + "개.png";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      uiToast("저장했습니다");
+      track("save_result");
+      return true;
+    } catch (_) {
+      uiToast("저장하지 못했어요");
+      return false;
+    }
+  }
+
+  /* 세부 기록 한 줄 — 표가 아니라 읽고 지나갈 줄이다 */
+  function endLine() {
+    return "판매 " + S.sold + "개 · 남은 호떡 " + S.shelf.length +
+           "개 · 만족 손님 " + S.happy + "명 · 불만 손님 " + S.upset + "명";
   }
 
   /* 시간 종료 화면 — 한 번만 뜬다 */
   function showEnd() {
     const set = (id, v) => { const e = $(id); if (e) e.textContent = v; };
-    set("eSub", MODE.timeLimit + "초 동안 만든 호떡");
-    set("eCount", S.made + "개");
-    set("eSold", S.sold + "개");
-    set("eLeft", S.shelf.length + "개");
-    set("eHappy", S.happy + "명");
-    set("eUpset", S.upset + "명");
+    /* 큰 숫자는 판 개수다. 만든 개수는 판 것 + 남은 것이라
+       아래 한 줄에서 읽힌다. */
+    set("eCount", String(S.sold));
+    set("eMade", "판매한 호떡 " + S.sold + "개");
+    set("eLine", endLine());
     const o = $("endOver");
     if (o) o.hidden = false;
     /* 칸을 먼저 열고 나서 그린다 — 숨어 있는 동안에는 clientWidth 가
@@ -3755,6 +3930,11 @@
     const ab = $("againBtn");
     if (ab) ab.addEventListener("click", restart);
 
+    const shb = $("shareBtn");
+    if (shb) shb.addEventListener("click", shareScore);
+    const svb = $("saveBtn");
+    if (svb) svb.addEventListener("click", saveShot);
+
     track("flow_start");
     raf = requestAnimationFrame(frame);
   }
@@ -3769,6 +3949,8 @@
     shelfClone: shelfClone, shelfSlotX: shelfSlotX, shelfEntry: shelfEntry,
     shelfMaxScroll: shelfMaxScroll, shelfSpan: shelfSpan, shelfBaseX: shelfBaseX,
     stepShelf: stepShelf, drawShelf: drawShelf, drawEndShelf: drawEndShelf,
+    paintEndShot: paintEndShot, endLine: endLine, shareScore: shareScore,
+    saveShot: saveShot, uiToast: uiToast, SHOT: SHOT,
     heatAt: heatAt, sugarAt: sugarAt, pressRelease: pressRelease,
     DOUGH_ELASTIC: DOUGH_ELASTIC,
     ruptureRisk: ruptureRisk, riskStage: riskStage, sealHold: sealHold,

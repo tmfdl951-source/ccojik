@@ -79,7 +79,7 @@ function attrOf(id, attr) {
   return !!(m && m[0].indexOf(attr) >= 0);
 }
 ["cv", "muteBtn", "againBtn", "endOver", "eSub", "eCount", "eShelf",
- "eSold", "eLeft", "eHappy", "eUpset",
+ "eMade", "eLine", "shareBtn", "saveBtn", "toast",
  "sBody", "sIntro", "sShot",
  "loadOver", "startOver", "startBtn"]
   .forEach(id => {
@@ -270,9 +270,12 @@ console.log("\n--- 1. 금지 사항 ---");
     .map(b => b.replace(/<[^>]*>/g, "").trim());
   const found = banned.filter(b => btnText.some(t => t === b));
   ok(found.length === 0, "조리 단계를 누르는 단추가 없다", found.join(","));
-  /* 단추는 셋뿐이다 — 소리 / 게임 시작 / 다시 도전. */
+  /* 단추는 다섯뿐이다 — 소리 / 시작하기 / 도전장 / 다시 도전 / 결과 저장.
+     전부 판 밖의 일이고, 조리를 대신하는 것은 하나도 없다. */
   const btns = (html.match(/<button/g) || []).length;
-  ok(btns === 3, "단추는 소리·시작·다시 도전 셋뿐이다", btns + "개");
+  ok(btns === 5, "단추는 다섯뿐이다", btns + "개");
+  for (const id of ["muteBtn", "startBtn", "shareBtn", "againBtn", "saveBtn"])
+    ok(html.indexOf('id="' + id + '"') >= 0, id + " 단추가 있다");
   /* 조리판 안에서 하는 일에는 단추가 붙지 않는다 */
   const cookBtn = ["id=\"oilBtn", "id=\"pressBtn", "id=\"flipBtn",
                    "id=\"sugarBtn", "id=\"sealBtn", "id=\"autoBtn"];
@@ -281,7 +284,7 @@ console.log("\n--- 1. 금지 사항 ---");
   /* --- 이번 변경으로 없어져야 하는 것들 --- */
   for (const w of ["주문서", "오늘의 주문", "작업대", "도감", "공유하기", "등급"])
     ok(html.indexOf(w) < 0, "화면에 '" + w + "' 이 남아 있지 않다");
-  for (const id of ["cutBtn", "skipBtn", "dexBtn", "shareBtn", "orderBtn", "resCv", "rStars"])
+  for (const id of ["cutBtn", "skipBtn", "dexBtn", "orderBtn", "resCv", "rStars"])
     ok(html.indexOf(id) < 0, "없어진 칸 " + id + " 이 남아 있지 않다");
   for (const f of ["drawOrderCard", "drawBoard", "evaluate", "drawResultArt", "nextOrder"])
     ok(SRC.indexOf("function " + f) < 0, "없어진 함수 " + f + " 이 남아 있지 않다");
@@ -3192,10 +3195,16 @@ function freshGame() {
   ok(S.over === true, "시간이 다 되면 끝난다");
   ok(S.running === false, "조리도 멈춘다");
   ok(els.endOver.hidden === false, "종료 화면이 열린다");
-  ok(els.eCount.textContent === S.made + "개", "만든 개수를 보여 준다",
+  ok(els.eCount.textContent === String(S.sold), "판 개수를 크게 보여 준다",
      els.eCount.textContent);
-  ok(els.eSub.textContent.indexOf(String(G.MODE.timeLimit)) >= 0,
-     "몇 초 동안이었는지도 적는다", els.eSub.textContent);
+  ok(els.eMade.textContent === "판매한 호떡 " + S.sold + "개",
+     "판 개수를 말로도 적는다", els.eMade.textContent);
+  /* 세부 기록은 표가 아니라 한 줄이다 */
+  const line = els.eLine.textContent;
+  for (const [k, v] of [["판매", S.sold + "개"], ["남은 호떡", S.shelf.length + "개"],
+                        ["만족 손님", S.happy + "명"], ["불만 손님", S.upset + "명"]])
+    ok(line.indexOf(k + " " + v) >= 0, "한 줄에 " + k + " 가 있다", line);
+  ok((line.match(/·/g) || []).length === 3, "가운데 점으로 넷을 가른다", line);
 
   /* 끝난 뒤에는 조작도 집계도 막힌다 */
   const n0 = S.made;
@@ -3510,9 +3519,10 @@ console.log("\n--- 36. 시작 화면 ---");
   ok(/너무 세게 누르면 터집니다/.test(sub2), "둘째 줄");
   ok(/<br\s*\/?>/.test(sub2), "두 줄로 나뉘어 있다");
   ok(html.indexOf("90초") >= 0, "제한시간도 알려 준다");
-  for (const id of ["eSold", "eLeft", "eHappy", "eUpset"])
+  for (const id of ["eShelf", "eCount", "eMade", "eLine", "shareBtn", "againBtn", "saveBtn"])
     ok(html.indexOf('id="' + id + '"') >= 0,
        "결과 화면에 " + id + " 칸이 있다");
+  ok(html.indexOf("e-stats") < 0, "네 칸짜리 표는 걷어냈다");
 
   /* 걷어낸 것들 */
   ok(html.indexOf('id="sRule"') < 0, "노란 안내 상자를 걷어냈다");
@@ -3571,6 +3581,91 @@ console.log("\n--- 36. 시작 화면 ---");
 /* ============================================================
    37. 완성 호떡 전시대
    ============================================================ */
+/* ============================================================
+   36-2. 결과 화면 — 시작 화면과 같은 규칙
+   ============================================================ */
+console.log("\n--- 36-2. 결과 화면 ---");
+{
+  /* 위에서 아래로: 장면 / 제목 / 큰 숫자 / 말 / 한 줄 / 검정 / 흰 둘 / 계정 */
+  const order = ["e-shot", "e-title", "e-count", "eMade", "eLine",
+                 "shareBtn", "againBtn", "saveBtn", "e-tag"]
+    .map(k => html.indexOf(k));
+  ok(order.every(i => i >= 0), "아홉이 다 있다", order.join(","));
+  ok(order.every((v, i) => i === 0 || v > order[i - 1]),
+     "장면 -> 제목 -> 숫자 -> 말 -> 줄 -> 검정 -> 흰 둘 -> 계정 차례다",
+     order.join(" < "));
+
+  const title = (html.match(/class="e-title"[^>]*>([^<]*)</) || [])[1] || "";
+  ok(title === "시간 종료!", "제목은 그대로", title);
+  const main = (html.match(/id="shareBtn"[^>]*>([^<]*)</) || [])[1] || "";
+  ok(main === "친구에게 도전장 보내기", "검정 단추 글", main);
+  const sub1 = (html.match(/id="againBtn"[^>]*>([^<]*)</) || [])[1] || "";
+  const sub2 = (html.match(/id="saveBtn"[^>]*>([^<]*)</) || [])[1] || "";
+  ok(sub1 === "다시 도전" && sub2 === "결과 저장", "흰 단추 둘", sub1 + " / " + sub2);
+  ok(/class="e-tag"[^>]*>@/.test(html), "아래에 계정 표기가 있다");
+
+  /* 걷어낸 것들 */
+  ok(html.indexOf('id="eSub"') < 0, "'90초 동안 만든 호떡' 줄을 걷어냈다");
+  ok(css.indexOf(".e-stats") < 0, "네 칸짜리 표 스타일도 남기지 않았다");
+  ok(!/\.e-count\s*\{[^}]*#F7C843/.test(css), "노란 강조를 걷어냈다");
+
+  /* 흰 바탕, 검정 글자, 직각, 한 기둥 */
+  ok(/\.over-end\s*\{[^}]*background:\s*#fff/.test(css), "바탕이 희다");
+  ok(/\.over-end\s*\{[^}]*padding:[^;]*20%/.test(css), "좌우 여백 20%");
+  ok(/\.e-shot\s*\{[^}]*aspect-ratio:\s*16\s*\/\s*10/.test(css), "장면 칸은 16:10");
+  ok(/\.e-shot\s*\{[^}]*border:\s*1px solid #111/.test(css), "1px 검정 테두리");
+  ok(/\.e-shot canvas[\s\S]*?object-fit:\s*cover/.test(css), "꽉 채우되 안 찌그러진다");
+  ok(/\.over-end \.btn-main\s*\{[^}]*background:\s*#000/.test(css), "메인 단추는 검정");
+  ok(/\.over-end \.btn-main\s*\{[^}]*width:\s*100%/.test(css), "메인 단추 폭은 장면과 같다");
+  ok(/\.over-end \.btn-sub\s*\{[^}]*background:\s*#fff/.test(css), "보조 단추는 흰색");
+  ok(/\.e-subs\s*\{[^}]*gap:\s*8px/.test(css), "보조 둘 사이가 8px");
+  ok(/\.e-line\s*\{[^}]*color:\s*#888/.test(css), "한 줄은 회색");
+
+  /* 끝난 뒤에는 위쪽 띠를 그리지 않는다 */
+  ok(/if \(!S\.running\) return;/.test(SRC), "결과 화면에서는 띠를 안 그린다");
+}
+
+{
+  /* --- 숫자가 실제 결과와 맞는다 --- */
+  freshGame();
+  S.heat = 0.7;
+  oilPan();
+  makeMany(3);
+  const ty = -G.TIP.tong.y;
+  /* 손님에게 둘만 판다 */
+  S.cust = null; S.nextIn = 0;
+  wait(G.CUST.firstDelay + 0.6);
+  ok(S.cust !== null, "손님이 왔다");
+  S.cust.want = 2;
+  G.sellTo();
+  wait(1);
+  S.timeLeft = 0.01;
+  wait(0.1);
+  ok(S.over === true, "시간이 끝났다");
+  ok(els.eCount.textContent === "2", "큰 숫자는 판 개수", els.eCount.textContent);
+  ok(els.eMade.textContent === "판매한 호떡 2개", "말로도 판 개수", els.eMade.textContent);
+  ok(els.eLine.textContent === G.endLine(), "한 줄이 같은 값을 쓴다", els.eLine.textContent);
+  ok(els.eLine.textContent.indexOf("남은 호떡 1개") >= 0, "남은 수도 맞는다",
+     els.eLine.textContent);
+  ok(S.made === S.sold + S.shelf.length, "만든 = 판매 + 재고",
+     S.made + " = " + S.sold + " + " + S.shelf.length);
+
+  /* 결과 장면은 이번 판에 만든 것 전부를 들고 있다 (판 것도) */
+  ok(S.roundLook.length === S.made, "장면 기록이 만든 수와 같다",
+     S.roundLook.length + " / " + S.made);
+  ok(G.paint() === true, "결과 화면을 그려도 안 터진다", G.paint());
+  ok(G.drawEndShelf() === undefined, "결과 장면을 그려도 안 터진다");
+
+  /* 도전장 — 공유를 못 하면 복사한다 */
+  const how = G.shareScore();
+  ok(["share", "clipboard", "exec", "fail"].indexOf(how) >= 0, "도전장을 보낸다", how);
+
+  /* 다시 도전하면 장면 기록도 지워진다 */
+  G.restart();
+  ok(S.roundLook.length === 0, "장면 기록도 처음으로", S.roundLook.length);
+  ok(S.made === 0 && S.sold === 0, "숫자도 처음으로");
+}
+
 console.log("\n--- 37. 전시대 ---");
 
 {
@@ -3896,7 +3991,7 @@ console.log("\n--- 37. 전시대 ---");
      "이동 중이던 것도 전시에 남는다", S.made + " / " + S.shelf.length);
   ok(S.shelf.every(s => s.fly === 0), "진행 중이던 이동은 제자리로 정리된다");
   ok(els.endOver.hidden === false, "결과 화면이 열렸다");
-  ok(els.eCount.textContent === "3개", "개수가 맞다", els.eCount.textContent);
+  ok(els.eCount.textContent === String(S.sold), "개수가 맞다", els.eCount.textContent);
   ok(els.eShelf !== undefined, "결과 화면에도 전시 칸이 있다");
 
   /* 종료 뒤 제출은 세지도 전시되지도 않는다 */
@@ -4285,11 +4380,13 @@ const GOOD = {}, BURNT = { cookA: 70, cookB: 130 }, RAW = { cookA: 10, cookB: 70
   wait(30);
   ok(S.cust === null, "새 손님도 안 온다");
   ok(S.sold === n, "판매 수도 안 바뀐다", S.sold);
-  /* 결과 화면에 다섯 가지 */
-  ok(els.eSold.textContent === sold0 + "개", "결과에 판매 수", els.eSold.textContent);
-  ok(els.eLeft.textContent === stock0 + "개", "결과에 남은 수", els.eLeft.textContent);
-  ok(els.eHappy.textContent === happy0 + "명", "결과에 만족 손님", els.eHappy.textContent);
-  ok(els.eUpset.textContent === S.upset + "명", "결과에 불만 손님", els.eUpset.textContent);
+  /* 결과 화면 — 큰 숫자 하나와 한 줄에 네 가지 */
+  ok(els.eCount.textContent === String(sold0), "큰 숫자는 판 개수", els.eCount.textContent);
+  const l = els.eLine.textContent;
+  ok(l.indexOf("판매 " + sold0 + "개") >= 0, "한 줄에 판매 수", l);
+  ok(l.indexOf("남은 호떡 " + stock0 + "개") >= 0, "한 줄에 남은 수", l);
+  ok(l.indexOf("만족 손님 " + happy0 + "명") >= 0, "한 줄에 만족 손님", l);
+  ok(l.indexOf("불만 손님 " + S.upset + "명") >= 0, "한 줄에 불만 손님", l);
 }
 
 {

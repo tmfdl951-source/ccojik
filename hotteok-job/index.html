@@ -49,21 +49,26 @@
   <!-- 시간 종료 — 몇 개를 만들었나, 그리고 다시 도전 -->
   <div class="over over-end" id="endOver" hidden>
     <div class="e-body">
+      <!-- 이번 판에 만든 호떡을 접시에 담은 장면. 판 것도 남은 것도
+           여기 올라간다 — 팔렸다고 없던 일이 되지는 않는다. -->
+      <div class="e-shot"><canvas id="eShelf"></canvas></div>
       <p class="e-title">시간 종료!</p>
-      <p class="e-sub" id="eSub">90초 동안 만든 호떡</p>
-      <p class="e-count" id="eCount">0개</p>
-      <!-- 만든 호떡 = 판매한 호떡 + 남은 호떡 -->
-      <dl class="e-stats">
-        <div><dt>판매</dt><dd id="eSold">0개</dd></div>
-        <div><dt>남은 호떡</dt><dd id="eLeft">0개</dd></div>
-        <div><dt>만족 손님</dt><dd id="eHappy">0명</dd></div>
-        <div><dt>불만 손님</dt><dd id="eUpset">0명</dd></div>
-      </dl>
-      <!-- 판매하고 남은 호떡들. 조리 화면의 전시대와 같은 목록이다. -->
-      <canvas class="e-shelf" id="eShelf"></canvas>
-      <button class="btn" type="button" id="againBtn">다시 도전</button>
+      <!-- 큰 숫자는 판 개수다. 만든 개수는 판 것 + 남은 것이라
+           아래 한 줄에서 읽힌다. -->
+      <p class="e-count"><span id="eCount">0</span><em>개</em></p>
+      <p class="e-made" id="eMade">판매한 호떡 0개</p>
+      <p class="e-line" id="eLine">판매 0개 · 남은 호떡 0개 · 만족 손님 0명 · 불만 손님 0명</p>
+      <button class="btn btn-main" type="button" id="shareBtn">친구에게 도전장 보내기</button>
+      <div class="e-subs">
+        <button class="btn btn-sub" type="button" id="againBtn">다시 도전</button>
+        <button class="btn btn-sub" type="button" id="saveBtn">결과 저장</button>
+      </div>
+      <p class="e-tag">@ccojik</p>
     </div>
   </div>
+
+  <!-- 복사했다 같은 짧은 알림 -->
+  <p class="toast" id="toast" hidden></p>
 </div>
 
 <script src="game.js"></script>
