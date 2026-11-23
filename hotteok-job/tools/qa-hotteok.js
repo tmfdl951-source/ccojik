@@ -49,7 +49,7 @@ function makeCtx() {
 
 function makeEl(id) {
   const el = {
-    id: id, _h: {}, hidden: false, textContent: "", style: {},
+    id: id, _h: {}, hidden: false, textContent: "", style: {}, value: "",
     width: 300, height: 300,
     clientWidth: 360, clientHeight: 640,
     getContext: () => el._ctx || (el._ctx = makeCtx()),
@@ -79,8 +79,11 @@ function attrOf(id, attr) {
   return !!(m && m[0].indexOf(attr) >= 0);
 }
 ["cv", "muteBtn", "againBtn", "endOver", "eSub", "eCount", "eShelf",
- "eMade", "eLine", "shareBtn", "saveBtn", "toast",
+ "eMade", "eLine", "shareBtn", "shareOff", "saveBtn", "toast",
  "sBody", "sIntro", "sShot",
+ "battleOver", "bWho", "bCount", "bStart",
+ "vsBtn", "vsOver", "vFoeName", "vScore", "vVerdict", "vAgain", "vBack",
+ "nickOver", "nickInput", "nickOk", "nickCancel",
  "loadOver", "startOver", "startBtn"]
   .forEach(id => {
     els[id] = makeEl(id);
@@ -116,7 +119,7 @@ const DOC = {
 
 let vibes = 0;
 const NAV = { vibrate: () => { vibes++; return true; }, userAgent: "node" };
-const LOC = { href: "https://x.test/hotteok-job/" };
+const LOC = { href: "https://x.test/hotteok-job/", hash: "" };
 const WIN = {
   devicePixelRatio: 2,
   _h: {},
@@ -270,11 +273,13 @@ console.log("\n--- 1. 금지 사항 ---");
     .map(b => b.replace(/<[^>]*>/g, "").trim());
   const found = banned.filter(b => btnText.some(t => t === b));
   ok(found.length === 0, "조리 단계를 누르는 단추가 없다", found.join(","));
-  /* 단추는 다섯뿐이다 — 소리 / 시작하기 / 도전장 / 다시 도전 / 결과 저장.
-     전부 판 밖의 일이고, 조리를 대신하는 것은 하나도 없다. */
+  /* 단추는 전부 판 밖의 일이다 — 소리 / 시작하기 / 도전 시작 / 도전장 /
+     대결 보기 / 다시 도전 / 결과 저장 / 다시 붙기 / 내 결과 / 확인 / 취소.
+     조리를 대신하는 것은 하나도 없다. */
   const btns = (html.match(/<button/g) || []).length;
-  ok(btns === 5, "단추는 다섯뿐이다", btns + "개");
-  for (const id of ["muteBtn", "startBtn", "shareBtn", "againBtn", "saveBtn"])
+  ok(btns === 11, "단추는 열한 개뿐이다", btns + "개");
+  for (const id of ["muteBtn", "startBtn", "bStart", "shareBtn", "vsBtn",
+                    "againBtn", "saveBtn", "vAgain", "vBack", "nickOk", "nickCancel"])
     ok(html.indexOf('id="' + id + '"') >= 0, id + " 단추가 있다");
   /* 조리판 안에서 하는 일에는 단추가 붙지 않는다 */
   const cookBtn = ["id=\"oilBtn", "id=\"pressBtn", "id=\"flipBtn",
@@ -1303,11 +1308,12 @@ console.log("\n--- 20. 화면 / 에셋 ---");
   ok(/56\.25vh/.test(css), "세로 1080x1920 비율을 지킨다");
   ok(/min\(100vw/.test(css), "좁은 화면에서는 화면 폭에 맞춘다");
   ok(/min-height:\s*48px/.test(css), "단추가 48px 이상");
-  /* 조리 화면은 여전히 전부 캔버스에 그린다. DOM 그림은 시작 화면의
-     플레이 장면 하나뿐이다 — 그것은 조리가 아니라 보여 주기다. */
+  /* 조리 화면은 여전히 전부 캔버스에 그린다. DOM 그림은 흰 화면에만
+     있다 — 시작 장면, 도전장 장면, 대결의 두 칸. 전부 조리가 아니라
+     보여 주기다. */
   {
     const imgs = html.match(/<img[^>]*>/g) || [];
-    ok(imgs.length === 1, "DOM 그림은 하나뿐이다", imgs.length + "개");
+    ok(imgs.length === 4, "DOM 그림은 흰 화면의 넷뿐이다", imgs.length + "개");
     ok(/id="sShot"/.test(imgs[0] || ""), "그 하나는 시작 화면의 플레이 장면이다",
        (imgs[0] || "").slice(0, 50));
     ok(/width="[0-9]+"/.test(imgs[0] || "") && /height="[0-9]+"/.test(imgs[0] || ""),
@@ -3547,8 +3553,8 @@ console.log("\n--- 36. 시작 화면 ---");
      "꽉 채우되 비율은 안 찌그러진다");
 
   /* 흰 바탕, 검정 글자, 거의 직각 */
-  ok(/\.over-start\s*\{[^}]*background:\s*#fff/.test(css), "바탕이 희다");
-  ok(/\.over-start\s*\{[^}]*padding:[^;]*20%/.test(css),
+  ok(/\.over-start[^{]*\{[^}]*background:\s*#fff/.test(css), "바탕이 희다");
+  ok(/\.over-start[^{]*\{[^}]*padding:[^;]*20%/.test(css),
      "좌우 여백을 20% 로 잡는다");
   ok(/\.over-start \.btn\s*\{[^}]*background:\s*#000/.test(css), "단추는 검정");
   ok(/\.over-start \.btn\s*\{[^}]*width:\s*100%/.test(css),
@@ -3557,7 +3563,8 @@ console.log("\n--- 36. 시작 화면 ---");
 
   /* 설명과 단추가 한 묶음 */
   ok(html.indexOf('id="sBody"') >= 0, "설명과 단추가 한 묶음이다");
-  ok(css.indexOf(".over-start .s-body") >= 0, "그 묶음을 가운데로 모은다");
+  ok(/\.s-body[^{]*\{[^}]*align-items:\s*center/.test(css),
+     "그 묶음을 가운데로 모은다");
   ok(css.indexOf(".s-btns") < 0, "단추를 바닥에 따로 붙이지 않는다");
 
   /* 시작 전에는 조리 화면이 아무것도 받지 않는다 */
@@ -3586,10 +3593,14 @@ console.log("\n--- 36. 시작 화면 ---");
    ============================================================ */
 console.log("\n--- 36-2. 결과 화면 ---");
 {
-  /* 위에서 아래로: 장면 / 제목 / 큰 숫자 / 말 / 한 줄 / 검정 / 흰 둘 / 계정 */
+  /* 위에서 아래로: 장면 / 제목 / 큰 숫자 / 말 / 한 줄 / 검정 / 흰 둘 / 계정.
+     결과 화면 안쪽만 본다 — e-count 같은 이름은 도전장 화면에서도
+     쓰이므로 문서 전체에서 찾으면 엉뚱한 자리가 걸린다. */
+  const endHtml = html.slice(html.indexOf('id="endOver"'),
+                             html.indexOf('id="vsOver"'));
   const order = ["e-shot", "e-title", "e-count", "eMade", "eLine",
                  "shareBtn", "againBtn", "saveBtn", "e-tag"]
-    .map(k => html.indexOf(k));
+    .map(k => endHtml.indexOf(k));
   ok(order.every(i => i >= 0), "아홉이 다 있다", order.join(","));
   ok(order.every((v, i) => i === 0 || v > order[i - 1]),
      "장면 -> 제목 -> 숫자 -> 말 -> 줄 -> 검정 -> 흰 둘 -> 계정 차례다",
@@ -3610,14 +3621,15 @@ console.log("\n--- 36-2. 결과 화면 ---");
   ok(!/\.e-count\s*\{[^}]*#F7C843/.test(css), "노란 강조를 걷어냈다");
 
   /* 흰 바탕, 검정 글자, 직각, 한 기둥 */
-  ok(/\.over-end\s*\{[^}]*background:\s*#fff/.test(css), "바탕이 희다");
-  ok(/\.over-end\s*\{[^}]*padding:[^;]*20%/.test(css), "좌우 여백 20%");
+  ok(/\.over-end[^{]*\{[^}]*background:\s*#fff/.test(css), "바탕이 희다");
+  ok(/\.over-end[^{]*\{[^}]*padding:[^;]*20%/.test(css), "좌우 여백 20%");
   ok(/\.e-shot\s*\{[^}]*aspect-ratio:\s*16\s*\/\s*10/.test(css), "장면 칸은 16:10");
   ok(/\.e-shot\s*\{[^}]*border:\s*1px solid #111/.test(css), "1px 검정 테두리");
   ok(/\.e-shot canvas[\s\S]*?object-fit:\s*cover/.test(css), "꽉 채우되 안 찌그러진다");
-  ok(/\.over-end \.btn-main\s*\{[^}]*background:\s*#000/.test(css), "메인 단추는 검정");
-  ok(/\.over-end \.btn-main\s*\{[^}]*width:\s*100%/.test(css), "메인 단추 폭은 장면과 같다");
-  ok(/\.over-end \.btn-sub\s*\{[^}]*background:\s*#fff/.test(css), "보조 단추는 흰색");
+  ok(/\.btn-main\s*\{[^}]*background:\s*#000/.test(css), "메인 단추는 검정");
+  ok(/\.btn-main,\s*\.btn-sub\s*\{[^}]*width:\s*100%/.test(css),
+     "단추 폭은 장면과 같다");
+  ok(/\.btn-sub\s*\{[^}]*background:\s*#fff/.test(css), "보조 단추는 흰색");
   ok(/\.e-subs\s*\{[^}]*gap:\s*8px/.test(css), "보조 둘 사이가 8px");
   ok(/\.e-line\s*\{[^}]*color:\s*#888/.test(css), "한 줄은 회색");
 
@@ -3656,14 +3668,236 @@ console.log("\n--- 36-2. 결과 화면 ---");
   ok(G.paint() === true, "결과 화면을 그려도 안 터진다", G.paint());
   ok(G.drawEndShelf() === undefined, "결과 장면을 그려도 안 터진다");
 
-  /* 도전장 — 공유를 못 하면 복사한다 */
-  const how = G.shareScore();
-  ok(["share", "clipboard", "exec", "fail"].indexOf(how) >= 0, "도전장을 보낸다", how);
+  /* 도전장 — 공유를 못 하면 복사하고, 복사도 못 하면 링크를 보여 준다 */
+  const how = G.shareScore("테스터");
+  ok(["share", "clipboard", "exec", "prompt"].indexOf(how) >= 0, "도전장을 보낸다", how);
 
   /* 다시 도전하면 장면 기록도 지워진다 */
   G.restart();
   ok(S.roundLook.length === 0, "장면 기록도 처음으로", S.roundLook.length);
   ok(S.made === 0 && S.sold === 0, "숫자도 처음으로");
+}
+
+/* ============================================================
+   36-3. 도전장 — 링크 한 줄에 담아 보내는 기록
+   ============================================================ */
+console.log("\n--- 36-3. 도전장 ---");
+{
+  /* --- 담고 푸는 길이 서로 맞는가 --- */
+  const rec = { nick: "호떡장인", sold: 12, left: 3, happy: 4, angry: 1 };
+  const tok = G.makeToken(rec);
+  ok(tok.indexOf("v1.") === 0, "표를 v1 로 붙인다", tok);
+  ok(!/[+/=]/.test(tok), "주소에 그냥 못 쓰는 글자가 없다", tok);
+  const back = G.parseToken(tok);
+  ok(back !== null, "다시 풀린다");
+  ok(back.nick === "호떡장인", "한글 이름이 그대로 돌아온다", back && back.nick);
+  ok(back.sold === 12 && back.left === 3 && back.happy === 4 && back.angry === 1,
+     "숫자 넷도 그대로", JSON.stringify(back));
+
+  /* 담는 것은 다섯뿐이다 — 링크가 길어지면 메신저에서 잘린다 */
+  const raw = JSON.parse(decodeURIComponent(escape(atob(
+    tok.slice(3).replace(/-/g, "+").replace(/_/g, "/") +
+    "=".repeat((4 - tok.slice(3).length % 4) % 4)))));
+  ok(Object.keys(raw).length === 5, "링크에 담는 값은 다섯뿐이다",
+     Object.keys(raw).join(","));
+  ok(Object.keys(raw).join("") === "nskhu", "짧은 키를 쓴다", Object.keys(raw).join(","));
+
+  /* --- 주소 --- */
+  ok(!!G.BATTLE.base, "공개 주소가 한 곳에 적혀 있다", G.BATTLE.base);
+  const url = G.buildUrl(tok);
+  ok(url.indexOf("#battle/v1.") > 0, "주소 뒤에 해시로 붙는다", url);
+  ok(url.split("#").length === 2, "해시는 하나뿐이다", url);
+  /* 이미 해시가 붙은 주소를 또 겹쳐 붙이지 않는다 */
+  const old = G.BATTLE.base;
+  G.BATTLE.base = "https://x.test/g/#battle/v1.zzz";
+  ok(G.buildUrl(tok).split("#").length === 2, "먼저 있던 해시는 떼고 붙인다",
+     G.buildUrl(tok));
+  /* 주소가 비어 있으면 도전장을 만들 수 없다 */
+  G.BATTLE.base = "";
+  ok(G.buildUrl(tok) === "", "주소가 없으면 링크도 없다");
+  ok(G.shareScore("아무개") === "off", "주소가 없으면 보내지 않는다");
+  G.BATTLE.base = old;
+
+  /* --- 남이 만든 글자를 푸는 자리 --- */
+  ok(G.parseToken("") === null, "빈 표는 버린다");
+  ok(G.parseToken("v2.abc") === null, "모르는 판은 버린다");
+  ok(G.parseToken("v1.!!!!") === null, "깨진 글자는 버린다");
+  ok(G.parseToken("v1." + btoa('{"s":"twelve"}')) === null, "숫자가 아니면 버린다");
+  ok(G.parseToken("v1." + btoa('{"s":-3}')) === null, "음수는 버린다");
+  ok(G.parseToken("v1." + btoa('{"s":1000}')) === null, "너무 큰 수는 버린다");
+  const dirty = G.parseToken("v1." + btoa(unescape(encodeURIComponent(
+    JSON.stringify({ n: "<img>\u0007나쁜이름인데아주길다", s: 5 })))));
+  ok(dirty !== null, "숫자만 맞으면 읽는다");
+  ok(dirty.nick.indexOf("<") < 0 && dirty.nick.indexOf(">") < 0,
+     "꺾쇠는 털어 낸다", dirty && dirty.nick);
+  ok(dirty.nick.length <= 12, "이름은 열두 자까지", dirty && dirty.nick);
+  const noName = G.parseToken("v1." + btoa('{"s":7}'));
+  ok(noName && noName.nick === "친구", "이름이 없으면 '친구'", noName && noName.nick);
+  ok(noName && noName.left === 0 && noName.happy === 0 && noName.angry === 0,
+     "빠진 숫자는 0 으로");
+
+  /* --- 해시 읽기 --- */
+  ok(G.hashBattle("") === null, "해시가 없으면 도전장이 아니다");
+  ok(G.hashBattle("#about") === null, "다른 해시는 도전장이 아니다");
+  ok(G.hashBattle("#battle/v1.!!!") === null, "깨진 도전장은 버린다");
+  const got = G.hashBattle("#battle/" + tok);
+  ok(got !== null && got.sold === 12, "도전장 해시를 읽는다", JSON.stringify(got));
+
+  /* --- 도전장 화면 --- */
+  ok(/class="over over-battle" id="battleOver"[^>]*hidden/.test(html),
+     "도전장 화면은 처음에 닫혀 있다");
+  const batHtml = html.slice(html.indexOf('id="battleOver"'),
+                             html.indexOf('id="endOver"'));
+  const bOrder = ["s-shot", "b-title", "bWho", "bCount", "b-dare", "bStart"]
+    .map(k => batHtml.indexOf(k));
+  ok(bOrder.every(i => i >= 0), "도전장 화면의 여섯이 다 있다", bOrder.join(","));
+  ok(bOrder.every((v, i) => i === 0 || v > bOrder[i - 1]),
+     "그림 -> 제목 -> 라벨 -> 숫자 -> 문구 -> 단추 차례다", bOrder.join(" < "));
+  const bt = (html.match(/class="b-title"[^>]*>([^<]*)</) || [])[1] || "";
+  ok(bt === "도전장이 도착했습니다", "도전장 제목", bt);
+  const bd = (html.match(/class="b-dare"[^>]*>([^<]*)</) || [])[1] || "";
+  ok(bd === "이길 수 있으면 해보세요.", "도전장 문구", bd);
+  const bs = (html.match(/id="bStart"[^>]*>([^<]*)</) || [])[1] || "";
+  ok(bs === "도전 시작", "도전장 단추", bs);
+  ok(/\.over-start,[^{]*\.over-battle[^{]*\{[^}]*background:\s*#fff/.test(css),
+     "도전장도 흰 바탕이다");
+
+  /* 화면을 실제로 세워 본다 — 아직 [시작] 을 안 누른 상태에서 */
+  G.reset();
+  S.running = false; S.over = false;
+  els.startOver.hidden = false; els.endOver.hidden = true;
+  els.vsOver.hidden = true; els.nickOver.hidden = true;
+  S.battle = G.hashBattle("#battle/" + G.makeToken(
+    { nick: "<b>철수", sold: 9, left: 2, happy: 3, angry: 0 }));
+  ok(S.battle !== null, "친구 기록을 들고 있다");
+  ok(G.showBattle() === true, "도전장 화면이 열린다");
+  ok(els.battleOver.hidden === false, "도전장 화면이 보인다");
+  ok(els.startOver.hidden === true, "시작 화면은 가려진다");
+  ok(els.bCount.textContent === "9", "친구가 판 개수", els.bCount.textContent);
+  ok(els.bWho.textContent === "b철수의 호떡집 운영 기록",
+     "이름은 글자로만 넣는다", els.bWho.textContent);
+  ok(SRC.indexOf("innerHTML") < 0, "innerHTML 을 쓰지 않는다");
+
+  /* [도전 시작] 은 시작 화면을 거치지 않고 바로 굽는다 */
+  ok(S.running === false, "누르기 전에는 시간이 가지 않는다");
+  els.bStart.click();
+  ok(els.battleOver.hidden === true, "도전장 화면이 닫힌다");
+  ok(els.startOver.hidden === true, "시작 화면은 끼어들지 않는다");
+  ok(S.running === true, "바로 굽기 시작한다");
+  ok(S.timeLeft === G.MODE.timeLimit, "시간은 처음부터", S.timeLeft);
+
+  /* --- 한 판 굽고 대결 결과까지 --- */
+  oilPan();
+  makeMany(2);
+  S.cust = null; S.nextIn = 0;
+  wait(G.CUST.firstDelay + 0.6);
+  if (S.cust) { S.cust.want = 2; G.sellTo(); wait(1); }
+  const mine = S.sold;
+  S.timeLeft = 0.01;
+  wait(0.1);
+  ok(els.endOver.hidden === false, "결과 화면이 열린다");
+  ok(els.vsBtn.hidden === false, "도전으로 들어온 판에는 대결 단추가 보인다");
+
+  els.vsBtn.click();
+  ok(els.vsOver.hidden === false, "대결 화면이 열린다");
+  ok(els.endOver.hidden === true, "결과 화면은 가려진다");
+  ok(els.vFoeName.textContent === "b철수", "친구 이름", els.vFoeName.textContent);
+  ok(els.vScore.textContent === "9 VS " + mine, "친구 먼저, 내가 뒤",
+     els.vScore.textContent);
+  ok(els.vVerdict.textContent === G.vsVerdict(mine, 9), "승패 문구가 같은 값을 쓴다",
+     els.vVerdict.textContent);
+  ok(G.vsVerdict(7, 3) === "이겼습니다. 4개 차이.", "더 팔면 이겼다", G.vsVerdict(7, 3));
+  ok(G.vsVerdict(3, 7) === "졌습니다. 4개 부족.", "덜 팔면 졌다", G.vsVerdict(3, 7));
+  ok(G.vsVerdict(5, 5) === "무승부. 한 번 더.", "같으면 무승부", G.vsVerdict(5, 5));
+
+  /* [내 결과 자세히 보기] 는 되돌아갈 뿐이다 */
+  els.vBack.click();
+  ok(els.vsOver.hidden === true && els.endOver.hidden === false,
+     "결과 화면으로 돌아온다");
+  ok(S.sold === mine, "숫자는 그대로", S.sold);
+
+  /* [다시 붙기] 는 친구 기록을 들고 한 판을 새로 연다 */
+  els.vsBtn.click();
+  const foe = S.battle;
+  els.vAgain.click();
+  ok(els.vsOver.hidden === true && els.endOver.hidden === true, "두 화면 다 닫힌다");
+  ok(S.battle === foe, "친구 기록은 그대로다");
+  ok(S.running === true && S.over === false, "바로 다시 굽는다");
+  ok(S.sold === 0 && S.made === 0, "내 숫자만 처음으로", S.sold + "/" + S.made);
+  ok(S.timeLeft === G.MODE.timeLimit, "시간도 처음부터", S.timeLeft);
+
+  /* 일반 플레이에는 대결 단추가 없다 */
+  els.vsOver.hidden = true;
+  freshGame();
+  S.battle = null;
+  S.timeLeft = 0.01;
+  wait(0.1);
+  ok(els.endOver.hidden === false, "결과 화면이 열린다");
+  ok(els.vsBtn.hidden === true, "그냥 한 판에는 대결 단추가 없다");
+  ok(G.showVs() === false, "볼 상대가 없으면 대결 화면도 안 연다");
+}
+
+{
+  /* --- 닉네임 묻기 --- */
+  ok(/class="over over-nick" id="nickOver"[^>]*hidden/.test(html),
+     "이름 묻는 칸은 처음에 닫혀 있다");
+  const nt = (html.match(/class="n-title"[^>]*>([^<]*)</) || [])[1] || "";
+  ok(nt === "도전장에 적을 닉네임", "묻는 말", nt);
+  ok(/id="nickInput"[^>]*maxlength="12"/.test(html), "열두 자까지만 받는다");
+  ok(/id="nickInput"[^>]*placeholder="예: 호떡장인"/.test(html), "보기를 적어 둔다");
+
+  freshGame();
+  S.timeLeft = 0.01;
+  wait(0.1);
+  /* 도전장 단추를 누르면 바로 보내지 않고 이름부터 묻는다 */
+  els.shareBtn.click();
+  ok(els.nickOver.hidden === false, "이름부터 묻는다");
+
+  /* 취소하면 아무 일도 없다 */
+  els.nickCancel.click();
+  ok(els.nickOver.hidden === true, "닫힌다");
+  ok(els.endOver.hidden === false, "결과 화면으로 돌아온다");
+
+  /* 비워서 확인하면 '친구' 로 적힌다 */
+  els.shareBtn.click();
+  els.nickInput.value = "   ";
+  els.nickOk.click();
+  ok(els.nickOver.hidden === true, "확인하면 닫힌다");
+  ok(G.parseToken(G.shareLink().split("#battle/")[1]).nick === "친구",
+     "비워 두면 '친구' 로 적는다", G.shareLink());
+
+  /* 적은 이름은 기억해 두었다가 다음에 채워 준다 */
+  els.shareBtn.click();
+  els.nickInput.value = "호떡왕";
+  els.nickOk.click();
+  els.shareBtn.click();
+  ok(els.nickInput.value === "호떡왕", "지난 이름을 채워 준다", els.nickInput.value);
+  els.nickCancel.click();
+
+  /* 엔터는 확인, Esc 는 취소 */
+  els.shareBtn.click();
+  els.nickInput.value = "엔터맨";
+  els.nickInput.fire("keydown", { key: "Enter", preventDefault() {} });
+  ok(els.nickOver.hidden === true, "엔터로 확인한다");
+  els.shareBtn.click();
+  els.nickInput.fire("keydown", { key: "Escape", preventDefault() {} });
+  ok(els.nickOver.hidden === true, "Esc 로 취소한다");
+
+  /* 링크에는 이번 판의 기록이 담긴다 */
+  const link = G.shareLink();
+  const r = G.parseToken(link.split("#battle/")[1]);
+  ok(r !== null, "내가 만든 링크는 내가 읽을 수 있다", link);
+  ok(r.sold === S.sold && r.left === S.shelf.length &&
+     r.happy === S.happy && r.angry === S.upset,
+     "내 기록 그대로 담긴다", JSON.stringify(r));
+
+  /* 저장이 막혀 있어도 터지지 않는다 */
+  LSF.fail = true;
+  els.shareBtn.click();
+  els.nickInput.value = "막힌이";
+  ok(els.nickOk.click() === undefined, "저장이 막혀도 확인이 된다");
+  ok(els.nickOver.hidden === true, "닫히기는 한다");
+  LSF.fail = false;
 }
 
 console.log("\n--- 37. 전시대 ---");

@@ -245,7 +245,21 @@
     btn: { x: 712, y: 420, w: 300, h: 84 },
   };
 
-  const KEY = { mute: "hotteokMuted", skill: "hotteokSkill" };
+  const KEY = { mute: "hotteokMuted", skill: "hotteokSkill", nick: "hotteok_nick" };
+
+  /* --- 도전장 ----------------------------------------------------
+     서버도 DB 도 없다. 내 기록을 주소의 해시에 담아 보내고, 링크를
+     연 쪽은 그걸 풀어서 읽는다. 그러니 링크에 담긴 숫자는 누구나
+     고칠 수 있다 — 친구끼리 견주는 용도일 뿐, 순위나 보상에는
+     쓰지 않는다.
+     base 는 배포 주소 하나뿐이다. 비어 있으면 도전장을 만들 수
+     없으므로 단추를 끄고 그 까닭을 적는다 — 아무 주소나 지어내서
+     링크를 만들면 열리지 않는 도전장이 돌아다니게 된다. */
+  const BATTLE = {
+    base: "https://tmfdl951-source.github.io/ccojik/hotteok-job/",
+    title: "나보다 잘 팔 수 있어?",
+    nickMax: 12,
+  };
 
   /* ============================================================
      에셋
@@ -645,6 +659,10 @@
     /* 이번 판에 만든 것들의 모습. 팔리면 shelf 에서는 빠지지만
        결과 화면은 "무엇을 만들어 팔았나" 를 보여 줘야 한다. */
     roundLook: [],
+    /* 도전장으로 들어왔다면 친구의 기록. 한 판이 끝나도 지우지
+       않는다 — 다시 붙을 때까지 들고 있어야 견줄 수 있다.
+       그래서 resetWorld 에서도 건드리지 않는다. */
+    battle: null,
     elapsed: 0,
     running: false,               /* [시작] 을 누른 뒤부터 만질 수 있다 */
     assetsReady: false,
@@ -3736,32 +3754,195 @@
 
   /* --- 짧은 알림 ------------------------------------------------- */
   let toastT = null;
-  function uiToast(text) {
+  function uiToast(text, ms) {
     const el = $("toast");
     if (!el) return;
     el.textContent = text;
     el.hidden = false;
     if (toastT) clearTimeout(toastT);
-    toastT = setTimeout(() => { el.hidden = true; toastT = null; }, 1800);
+    toastT = setTimeout(() => { el.hidden = true; toastT = null; }, ms || 1800);
+  }
+
+  /* ============================================================
+     도전장 — 링크 한 줄에 담아 보내는 기록
+     ============================================================
+     담는 것은 다섯 가지뿐이다: 이름, 판 개수, 남은 호떡, 만족한
+     손님, 불만인 손님. 더 담으면 링크가 길어지고, 길어진 링크는
+     메신저에서 잘린다. */
+  function makeToken(rec) {
+    const json = JSON.stringify({
+      n: String(rec.nick == null ? "" : rec.nick).slice(0, BATTLE.nickMax),
+      s: rec.sold, k: rec.left, h: rec.happy, u: rec.angry,
+    });
+    /* 한글 이름이 들어가므로 UTF-8 로 눕힌 뒤에 base64 로 바꾼다.
+       그리고 주소에 그대로 들어가도 되는 글자만 남긴다. */
+    const b64 = btoa(unescape(encodeURIComponent(json)));
+    return "v1." + b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  function buildUrl(token) {
+    if (!BATTLE.base) return "";
+    return BATTLE.base.split("#")[0] + "#battle/" + token;
+  }
+
+  /* 남이 만든 글자를 푸는 자리다. 한 군데라도 어긋나면 통째로
+     버리고 null 을 돌려준다 — 반쯤 읽은 기록으로 화면을 세우지
+     않는다. 이름은 보이지 않는 글자와 꺾쇠를 털어 내고 열두 자까지만. */
+  function parseToken(token) {
+    try {
+      if (!token || String(token).indexOf("v1.") !== 0) return null;
+      let b = String(token).slice(3).replace(/-/g, "+").replace(/_/g, "/");
+      while (b.length % 4) b += "=";
+      const d = JSON.parse(decodeURIComponent(escape(atob(b))));
+      if (!d || typeof d !== "object") return null;
+      if (typeof d.s !== "number" || !isFinite(d.s) || d.s < 0 || d.s > 999) return null;
+      const clean = n => String(n == null ? "친구" : n)
+        .replace(/[\u0000-\u001f<>]/g, "").slice(0, BATTLE.nickMax) || "친구";
+      const num = v => { const x = Math.round(+v); return isFinite(x) && x > 0 ? x : 0; };
+      return { nick: clean(d.n), sold: Math.round(d.s),
+               left: num(d.k), happy: num(d.h), angry: num(d.u) };
+    } catch (_) { return null; }
+  }
+
+  /* 주소의 해시가 도전장인가. 아니면 null — 그러면 늘 하던 시작
+     화면이 뜬다. */
+  function hashBattle(hash) {
+    const h = String(hash == null ? "" : hash);
+    if (h.indexOf("#battle/") !== 0) return null;
+    return parseToken(h.slice(8));
+  }
+
+  /* 도전장 화면 — 시작 화면 대신 이것이 먼저 뜬다 */
+  function showBattle() {
+    const b = S.battle;
+    if (!b) return false;
+    const set = (id, v) => { const e = $(id); if (e) e.textContent = v; };
+    /* 이름은 반드시 textContent 로 — 남이 보낸 글자다 */
+    set("bWho", b.nick + "의 호떡집 운영 기록");
+    set("bCount", String(b.sold));
+    const so = $("startOver"); if (so) so.hidden = true;
+    const o = $("battleOver"); if (o) o.hidden = false;
+    track("battle_open");
+    return true;
+  }
+
+  /* [도전 시작] — 시작 화면을 거치지 않고 바로 굽는다 */
+  function beginBattle() {
+    const o = $("battleOver"); if (o) o.hidden = true;
+    beginPlay();
+  }
+
+  /* 승패는 판 개수만으로 가른다 */
+  function vsVerdict(mine, foe) {
+    if (mine > foe) return "이겼습니다. " + (mine - foe) + "개 차이.";
+    if (mine < foe) return "졌습니다. " + (foe - mine) + "개 부족.";
+    return "무승부. 한 번 더.";
+  }
+
+  function showVs() {
+    const b = S.battle;
+    if (!b) return false;
+    const set = (id, v) => { const e = $(id); if (e) e.textContent = v; };
+    set("vFoeName", b.nick);
+    set("vScore", b.sold + " VS " + S.sold);
+    set("vVerdict", vsVerdict(S.sold, b.sold));
+    const eo = $("endOver"); if (eo) eo.hidden = true;
+    const o = $("vsOver"); if (o) o.hidden = false;
+    track("battle_result");
+    return true;
+  }
+
+  /* [내 결과 자세히 보기] — 결과 화면으로 돌아간다. 숨어 있는
+     동안 칸의 폭이 0 이었으므로 장면을 다시 그린다. */
+  function hideVs() {
+    const o = $("vsOver"); if (o) o.hidden = true;
+    const eo = $("endOver"); if (eo) eo.hidden = false;
+    drawEndShelf();
+  }
+
+  /* [다시 붙기] — 친구 기록은 그대로 두고 한 판을 새로 연다 */
+  function rematch() {
+    const o = $("vsOver"); if (o) o.hidden = true;
+    const eo = $("endOver"); if (eo) eo.hidden = true;
+    const no = $("nickOver"); if (no) no.hidden = true;
+    resetWorld();
+    S.running = false;
+    beginPlay();
+    track("rematch");
+  }
+
+  /* --- 닉네임 묻기 ------------------------------------------------
+     도전장에는 이름이 하나 적힌다. 지난번 이름을 기억해 두었다가
+     채워 넣는다 — 저장이 막혀 있어도(사생활 보호 모드) 그냥 빈칸. */
+  function openNick() {
+    if (!BATTLE.base) return false;
+    const inp = $("nickInput");
+    if (inp) inp.value = store.get(KEY.nick) || "";
+    const o = $("nickOver");
+    if (o) o.hidden = false;
+    if (inp && inp.focus) { try { inp.focus(); if (inp.select) inp.select(); } catch (_) {} }
+    return true;
+  }
+  function closeNick() {
+    const o = $("nickOver");
+    if (o) o.hidden = true;
+  }
+  /* [확인] — 비워 두면 '친구' 로 적는다 */
+  function confirmNick() {
+    const inp = $("nickInput");
+    let nick = String((inp && inp.value) || "")
+      .replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, BATTLE.nickMax);
+    if (!nick) nick = "친구";
+    store.set(KEY.nick, nick);
+    closeNick();
+    return shareScore(nick);
   }
 
   /* --- 도전장 보내기 ----------------------------------------------
-     공유를 지원하면 공유창을, 아니면 링크를 복사한다. 어느 쪽도
-     안 되면 조용히 실패하지 않고 알려 준다. */
-  function shareScore() {
-    const n = S.sold;
-    const text = "호떡집 운영 90초, 나는 " + n + "개 팔았어! 도전해봐";
-    const url = location.href.split("#")[0];
+     손에 들고 있는 기기면 공유창을, 아니면 링크를 복사한다. 복사도
+     안 되면 조용히 실패하지 않고 링크를 눈앞에 띄워 준다. */
+  let shareBusy = false;
+  /* 손에 들고 있는 기기인가. 입력은 Pointer 하나로만 받으므로
+     여기서도 따로 듣지 않고 기기에 몇 손가락까지 닿는지만 묻는다. */
+  function isTouch() {
+    try { return (navigator.maxTouchPoints || 0) > 0; }
+    catch (_) { return false; }
+  }
+  function shareLink() {
+    return buildUrl(makeToken({
+      nick: (store.get(KEY.nick) || "친구"), sold: S.sold,
+      left: S.shelf.length, happy: S.happy, angry: S.upset,
+    }));
+  }
+  function shareScore(nick) {
+    /* 보내는 중에 또 누르는 것은 무시한다 — 공유창이 두 번 뜨거나
+       클립보드를 두 번 건드리면 기기에 따라 둘 다 실패한다. */
+    if (shareBusy) return "busy";
+    const url = buildUrl(makeToken({
+      nick: nick || "친구", sold: S.sold, left: S.shelf.length,
+      happy: S.happy, angry: S.upset,
+    }));
+    if (!url) return "off";
+    const text = "호떡집 운영 90초, 나는 " + S.sold + "개 팔았어! 이길 수 있으면 해보세요.";
     track("share");
-    if (navigator.share) {
-      navigator.share({ title: "꼬직 · 호떡 알바", text: text, url: url })
-        .catch(() => {});
+    shareBusy = true;
+    const free = () => { shareBusy = false; };
+    if (isTouch() && navigator.share) {
+      try {
+        const p = navigator.share({ title: BATTLE.title, text: text, url: url });
+        /* 공유창을 그냥 닫은 경우(AbortError)에는 아무것도 하지 않는다 */
+        if (p && p.then) p.then(free, free); else free();
+      } catch (_) { free(); }
       return "share";
     }
-    const full = text + "\n" + url;
-    const done = () => uiToast("복사되었습니다");
+    const full = BATTLE.title + "\n" + text + "\n" + url;
+    const done = () => { uiToast("도전장 링크가 복사됐어요!", 2000); free(); };
+    const fail = () => { showLink(url); free(); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(full).then(done, () => uiToast("복사하지 못했어요"));
+      try {
+        const p = navigator.clipboard.writeText(full);
+        if (p && p.then) p.then(done, fail); else done();
+      } catch (_) { fail(); }
       return "clipboard";
     }
     try {
@@ -3776,9 +3957,15 @@
       done();
       return "exec";
     } catch (_) {
-      uiToast("복사하지 못했어요");
-      return "fail";
+      fail();
+      return "prompt";
     }
+  }
+  /* 복사가 안 되는 기기도 있다. 그럴 때는 링크를 보여 주고 직접
+     긁어 가게 한다 — 아무 일도 안 일어난 것처럼 두지 않는다. */
+  function showLink(url) {
+    try { if (window.prompt) window.prompt("도전장 링크", url); } catch (_) {}
+    uiToast("복사하지 못했어요", 2000);
   }
 
   /* --- 결과 저장 --------------------------------------------------
@@ -3858,6 +4045,13 @@
     set("eCount", String(S.sold));
     set("eMade", "판매한 호떡 " + S.sold + "개");
     set("eLine", endLine());
+    /* 도전장으로 들어온 판에서만 견줄 상대가 있다 */
+    const vb = $("vsBtn");
+    if (vb) vb.hidden = !S.battle;
+    /* 공개 주소가 없으면 도전장을 만들 수 없다 */
+    const shb = $("shareBtn"), off = $("shareOff");
+    if (shb) shb.disabled = !BATTLE.base;
+    if (off) off.hidden = !!BATTLE.base;
     const o = $("endOver");
     if (o) o.hidden = false;
     /* 칸을 먼저 열고 나서 그린다 — 숨어 있는 동안에는 clientWidth 가
@@ -3865,13 +4059,17 @@
     drawEndShelf();
   }
 
-  /* [다시 도전] — 판 전체를 처음으로 되돌리고 안내 화면으로 */
+  /* [다시 도전] — 판 전체를 처음으로 되돌리고 안내 화면으로.
+     도전장으로 들어왔다면 친구 기록은 그대로 둔다 (resetWorld 가
+     S.battle 을 건드리지 않는다) — 다시 재면 또 견줄 수 있다. */
   function restart() {
     const o = $("endOver");
     if (o) o.hidden = true;
+    const vo = $("vsOver"); if (vo) vo.hidden = true;
+    const no = $("nickOver"); if (no) no.hidden = true;
     resetWorld();
     S.running = false;
-    showBrief();
+    if (S.battle) showBattle(); else showBrief();
     track("replay");
   }
 
@@ -3891,6 +4089,9 @@
     /* 저장해 둔 솜씨를 먼저 읽는다. 읽기가 막혀 있어도
        (사생활 보호 모드 등) 빈 값으로 그냥 시작한다. */
     loadSaved();
+    /* 도전장인지 먼저 본다. 첫 그림이 나가기 전에 정해 두어야
+       시작 화면이 깜빡 보였다가 바뀌지 않는다. */
+    S.battle = hashBattle(location.hash);
     resize();
     bindPointer();
     dbgInit();
@@ -3904,9 +4105,12 @@
          S.running 이 false 로 남아 화면 전체가 안 눌렸다.
          그림을 받는 동안에도 시간은 가지 않는다 — S.running 이
          false 라서 frame 이 timeLeft 를 건드리지 않는다. */
-      showBrief();
+      /* 도전장으로 들어왔다면 시작 화면 대신 그쪽을 연다 */
+      if (!showBattle()) showBrief();
       const sb = $("startBtn");
       if (sb) sb.disabled = false;
+      const bb = $("bStart");
+      if (bb) bb.disabled = false;
       if (MISSING.length)
         console.warn("[호떡] 못 받은 그림 " + MISSING.length + "개: " + MISSING.join(", "));
       draw();
@@ -3930,10 +4134,31 @@
     const ab = $("againBtn");
     if (ab) ab.addEventListener("click", restart);
 
+    /* 도전장은 이름부터 묻는다 */
     const shb = $("shareBtn");
-    if (shb) shb.addEventListener("click", shareScore);
+    if (shb) shb.addEventListener("click", openNick);
     const svb = $("saveBtn");
     if (svb) svb.addEventListener("click", saveShot);
+
+    const bsb = $("bStart");
+    if (bsb) bsb.addEventListener("click", () => { audioUnlock(); beginBattle(); });
+    const vsb = $("vsBtn");
+    if (vsb) vsb.addEventListener("click", showVs);
+    const vag = $("vAgain");
+    if (vag) vag.addEventListener("click", () => { audioUnlock(); rematch(); });
+    const vbk = $("vBack");
+    if (vbk) vbk.addEventListener("click", hideVs);
+
+    const nok = $("nickOk");
+    if (nok) nok.addEventListener("click", confirmNick);
+    const nca = $("nickCancel");
+    if (nca) nca.addEventListener("click", closeNick);
+    const nin = $("nickInput");
+    if (nin) nin.addEventListener("keydown", e => {
+      if (!e) return;
+      if (e.key === "Enter") { if (e.preventDefault) e.preventDefault(); confirmNick(); }
+      else if (e.key === "Escape") { if (e.preventDefault) e.preventDefault(); closeNick(); }
+    });
 
     track("flow_start");
     raf = requestAnimationFrame(frame);
@@ -3951,6 +4176,11 @@
     stepShelf: stepShelf, drawShelf: drawShelf, drawEndShelf: drawEndShelf,
     paintEndShot: paintEndShot, endLine: endLine, shareScore: shareScore,
     saveShot: saveShot, uiToast: uiToast, SHOT: SHOT,
+    BATTLE: BATTLE, makeToken: makeToken, buildUrl: buildUrl,
+    parseToken: parseToken, hashBattle: hashBattle, isTouch: isTouch,
+    showBattle: showBattle, beginBattle: beginBattle, shareLink: shareLink,
+    vsVerdict: vsVerdict, showVs: showVs, hideVs: hideVs, rematch: rematch,
+    openNick: openNick, closeNick: closeNick, confirmNick: confirmNick,
     heatAt: heatAt, sugarAt: sugarAt, pressRelease: pressRelease,
     DOUGH_ELASTIC: DOUGH_ELASTIC,
     ruptureRisk: ruptureRisk, riskStage: riskStage, sealHold: sealHold,

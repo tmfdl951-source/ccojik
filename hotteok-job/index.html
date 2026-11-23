@@ -46,6 +46,22 @@
     </div>
   </div>
 
+  <!-- 도전장 — 친구가 보낸 링크로 들어오면 시작 화면 대신 이것이
+       먼저 뜬다. 기록은 주소의 해시에 담겨 오고, 서버는 쓰지 않는다. -->
+  <div class="over over-battle" id="battleOver" hidden>
+    <div class="b-body">
+      <div class="s-shot">
+        <img src="assets/opt/intro-shot.webp" width="1080" height="675"
+             alt="철판에서 호떡을 굽는 게임 화면" />
+      </div>
+      <p class="b-title">도전장이 도착했습니다</p>
+      <p class="b-who" id="bWho">친구의 호떡집 운영 기록</p>
+      <p class="e-count"><span id="bCount">0</span><em>개</em></p>
+      <p class="b-dare">이길 수 있으면 해보세요.</p>
+      <button class="btn btn-main" type="button" id="bStart" disabled>도전 시작</button>
+    </div>
+  </div>
+
   <!-- 시간 종료 — 몇 개를 만들었나, 그리고 다시 도전 -->
   <div class="over over-end" id="endOver" hidden>
     <div class="e-body">
@@ -59,11 +75,49 @@
       <p class="e-made" id="eMade">판매한 호떡 0개</p>
       <p class="e-line" id="eLine">판매 0개 · 남은 호떡 0개 · 만족 손님 0명 · 불만 손님 0명</p>
       <button class="btn btn-main" type="button" id="shareBtn">친구에게 도전장 보내기</button>
+      <!-- 공개 주소가 비어 있으면 도전장을 만들 수 없다 -->
+      <p class="e-off" id="shareOff" hidden>공개 주소가 설정되면 켜져요(테스트 상태)</p>
+      <!-- 도전장으로 들어온 판에서만 나온다 -->
+      <button class="btn btn-sub" type="button" id="vsBtn" hidden>대결 결과 보기</button>
       <div class="e-subs">
         <button class="btn btn-sub" type="button" id="againBtn">다시 도전</button>
         <button class="btn btn-sub" type="button" id="saveBtn">결과 저장</button>
       </div>
       <p class="e-tag">@ccojik</p>
+    </div>
+  </div>
+
+  <!-- 대결 결과 — 친구 기록과 내 기록을 나란히 -->
+  <div class="over over-vs" id="vsOver" hidden>
+    <div class="v-body">
+      <div class="v-row">
+        <div class="v-side">
+          <div class="v-pic"><img src="assets/opt/hotteok-cooked.webp" alt="" /></div>
+          <p class="v-name" id="vFoeName">친구</p>
+        </div>
+        <p class="v-vs">VS</p>
+        <div class="v-side">
+          <div class="v-pic"><img src="assets/opt/hotteok-cooked.webp" alt="" /></div>
+          <p class="v-name">나</p>
+        </div>
+      </div>
+      <p class="v-score" id="vScore">0 VS 0</p>
+      <p class="v-verdict" id="vVerdict">무승부. 한 번 더.</p>
+      <button class="btn btn-main" type="button" id="vAgain">다시 붙기</button>
+      <button class="btn btn-sub" type="button" id="vBack">내 결과 자세히 보기</button>
+    </div>
+  </div>
+
+  <!-- 도전장에 적을 이름. 링크를 만들기 전에 한 번만 묻는다. -->
+  <div class="over over-nick" id="nickOver" hidden>
+    <div class="n-body">
+      <p class="n-title">도전장에 적을 닉네임</p>
+      <input class="n-input" id="nickInput" type="text" maxlength="12"
+             placeholder="예: 호떡장인" autocomplete="off" />
+      <div class="n-btns">
+        <button class="btn btn-main" type="button" id="nickOk">확인</button>
+        <button class="btn btn-sub" type="button" id="nickCancel">취소</button>
+      </div>
     </div>
   </div>
 

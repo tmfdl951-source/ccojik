@@ -78,7 +78,7 @@ body { display: flex; align-items: center; justify-content: center; }
 }
 
 /* ============================================================
-   덮개 — 로딩 / 시작 / 시간 종료
+   덮개 — 로딩 / 시작 / 도전장 / 시간 종료 / 대결
    ============================================================
    조리 중에는 아무 덮개도 없다. 남은 시간과 개수는 캔버스 위쪽
    띠에 그리므로 여기에는 자리가 없다. */
@@ -105,6 +105,31 @@ body { display: flex; align-items: center; justify-content: center; }
 .btn:active { background: var(--gray); border-color: var(--gray); }
 .btn:disabled { background: var(--line); border-color: var(--line); color: var(--gray); }
 
+/* 흰 화면들이 함께 쓰는 단추 두 가지. 어느 화면에 놓이든 폭은
+   위의 그림 칸과 같다 — 모든 것이 한 기둥으로 선다. */
+.btn-main, .btn-sub {
+  width: 100%;
+  border-radius: 2px;
+  padding: 0;
+}
+.btn-main {
+  margin-top: clamp(24px, 3.6vh, 32px);
+  min-height: 48px; height: clamp(48px, 6vh, 52px);
+  font-size: clamp(15px, min(4.2vw, 2.1vh), 17px);
+  color: #fff; background: #000;
+  border: 1px solid #000;
+}
+.btn-main:active { background: #333; border-color: #333; }
+.btn-main:disabled { background: #C9C9C9; border-color: #C9C9C9; color: #fff; }
+.btn-sub {
+  margin-top: 8px;
+  min-height: 44px; height: clamp(44px, 5.4vh, 48px);
+  font-size: clamp(14px, min(3.9vw, 1.9vh), 16px);
+  color: #111; background: #fff;
+  border: 1px solid #111;
+}
+.btn-sub:active { background: #EEE; }
+
 /* --- 그림 받는 중 --------------------------------------------- */
 .over-load { background: #1A1714; }
 .t-load {
@@ -112,30 +137,45 @@ body { display: flex; align-items: center; justify-content: center; }
   font-weight: 600; color: var(--gray); letter-spacing: .2em;
 }
 
-/* --- 시작 화면 ------------------------------------------------
-   흰 바탕에 넷을 세로로 쌓는다: 플레이 장면 / 제목 / 두 줄 / 단추.
-   조리대 사진을 깔고 그 위에 글씨를 얹던 것을 걷어냈다 — 사진은
-   읽을 것이 아니라 보여 줄 것이라, 테두리 안에 따로 넣는다.
-   단추 너비를 그 테두리에 맞춰 한 기둥으로 세운다. */
-.over-start {
+/* --- 흰 화면의 공통 틀 -----------------------------------------
+   시작 / 도전장 / 결과 / 대결은 모두 같은 규칙이다: 흰 바탕,
+   검정 글씨, 직각 박스, 좌우 20% 여백, 가운데 한 기둥. */
+.over-start, .over-battle, .over-end, .over-vs, .over-nick {
   gap: 0;
   background: #fff;
   color: #111;
   justify-content: center;
   padding: clamp(14px, 4vh, 34px) 20%;
 }
-/* 화면 비율이 9:16 보다 길면 판 위아래에 바탕이 드러난다. 시작
+/* 화면 비율이 9:16 보다 길면 판 위아래에 바탕이 드러난다. 흰
    화면에서는 그 띠까지 희게 — 흰 판만 어둠에 떠 있으면 액자처럼
    보인다. :has 를 못 읽는 브라우저에서는 예전처럼 어두운 띠가
    남을 뿐, 깨지지는 않는다. */
-body:has(#startOver:not([hidden])) { background: #fff; }
-body:has(#startOver:not([hidden])) .app { background: #fff; }
-.over-start .s-body {
+body:has(#startOver:not([hidden])),
+body:has(#battleOver:not([hidden])),
+body:has(#endOver:not([hidden])),
+body:has(#vsOver:not([hidden])) { background: #fff; }
+body:has(#startOver:not([hidden])) .app,
+body:has(#battleOver:not([hidden])) .app,
+body:has(#endOver:not([hidden])) .app,
+body:has(#vsOver:not([hidden])) .app { background: #fff; }
+
+.s-body, .b-body, .e-body, .v-body, .n-body {
   width: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   display: flex; flex-direction: column; align-items: center;
   gap: 0;
 }
-.over-start .s-body > * { max-width: 100%; }
+.s-body > *, .b-body > *, .e-body > *, .v-body > *, .n-body > * { max-width: 100%; }
+
+/* --- 시작 화면 ------------------------------------------------
+   흰 바탕에 넷을 세로로 쌓는다: 플레이 장면 / 제목 / 두 줄 / 단추.
+   조리대 사진을 깔고 그 위에 글씨를 얹던 것을 걷어냈다 — 사진은
+   읽을 것이 아니라 보여 줄 것이라, 테두리 안에 따로 넣는다.
+   단추 너비를 그 테두리에 맞춰 한 기둥으로 세운다. */
 
 /* 플레이 장면 — 가로 16:10. 폭이 곧 아래 단추의 폭이다. */
 .s-shot {
@@ -177,30 +217,28 @@ body:has(#startOver:not([hidden])) .app { background: #fff; }
   background: #C9C9C9; border-color: #C9C9C9; color: #fff;
 }
 
+/* --- 도전장 ----------------------------------------------------
+   친구의 기록만 보여 주고 바로 붙게 한다. 시작 화면과 같은 칸,
+   같은 단추 폭이되 글은 친구의 숫자에 집중한다. */
+.b-title {
+  margin-top: clamp(20px, 3.2vh, 24px);
+  font-size: clamp(20px, min(5.6vw, 2.8vh), 24px);
+  font-weight: 800; line-height: 1.25; color: #111;
+}
+.b-who {
+  margin-top: clamp(8px, 1.2vh, 12px);
+  font-size: 14px; font-weight: 500; color: #888; line-height: 1.5;
+  max-width: 24em;
+}
+.over-battle .e-count { margin-top: clamp(12px, 1.8vh, 18px); }
+.b-dare {
+  margin-top: clamp(10px, 1.4vh, 14px);
+  font-size: 16px; font-weight: 800; color: #111; line-height: 1.4;
+}
+
 /* --- 시간 종료 ------------------------------------------------
-   시작 화면과 같은 규칙이다: 흰 바탕, 검정 글씨, 직각.
    결과 장면 / 제목 / 큰 숫자 / 한 줄 / 단추들을 세로로 쌓고,
    가로 정렬은 전부 장면 칸의 폭에 맞춘다. */
-.over-end {
-  gap: 0;
-  background: #fff;
-  color: #111;
-  justify-content: center;
-  padding: clamp(14px, 4vh, 34px) 20%;
-}
-body:has(#endOver:not([hidden])) { background: #fff; }
-body:has(#endOver:not([hidden])) .app { background: #fff; }
-
-.over-end .e-body {
-  width: 100%;
-  max-height: 100%;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-  display: flex; flex-direction: column; align-items: center;
-  gap: 0;
-}
-.over-end .e-body > * { max-width: 100%; }
 
 /* 결과 장면 — 가로 16:10. 폭이 곧 아래 단추들의 폭이다. */
 .e-shot {
@@ -247,37 +285,98 @@ body:has(#endOver:not([hidden])) .app { background: #fff; }
   font-size: 14px; font-weight: 500; color: #888; line-height: 1.5;
   max-width: 26em;
 }
-
-.over-end .btn-main {
-  margin-top: clamp(24px, 3.6vh, 32px);
-  width: 100%;
-  min-height: 48px; height: clamp(48px, 6vh, 52px);
-  font-size: clamp(15px, min(4.2vw, 2.1vh), 17px);
-  color: #fff; background: #000;
-  border: 1px solid #000; border-radius: 2px;
-  padding: 0;
+/* 공개 주소가 없을 때만 나온다 */
+.e-off {
+  margin-top: 8px;
+  font-size: 12px; font-weight: 500; color: #999; line-height: 1.4;
 }
-.over-end .btn-main:active { background: #333; border-color: #333; }
+.e-off[hidden] { display: none; }
 
 .e-subs {
   margin-top: 8px;
   width: 100%;
   display: flex; gap: 8px;
 }
-.over-end .btn-sub {
-  flex: 1 1 0;
-  min-width: 0;
-  min-height: 44px; height: clamp(44px, 5.4vh, 48px);
-  font-size: clamp(14px, min(3.9vw, 1.9vh), 16px);
-  color: #111; background: #fff;
-  border: 1px solid #111; border-radius: 2px;
-  padding: 0;
-}
-.over-end .btn-sub:active { background: #EEE; }
+/* 한 줄에 둘이 들어가므로 폭을 반씩 나눈다. 혼자 서는
+   보조 단추(대결 결과 보기)는 위의 기본대로 꽉 찬다. */
+.e-subs .btn-sub { flex: 1 1 0; min-width: 0; width: auto; margin-top: 0; }
 
 .e-tag {
   margin-top: clamp(14px, 2vh, 20px);
   font-size: 12px; font-weight: 500; color: #999;
+}
+
+/* --- 대결 결과 --------------------------------------------------
+   친구와 나를 좌우로 세운다. 두 칸은 크기도 자리도 대칭이고,
+   줄 전체 폭은 다른 화면의 그림 칸과 같다. */
+.v-row {
+  width: 100%;
+  display: flex; align-items: center; gap: 8px;
+}
+.v-side { flex: 1 1 0; min-width: 0; }
+.v-pic {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border: 1px solid #111;
+  border-radius: 2px;
+  overflow: hidden;
+  background: #F3EFE8;
+}
+.v-pic img {
+  display: block; width: 100%; height: 100%;
+  object-fit: cover;
+}
+.v-name {
+  margin-top: 8px;
+  font-size: 14px; font-weight: 700; color: #111; line-height: 1.4;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.v-vs {
+  flex: 0 0 auto;
+  /* 그림 칸 높이의 가운데에 오도록 이름 줄만큼 올려 둔다 */
+  margin-bottom: 28px;
+  font-size: clamp(14px, min(4vw, 2vh), 17px);
+  font-weight: 900; color: #111; letter-spacing: -.02em;
+}
+.v-score {
+  margin-top: clamp(20px, 3.2vh, 28px);
+  font-size: clamp(28px, min(8vw, 4vh), 36px);
+  font-weight: 900; color: #111; line-height: 1.1; letter-spacing: -.02em;
+}
+.v-verdict {
+  margin-top: clamp(10px, 1.4vh, 14px);
+  font-size: clamp(16px, min(4.4vw, 2.1vh), 18px);
+  font-weight: 800; color: #111; line-height: 1.4;
+}
+
+/* --- 닉네임 묻기 ------------------------------------------------
+   결과 화면 위에 올라온다. 취소하면 아무 일도 없다. */
+.over-nick { z-index: 14; }
+.n-title {
+  font-size: clamp(18px, min(5vw, 2.5vh), 20px);
+  font-weight: 800; color: #111; line-height: 1.3;
+}
+.n-input {
+  margin-top: clamp(14px, 2vh, 18px);
+  width: 100%;
+  height: 48px;
+  font-family: var(--f); font-size: 16px; font-weight: 700;
+  color: #111; background: #fff;
+  border: 1px solid #111; border-radius: 2px;
+  padding: 0 12px;
+  text-align: center;
+  -webkit-user-select: text; user-select: text;
+}
+.n-input::placeholder { color: #BBB; font-weight: 500; }
+.n-btns {
+  margin-top: clamp(16px, 2.4vh, 22px);
+  width: 100%;
+  display: flex; gap: 8px;
+}
+/* 나란히 서므로 키를 맞춘다 — 한 줄에서 높이가 어긋나면 눈에 띈다 */
+.n-btns .btn {
+  flex: 1 1 0; min-width: 0; width: auto; margin-top: 0;
+  min-height: 48px; height: clamp(48px, 6vh, 52px);
 }
 
 /* 복사했다 같은 짧은 알림 — 아무것도 가리지 않고 금방 사라진다 */
@@ -293,4 +392,3 @@ body:has(#endOver:not([hidden])) .app { background: #fff; }
   white-space: nowrap;
 }
 .toast[hidden] { display: none; }
-
