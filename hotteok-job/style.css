@@ -55,9 +55,11 @@ body { display: flex; align-items: center; justify-content: center; }
   position: absolute;
   top: calc(10px + env(safe-area-inset-top, 0px)); right: 12px;
   z-index: 20;
-  font-family: var(--f); font-size: 12px; font-weight: 600;
-  color: var(--gray); background: rgba(255, 255, 255, .9);
-  border: 2px solid var(--line); border-radius: 999px;
+  /* 흰 시작 화면 위에도, 어두운 조리 화면 위에도 같은 흰 알약이
+     올라간다. 테두리는 회색, 글자는 검정 — 어느 쪽에서도 읽힌다. */
+  font-family: var(--f); font-size: 12px; font-weight: 700;
+  color: #111; background: #fff;
+  border: 1px solid #CFCFCF; border-radius: 999px;
   padding: 6px 12px; cursor: pointer;
   touch-action: manipulation;
 }
@@ -110,41 +112,69 @@ body { display: flex; align-items: center; justify-content: center; }
   font-weight: 600; color: var(--gray); letter-spacing: .2em;
 }
 
-/* --- 시작 안내 ------------------------------------------------
-   제목 / 설명 / 무엇이 한 개로 세어지는지 / 단추 하나.
-   넷을 한 덩어리로 화면 한가운데 모은다 — 단추가 화면 맨 아래에
-   따로 붙으면 설명과 멀어진다. */
-.over-start { gap: 0; }
+/* --- 시작 화면 ------------------------------------------------
+   흰 바탕에 넷을 세로로 쌓는다: 플레이 장면 / 제목 / 두 줄 / 단추.
+   조리대 사진을 깔고 그 위에 글씨를 얹던 것을 걷어냈다 — 사진은
+   읽을 것이 아니라 보여 줄 것이라, 테두리 안에 따로 넣는다.
+   단추 너비를 그 테두리에 맞춰 한 기둥으로 세운다. */
+.over-start {
+  gap: 0;
+  background: #fff;
+  color: #111;
+  justify-content: center;
+  padding: clamp(14px, 4vh, 34px) 20%;
+}
+/* 화면 비율이 9:16 보다 길면 판 위아래에 바탕이 드러난다. 시작
+   화면에서는 그 띠까지 희게 — 흰 판만 어둠에 떠 있으면 액자처럼
+   보인다. :has 를 못 읽는 브라우저에서는 예전처럼 어두운 띠가
+   남을 뿐, 깨지지는 않는다. */
+body:has(#startOver:not([hidden])) { background: #fff; }
+body:has(#startOver:not([hidden])) .app { background: #fff; }
 .over-start .s-body {
   width: 100%;
   display: flex; flex-direction: column; align-items: center;
-  gap: min(2.4vw, 12px);
+  gap: 0;
 }
 .over-start .s-body > * { max-width: 100%; }
+
+/* 플레이 장면 — 가로 16:10. 폭이 곧 아래 단추의 폭이다. */
+.s-shot {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border: 1px solid #D4D4D4;
+  border-radius: 2px;
+  overflow: hidden;
+  background: #EFEFEF;
+}
+.s-shot img {
+  display: block; width: 100%; height: 100%;
+  object-fit: cover;          /* 꽉 채우되 비율은 안 찌그러진다 */
+}
+
 .t-title {
-  font-size: clamp(32px, min(10.5vw, 5vh), 52px);
-  font-weight: 800; line-height: 1.05; letter-spacing: -.02em;
-  color: var(--ink);
+  margin-top: clamp(24px, 4.2vh, 32px);
+  font-size: clamp(26px, min(7.6vw, 3.6vh), 32px);
+  font-weight: 800; line-height: 1.2; letter-spacing: -.02em;
+  color: #111;
 }
 .t-sub {
-  font-size: min(4vw, 16px);
-  font-weight: 500; color: var(--gray); line-height: 1.65;
-  max-width: 22em;
-}
-/* 집계 조건 — 설명보다 한 단 눈에 띄게. 이 줄을 못 읽으면
-   생반죽을 접시에 올려 놓고 왜 안 세어지는지 모른다. */
-.t-rule {
-  font-size: min(3.7vw, 15px);
-  font-weight: 700; color: #F7C843; line-height: 1.5;
-  max-width: 22em;
-  padding: min(2.2vw, 11px) min(4vw, 20px);
-  border: 2px solid rgba(247, 200, 67, .35);
+  margin-top: clamp(12px, 1.8vh, 16px);
+  font-size: clamp(14px, min(3.9vw, 1.9vh), 16px);
+  font-weight: 500; color: #666; line-height: 1.5;
+  max-width: 24em;
 }
 .over-start .btn {
-  margin-top: min(3.2vw, 16px);
-  min-width: min(62vw, 250px);
-  min-height: 54px; height: 54px;
-  font-size: min(4.6vw, 19px);
+  margin-top: clamp(40px, 5.4vh, 48px);
+  width: 100%;
+  min-height: 50px; height: clamp(48px, 6vh, 52px);
+  font-size: clamp(15px, min(4.2vw, 2.1vh), 17px);
+  color: #fff; background: #000;
+  border: 1px solid #000; border-radius: 2px;
+  padding: 0;
+}
+.over-start .btn:active { background: #333; border-color: #333; }
+.over-start .btn:disabled {
+  background: #C9C9C9; border-color: #C9C9C9; color: #fff;
 }
 
 /* --- 시간 종료 ------------------------------------------------

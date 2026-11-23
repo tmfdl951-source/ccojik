@@ -29,15 +29,20 @@
     <p class="t-load">호떡 준비 중</p>
   </div>
 
-  <!-- 시작 안내 — 무엇을 하는 게임인지, 무엇이 한 개로 세어지는지.
+  <!-- 시작 화면 — 무엇을 하는 게임인지 한 장면으로 보여 준다.
+       말로 늘어놓는 대신 실제 플레이 화면을 먼저 보인다.
        여기를 지나기 전에는 시간이 가지 않는다. -->
   <div class="over over-start" id="startOver" hidden>
     <div class="s-body" id="sBody">
-      <h1 class="t-title">호떡 알바</h1>
-      <p class="t-sub" id="sIntro">90초 동안 호떡을 구워 손님에게 파는 게임입니다.<br />
-        철판에 최대 세 개까지 올려 한꺼번에 구울 수 있어요.</p>
-      <p class="t-rule" id="sRule">반죽과 속을 톡톡! 눌러서 양면을 굽고 접시에 담으세요</p>
-      <button class="btn" type="button" id="startBtn" disabled>게임 시작</button>
+      <!-- 실제 게임에서 뽑은 장면: 철판 위 호떡, 전시대, 도구 -->
+      <div class="s-shot">
+        <img id="sShot" src="assets/opt/intro-shot.webp" width="1080" height="675"
+             alt="철판에서 호떡을 굽는 게임 화면" />
+      </div>
+      <h1 class="t-title">호떡집을 운영하세요</h1>
+      <p class="t-sub" id="sIntro">90초 동안 최대한 많이 파세요.<br />
+        너무 세게 누르면 터집니다.</p>
+      <button class="btn" type="button" id="startBtn" disabled>시작하기</button>
     </div>
   </div>
 

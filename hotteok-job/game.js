@@ -3776,7 +3776,7 @@
     qualityOf: qualityOf, submit: submit, endGame: endGame,
     PREP: PREP, spawnDough: spawnDough, addFilling: addFilling,
     flipOnce: flipOnce, select: select,
-    hotAt: hotAt, freeSlot: freeSlot, stepOne: stepOne,
+    hotAt: hotAt, freeSlot: freeSlot, stepOne: stepOne, paintOil: paintOil,
     oilStep: oilStep, tongGrab: tongGrab, placeDown: placeDown,
     overlapsOther: overlapsOther, backToSlot: backToSlot, moveRatio: moveRatio,
     QUAL: QUAL, CUST: CUST, WHO: WHO, SAY: SAY, ASK_SAY: ASK_SAY,

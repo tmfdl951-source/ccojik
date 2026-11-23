@@ -80,7 +80,7 @@ function attrOf(id, attr) {
 }
 ["cv", "muteBtn", "againBtn", "endOver", "eSub", "eCount", "eShelf",
  "eSold", "eLeft", "eHappy", "eUpset",
- "sBody", "sIntro", "sRule",
+ "sBody", "sIntro", "sShot",
  "loadOver", "startOver", "startBtn"]
   .forEach(id => {
     els[id] = makeEl(id);
@@ -1300,8 +1300,17 @@ console.log("\n--- 20. 화면 / 에셋 ---");
   ok(/56\.25vh/.test(css), "세로 1080x1920 비율을 지킨다");
   ok(/min\(100vw/.test(css), "좁은 화면에서는 화면 폭에 맞춘다");
   ok(/min-height:\s*48px/.test(css), "단추가 48px 이상");
-  /* 깨진 그림이 안 나오게 — 전부 코드로 그린다 (48절) */
-  ok(html.indexOf("<img") < 0, "img 태그가 없다 (전부 캔버스에 그린다)");
+  /* 조리 화면은 여전히 전부 캔버스에 그린다. DOM 그림은 시작 화면의
+     플레이 장면 하나뿐이다 — 그것은 조리가 아니라 보여 주기다. */
+  {
+    const imgs = html.match(/<img[^>]*>/g) || [];
+    ok(imgs.length === 1, "DOM 그림은 하나뿐이다", imgs.length + "개");
+    ok(/id="sShot"/.test(imgs[0] || ""), "그 하나는 시작 화면의 플레이 장면이다",
+       (imgs[0] || "").slice(0, 50));
+    ok(/width="[0-9]+"/.test(imgs[0] || "") && /height="[0-9]+"/.test(imgs[0] || ""),
+       "크기를 적어 두어 자리가 밀리지 않는다");
+    ok(/alt="[^"]+"/.test(imgs[0] || ""), "대체 글이 있다");
+  }
   /* 폴더 밖을 건드리지 않았다 */
   ok(html.indexOf("../analytics.js") >= 0, "허브 공통 분석만 가져다 쓴다");
   const outside = (SRC.match(/\.\.\/[a-z-]+\//g) || []).filter(x => x !== "../");
@@ -3485,17 +3494,57 @@ console.log("\n--- 35. 작업대 제거 ---");
    ============================================================ */
 console.log("\n--- 36. 시작 화면 ---");
 {
-  ok(html.indexOf("호떡 알바") >= 0, "제목이 있다");
-  ok(els.startBtn.textContent === "게임 시작" ||
-     html.indexOf(">게임 시작<") >= 0, "단추는 '게임 시작'");
-  /* 무엇을 하는 게임인지 알려 준다 — 접시에 담고, 손님에게 건넨다 */
-  const rule = (html.match(/id="sRule"[^>]*>([^<]*)</) || [])[1] || "";
-  ok(/반죽/.test(rule) && /굽/.test(rule) && /접시/.test(rule),
-     "무엇을 하는지 짧게 알려 준다", rule);
+  /* 위에서 아래로: 플레이 장면 / 제목 / 두 줄 / 단추 */
+  const order = ["s-shot", "t-title", "t-sub", "startBtn"]
+    .map(k => html.indexOf(k));
+  ok(order.every(i => i >= 0), "넷이 다 있다", order.join(","));
+  ok(order.every((v, i) => i === 0 || v > order[i - 1]),
+     "장면 -> 제목 -> 설명 -> 단추 차례다", order.join(" < "));
+
+  const title = (html.match(/class="t-title"[^>]*>([^<]*)</) || [])[1] || "";
+  ok(title === "호떡집을 운영하세요", "제목이 바뀌었다", title);
+  ok(els.startBtn.textContent === "시작하기" ||
+     html.indexOf(">시작하기<") >= 0, "단추는 '시작하기'");
+  const sub2 = (html.match(/id="sIntro"[^>]*>([\s\S]*?)<\/p>/) || [])[1] || "";
+  ok(/90초 동안 최대한 많이 파세요/.test(sub2), "첫 줄", sub2.slice(0, 40));
+  ok(/너무 세게 누르면 터집니다/.test(sub2), "둘째 줄");
+  ok(/<br\s*\/?>/.test(sub2), "두 줄로 나뉘어 있다");
   ok(html.indexOf("90초") >= 0, "제한시간도 알려 준다");
   for (const id of ["eSold", "eLeft", "eHappy", "eUpset"])
     ok(html.indexOf('id="' + id + '"') >= 0,
        "결과 화면에 " + id + " 칸이 있다");
+
+  /* 걷어낸 것들 */
+  ok(html.indexOf('id="sRule"') < 0, "노란 안내 상자를 걷어냈다");
+  ok(css.indexOf(".t-rule") < 0, "그 스타일도 남기지 않았다");
+  ok(html.indexOf("호떡을 구워 손님에게 파는 게임입니다") < 0,
+     "예전 설명 문구도 걷어냈다");
+
+  /* 플레이 장면 — 실제 파일이 있고, 16:10 이고, 꽉 채운다 */
+  const shotSrc = (html.match(/id="sShot"[^>]*src="([^"]+)"/) || [])[1] || "";
+  ok(shotSrc.indexOf("assets/opt/") === 0, "프로젝트 기준 상대 경로다", shotSrc);
+  ok(fs.existsSync(path.join(ROOT, shotSrc)), "그 그림이 실제로 있다", shotSrc);
+  {
+    const b = fs.readFileSync(path.join(ROOT, shotSrc));
+    const sz = webpSize(path.join(ROOT, shotSrc));
+    ok(!!sz, "webp 크기를 읽을 수 있다");
+    if (sz) ok(Math.abs(sz.w / sz.h - 1.6) < 0.03, "16:10 이다",
+               sz.w + "x" + sz.h + " = " + (sz.w / sz.h).toFixed(3));
+    ok(b.length > 10000, "빈 그림이 아니다", b.length + " 바이트");
+  }
+  ok(/aspect-ratio:\s*16\s*\/\s*10/.test(css), "칸도 16:10 으로 잡는다");
+  ok(/\.s-shot img[\s\S]*?object-fit:\s*cover/.test(css),
+     "꽉 채우되 비율은 안 찌그러진다");
+
+  /* 흰 바탕, 검정 글자, 거의 직각 */
+  ok(/\.over-start\s*\{[^}]*background:\s*#fff/.test(css), "바탕이 희다");
+  ok(/\.over-start\s*\{[^}]*padding:[^;]*20%/.test(css),
+     "좌우 여백을 20% 로 잡는다");
+  ok(/\.over-start \.btn\s*\{[^}]*background:\s*#000/.test(css), "단추는 검정");
+  ok(/\.over-start \.btn\s*\{[^}]*width:\s*100%/.test(css),
+     "단추 너비가 장면 칸과 같다");
+  ok(/\.mute\s*\{[^}]*color:\s*#111/.test(css), "소리 단추도 밝은 쪽으로");
+
   /* 설명과 단추가 한 묶음 */
   ok(html.indexOf('id="sBody"') >= 0, "설명과 단추가 한 묶음이다");
   ok(css.indexOf(".over-start .s-body") >= 0, "그 묶음을 가운데로 모은다");
