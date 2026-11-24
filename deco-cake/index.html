@@ -3,119 +3,356 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport"
-  content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<title>꼬직 · 10초 케이크 데코</title>
+  content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>꼬직 · 케이크 가게</title>
 <meta property="og:type" content="website" />
-<meta property="og:title" content="꼬직 · 10초 케이크 데코" />
-<meta property="og:description" content="까다로운 주문대로 12초 안에 케이크 데코하고 손님한테 평가받기" />
+<meta property="og:title" content="꼬직 · 케이크 가게" />
+<meta property="og:description" content="손님 주문을 기억해서 케이크를 만들고 하루 장사를 해보세요" />
 <link rel="stylesheet" as="style" crossorigin
   href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
-<link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Gowun+Dodum:wght@400;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="style.css?v=20261124-3" />
 </head>
 <body>
-<div class="app" id="app">
-  <!-- 반짝이 장식 -->
-  <span class="spark" style="top:8%;left:6%"></span>
-  <span class="spark s2" style="top:16%;right:9%"></span>
-  <span class="spark s3" style="bottom:12%;left:12%"></span>
-  <span class="spark" style="bottom:18%;right:7%"></span>
-  <span class="heart-deco" style="top:24%;right:4%"></span>
-  <span class="heart-deco" style="bottom:8%;left:44%"></span>
+<div class="shell" id="app">
 
-  <!-- ===== (1) 시작 ===== -->
-  <section class="screen start active" id="startScreen">
-    <h1 class="game-title">
-      <span class="c1">1</span><span class="c2">0</span><span class="c3">초</span>
-      <span class="sp"> </span>
-      <span class="c4">케</span><span class="c5">이</span><span class="c6">크</span>
-      <span class="sp"> </span>
-      <span class="c7">데</span><span class="c1">코</span>
-    </h1>
-
-    <div class="start-main">
-      <div class="order-sheet">
-        <div class="sheet-pin"></div>
-        <div class="sheet-title">손님 주문서</div>
-        <div class="sheet-cust" id="orderCustomer">깐깐한 단골</div>
-        <div class="sheet-base">주문 케이크: <span id="orderBaseName">초코시트</span></div>
-        <div class="sheet-div"></div>
-        <ol class="sheet-list" id="orderList"><!-- JS --></ol>
-        <div class="sheet-foot">위 조건대로 12초 안에!</div>
-      </div>
-      <div class="start-right">
-        <div class="start-cake panel"><canvas id="startCake"></canvas></div>
-        <canvas id="mascot" width="120" height="120" class="mascot"></canvas>
-        <button class="btn pink big" id="startBtn">시작</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===== (2) 데코 ===== -->
-  <section class="screen deco" id="decoScreen">
-    <div class="deco-top">
-      <div class="timer" id="timer">
-        <span class="timer-num" id="timerNum">12</span>
-        <div class="timer-track"><div class="timer-fill" id="timerFill"></div></div>
-      </div>
-      <div class="deco-order panel" id="decoOrder">주문</div>
-    </div>
-
-    <div class="deco-main">
-      <aside class="tool-panel panel">
-        <div class="cur-tool" id="curTool"></div>
-        <div class="tab-body" id="tabBody"></div>
-      </aside>
-
-      <div class="cake-col">
-        <div class="cake-wrap panel" id="cakeWrap"><canvas id="cakeCanvas"></canvas></div>
-        <div class="deco-controls"><button class="btn red big" id="finishBtn">완성 ㄱㄱ</button></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===== (3) 시식 + 평가 ===== -->
-  <section class="screen result" id="resultScreen">
-    <div class="result-main">
-      <div class="verdict-col panel">
-        <div class="speech-bubble" id="bubble"><span id="bubbleText"></span></div>
-        <canvas id="custFace" width="150" height="150"></canvas>
-        <div class="verdict-reveal" id="verdictReveal">
-          <div class="stars">
-            <div class="stars-row base"><i></i><i></i><i></i><i></i><i></i></div>
-            <div class="stars-clip" id="starsFill"><div class="stars-row fill"><i></i><i></i><i></i><i></i><i></i></div></div>
-          </div>
-          <div class="rating-num"><span id="ratingNum">0.0</span> / 5.0</div>
-          <div class="scorecard" id="scoreCard"></div>
-          <p class="result-comment" id="resultComment"></p>
-          <div class="result-btns">
-            <button class="btn green" id="againBtn">다시 하기</button>
-            <button class="btn yellow" id="saveBtn">케이크 저장</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="cake-show panel">
-        <div class="cake-show-cap" id="cakeShowCap">손님이 시식 중...</div>
-        <canvas id="resultCake"></canvas>
-        <div class="stamp" id="stamp"><span id="stampText"></span></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 연출 효과 레이어 -->
-  <canvas id="fxCanvas" class="fx-canvas"></canvas>
-  <div class="gag review-popup" id="reviewPopup">
-    <div class="rp-head">새 리뷰 등록</div>
-    <div class="rp-stars"><span class="rp-star on"></span><span class="rp-star"></span><span class="rp-star"></span><span class="rp-star"></span><span class="rp-star"></span></div>
-    <div class="rp-text">별점 1.0점 등록됨</div>
+  <!-- 은은한 배경 장식 — 하트 · 리본 · 도트 -->
+  <div class="bg-deco" aria-hidden="true">
+    <i class="d-heart a"></i><i class="d-heart b"></i>
+    <i class="d-ribbon a"></i><i class="d-dot a"></i><i class="d-dot b"></i>
   </div>
-  <div class="gag sub-gag" id="subGag">단골 손님이 떠났습니다</div>
+
+  <!-- ============ START ============ -->
+  <section class="scr start-screen active" id="scStart">
+    <div class="title-area">
+      <span class="title-ribbon">꼬직 베이커리</span>
+      <h1 class="game-title"><span class="t1">케이크</span><span class="t2">가게</span></h1>
+      <p class="title-sub">주문을 기억해서 만드는 하루 장사</p>
+    </div>
+
+    <div class="hero-cake-area">
+      <div class="hero-cake h-back"><div class="cake-slot" id="heroB"></div></div>
+      <div class="hero-cake h-side"><div class="cake-slot" id="heroC"></div></div>
+      <div class="hero-cake h-front"><div class="cake-slot" id="heroA"></div></div>
+      <div class="hero-shelf"></div>
+    </div>
+
+    <ul class="record-strip" id="record" hidden></ul>
+
+    <div class="start-actions">
+      <button class="btn btn-pink btn-lg" type="button" id="btnNew">새로 시작</button>
+      <button class="btn btn-mint btn-lg" type="button" id="btnContinue" disabled>
+        이어하기<em id="contSub"></em>
+      </button>
+      <button class="btn btn-plain btn-sm" type="button" id="btnSet">설정</button>
+    </div>
+  </section>
+
+  <!-- ============ DAY INTRO ============ -->
+  <section class="scr day-intro-screen" id="scDayIntro">
+    <span class="open-sign">OPEN</span>
+    <div class="day-big" id="dayNum">DAY 1</div>
+    <p class="day-sub" id="daySub">오늘도 주문을 받아볼까요?</p>
+
+    <div class="card event-card" id="dayEvent" hidden>
+      <b id="eventName">오늘의 이벤트</b>
+      <span id="eventDesc"></span>
+    </div>
+
+    <ul class="card intro-card">
+      <li><span>가게 평판</span><b id="iRep">★ 3.0</b></li>
+      <li><span>오늘 예상 손님</span><b id="iGuests">5명</b></li>
+      <li><span>보유금</span><b id="iMoney">0원</b></li>
+      <li><span>준비된 재료</span><b id="iStock">0종</b></li>
+    </ul>
+
+    <ul class="day-facts" id="dayFacts"></ul>
+    <button class="btn btn-pink btn-lg wide" type="button" id="btnPrep">재료 준비하기</button>
+  </section>
+
+  <!-- ============ PREP (영업 준비) ============ -->
+  <section class="scr prep-screen" id="scPrep">
+    <header class="sub-head">
+      <h2 id="prepHead">DAY 1 영업 준비</h2>
+      <span class="purse">보유금 <b id="prepMoney">0원</b></span>
+    </header>
+
+    <p class="prep-note" id="prepNote"></p>
+
+    <div class="prep-top">
+      <p class="prep-cap" id="prepCap">보유 재료 0종</p>
+      <button class="undo-btn" type="button" id="btnRecommend">추천 수량 담기</button>
+    </div>
+
+    <div class="material-panel">
+      <div class="material-tabs" id="prepTabs"></div>
+      <div class="material-list" id="prepCards"></div>
+    </div>
+
+    <div class="card buy-card">
+      <div class="buy-main"><span>총 구매비</span><b id="prepTotal">0원</b></div>
+      <div class="buy-sub"><span>구매 후 보유금</span><b id="prepAfter">0원</b></div>
+    </div>
+
+    <button class="btn btn-pink btn-lg wide" type="button" id="btnStartService">영업 시작</button>
+  </section>
+
+  <!-- ============ CUSTOMER ENTER ============ -->
+  <section class="scr play-screen" id="scCustomer">
+    <header class="top-bar">
+      <span class="tb-day">DAY <b id="cDay">1</b></span>
+      <span class="tb-mid">남은 주문 <b id="cLeft">1 / 5</b></span>
+      <span class="tb-money">보유 <b id="cMoney">0원</b></span>
+    </header>
+
+    <div class="enter-area">
+      <div class="guest-wrap big">
+        <div class="guest-ava lg" id="enterAva"><span id="enterNo">1</span></div>
+        <em class="guest-type" id="enterType">일반</em>
+      </div>
+      <p class="guest-bubble center" id="enterLine">이 케이크로 부탁해요!</p>
+      <p class="enter-hint">주문서를 보여 드릴게요</p>
+    </div>
+  </section>
+
+  <!-- ============ ORDER PREVIEW ============ -->
+  <section class="scr play-screen" id="scOrder">
+    <header class="top-bar">
+      <span class="tb-day">DAY <b id="oDay">1</b></span>
+      <span class="tb-mid">남은 주문 <b id="oLeft">1 / 5</b></span>
+      <span class="tb-money">보유 <b id="oMoney">0원</b></span>
+    </header>
+
+    <div class="customer-area">
+      <div class="guest-wrap">
+        <div class="guest-ava" id="guestAva"><span id="guestNo">1</span></div>
+        <em class="guest-type" id="guestType">일반</em>
+      </div>
+      <p class="guest-bubble" id="guestLine">이 케이크로 부탁해요!</p>
+    </div>
+
+    <div class="cake-stage order-stage" id="orderStage">
+      <div class="cake-slot" id="orderSlot"></div>
+    </div>
+
+    <ul class="order-note" id="orderNote"></ul>
+
+    <div class="preview-foot">
+      <p class="price-hint" id="priceHint">예상 판매가 0원</p>
+      <p class="count-cap">기억하세요!</p>
+      <div class="count-num" id="ordCount">3</div>
+      <div class="count-bar"><i id="ordFill"></i></div>
+    </div>
+  </section>
+
+  <!-- ============ CAKE BUILD ============ -->
+  <section class="scr play-screen" id="scBuild">
+    <header class="top-bar">
+      <span class="tb-day">DAY <b id="bDay">1</b></span>
+      <span class="tb-mid">남은 주문 <b id="bLeft">1 / 5</b></span>
+      <span class="tb-money">보유 <b id="bMoney">0원</b></span>
+    </header>
+
+    <div class="customer-area slim">
+      <div class="guest-wrap">
+        <div class="guest-ava sm" id="guestAva2"><span id="guestNo2">1</span></div>
+        <em class="guest-type" id="guestType2">일반</em>
+      </div>
+      <div class="wait-col">
+        <p class="guest-bubble" id="guestWait">기다리고 있어요</p>
+        <div class="patience" id="patience" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <div class="cake-stage work-stage">
+      <div class="cake-plate"><div class="cake-slot" id="cakeSlot"></div></div>
+      <p class="memo-chip" id="memoChip" hidden></p>
+      <div class="stage-flash" id="judge" hidden></div>
+    </div>
+
+    <div class="step-row">
+      <p class="step-hint" id="stepHint">시트를 선택해주세요</p>
+      <button class="undo-btn" type="button" id="btnUndo" disabled>되돌리기</button>
+    </div>
+
+    <div class="material-panel">
+      <div class="material-tabs" id="buildTabs"></div>
+      <div class="sub-row" id="subRow" hidden></div>
+      <div class="material-list" id="pickCards"></div>
+      <ul class="chosen" id="chosen"></ul>
+    </div>
+
+    <div class="action-bar">
+      <button class="act-btn" type="button" id="btnHint"><span>힌트</span><em id="hintN">0</em></button>
+      <button class="act-btn" type="button" id="btnItems"><span>아이템</span><em id="itemN">0</em></button>
+      <button class="btn btn-pink done-btn" type="button" id="btnDone">완성하기</button>
+    </div>
+  </section>
+
+  <!-- ============ ORDER RESULT ============ -->
+  <section class="scr result-screen" id="scOrderResult">
+    <header class="top-bar">
+      <span class="tb-day">DAY <b id="rDay">1</b></span>
+      <span class="tb-mid">남은 주문 <b id="rLeft">1 / 5</b></span>
+      <span class="tb-money">보유 <b id="rMoney">0원</b></span>
+    </header>
+
+    <div class="grade" id="resTag">GOOD</div>
+
+    <div class="card compare-card">
+      <figure>
+        <figcaption>ORDER</figcaption>
+        <div class="cake-box"><div class="cake-slot" id="resOrder"></div></div>
+      </figure>
+      <figure>
+        <figcaption>MY CAKE</figcaption>
+        <div class="cake-box"><div class="cake-slot" id="resMine"></div></div>
+      </figure>
+    </div>
+
+    <div class="customer-area react">
+      <div class="guest-wrap">
+        <div class="guest-ava sm" id="reactAva"><span id="reactNo">1</span></div>
+        <em class="guest-type" id="reactType">일반</em>
+      </div>
+      <p class="guest-bubble" id="reactLine">완전 똑같아요!</p>
+    </div>
+
+    <div class="card score-card">
+      <div class="score-main"><span>일치율</span><b id="resAcc">0%</b></div>
+      <ul class="pay-rows" id="payRows"></ul>
+      <div class="score-pay"><span id="payCap">총 수입</span><b id="payGot">+0원</b></div>
+      <ul class="miss-chips" id="resRows"></ul>
+    </div>
+
+    <button class="btn btn-pink btn-lg" type="button" id="btnNextGuest">다음 손님 맞이하기</button>
+    <span class="fly-money" id="flyMoney" hidden>+0원</span>
+  </section>
+
+  <!-- ============ DAY RESULT ============ -->
+  <section class="scr day-result-screen" id="scDayResult">
+    <div class="result-title">
+      <span class="closed-sign">CLOSED</span>
+      <h2 id="dayResHead">DAY 1 장사 끝!</h2>
+    </div>
+
+    <div class="chef-line">
+      <div class="chef-ava" id="chefPic" hidden></div>
+      <p class="chef-bubble" id="dayBubble"></p>
+    </div>
+
+    <ul class="card summary-card">
+      <li><span>처리 주문</span><b id="dGuests">0</b></li>
+      <li><span>완벽 주문</span><b id="dPerfect">0</b></li>
+      <li><span>평균 일치율</span><b id="dAcc">0%</b></li>
+      <li><span>최고 판매가</span><b id="dBest">0원</b></li>
+    </ul>
+
+    <ul class="card ledger-card">
+      <li><span>오늘 매출</span><b id="dSales">0원</b></li>
+      <li><span>팁</span><b id="dTips">+0원</b></li>
+      <li><span>재료 매입</span><b class="minus" id="dCost">0원</b></li>
+      <li><span>긴급 구매</span><b class="minus" id="dEmg">0원</b></li>
+      <li class="net"><span>오늘 순이익</span><b id="dProfit">0원</b></li>
+    </ul>
+
+    <div class="card sales-card">
+      <div class="sales-sub"><span>현재 보유금</span><b id="dMoney">0원</b></div>
+      <div class="sales-sub"><span>가게 평판</span><b id="dRep">★ 3.0</b></div>
+    </div>
+
+    <p class="decor-line" id="decorLine" hidden></p>
+
+    <div class="day-actions">
+      <button class="btn btn-yellow" type="button" id="btnShop">아이템 상점</button>
+      <button class="btn btn-mint" type="button" id="btnLotto">복권 긁기</button>
+      <button class="btn btn-pink btn-lg" type="button" id="btnNextDay">DAY 2 장사하기</button>
+    </div>
+  </section>
+
+  <!-- ============ SHOP ============ -->
+  <section class="scr sheet-screen" id="scShop">
+    <header class="sub-head">
+      <h2>아이템 상점</h2>
+      <span class="purse">보유금 <b id="shopMoney">0원</b></span>
+    </header>
+    <ul class="shop-list" id="shopList"></ul>
+    <div class="day-actions two">
+      <button class="btn btn-plain" type="button" id="btnShopBack">뒤로</button>
+      <button class="btn btn-pink" type="button" id="btnShopNext">다음 Day</button>
+    </div>
+  </section>
+
+  <!-- ============ LOTTERY ============ -->
+  <section class="scr sheet-screen" id="scLottery">
+    <header class="sub-head">
+      <h2>행운 복권</h2>
+      <span class="purse">보유금 <b id="lottoMoney">0원</b></span>
+    </header>
+
+    <div class="lotto-wrap">
+      <div class="lotto-card" id="lottoCard">
+        <em class="lotto-brand">LUCKY</em>
+        <span class="lotto-face" id="lottoFace">?</span>
+      </div>
+      <p class="lotto-head">500원으로 최대 3배!</p>
+      <p class="lotto-msg" id="lottoMsg"></p>
+      <ul class="lotto-odds" id="lottoOdds"></ul>
+      <p class="lotto-left">오늘 남은 횟수 <b id="lottoLeft">1회</b></p>
+    </div>
+
+    <div class="day-actions two">
+      <button class="btn btn-plain" type="button" id="btnLottoBack">뒤로</button>
+      <button class="btn btn-pink" type="button" id="btnScratch">긁기 (500원)</button>
+    </div>
+  </section>
+
+  <!-- ============ 오버레이 ============ -->
+  <div class="overlay" id="itemSheet" hidden>
+    <div class="sheet">
+      <h3>보유 아이템</h3>
+      <ul class="hold-list" id="holdList"></ul>
+      <button class="btn btn-plain" type="button" id="btnItemClose">닫기</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="emgSheet" hidden>
+    <div class="sheet">
+      <h3 id="emgName">재고가 없어요!</h3>
+      <ul class="emg-rows">
+        <li><span>일반 매입가</span><b id="emgNormal">0원</b></li>
+        <li class="now"><span>긴급 구매가</span><b id="emgPrice">0원</b></li>
+      </ul>
+      <p class="set-note">다른 재료로 만들거나, 그대로 완성해도 됩니다.</p>
+      <div class="sheet-btns">
+        <button class="btn btn-plain" type="button" id="btnEmgClose">다른 재료 쓰기</button>
+        <button class="btn btn-pink" type="button" id="btnEmgBuy">1개 긴급 구매</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="setSheet" hidden>
+    <div class="sheet">
+      <h3>설정</h3>
+      <ol class="how-list">
+        <li><i>1</i><span>손님이 주문한 케이크를 <b>잠깐</b> 보여 줍니다</span></li>
+        <li><i>2</i><span>사라지면 <b>기억해서</b> 똑같이 만드세요</span></li>
+        <li><i>3</i><span>일치율만큼 <b>돈</b>을 받습니다</span></li>
+      </ol>
+      <p class="set-note" id="setNote"></p>
+      <div class="sheet-btns">
+        <button class="btn btn-plain" type="button" id="btnWipe">기록 지우기</button>
+        <button class="btn btn-pink" type="button" id="btnSetClose">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="toast" id="toast" role="status" aria-live="polite" hidden></p>
 
 </div>
 
-<script src="data.js"></script>
-<script src="app.js"></script>
+<script src="assets.js?v=20261124-3"></script>
+<script src="game.js?v=20261124-3"></script>
+<script src="app.js?v=20261124-3"></script>
 <script>window.SITE_ANALYTICS_PROJECT='ccojik-deco-cake';</script>
 <script src="../analytics.js"></script>
 </body>

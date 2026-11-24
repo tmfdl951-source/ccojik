@@ -1,619 +1,1540 @@
 "use strict";
-/* ===== 꼬직 · 10초 케이크 데코 (바닐라, 물리엔진 없음) ===== */
+/* ============================================================
+   꼬직 · 케이크 가게
+   ============================================================
+   손님이 와서 주문한 케이크를 잠깐 보여 주고 감춘다. 기억해서 만들고,
+   얼마나 맞혔는지에 따라 돈을 받는다. 하루를 마치면 상점과 복권.
+
+   계산은 전부 game.js 에 있다. 여기는 화면과 입력만 맡는다.
+   화면은 아홉 개로 나뉘고 한 번에 하나만 보인다 (.scr.active).
+   케이크는 픽셀 그림을 겹친 DOM 레이어다 (크림 층만 캔버스).
+   ============================================================ */
+
 const $ = id => document.getElementById(id);
-const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const pick = a => a[(Math.random() * a.length) | 0];
+const clone = v => JSON.parse(JSON.stringify(v));
 
-const CAKE_BASES = window.CAKE_BASES, CREAMS = window.CREAMS, TOPPINGS = window.TOPPINGS;
-const ORDERS = window.ORDERS, COMMENTS = window.STAR_COMMENTS;
-const WRITE_COLORS = window.WRITE_COLORS || [{ name: "흰색", c: "#FFF7F0" }];
-const CREAM_TIPS = [{ key: "round", label: "기본" }, { key: "star", label: "별짜기" }, { key: "wave", label: "물결" }];
-
-/* ---------------- 튜닝 상수 ---------------- */
-const DURATION = 12;
-const W_ORDER = 0.78, W_FINISH = 0.22;    // 주문충족 大 / 마감도 小 (까다롭게)
-const ICING_OK = 0.32;                     // 아이싱 인정 커버리지
-
-/* ---------------- 상태 ---------------- */
-let curOrder = ORDERS[0], curBase = CAKE_BASES[0];
-let mode = "cream", curCream = CREAMS[0], curTopping = "strawberry", curTip = "round", curWriteColor = "#FFFDF6";
-let cakeCanvas, ctx, W = 0, H = 0, dpr = 1, cakeCX = 0, cakeCY = 0, cakeR = 0, creamR = 22, topScale = 1;
-let creamStrokes = [], toppings = [], writeStrokes = [];
-let curStroke = null, drawing = false, running = false, decoLocked = false, tStart = 0;
-
-function showScreen(id) { document.querySelectorAll(".screen").forEach(s => s.classList.remove("active")); $(id).classList.add("active"); }
-
-/* ---------------- 케이크 베이스 ---------------- */
-function cakeGeom(cw, ch) { return { cx: cw / 2, cy: ch / 2, r: Math.min(cw, ch) * 0.36 }; }
-function drawCakeBase(g, cw, ch, d, sponge) {
-  const { cx, cy, r } = cakeGeom(cw, ch);
-  g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = "#FFFDF6"; g.fillRect(0, 0, g.canvas.width, g.canvas.height);
-  g.setTransform(d, 0, 0, d, 0, 0);
-  g.fillStyle = "#F2ECDA"; g.beginPath(); g.arc(cx, cy, r * 1.32, 0, 7); g.fill();
-  g.strokeStyle = "rgba(0,0,0,.14)"; g.lineWidth = 3; g.stroke();
-  g.fillStyle = sponge; g.beginPath(); g.arc(cx, cy, r, 0, 7); g.fill();
-  g.strokeStyle = "rgba(0,0,0,.28)"; g.lineWidth = 5; g.stroke();
-  g.strokeStyle = "rgba(0,0,0,.14)"; g.lineWidth = 2; g.beginPath(); g.arc(cx, cy, r * 0.86, 0, 7); g.stroke();
-}
-
-/* ---------------- 토핑 스탬프 (버튼 아이콘 겸용) ---------------- */
-function drawTopping(g, key, x, y, s, seed) {
-  g.save(); g.translate(x, y); g.scale(s, s); g.lineWidth = 2; g.lineJoin = "round"; seed = seed | 0;
-  if (key === "strawberry") {
-    g.fillStyle = "#E5384E"; g.strokeStyle = "#B02437";
-    g.beginPath(); g.moveTo(0, -9); g.bezierCurveTo(11, -9, 11, 6, 0, 15); g.bezierCurveTo(-11, 6, -11, -9, 0, -9); g.closePath(); g.fill(); g.stroke();
-    g.fillStyle = "#FFE9A8"; [[-4, -2], [3, -1], [-2, 5], [4, 5], [0, 9]].forEach(p => { g.beginPath(); g.ellipse(p[0], p[1], 1.1, 1.9, 0, 0, 7); g.fill(); });
-    g.fillStyle = "#3FAE4E"; g.beginPath(); for (let i = -2; i <= 2; i++) { g.moveTo(0, -8); g.lineTo(i * 4, -15); g.lineTo(i * 4 + 3, -8); } g.closePath(); g.fill();
-  } else if (key === "blueberry") {
-    g.fillStyle = "#4B5FB0"; g.strokeStyle = "#2f3d78"; g.beginPath(); g.arc(0, 1, 7, 0, 7); g.fill(); g.stroke();
-    g.fillStyle = "#2f3d78"; g.beginPath(); for (let i = 0; i < 5; i++) { const a = i * 72 * Math.PI / 180 - Math.PI / 2; const px = Math.cos(a) * 2.6, py = -3 + Math.sin(a) * 2.6; i ? g.lineTo(px, py) : g.moveTo(px, py); } g.closePath(); g.fill();
-    g.fillStyle = "rgba(255,255,255,.5)"; g.beginPath(); g.arc(-3, -1, 1.6, 0, 7); g.fill();
-  } else if (key === "cherry") {
-    g.strokeStyle = "#3FAE4E"; g.lineWidth = 2.4; g.beginPath(); g.moveTo(-4, 4); g.quadraticCurveTo(-2, -11, 2, -13); g.moveTo(5, 6); g.quadraticCurveTo(3, -9, 2, -13); g.stroke();
-    g.fillStyle = "#D42A3E"; g.strokeStyle = "#951f2d"; g.beginPath(); g.arc(-5, 6, 5, 0, 7); g.fill(); g.stroke(); g.beginPath(); g.arc(5, 8, 5, 0, 7); g.fill(); g.stroke();
-  } else if (key === "chocochip") {
-    g.fillStyle = "#5A3A22"; g.strokeStyle = "#3a2413"; g.beginPath(); g.moveTo(-6, 4); g.quadraticCurveTo(-8, -6, 0, -7); g.quadraticCurveTo(8, -6, 6, 4); g.quadraticCurveTo(0, 7, -6, 4); g.closePath(); g.fill(); g.stroke();
-  } else if (key === "sprinkle") {
-    const cols = ["#E5384E", "#35B94E", "#2AAEE6", "#FF74A8", "#FFC61A", "#8E5BD6"];
-    for (let i = 0; i < 3; i++) { g.save(); g.rotate((i * 55 - 45) * Math.PI / 180); g.translate((i - 1) * 5, (i % 2) * 4 - 2); g.fillStyle = cols[(i * 2 + seed) % cols.length]; g.beginPath(); if (g.roundRect) g.roundRect(-6, -2, 12, 4, 2); else g.rect(-6, -2, 12, 4); g.fill(); g.restore(); }
-  } else if (key === "macaron") {
-    g.fillStyle = "#F4A6C0"; g.strokeStyle = "#c76e8c";
-    g.beginPath(); g.ellipse(0, -5, 10, 5.5, 0, 0, 7); g.fill(); g.stroke();
-    g.beginPath(); g.ellipse(0, 5, 10, 5.5, 0, 0, 7); g.fill(); g.stroke();
-    g.fillStyle = "#FFF3D0"; g.beginPath(); g.rect(-9, -1.5, 18, 3.5); g.fill();
-  } else if (key === "wafer") {
-    g.fillStyle = "#E7C79A"; g.strokeStyle = "#b8945f"; g.beginPath(); g.rect(-9, -7, 18, 14); g.fill(); g.stroke();
-    g.strokeStyle = "rgba(120,80,40,.5)"; g.lineWidth = 1.4; for (let i = -1; i <= 1; i++) { g.beginPath(); g.moveTo(-9, i * 5); g.lineTo(9, i * 5); g.stroke(); g.beginPath(); g.moveTo(i * 6, -7); g.lineTo(i * 6, 7); g.stroke(); }
-  } else if (key === "starcandy") {
-    const cols = ["#FF9EC0", "#9ED0FF", "#FFF29E", "#B7F5C0"]; g.fillStyle = cols[seed % cols.length]; g.strokeStyle = "rgba(0,0,0,.25)";
-    g.beginPath(); for (let i = 0; i < 10; i++) { const a = i * 36 * Math.PI / 180 - Math.PI / 2, rr = i % 2 ? 3.4 : 8; const px = Math.cos(a) * rr, py = Math.sin(a) * rr; i ? g.lineTo(px, py) : g.moveTo(px, py); } g.closePath(); g.fill(); g.stroke();
-  } else if (key === "heart") {
-    g.fillStyle = "#FF3D74"; g.strokeStyle = "#c31f52";
-    g.beginPath(); g.moveTo(0, 8); g.bezierCurveTo(-11, -2, -8, -12, 0, -5); g.bezierCurveTo(8, -12, 11, -2, 0, 8); g.closePath(); g.fill(); g.stroke();
-  } else if (key === "candy") {
-    g.fillStyle = "#FF6FAE"; g.beginPath(); g.moveTo(-11, 0); g.lineTo(-6, -4); g.lineTo(-6, 4); g.closePath(); g.moveTo(11, 0); g.lineTo(6, -4); g.lineTo(6, 4); g.closePath(); g.fill();
-    g.fillStyle = "#FFD21A"; g.strokeStyle = "#b98a00"; g.beginPath(); g.arc(0, 0, 6, 0, 7); g.fill(); g.stroke();
-  } else if (key === "candle") {
-    g.fillStyle = "#FF8AA8"; g.strokeStyle = "#c95f7c"; g.beginPath(); g.rect(-3, -6, 6, 20); g.fill(); g.stroke();
-    g.strokeStyle = "#fff"; g.lineWidth = 1.6; g.beginPath(); g.moveTo(-3, -1); g.lineTo(3, -3); g.moveTo(-3, 5); g.lineTo(3, 3); g.stroke();
-    g.fillStyle = "#FFD21A"; g.beginPath(); g.moveTo(0, -18); g.quadraticCurveTo(4, -11, 0, -7); g.quadraticCurveTo(-4, -11, 0, -18); g.fill();
-    g.fillStyle = "#FF7A2D"; g.beginPath(); g.moveTo(0, -15); g.quadraticCurveTo(2, -11, 0, -8); g.quadraticCurveTo(-2, -11, 0, -15); g.fill();
-  } else if (key === "ribbon") {
-    g.fillStyle = "#FF4D8D"; g.strokeStyle = "#c31f5e";
-    g.beginPath(); g.moveTo(0, 0); g.lineTo(-12, -6); g.lineTo(-12, 6); g.closePath(); g.fill(); g.stroke();
-    g.beginPath(); g.moveTo(0, 0); g.lineTo(12, -6); g.lineTo(12, 6); g.closePath(); g.fill(); g.stroke();
-    g.fillStyle = "#c31f5e"; g.beginPath(); g.arc(0, 0, 3.5, 0, 7); g.fill();
-  } else if (key === "flag") {
-    g.strokeStyle = "#7a5a3a"; g.lineWidth = 2.4; g.beginPath(); g.moveTo(-6, 14); g.lineTo(-6, -14); g.stroke();
-    g.fillStyle = "#35C15E"; g.strokeStyle = "#1f7a3a"; g.beginPath(); g.moveTo(-6, -14); g.lineTo(10, -9); g.lineTo(-6, -4); g.closePath(); g.fill(); g.stroke();
-  } else if (key === "kiwi") {
-    g.fillStyle = "#7CA82E"; g.strokeStyle = "#5a7d1f"; g.beginPath(); g.arc(0, 0, 9, 0, 7); g.fill(); g.stroke();
-    g.fillStyle = "#C7E29A"; g.beginPath(); g.arc(0, 0, 5.5, 0, 7); g.fill();
-    g.fillStyle = "#fff"; g.beginPath(); g.arc(0, 0, 2, 0, 7); g.fill();
-    g.fillStyle = "#2b2b2b"; for (let i = 0; i < 8; i++) { const a = i / 8 * 2 * Math.PI; g.beginPath(); g.arc(Math.cos(a) * 4.5, Math.sin(a) * 4.5, 0.9, 0, 7); g.fill(); }
-  } else if (key === "orange") {
-    g.fillStyle = "#FF9A2E"; g.strokeStyle = "#d5721a"; g.beginPath(); g.arc(0, 0, 9, 0, 7); g.fill(); g.stroke();
-    g.strokeStyle = "#FFD9A8"; g.lineWidth = 1.4; for (let i = 0; i < 6; i++) { const a = i / 6 * 2 * Math.PI; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a) * 8, Math.sin(a) * 8); g.stroke(); }
-    g.fillStyle = "#FFC46B"; g.beginPath(); g.arc(0, 0, 2, 0, 7); g.fill();
-  } else if (key === "banana") {
-    g.fillStyle = "#F4DC6A"; g.strokeStyle = "#c9a83a"; g.beginPath(); g.ellipse(0, 0, 9, 6, 0, 0, 7); g.fill(); g.stroke();
-    g.fillStyle = "#EFCF52"; g.beginPath(); g.arc(0, 0, 2.4, 0, 7); g.fill();
-    g.fillStyle = "#a07a1a"; g.beginPath(); g.moveTo(0, -2.4); g.lineTo(1.6, 1.2); g.lineTo(-1.6, 1.2); g.closePath(); g.fill();
-  } else if (key === "pretzel") {
-    g.strokeStyle = "#8A5A2B"; g.lineWidth = 4.2; g.lineCap = "round";
-    g.beginPath(); g.arc(-4, 1, 5, 0.2 * Math.PI, 1.7 * Math.PI); g.stroke();
-    g.beginPath(); g.arc(4, 1, 5, -0.7 * Math.PI, 0.8 * Math.PI); g.stroke();
-    g.beginPath(); g.moveTo(-6, -3); g.lineTo(0, 5); g.lineTo(6, -3); g.stroke();
-    g.fillStyle = "#fff"; for (const p of [[-6, -3], [6, -3], [0, 6]]) { g.beginPath(); g.arc(p[0], p[1], 1, 0, 7); g.fill(); }
-  } else if (key === "lotus") {
-    g.fillStyle = "#C88A46"; g.strokeStyle = "#9c6a30"; g.beginPath(); roundRectPath(g, -11, -7, 22, 14, 3); g.fill(); g.stroke();
-    g.strokeStyle = "rgba(90,55,20,.5)"; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-7, -7); g.lineTo(-7, 7); g.moveTo(7, -7); g.lineTo(7, 7); g.stroke();
-    g.beginPath(); for (let x = -5; x <= 5; x += 5) { g.moveTo(x, -4); g.lineTo(x + 2, 4); } g.stroke();
-  } else if (key === "poppari") {
-    g.fillStyle = "#F6D97A"; g.strokeStyle = "#c9a83a"; for (const p of [[-5, 1], [0, -4], [5, 1], [-1, 5], [3, 5]]) { g.beginPath(); g.arc(p[0], p[1], 4, 0, 7); g.fill(); g.stroke(); }
-    g.fillStyle = "rgba(255,255,255,.4)"; g.beginPath(); g.arc(-2, -2, 1.4, 0, 7); g.fill();
-  } else if (key === "heartjelly") {
-    g.fillStyle = "rgba(255,90,140,.72)"; g.strokeStyle = "#e0407a";
-    g.beginPath(); g.moveTo(0, 8); g.bezierCurveTo(-10, -1, -7, -11, 0, -4); g.bezierCurveTo(7, -11, 10, -1, 0, 8); g.closePath(); g.fill(); g.stroke();
-    g.fillStyle = "rgba(255,255,255,.6)"; g.beginPath(); g.ellipse(-3, -2, 2.4, 3.4, -0.5, 0, 7); g.fill();
-  } else if (key === "pearl") {
-    for (const p of [[-4, 2], [4, 3], [0, -3]]) { g.fillStyle = "#F3EEF5"; g.strokeStyle = "#c9bfd0"; g.beginPath(); g.arc(p[0], p[1], 4, 0, 7); g.fill(); g.stroke(); g.fillStyle = "#fff"; g.beginPath(); g.arc(p[0] - 1.3, p[1] - 1.3, 1.2, 0, 7); g.fill(); }
-  } else if (key === "gold") {
-    g.fillStyle = "#F1C33B"; g.strokeStyle = "#b8901f";
-    for (const p of [[-5, -2], [3, -4], [1, 3], [6, 2]]) { g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(p[0] + 4, p[1] - 1); g.lineTo(p[0] + 5, p[1] + 3); g.lineTo(p[0] + 1, p[1] + 4); g.closePath(); g.fill(); g.stroke(); }
-  }
-  g.restore();
-}
-
-/* ---------------- 도구 UI (기본 세트 항상 노출 + 더보기) ---------------- */
-let moreOpen = false;
-const BASE_CREAMS = ["white", "choco", "pink", "yellow"];   // 기본 크림 4
-function chip(bg, on, title, onClick) { const el = document.createElement("div"); el.className = "cream-chip" + (on ? " on" : ""); el.style.background = bg; el.title = title || ""; el.addEventListener("click", onClick); return el; }
-function topButton(key, label, on, onClick) { const btn = document.createElement("button"); btn.className = "top-btn" + (on ? " on" : ""); btn.title = label; const c = document.createElement("canvas"); c.width = 54; c.height = 54; drawTopping(c.getContext("2d"), key, 27, 30, 1.7, 3); btn.appendChild(c); btn.addEventListener("click", onClick); return btn; }
-function tipBtn(t, onClick) { const b = document.createElement("button"); b.className = "tip-btn" + (curTip === t.key ? " on" : ""); b.textContent = t.label; b.addEventListener("click", onClick); return b; }
-function group(title) {   // .tool-group을 #tabBody에 붙이고 아이템 담을 컨테이너 반환
-  const d = document.createElement("div"); d.className = "tool-group";
-  if (title) { const h = document.createElement("div"); h.className = "tg-title"; h.textContent = title; d.appendChild(h); }
-  const items = document.createElement("div"); items.className = "tg-items"; d.appendChild(items);
-  $("tabBody").appendChild(d); return items;
-}
-function curToolText() {
-  if (mode === "writing") { const w = (WRITE_COLORS.find(x => x.c === curWriteColor) || {}).name || ""; return "글씨 " + w; }
-  if (mode === "topping") { const t = TOPPINGS.find(x => x.key === curTopping); return "토핑 " + (t ? t.label : ""); }
-  const tip = (CREAM_TIPS.find(x => x.key === curTip) || {}).label || ""; return "크림 " + curCream.name + " (" + tip + ")";
-}
-function buildPalette() {
-  $("curTool").textContent = "지금: " + curToolText();
-  const box = $("tabBody"); box.innerHTML = "";
-  // 기본 크림 색
-  const gc = group("크림 색"); BASE_CREAMS.forEach(k => { const cr = CREAMS.find(c => c.key === k); if (cr) gc.appendChild(chip(cr.c, mode === "cream" && curCream.key === cr.key, cr.name, () => { mode = "cream"; curCream = cr; buildPalette(); })); });
-  // 짜는 팁
-  const gt = group("짜는 팁"); CREAM_TIPS.forEach(t => gt.appendChild(tipBtn(t, () => { mode = "cream"; curTip = t.key; buildPalette(); })));
-  // 핵심 토핑
-  const gtop = group("토핑"); TOPPINGS.filter(t => t.basic).forEach(t => gtop.appendChild(topButton(t.key, t.label, mode === "topping" && curTopping === t.key, () => { mode = "topping"; curTopping = t.key; buildPalette(); })));
-  // 글씨
-  const gw = group("글씨"); const wb = document.createElement("button"); wb.className = "tool-btn wide" + (mode === "writing" ? " on" : ""); wb.textContent = "짤주머니(글씨)"; wb.addEventListener("click", () => { mode = "writing"; buildPalette(); }); gw.appendChild(wb);
-  // 더보기 토글
-  const more = document.createElement("button"); more.className = "more-toggle"; more.textContent = moreOpen ? "간단히" : "＋ 더보기"; more.addEventListener("click", () => { moreOpen = !moreOpen; buildPalette(); }); box.appendChild(more);
-  if (moreOpen) {
-    const gc2 = group("추가 크림"); CREAMS.filter(c => !BASE_CREAMS.includes(c.key)).forEach(cr => gc2.appendChild(chip(cr.c, mode === "cream" && curCream.key === cr.key, cr.name, () => { mode = "cream"; curCream = cr; buildPalette(); })));
-    const gt2 = group("추가 토핑"); TOPPINGS.filter(t => !t.basic).forEach(t => gt2.appendChild(topButton(t.key, t.label, mode === "topping" && curTopping === t.key, () => { mode = "topping"; curTopping = t.key; buildPalette(); })));
-    const gw2 = group("글씨 색"); WRITE_COLORS.forEach(w => gw2.appendChild(chip(w.c, mode === "writing" && curWriteColor === w.c, w.name, () => { mode = "writing"; curWriteColor = w.c; buildPalette(); })));
-  }
-}
-
-/* ---------------- 데코 캔버스 ---------------- */
-function sizeCake() {
-  cakeCanvas = $("cakeCanvas");
-  const r = $("cakeWrap").getBoundingClientRect();
-  dpr = Math.min(window.devicePixelRatio || 1, 2); W = Math.round(r.width); H = Math.round(r.height);
-  cakeCanvas.width = W * dpr; cakeCanvas.height = H * dpr;
-  ctx = cakeCanvas.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.lineJoin = ctx.lineCap = "round";
-  const gm = cakeGeom(W, H); cakeCX = gm.cx; cakeCY = gm.cy; cakeR = gm.r; creamR = Math.max(16, cakeR * 0.13); topScale = cakeR / 90;
-  drawCakeBase(ctx, W, H, dpr, curBase.sponge);
-}
-/* 캔버스 크기를 다시 잡으면 내용이 지워진다. 지금 그림을 떠 두었다가
-   새 크기에 맞춰 도로 얹는다. 케이크 중심·반지름 기준으로 옮겨야 안 찌그러진다. */
-function refitCake() {
-  if (!cakeCanvas || !ctx) return;
-  const wrap = $("cakeWrap").getBoundingClientRect();
-  if (wrap.width < 20 || wrap.height < 20) return;
-  if (Math.round(wrap.width) === W && Math.round(wrap.height) === H) return;
-
-  const old = { cx: cakeCX, cy: cakeCY, r: cakeR };
-  const snap = document.createElement("canvas");          // 지우기 전에 떠 둔다
-  snap.width = cakeCanvas.width; snap.height = cakeCanvas.height;
-  snap.getContext("2d").drawImage(cakeCanvas, 0, 0);
-  const snapDpr = dpr;
-
-  sizeCake();                                             // 여기서 캔버스가 비워진다
-
-  const k = cakeR / old.r;
-  // 떠 둔 그림을 케이크 중심이 맞도록 같은 배율로 올린다
-  const sw = snap.width / snapDpr, sh = snap.height / snapDpr;
-  ctx.drawImage(snap, 0, 0, snap.width, snap.height,
-    cakeCX - old.cx * k, cakeCY - old.cy * k, sw * k, sh * k);
-
-  // 채점이 쓰는 좌표도 같이 옮긴다. 안 옮기면 그림과 점수가 따로 논다.
-  const map = p => { p.x = cakeCX + (p.x - old.cx) * k; p.y = cakeCY + (p.y - old.cy) * k; };
-  creamStrokes.forEach(s => { s.points.forEach(map); if (s.r) s.r *= k; });
-  writeStrokes.forEach(s => s.points.forEach(map));
-  toppings.forEach(map);
-}
-
-function resetDeco() { creamStrokes = []; toppings = []; writeStrokes = []; curStroke = null; drawing = false; decoLocked = false; }
-function posOf(e) { const r = cakeCanvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
-/* 크림: 짜여 나온 도톰한 느낌 + 팁 모양(기본/별/물결). 케이크 밖에도 발림(클리핑 없음) */
-function starPath(g, x, y, ro, ri, n) { g.beginPath(); for (let i = 0; i < 2 * n; i++) { const a = -Math.PI / 2 + i * Math.PI / n, rr = i % 2 ? ri : ro, px = x + Math.cos(a) * rr, py = y + Math.sin(a) * rr; i ? g.lineTo(px, py) : g.moveTo(px, py); } g.closePath(); }
-function scallopPath(g, x, y, r, n) { g.beginPath(); for (let i = 0; i < n; i++) { const a0 = i / n * 2 * Math.PI, a1 = (i + 1) / n * 2 * Math.PI, am = (i + 0.5) / n * 2 * Math.PI; if (i === 0) g.moveTo(x + Math.cos(a0) * r, y + Math.sin(a0) * r); g.quadraticCurveTo(x + Math.cos(am) * r * 1.28, y + Math.sin(am) * r * 1.28, x + Math.cos(a1) * r, y + Math.sin(a1) * r); } g.closePath(); }
-function creamShape(x, y, color) {
-  ctx.fillStyle = color;
-  if (curTip === "star") { starPath(ctx, x, y, creamR * 1.15, creamR * 0.55, 5); ctx.fill(); }
-  else if (curTip === "wave") { scallopPath(ctx, x, y, creamR * 0.92, 7); ctx.fill(); }
-  else { ctx.beginPath(); ctx.arc(x, y, creamR, 0, 7); ctx.fill(); }
-  ctx.fillStyle = "rgba(255,255,255,.30)"; ctx.beginPath(); ctx.arc(x - creamR * 0.3, y - creamR * 0.3, creamR * 0.4, 0, 7); ctx.fill();  // 도톰 하이라이트
-}
-function creamBlob(x, y, color) { creamShape(x, y, color); }
-function writeShadow(hex) { const n = parseInt(hex.slice(1), 16), lum = (((n >> 16) & 255) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11) / 255; return lum > 0.58 ? "rgba(70,40,20,.9)" : "rgba(255,255,255,.9)"; }
-
-function onDown(e) {
-  if (!running || decoLocked) return; e.preventDefault();
-  // 손가락이 캔버스를 벗어나도 이 획이 계속 이어지게 붙잡아 둔다
-  try { cakeCanvas.setPointerCapture(e.pointerId); } catch (_) {}
-  const p = posOf(e);
-  if (mode === "topping") {                                        // 크기·방향 살짝 랜덤
-    const rot = (Math.random() - 0.5) * 0.5, sc = topScale * (0.88 + Math.random() * 0.26);
-    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(rot); drawTopping(ctx, curTopping, 0, 0, sc, Math.floor(p.x + p.y)); ctx.restore();
-    toppings.push({ type: curTopping, x: p.x, y: p.y }); return;
-  }
-  if (mode === "writing") { drawing = true; curStroke = { points: [p] }; writeStrokes.push(curStroke); return; }
-  drawing = true; curStroke = { key: curCream.key, color: curCream.c, r: creamR, points: [p] }; creamStrokes.push(curStroke); creamBlob(p.x, p.y, curCream.c);
-}
-function onMove(e) {
-  if (!drawing || decoLocked) return; const p = posOf(e), pts = curStroke.points, last = pts[pts.length - 1]; const d = Math.hypot(p.x - last.x, p.y - last.y);
-  if (mode === "writing") {                                        // 짤주머니: 도톰 + 외곽 그림자로 또렷하게, 끊김 없이
-    if (d < 1.2) return; pts.push(p);
-    ctx.save(); ctx.lineCap = ctx.lineJoin = "round"; ctx.shadowColor = writeShadow(curWriteColor); ctx.shadowBlur = 4;
-    ctx.strokeStyle = curWriteColor; ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke(); ctx.restore();
-    return;
-  }
-  if (d < creamR * 0.45) return;
-  const steps = Math.max(1, Math.floor(d / (creamR * 0.5)));
-  for (let s = 1; s <= steps; s++) creamBlob(last.x + (p.x - last.x) * s / steps, last.y + (p.y - last.y) * s / steps, curStroke.color);
-  pts.push(p);
-}
-function onUp() { drawing = false; curStroke = null; }
-
-/* ---------------- 타이머 ---------------- */
-function startTimer() { running = true; tStart = performance.now(); requestAnimationFrame(tick); }
-function tick(now) {
-  if (!running) return; const left = Math.max(0, DURATION - (now - tStart) / 1000);
-  $("timerNum").textContent = Math.ceil(left); $("timerFill").style.width = (left / DURATION * 100) + "%"; $("timer").classList.toggle("danger", left <= 5);
-  if (left <= 0) { running = false; finish(); return; } requestAnimationFrame(tick);
-}
-
-/* ---------------- 채점 (주문 조건 대조 — 까다롭게) ---------------- */
-function regionOf(x, y) { const d = Math.hypot(x - cakeCX, y - cakeCY); if (d > cakeR) return "out"; if (d <= cakeR * 0.42) return "center"; if (d >= cakeR * 0.60) return "border"; return "mid"; }
-function computeScore() {
-  const cell = 14, cols = Math.ceil(W / cell), rows = Math.ceil(H / cell), key = (a, b) => a + "," + b;
-  const inCake = (x, y) => Math.hypot(x - cakeCX, y - cakeCY) <= cakeR;
-  const cakeSet = new Set();
-  for (let gy = 0; gy < rows; gy++) for (let gx = 0; gx < cols; gx++) if (inCake(gx * cell + cell / 2, gy * cell + cell / 2)) cakeSet.add(key(gx, gy));
-  const totalCake = cakeSet.size || 1;
-
-  const byColor = {}, anySet = new Set(); let creamOut = 0;
-  for (const st of creamStrokes) { const set = byColor[st.key] || (byColor[st.key] = new Set());
-    for (const p of st.points) { const R = st.r; for (let gy = Math.floor((p.y - R) / cell); gy <= Math.floor((p.y + R) / cell); gy++) for (let gx = Math.floor((p.x - R) / cell); gx <= Math.floor((p.x + R) / cell); gx++) { if (Math.hypot(gx * cell + cell / 2 - p.x, gy * cell + cell / 2 - p.y) > R) continue; const k = key(gx, gy); if (cakeSet.has(k)) { set.add(k); anySet.add(k); } else creamOut++; } } }
-
-  const tByType = {}; let topOut = 0;
-  for (const t of toppings) { const reg = regionOf(t.x, t.y); if (reg === "out") { topOut++; continue; } (tByType[t.type] || (tByType[t.type] = [])).push({ x: t.x, y: t.y, reg }); }
-  let writingLen = 0; for (const w of writeStrokes) for (let i = 1; i < w.points.length; i++) writingLen += Math.hypot(w.points[i].x - w.points[i - 1].x, w.points[i].y - w.points[i - 1].y);
-
-  const whereMatch = (o, where) => where === "center" ? o.reg === "center" : where === "border" ? o.reg === "border" : where === "lefthalf" ? o.x < cakeCX : where === "righthalf" ? o.x > cakeCX : true;
-  const clockPoint = pos => { const a = ((parseInt(pos, 10) % 12) * 30 - 90) * Math.PI / 180, rr = cakeR * 0.72; return { x: cakeCX + Math.cos(a) * rr, y: cakeCY + Math.sin(a) * rr }; };
-  const card = curOrder.require.map(cond => {
-    let ok = false, got = "";
-    if (cond.type === "icing") { const cov = (byColor[cond.color] ? byColor[cond.color].size : 0) / totalCake; ok = cov >= ICING_OK; got = Math.round(cov * 100) + "%"; }
-    else if (cond.type === "topping") { let list = tByType[cond.topping] || []; if (cond.where) list = list.filter(o => whereMatch(o, cond.where)); const n = list.length; ok = cond.mode === "exact" ? n === cond.count : n >= cond.count; got = n + "개"; }
-    else if (cond.type === "writing") { const present = writingLen > 60; ok = cond.need ? present : !present; got = present ? "씀" : "안 씀"; }
-    else if (cond.type === "candle") { const n = (tByType["candle"] || []).length; ok = n === cond.count; got = n + "개"; }
-    else if (cond.type === "forbid") { const n = (tByType[cond.topping] || []).length; ok = n === 0; got = n + "개"; }               // 함정: 넣으면 X
-    else if (cond.type === "pattern") { const list = tByType[cond.topping] || []; let cov = 0; for (const pos of cond.positions) { const cp = clockPoint(pos); if (list.some(o => Math.hypot(o.x - cp.x, o.y - cp.y) <= cakeR * 0.30)) cov++; } ok = cov === cond.positions.length; got = cov + "/" + cond.positions.length; }
-    else if (cond.type === "combo") { const list = tByType[cond.topping] || []; let done = false; for (const o of list) { for (const st of creamStrokes) { for (const p of st.points) { if (Math.hypot(p.x - o.x, p.y - o.y) <= cakeR * 0.16) { done = true; break; } } if (done) break; } if (done) break; } ok = done; got = ok ? "얹음" : "안 얹음"; }
-    return { label: cond.label, ok, got };
-  });
-
-  const okCount = card.filter(c => c.ok).length;
-  const orderScore = card.length ? okCount / card.length : 0;
-  const coverage = anySet.size / totalCake;
-  const spillRatio = clamp((creamOut + topOut * 6) / (totalCake * 0.55), 0, 1);   // 케이크 밖 흘림
-  const finishScore = clamp(coverage * 0.85 - spillRatio * 0.45 + 0.15, 0, 1);    // 흘림 감점 복구(적당히)
-
-  let q = W_ORDER * orderScore + W_FINISH * finishScore;
-  q += (Math.random() - 0.5) * 0.08; q = clamp(q, 0, 1);
-  const rr = Math.random(); if (rr < 0.05 && q < 0.4) q = Math.random() * 0.05; if (rr > 0.96 && q > 0.65) q = 0.96 + Math.random() * 0.04;
-  let stars = Math.round(q * 5 * 2) / 2;
-  if (creamStrokes.length === 0 && toppings.length === 0) stars = 0;
-  stars = clamp(stars, 0, 5);
-  const tier = stars <= 1 ? "t0" : stars <= 2.5 ? "t1" : stars <= 4 ? "t2" : "t3";
-  return { stars, tier, card, orderScore };
-}
-
-/* ---------------- 손님 캐릭터 (레이어 + 표정, 좌우 대칭 보장) ----------------
- * 부위 기준 좌표(150x150) — 표정이 바뀌어도 고정. pair()로 좌우 미러링해 눈/눈썹이 절대 어긋나지 않음.
- * 표정/손님 추가: EXPR에 표정 한 줄, data.js CUSTOMER_LOOKS에 손님 look 한 줄이면 됨. */
-const F = { cx: 75, cy: 60, r: 43, ey: 62, ex: 18, by: 45, my: 88 };
-const DEFAULT_LOOK = { face: "round", skin: "#FBE0C8", hair: "short", hairColor: "#3A2E26", cloth: "#3FB57A" };
-function lookOf() { return (window.CUSTOMER_LOOKS && window.CUSTOMER_LOOKS[curOrder.customer]) || DEFAULT_LOOK; }
-function shade(hex, f) { const n = parseInt(hex.slice(1), 16); return "rgb(" + Math.round(((n >> 16) & 255) * f) + "," + Math.round(((n >> 8) & 255) * f) + "," + Math.round((n & 255) * f) + ")"; }
-/* 좌우 대칭 렌더: draw()는 '왼쪽 것'만 그리면 오른쪽은 자동 미러 → 항상 대칭·정렬 */
-function pair(g, offX, y, draw) { g.save(); g.translate(F.cx - offX, y); draw(g); g.restore(); g.save(); g.translate(F.cx + offX, y); g.scale(-1, 1); draw(g); g.restore(); }
-function roundRectPath(g, x, y, w, h, r) { if (g.roundRect) g.roundRect(x, y, w, h, r); else { g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); } }
-
-const EXPR = {
-  happy:        { brow: "raised", eye: "sparkle", mouth: "bigSmile", blush: true },   // 감동
-  satisfied:    { brow: "flat",   eye: "squint",  mouth: "smile",    blush: true },   // 만족
-  neutral:      { brow: "flat",   eye: "round",   mouth: "straight" },                // 무표정
-  awkward:      { brow: "sad",    eye: "round",   mouth: "squiggle", sweat: true },   // 애매
-  disappointed: { brow: "sad",    eye: "glare",   mouth: "frown" },                   // 실망
-  shock:        { brow: "high",   eye: "big",     mouth: "openO" },                   // 충격
-  angry:        { brow: "angry",  eye: "angry",   mouth: "gritted" },                 // 분노
-  disgust:      { brow: "angry",  eye: "x",       mouth: "tongue" },                  // 역겨움(뱉기)
+const CFG = {
+  enterMs: 1100,      /* 손님이 들어와 말하는 시간 */
+  peekMs: 1000,       /* 주문 다시보기 */
+  toastMs: 2400,
+  countMs: 520,       /* 금액 count-up */
 };
 
-function drawCustomer(g, look, exprName, chewT) {
-  g.clearRect(0, 0, 150, 150); g.lineJoin = g.lineCap = "round";
-  const skin = look.skin, hairC = look.hairColor, ink = "#141414";
-  g.fillStyle = look.cloth; g.strokeStyle = ink; g.lineWidth = 3;                     // 옷/어깨
-  g.beginPath(); g.moveTo(16, 150); g.quadraticCurveTo(20, 122, 52, 118); g.lineTo(98, 118); g.quadraticCurveTo(130, 122, 134, 150); g.closePath(); g.fill(); g.stroke();
-  g.strokeStyle = shade(look.cloth, 0.7); g.lineWidth = 2; g.beginPath(); g.moveTo(60, 120); g.lineTo(75, 132); g.lineTo(90, 120); g.stroke();
-  g.fillStyle = skin; g.strokeStyle = ink; g.lineWidth = 3; g.beginPath(); g.rect(67, 96, 16, 22); g.fill();  // 목
-  hairBack(g, look, hairC);
-  g.fillStyle = skin; g.strokeStyle = ink; g.lineWidth = 3;                            // 귀(대칭)
-  g.beginPath(); g.arc(F.cx - F.r + 2, F.cy + 4, 8, 0, 7); g.fill(); g.stroke(); g.beginPath(); g.arc(F.cx + F.r - 2, F.cy + 4, 8, 0, 7); g.fill(); g.stroke();
-  g.beginPath();                                                                       // 얼굴형
-  if (look.face === "square") roundRectPath(g, F.cx - F.r, F.cy - F.r + 2, F.r * 2, F.r * 2 - 2, 22);
-  else g.ellipse(F.cx, F.cy, F.r, F.r + 3, 0, 0, 7);
-  g.fill(); g.stroke();
-  const e = EXPR[exprName] || EXPR.neutral, chew = exprName === "chew";
-  if (e.blush && !chew) { g.fillStyle = "#FF9EB6"; pair(g, 30, F.cy + 12, gg => { gg.beginPath(); gg.ellipse(0, 0, 8, 5, 0, 0, 7); gg.fill(); }); }
-  drawBrows(g, chew ? "flat" : e.brow);
-  drawEyes(g, chew ? "round" : e.eye);
-  drawMouth(g, chew ? "chew" : e.mouth, chewT);
-  if (e.sweat && !chew) { g.fillStyle = "#7EC7F0"; g.beginPath(); g.moveTo(F.cx + F.r - 6, F.cy - 6); g.quadraticCurveTo(F.cx + F.r, F.cy + 8, F.cx + F.r - 6, F.cy + 12); g.quadraticCurveTo(F.cx + F.r - 12, F.cy + 8, F.cx + F.r - 6, F.cy - 6); g.fill(); }
-  hairFront(g, look, hairC);
+const S = {
+  state: GAME_STATE.START,
+  save: null,
+  day: 1,
+  event: null,        /* 오늘의 이벤트 */
+  guest: 0,
+  customers: 5,
+  customer: null,     /* 지금 손님 타입 */
+  order: null,
+  cake: null,
+  history: [],        /* 되돌리기용 케이크 스냅숏 */
+  stats: null,        /* 오늘 장부 — blankDayStats() */
+  cart: {},           /* 영업 준비에서 담은 수량 (아직 산 게 아니다) */
+  prepTab: "sheet",
+  buildStart: 0,      /* 제작을 시작한 시각 — 인내심과 팁의 기준 */
+  patTimer: 0,
+  emgId: null,        /* 긴급 구매 창에 올라온 재료 */
+  previewLeft: 0,
+  tab: "tier",
+  layer: "bottom",
+  activeTop: null,    /* 자리를 고르는 중인 토핑 */
+  tierDone: false,    /* 단수를 한 번이라도 골랐나 */
+  memoLine: "",       /* 기억 메모 / 셰프 노트가 남긴 한 줄 */
+  tipOn: false,       /* 팁 보너스가 걸려 있나 */
+  busy: false,
+};
+
+/* 시작 화면 진열대에 놓는 케이크 — 실제 게임 에셋 그대로 */
+const HEROES = {
+  heroA: { tiers: 2, bottomSheet: "strawberry", topSheet: "vanilla",
+           bottomCream: "strawberry", topCream: "white",
+           toppings: [{ type: "strawberry", count: 2 }] },
+  heroB: { tiers: 1, bottomSheet: "chocolate", bottomCream: "chocolate",
+           toppings: [{ type: "cherry", count: 1 }] },
+  heroC: { tiers: 1, bottomSheet: "vanilla", bottomCream: "white",
+           toppings: [], decoration: "macaron" },
+};
+
+/* ============================================================
+   화면 전환
+   ============================================================ */
+const SCENE = {
+  start: "scStart", dayIntro: "scDayIntro", prep: "scPrep", customerEnter: "scCustomer",
+  orderPreview: "scOrder", build: "scBuild", orderResult: "scOrderResult",
+  dayResult: "scDayResult", shop: "scShop", lottery: "scLottery",
+};
+function go(state) {
+  S.state = state;
+  document.querySelectorAll(".scr").forEach(s => s.classList.remove("active"));
+  $(SCENE[state]).classList.add("active");
+  save();
+}
+function restart(el, cls) {
+  if (!el) return;
+  el.classList.remove(cls);
+  void el.offsetWidth;
+  el.classList.add(cls);
 }
 
-function drawBrows(g, kind) {
-  g.strokeStyle = "#3a2a22"; g.lineWidth = 4;
-  pair(g, F.ex, F.by, gg => { gg.beginPath();
-    if (kind === "raised") { gg.arc(0, 4, 7, Math.PI, 2 * Math.PI); gg.stroke(); }
-    else if (kind === "high") { gg.arc(0, 6, 8, Math.PI, 2 * Math.PI); gg.stroke(); }
-    else if (kind === "flat") { gg.moveTo(-8, 0); gg.lineTo(7, -1); gg.stroke(); }
-    else if (kind === "angry") { gg.moveTo(-9, -4); gg.lineTo(6, 4); gg.stroke(); }    // 안쪽이 아래로 (\ /)
-    else if (kind === "sad") { gg.moveTo(-9, 3); gg.lineTo(6, -4); gg.stroke(); }       // 안쪽이 위로 (/ \)
-  });
-}
-function drawEyes(g, kind) {
-  const ink = "#141414";
-  pair(g, F.ex, F.ey, gg => { gg.lineCap = "round";
-    if (kind === "round") { gg.fillStyle = "#fff"; gg.strokeStyle = ink; gg.lineWidth = 2; gg.beginPath(); gg.ellipse(0, 0, 6, 8, 0, 0, 7); gg.fill(); gg.stroke(); gg.fillStyle = ink; gg.beginPath(); gg.arc(0, 1, 3.4, 0, 7); gg.fill(); }
-    else if (kind === "big") { gg.fillStyle = "#fff"; gg.strokeStyle = ink; gg.lineWidth = 2; gg.beginPath(); gg.arc(0, 0, 9, 0, 7); gg.fill(); gg.stroke(); gg.fillStyle = ink; gg.beginPath(); gg.arc(0, 1, 4, 0, 7); gg.fill(); gg.fillStyle = "#fff"; gg.beginPath(); gg.arc(-2, -2, 1.4, 0, 7); gg.fill(); }
-    else if (kind === "sparkle") { gg.fillStyle = "#fff"; gg.strokeStyle = ink; gg.lineWidth = 2; gg.beginPath(); gg.ellipse(0, 0, 7, 9, 0, 0, 7); gg.fill(); gg.stroke(); gg.fillStyle = "#3a2a55"; gg.beginPath(); gg.arc(0, 1, 5, 0, 7); gg.fill(); gg.fillStyle = "#fff"; gg.beginPath(); gg.arc(-2, -2, 2.2, 0, 7); gg.fill(); gg.beginPath(); gg.arc(2, 3, 1, 0, 7); gg.fill(); }
-    else if (kind === "squint") { gg.strokeStyle = ink; gg.lineWidth = 4; gg.beginPath(); gg.arc(0, -1, 6, 0.15 * Math.PI, 0.85 * Math.PI); gg.stroke(); }
-    else if (kind === "glare") { gg.fillStyle = "#fff"; gg.strokeStyle = ink; gg.lineWidth = 2; gg.beginPath(); gg.ellipse(0, 1, 6, 4, 0, 0, 7); gg.fill(); gg.stroke(); gg.fillStyle = ink; gg.beginPath(); gg.arc(0, 2, 2.6, 0, 7); gg.fill(); gg.strokeStyle = ink; gg.lineWidth = 3; gg.beginPath(); gg.moveTo(-7, -3); gg.lineTo(7, -4); gg.stroke(); }
-    else if (kind === "angry") { gg.fillStyle = ink; gg.beginPath(); gg.moveTo(-7, -3); gg.lineTo(7, 1); gg.lineTo(6, 4); gg.lineTo(-7, 2); gg.closePath(); gg.fill(); }
-    else if (kind === "x") { gg.strokeStyle = ink; gg.lineWidth = 4; gg.beginPath(); gg.moveTo(-5, -5); gg.lineTo(5, 5); gg.moveTo(5, -5); gg.lineTo(-5, 5); gg.stroke(); }
-    else if (kind === "teary") { gg.fillStyle = "#fff"; gg.strokeStyle = ink; gg.lineWidth = 2; gg.beginPath(); gg.ellipse(0, 0, 6, 8, 0, 0, 7); gg.fill(); gg.stroke(); gg.fillStyle = ink; gg.beginPath(); gg.arc(0, 1, 3.2, 0, 7); gg.fill(); gg.fillStyle = "#8FD3F4"; gg.beginPath(); gg.ellipse(0, 12, 3, 5, 0, 0, 7); gg.fill(); }
-  });
-}
-function drawMouth(g, kind, chewT) {
-  const ink = "#141414"; g.save(); g.translate(F.cx, F.my); g.strokeStyle = ink; g.lineWidth = 4; g.lineCap = "round";
-  if (kind === "bigSmile") { g.fillStyle = "#a33"; g.beginPath(); g.arc(0, -2, 15, 0.1 * Math.PI, 0.9 * Math.PI); g.arc(0, -2, 7, 0.9 * Math.PI, 0.1 * Math.PI, true); g.closePath(); g.fill(); g.lineWidth = 3; g.beginPath(); g.arc(0, -2, 15, 0.1 * Math.PI, 0.9 * Math.PI); g.stroke(); }
-  else if (kind === "smile") { g.beginPath(); g.arc(0, -3, 11, 0.15 * Math.PI, 0.85 * Math.PI); g.stroke(); }
-  else if (kind === "straight") { g.beginPath(); g.moveTo(-10, 0); g.lineTo(10, 0); g.stroke(); }
-  else if (kind === "squiggle") { g.beginPath(); g.moveTo(-11, 0); g.quadraticCurveTo(-5.5, -6, 0, 0); g.quadraticCurveTo(5.5, 6, 11, 0); g.stroke(); }
-  else if (kind === "frown") { g.beginPath(); g.arc(0, 8, 11, 1.15 * Math.PI, 1.85 * Math.PI); g.stroke(); }
-  else if (kind === "openO") { g.fillStyle = "#7a2b2b"; g.beginPath(); g.ellipse(0, 0, 8, 11, 0, 0, 7); g.fill(); g.lineWidth = 3; g.stroke(); }
-  else if (kind === "gritted") { g.fillStyle = "#7a2b2b"; g.beginPath(); roundRectPath(g, -13, -6, 26, 12, 4); g.fill(); g.lineWidth = 2; g.stroke(); g.fillStyle = "#fff"; g.beginPath(); roundRectPath(g, -13, -6, 26, 5, 2); g.fill(); g.strokeStyle = "rgba(0,0,0,.3)"; g.lineWidth = 1.2; for (let x = -8; x <= 8; x += 5) { g.beginPath(); g.moveTo(x, -6); g.lineTo(x, 6); g.stroke(); } }
-  else if (kind === "tongue") { g.fillStyle = "#7a2b2b"; g.beginPath(); g.ellipse(0, 2, 15, 13, 0, 0, 7); g.fill(); g.lineWidth = 3; g.stroke(); g.fillStyle = "#E06666"; g.strokeStyle = "#c04a52"; g.lineWidth = 2; g.beginPath(); g.ellipse(0, 12, 8, 7, 0, 0, 7); g.fill(); g.stroke(); }
-  else if (kind === "chew") { const o = 4 + Math.abs(Math.sin((chewT || 0) * Math.PI * 9)) * 10; g.fillStyle = "#7a2b2b"; g.beginPath(); g.ellipse(0, 4, 11, o, 0, 0, 7); g.fill(); }
-  g.restore();
-}
-/* 머리: 전부 얼굴 기준 F(중심·반지름)로 상대 배치 → 얼굴에 정확히 얹힘 */
-function hairBack(g, look, c) {
-  g.fillStyle = c; g.strokeStyle = "#141414"; g.lineWidth = 3; const topY = F.cy - (F.r + 3);
-  if (look.hair === "long") {
-    g.beginPath(); g.moveTo(F.cx - F.r + 1, F.cy - 6);
-    g.quadraticCurveTo(F.cx - F.r - 10, F.cy + 28, F.cx - F.r - 3, F.cy + 62);
-    g.quadraticCurveTo(F.cx - F.r + 8, F.cy + 70, F.cx, F.cy + 70);
-    g.quadraticCurveTo(F.cx + F.r - 8, F.cy + 70, F.cx + F.r + 3, F.cy + 62);
-    g.quadraticCurveTo(F.cx + F.r + 10, F.cy + 28, F.cx + F.r - 1, F.cy - 6);
-    g.quadraticCurveTo(F.cx, topY - 2, F.cx - F.r + 1, F.cy - 6);
-    g.closePath(); g.fill(); g.stroke();
-  } else if (look.hair === "bob") {
-    g.beginPath(); g.moveTo(F.cx - F.r + 1, F.cy - 6);
-    g.quadraticCurveTo(F.cx - F.r - 7, F.cy + 18, F.cx - F.r + 2, F.cy + 32); g.lineTo(F.cx + F.r - 2, F.cy + 32);
-    g.quadraticCurveTo(F.cx + F.r + 7, F.cy + 18, F.cx + F.r - 1, F.cy - 6);
-    g.quadraticCurveTo(F.cx, topY - 2, F.cx - F.r + 1, F.cy - 6);
-    g.closePath(); g.fill(); g.stroke();
-  } else if (look.hair === "ponytail") {
-    g.beginPath(); g.moveTo(F.cx + F.r - 4, F.cy - 2);
-    g.quadraticCurveTo(F.cx + F.r + 22, F.cy + 22, F.cx + F.r + 10, F.cy + 50);
-    g.quadraticCurveTo(F.cx + F.r + 2, F.cy + 34, F.cx + F.r - 8, F.cy + 14);
-    g.closePath(); g.fill(); g.stroke();
-  }
-}
-function hairFront(g, look, c) {
-  if (look.hair === "bald") return;
-  const topY = F.cy - (F.r + 3), hl = F.cy - F.r * 0.40;   // hl: 이마 위 헤어라인(눈썹보다 위)
-  g.fillStyle = c; g.strokeStyle = "#141414"; g.lineWidth = 3;
-  // 공통 베이스: 머리 위를 감싸는 캡 + 가운데가 내려온 앞머리 (얼굴 폭에 맞춤)
-  g.beginPath();
-  g.moveTo(F.cx - F.r - 1, F.cy - 2);
-  g.quadraticCurveTo(F.cx - F.r - 2, topY - 3, F.cx, topY - 6);
-  g.quadraticCurveTo(F.cx + F.r + 2, topY - 3, F.cx + F.r + 1, F.cy - 2);
-  g.quadraticCurveTo(F.cx + F.r * 0.62, hl + 4, F.cx + F.r * 0.22, hl + 1);
-  g.quadraticCurveTo(F.cx, hl - 9, F.cx - F.r * 0.22, hl + 1);
-  g.quadraticCurveTo(F.cx - F.r * 0.62, hl + 4, F.cx - F.r - 1, F.cy - 2);
-  g.closePath(); g.fill(); g.stroke();
-  if (look.hair === "spiky") {   // 위로 삐친 스파이크
-    g.beginPath(); const n = 6, span = F.r * 1.7, x0 = F.cx - span / 2, dx = span / (n - 1);
-    for (let i = 0; i < n; i++) { const x = x0 + dx * i; g.moveTo(x - 8, topY + 8); g.lineTo(x, topY - 12); g.lineTo(x + 8, topY + 8); g.closePath(); }
-    g.fill(); g.stroke();
-  } else if (look.hair === "curly") {   // 곱슬 클러스터 (머리 윤곽 따라)
-    g.beginPath(); for (let i = 0; i <= 8; i++) { const a = Math.PI + (i / 8) * Math.PI, x = F.cx + Math.cos(a) * (F.r - 1), y = F.cy + Math.sin(a) * (F.r + 1); g.moveTo(x + 10, y); g.arc(x, y, 10, 0, 7); }
-    g.fill(); g.stroke();
-  } else if (look.hair === "bun") {   // 정수리 번
-    g.beginPath(); g.arc(F.cx, topY - 5, 13, 0, 7); g.fill(); g.stroke();
-  }
+let toastTimer = 0;
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.hidden = false;
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; toastTimer = 0; }, CFG.toastMs);
 }
 
-function exprForTier(tier) { return tier === "t3" ? "happy" : tier === "t2" ? "satisfied" : tier === "t1" ? "disappointed" : "angry"; }
-function exprForMotion(m) { return m === "yum" ? "happy" : m === "meh" ? "awkward" : m === "spit" ? "disgust" : "disappointed"; }
-function drawChew(g, t) { drawCustomer(g, lookOf(), "chew", t); }
-function drawFace(tier) { drawCustomer($("custFace").getContext("2d"), lookOf(), exprForTier(tier)); }
-
-/* ---------------- 시식 연출 (구간별 모션 → 말풍선 → 평가 → 도장 → 개그) ---------------- */
-let rateTimer = null, fxCanvas = null, fxCtx = null, fxParts = [], fxRunning = false;
-function restart(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
-
-function sizeFx() {
-  fxCanvas = $("fxCanvas"); const r = $("app").getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 2);
-  fxCanvas.width = r.width * d; fxCanvas.height = r.height * d; fxCtx = fxCanvas.getContext("2d");
-  fxCtx.setTransform(1, 0, 0, 1, 0, 0); fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
-}
-function resetResultUI() {
-  $("verdictReveal").classList.remove("show");
-  $("starsFill").style.width = "0px"; $("ratingNum").textContent = "0.0";
-  $("bubble").classList.remove("show"); $("stamp").classList.remove("show");
-  $("reviewPopup").classList.remove("show"); $("subGag").classList.remove("show");
-  $("custFace").className = ""; $("resultCake").classList.remove("push");
-  if (fxCtx) { fxCtx.setTransform(1, 0, 0, 1, 0, 0); fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height); }
+/* 금액이 올라가는 연출 — 최종값을 먼저 넣어 두고 애니메이션은 덧칠만 한다 */
+function countUp(el, from, to, prefix) {
+  const fmt = n => (prefix || "") + won(n);
+  el.textContent = fmt(to);
+  const t0 = performance.now();
+  const step = now => {
+    /* rAF 의 시각이 performance.now() 보다 앞설 때가 있어 아래도 묶는다 */
+    const k = Math.max(0, Math.min(1, (now - t0) / CFG.countMs));
+    el.textContent = fmt(Math.round(from + (to - from) * k));
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
-function finish() {
-  decoLocked = true;
-  const snapshot = cakeCanvas.toDataURL("image/png");
-  const res = computeScore();
-  showScreen("resultScreen");
-  resetResultUI(); sizeFx();
-  $("cakeShowCap").textContent = "손님이 시식 중...";
-  loadResultCake(snapshot, (img, geom) => eatMotion(res, img, geom, () => afterEat(res)));
+/* ============================================================
+   케이크 그리기 — 층 안에 시트 / 크림 / 토핑 / 장식을 겹친다
+   ============================================================ */
+function placeCream(canvas) {
+  canvas.style.left = (CREAM_BOX.left * 100) + "%";
+  canvas.style.top = (CREAM_BOX.top * 100) + "%";
+  canvas.style.width = (CREAM_BOX.width * 100) + "%";
+  canvas.style.height = (CREAM_BOX.height * 100) + "%";
 }
 
-function loadResultCake(snapshot, cb) {
-  const rc = $("resultCake"), rr = rc.parentElement.getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 2);
-  const cw = Math.round(rr.width - 32), ch = Math.round(rr.height - 56);
-  rc.width = cw * d; rc.height = ch * d; rc.getContext("2d").setTransform(d, 0, 0, d, 0, 0);
-  const img = new Image();
-  img.onload = () => { const scale = Math.min(cw / img.width, ch / img.height), iw = img.width * scale, ih = img.height * scale, ix = (cw - iw) / 2, iy = (ch - ih) / 2, cx = ix + iw / 2, cy = iy + ih / 2, cr = Math.min(iw, ih) * 0.36;
-    cb(img, { d, ix, iy, iw, ih, bx: cx + cr * 0.5, by: cy - cr * 0.45, biteMax: cr * 0.6 }); };
-  img.onerror = () => cb(null, { d, ix: 0, iy: 0, iw: cw, ih: ch, bx: cw / 2, by: ch / 2, biteMax: 40 });
-  img.src = snapshot;
-}
-
-/* 별점 구간 → 시식 모션 종류 */
-function motionOf(stars) { return stars <= 0.5 ? "refuse" : stars <= 1.5 ? "spit" : stars <= 3.5 ? "meh" : "yum"; }
-function eatMotion(res, img, geom, done) {
-  const motion = motionOf(res.stars);
-  const rc = $("resultCake"), g = rc.getContext("2d"), fg = $("custFace").getContext("2d"), face = $("custFace");
-  const { d, ix, iy, iw, ih, bx, by, biteMax } = geom;
-  const start = performance.now(), A = 700, B = motion === "refuse" ? 1000 : 1400;
-  let reacted = false;
-  if (motion === "spit" && res.stars <= 1) restart(rc, "push");     // 반품(접시 밀기)
-  (function frame(now) {
-    const el = now - start;
-    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, rc.width, rc.height); g.setTransform(d, 0, 0, d, 0, 0);
-    if (img) g.drawImage(img, ix, iy, iw, ih);
-    if (motion !== "refuse") { const bp = clamp((el - 250) / 500, 0, 1); if (bp > 0) { g.save(); g.globalCompositeOperation = "destination-out"; g.fillStyle = "#000"; g.beginPath(); g.arc(bx, by, biteMax * bp, 0, 7); g.fill(); g.restore(); } }
-    if (motion !== "refuse" && el < A) drawChew(fg, el / 300);
-    else if (!reacted) { reacted = true; reactFace(fg, motion); applyMotion(face, motion); if (motion === "spit") spawnSpit(); }
-    if (el < A + B) requestAnimationFrame(frame); else done();
-  })(start);
-}
-function applyMotion(face, motion) { face.className = motion === "yum" ? "nod" : motion === "meh" ? "tilt" : motion === "spit" ? "shakeit" : "shakeno"; }
-function reactFace(g, motion) {
-  drawCustomer(g, lookOf(), exprForMotion(motion));
-  if (motion === "refuse") {   // 냅킨으로 입 가림
-    g.fillStyle = "#FFFFFF"; g.strokeStyle = "#c9c2b2"; g.lineWidth = 2;
-    g.beginPath(); roundRectPath(g, F.cx - 24, F.my - 8, 48, 28, 6); g.fill(); g.stroke();
-  }
-}
-function spawnSpit() {
-  const ar = $("app").getBoundingClientRect(), fr = $("custFace").getBoundingClientRect();
-  const mx = fr.left - ar.left + fr.width * 0.5, my = fr.top - ar.top + fr.height * 0.66;
-  const cols = ["#E7C39A", "#7A5230", "#FFF7F0", "#E5384E"]; fxParts = [];
-  for (let i = 0; i < 14; i++) { const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.6, sp = 3 + Math.random() * 5; fxParts.push({ x: mx, y: my, vx: Math.cos(a) * sp * 1.2, vy: Math.sin(a) * sp - 2, r: 3 + Math.random() * 4, c: cols[i % cols.length], life: 1 }); }
-  if (!fxRunning) { fxRunning = true; requestAnimationFrame(fxTick); }
-}
-function fxTick() {
-  const d = Math.min(window.devicePixelRatio || 1, 2);
-  fxCtx.setTransform(1, 0, 0, 1, 0, 0); fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height); fxCtx.setTransform(d, 0, 0, d, 0, 0);
-  let alive = 0;
-  for (const p of fxParts) { if (p.life <= 0) continue; alive++; p.vy += 0.4; p.x += p.vx; p.y += p.vy; p.life -= 0.02; fxCtx.globalAlpha = Math.max(0, p.life); fxCtx.fillStyle = p.c; fxCtx.beginPath(); fxCtx.arc(p.x, p.y, p.r, 0, 7); fxCtx.fill(); }
-  fxCtx.globalAlpha = 1;
-  if (alive > 0) requestAnimationFrame(fxTick); else fxRunning = false;
-}
-
-function afterEat(res) {
-  $("cakeShowCap").textContent = "손님의 평가";
-  showBubble(res.tier);                                       // 1) 말풍선 한마디
-  setTimeout(() => revealVerdict(res), 950);                  // 2) 별점/표정/채점표/한줄평
-  setTimeout(() => { dropStamp(res.tier); shakeScreen(); }, 1550); // 3) 등급 도장 쾅
-  setTimeout(() => maybeGag(res), 2200);                      // 4) (가끔) 추가 개그
-}
-function showBubble(tier) { $("bubbleText").textContent = pick((window.BUBBLE_LINES || {})[tier] || ["..."]); restart($("bubble"), "show"); }
-function revealVerdict(res) {
-  drawFace(res.tier); renderScoreCard(res.card); $("verdictReveal").classList.add("show");
-  requestAnimationFrame(() => requestAnimationFrame(() => { $("starsFill").style.width = starClipWidth(res.stars) + "px"; }));
-  let n = 0; clearInterval(rateTimer); rateTimer = setInterval(() => { n += 0.5; if (n >= res.stars) { n = res.stars; clearInterval(rateTimer); } $("ratingNum").textContent = n.toFixed(1); }, 60);
-  let comment = pick(COMMENTS[res.tier] || COMMENTS.t0);
-  if (res.stars <= 2.5 && res.orderScore < 1 && COMMENTS.nag && Math.random() < 0.6) comment += " " + pick(COMMENTS.nag);
-  $("resultComment").textContent = comment;
-}
-function dropStamp(tier) { $("stampText").textContent = pick((window.STAMP_TEXTS || {})[tier] || ["평가"]); restart($("stamp"), "show"); }
-function shakeScreen() { const a = $("app"); restart(a, "shake"); setTimeout(() => a.classList.remove("shake"), 520); }
-function maybeGag(res) {
-  if (res.stars > 1 || Math.random() > 0.6) return;           // 최악 등급일 때만, 확률로
-  if (Math.random() < 0.5) restart($("reviewPopup"), "show"); else restart($("subGag"), "show");
-}
-/* 별 채움 클립 너비(px). STAR/GAP 은 style.css의 .stars-row i(48px) / gap(8px)와 일치해야 함 */
-function starClipWidth(stars) {
-  const STAR = 48, GAP = 8, n = Math.floor(stars), f = stars - n;
-  if (f > 0) return n * STAR + n * GAP + f * STAR;   // n개 꽉 + 사이 간격 + 다음 별의 f 비율
-  return n > 0 ? n * STAR + (n - 1) * GAP : 0;        // 정수: n번째 별 오른쪽 끝
-}
-function renderScoreCard(card) {
-  const box = $("scoreCard"); box.innerHTML = "";
-  card.forEach(item => {
-    const row = document.createElement("div"); row.className = "sc-row";
-    row.innerHTML = '<span class="sc-badge ' + (item.ok ? "o" : "x") + '">' + (item.ok ? "O" : "X") + '</span>'
-      + '<span class="sc-label"></span><span class="sc-got"></span>';
-    row.querySelector(".sc-label").textContent = item.label;
-    row.querySelector(".sc-got").textContent = item.ok ? "" : "(" + item.got + ")";
-    box.appendChild(row);
-  });
-}
-
-/* ---------------- 주문 / 마스코트 / 시작화면 ---------------- */
-function chooseOrder() {
-  curOrder = pick(ORDERS);
-  curBase = CAKE_BASES.find(b => b.key === curOrder.base) || CAKE_BASES[0];
-  $("orderCustomer").textContent = curOrder.customer;
-  $("orderBaseName").textContent = curBase.name;
-  const ul = $("orderList"); ul.innerHTML = "";
-  curOrder.require.forEach(r => { const li = document.createElement("li"); li.textContent = r.label; ul.appendChild(li); });
-  $("decoOrder").innerHTML = "<b>" + curOrder.customer + "</b> · " + curOrder.require.map(r => r.label).join(" / ");
-}
-function sizeStartCake() {
-  const c = $("startCake"), r = c.parentElement.getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 2);
-  const cw = Math.round(r.width - 28), ch = Math.round(r.height - 28);
-  c.width = cw * d; c.height = ch * d; drawCakeBase(c.getContext("2d"), cw, ch, d, curBase.sponge);
-}
-function drawMascot() {
-  const g = $("mascot").getContext("2d"); g.clearRect(0, 0, 120, 120);
-  // 컵케이크 몸통
-  g.fillStyle = "#E7A24C"; g.strokeStyle = "#141414"; g.lineWidth = 3; g.beginPath(); g.moveTo(34, 70); g.lineTo(86, 70); g.lineTo(80, 108); g.lineTo(40, 108); g.closePath(); g.fill(); g.stroke();
-  g.strokeStyle = "rgba(0,0,0,.25)"; g.lineWidth = 2; for (let i = -1; i <= 1; i++) { g.beginPath(); g.moveTo(60 + i * 16, 70); g.lineTo(60 + i * 12, 108); g.stroke(); }
-  // 크림
-  g.fillStyle = "#FF9EC0"; g.strokeStyle = "#141414"; g.lineWidth = 3; g.beginPath(); g.moveTo(30, 70); g.quadraticCurveTo(34, 40, 60, 42); g.quadraticCurveTo(86, 40, 90, 70); g.closePath(); g.fill(); g.stroke();
-  // 얼굴
-  g.fillStyle = "#141414"; g.beginPath(); g.arc(52, 84, 3.5, 0, 7); g.fill(); g.beginPath(); g.arc(68, 84, 3.5, 0, 7); g.fill();
-  g.strokeStyle = "#141414"; g.lineWidth = 3; g.beginPath(); g.arc(60, 90, 7, .1 * Math.PI, .9 * Math.PI); g.stroke();
-  // 체리
-  g.fillStyle = "#E5384E"; g.strokeStyle = "#141414"; g.beginPath(); g.arc(60, 36, 6, 0, 7); g.fill(); g.stroke();
-}
-
-/* ---------------- 이벤트 ---------------- */
-$("startBtn").addEventListener("click", () => { showScreen("decoScreen"); requestAnimationFrame(() => { sizeCake(); resetDeco(); startTimer(); }); });
-$("finishBtn").addEventListener("click", () => { if (running) { running = false; finish(); } });
-$("againBtn").addEventListener("click", () => { chooseOrder(); showScreen("startScreen"); requestAnimationFrame(sizeStartCake); });
-$("saveBtn").addEventListener("click", () => { const rc = $("resultCake"); const a = document.createElement("a"); a.href = rc.toDataURL("image/png"); a.download = "ccojik_cake.png"; document.body.appendChild(a); a.click(); a.remove(); });
-
-/* 기기 회전·주소창 접힘으로 크기가 바뀌면, 보고 있는 화면의 캔버스를 다시 맞춘다 */
-let refitT = 0;
-function refitAll() {
-  clearTimeout(refitT);
-  refitT = setTimeout(() => {
-    if ($("decoScreen").classList.contains("active")) refitCake();
-    else if ($("startScreen").classList.contains("active")) sizeStartCake();
-    if (fxCanvas) {
-      const r = $("app").getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 2);
-      fxCanvas.width = r.width * d; fxCanvas.height = r.height * d;
-      fxCanvas.getContext("2d").setTransform(d, 0, 0, d, 0, 0);
+function paintCream(canvas, key) {
+  const cream = creamOf(key);
+  if (!cream || !canvas) return;
+  const r = canvas.getBoundingClientRect();
+  const W = 48;
+  const H = Math.max(14, Math.round(W * (r.height || 40) / (r.width || 100)));
+  canvas.width = W; canvas.height = H;
+  const g = canvas.getContext("2d");
+  g.imageSmoothingEnabled = false;
+  g.clearRect(0, 0, W, H);
+  const cx = (W - 1) / 2, rx = W / 2 - 0.5;
+  const ry = (H - 3) / 2, cy = ry + 0.5;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const dx = (x - cx) / rx, dy = (y - cy) / ry;
+      const d = dx * dx + dy * dy;
+      if (d > 1) continue;
+      g.fillStyle = (dy > 0.1 && d > 0.87) ? cream.c2 : cream.c;
+      g.fillRect(x, y, 1, 1);
     }
-  }, 150);
+  }
+  g.fillStyle = cream.c2;
+  for (const d of [[-0.64, 3], [-0.20, 2], [0.24, 4], [0.66, 2]]) {
+    const x = Math.round(cx + d[0] * rx);
+    const yTop = Math.round(cy + Math.sqrt(Math.max(0, 1 - d[0] * d[0])) * ry) - 1;
+    g.fillRect(x - 1, yTop, 3, d[1]);
+  }
+  g.fillStyle = cream.c3;
+  g.fillRect(Math.round(cx - rx * 0.56), Math.round(cy - ry * 0.40), 5, 2);
+  g.fillRect(Math.round(cx - rx * 0.38), Math.round(cy - ry * 0.66), 3, 1);
 }
-window.addEventListener("resize", refitAll);
-window.addEventListener("orientationchange", refitAll);
 
-document.addEventListener("pointerdown", e => { if (e.target && e.target.id === "cakeCanvas") onDown(e); });
-window.addEventListener("pointermove", onMove);
-window.addEventListener("pointerup", onUp);
-window.addEventListener("pointercancel", onUp);
+function makeTier() {
+  const t = document.createElement("div");
+  t.className = "tier";
+  const sheet = document.createElement("img");
+  sheet.className = "layer l-sheet"; sheet.alt = "";
+  const cream = document.createElement("canvas");
+  cream.className = "layer l-cream";
+  placeCream(cream);
+  const tops = document.createElement("div");
+  tops.className = "tops";
+  t.appendChild(sheet); t.appendChild(cream); t.appendChild(tops);
+  t._sheet = sheet; t._cream = cream; t._tops = tops;
+  return t;
+}
 
-buildPalette();
-chooseOrder();
-drawMascot();
-requestAnimationFrame(sizeStartCake);
+function paintTier(tier, sheet, cream) {
+  if (sheet) { tier._sheet.src = assetUrl("sheet", sheet); tier._sheet.hidden = false; }
+  else { tier._sheet.removeAttribute("src"); tier._sheet.hidden = true; }
+  if (cream) { tier._cream.hidden = false; placeCream(tier._cream); paintCream(tier._cream, cream); }
+  else { tier._cream.hidden = true; }
+}
+
+function putSprite(box, key, sp) {
+  const im = document.createElement("img");
+  im.className = "top-pic";
+  im.alt = "";
+  im.src = assetUrl("topping", key);
+  im.style.left = (sp.x * 100) + "%";
+  im.style.top = (sp.y * 100) + "%";
+  im.style.width = (sp.w * 100) + "%";
+  box.appendChild(im);
+}
+
+function paintTops(tier, list, deco) {
+  tier._tops.innerHTML = "";
+  /* 장식이 먼저 — 뒤쪽에 놓고 토핑이 앞에 온다 */
+  if (deco) for (const sp of layoutTopping(deco, 1, "top")) putSprite(tier._tops, deco, sp);
+  for (const t of list) {
+    for (const sp of layoutTopping(t.type, t.count, t.position || "center")) {
+      putSprite(tier._tops, t.type, sp);
+    }
+  }
+}
+
+/* cake 는 { tiers, bottomSheet, topSheet, bottomCream, topCream, toppings, decoration } */
+function renderCake(slot, cake) {
+  if (!slot) return;
+  if (!slot._base) {
+    slot.innerHTML = "";
+    slot._base = makeTier(); slot._base.classList.add("tier-base");
+    slot._up = makeTier(); slot._up.classList.add("tier-up");
+    slot.appendChild(slot._base);   /* 위층이 아래층을 덮어야 얹힌 것처럼 보인다 */
+    slot.appendChild(slot._up);
+  }
+  const two = cake && cake.tiers === 2;
+  slot.classList.toggle("two", !!two);
+  slot._up.hidden = !two;
+
+  paintTier(slot._base, cake && cake.bottomSheet, cake && cake.bottomCream);
+  if (two) paintTier(slot._up, cake.topSheet, cake.topCream);
+
+  const tops = (cake && cake.toppings) || [];
+  paintTops(two ? slot._up : slot._base, tops, cake && cake.decoration);
+  if (!two) slot._up._tops.innerHTML = "";
+}
+
+/* 레이아웃이 잡힌 뒤에 크림을 다시 찍는다 (크기를 알아야 한다) */
+function repaintCreams(slot, cake) {
+  if (!slot || !slot._base) return;
+  if (cake && cake.bottomCream) paintCream(slot._base._cream, cake.bottomCream);
+  if (cake && cake.tiers === 2 && cake.topCream) paintCream(slot._up._cream, cake.topCream);
+}
+function drawCake(slot, cake) {
+  renderCake(slot, cake);
+  requestAnimationFrame(() => repaintCreams(slot, cake));
+}
+
+/* ============================================================
+   저장과 시작 화면
+   ============================================================ */
+const SESSION_FIELDS = ["state", "day", "event", "guest", "customers", "customer",
+  "order", "cake", "history", "stats", "cart", "prepTab", "tab", "layer",
+  "activeTop", "tierDone", "memoLine", "tipOn", "result", "closing"];
+let saveWarning = false;
+function save() {
+  if (!S.save) return;
+  if (S.state !== "start") {
+    /* 흐르는 시간은 따로 담는다 — 제작 경과와 주문 노출의 남은 시간.
+       새로고침으로 주문을 처음부터 다시 볼 수 있으면 안 된다. */
+    const session = { version: 1,
+      elapsed: S.state === "build" ? buildSec() : 0,
+      previewLeft: S.state === "orderPreview" ? S.previewLeft : 0 };
+    for (const key of SESSION_FIELDS) if (S[key] !== undefined) session[key] = clone(S[key]);
+    S.save.session = session;
+  }
+  const saved = writeSave(S.save);
+  if (!saved && !saveWarning) toast("저장 공간을 사용할 수 없어요. 창을 닫으면 진행이 사라질 수 있어요.");
+  saveWarning = !saved;
+}
+function restoreSession(session) {
+  if (!session || session.version !== 1 || !SCENE[session.state] ||
+      session.state === "start" || !session.stats || !Number.isInteger(session.day)) return false;
+  const state = session.state;
+  if (["build", "orderPreview", "customerEnter", "orderResult"].includes(state) &&
+      (!session.order || !session.cake || !session.customer)) return false;
+  if (state === "orderResult" && !session.result) return false;
+  for (const key of SESSION_FIELDS) if (session[key] !== undefined) S[key] = clone(session[key]);
+  S.busy = false;
+  if (state === "dayIntro") { startDay(S.day); return true; }
+  if (state === "prep") { openPrep(); return true; }
+  if (["dayResult", "shop", "lottery"].includes(state)) {
+    endDay(true);
+    if (state === "shop") openShop();
+    if (state === "lottery") openLottery();
+    return true;
+  }
+  paintGuest(); paintTopBar(); orderNote(S.order);
+  if (state === "orderResult") { renderOrderResult(S.result); return true; }
+  if (state === "build") {
+    S.buildStart = performance.now() - Math.max(0, session.elapsed || 0) * 1000;
+    go("build"); startPatience(session.elapsed || 0); buildScreen();
+  } else {
+    go("customerEnter");
+    const left = state === "orderPreview" ? session.previewLeft || 0 : 0;
+    enterTimer = setTimeout(() => showOrderPreview(state === "orderPreview", left), CFG.enterMs);
+  }
+  return true;
+}
+function money() { return S.save ? S.save.money : 0; }
+function addMoney(n) { if (S.save) { S.save.money += n; save(); } }
+function itemCount(k) { return (S.save && S.save.items[k]) || 0; }
+function itemTotal() {
+  let n = 0;
+  if (S.save) for (const k in S.save.items) n += S.save.items[k];
+  return n;
+}
+function useItem(k) {
+  if (!S.save || !S.save.items[k]) return false;
+  S.save.items[k] -= 1;
+  if (!S.save.items[k]) delete S.save.items[k];
+  save();
+  return true;
+}
+
+function showStart() {
+  const v = loadSave();
+  const rec = $("record");
+  const cont = $("btnContinue");
+  if (v) {
+    S.save = v;
+    cont.disabled = false;
+    $("contSub").textContent = "DAY " + (v.session ? v.session.day : v.day) + " · " + won(v.money);
+    $("setNote").textContent = "저장된 기록 — DAY " + v.bestDay + " · 누적 " + won(v.totalSales);
+    rec.hidden = false;
+    rec.innerHTML = "";
+    const rows = [
+      ["최고 DAY", "DAY " + v.bestDay],
+      ["누적 매출", won(v.totalSales)],
+      ["최고 일치율", v.bestAvgAcc + "%"],
+    ];
+    for (const r of rows) {
+      const li = document.createElement("li");
+      const a = document.createElement("span"); a.textContent = r[0];
+      const b = document.createElement("b"); b.textContent = r[1];
+      li.appendChild(a); li.appendChild(b);
+      rec.appendChild(li);
+    }
+  } else {
+    S.save = null;
+    cont.disabled = true;
+    $("contSub").textContent = "";
+    $("setNote").textContent = "저장된 기록이 없어요.";
+    rec.hidden = true;
+  }
+  go("start");
+  requestAnimationFrame(drawHeroes);
+}
+
+function drawHeroes() {
+  for (const id in HEROES) drawCake($(id), HEROES[id]);
+}
+
+function newGame() {
+  if (loadSave() && !confirm("저장된 장사 기록이 지워집니다. 새로 시작할까요?")) return;
+  clearSave();
+  S.save = blankSave();
+  save();
+  track("game_start");
+  startDay(1);
+}
+function continueGame() {
+  if (!S.save) return;
+  if (!restoreSession(S.save.session)) startDay(S.save.day);
+}
+
+/* ============================================================
+   Day 시작
+   ============================================================ */
+function startDay(day) {
+  S.day = day;
+  S.save.day = day;
+  if (day > S.save.bestDay) S.save.bestDay = day;
+  S.result = null; S.closing = null; S.tipOn = false;
+
+  S.guest = 0;
+  S.customers = customersOf(day, S.save.shopReputation);
+  S.event = dayEvent(day);
+  S.stats = blankDayStats();
+  S.cart = {};
+  S.prepTab = "sheet";
+
+  $("dayNum").textContent = "DAY " + day;
+  $("daySub").textContent = day === 1 ? "오늘도 주문을 받아볼까요?" : "오늘은 주문이 좀 더 까다롭습니다.";
+
+  const ev = $("dayEvent");
+  if (S.event) {
+    ev.hidden = false;
+    $("eventName").textContent = S.event.name;
+    $("eventDesc").textContent = S.event.desc;
+  } else {
+    ev.hidden = true;
+  }
+
+  $("iRep").textContent = repStars(S.save.shopReputation);
+  $("iGuests").textContent = S.customers + "명";
+  $("iMoney").textContent = won(money());
+  $("iStock").textContent = stockKinds(S.save.inventory) + "종";
+
+  const r = dayRules(day);
+  const facts = ["주문 노출 " + previewSec(day, previewBonus(S.save.items, S.save.candyLeft),
+                                           null, S.event && S.event.key).toFixed(1) + "초"];
+  if (r.twoTierChance > 0) facts.push("2단 케이크");
+  if (r.positions) facts.push("토핑 위치");
+  if (r.decoration) facts.push("스페셜 장식");
+  const box = $("dayFacts");
+  box.innerHTML = "";
+  for (const f of facts) {
+    const li = document.createElement("li");
+    li.textContent = f;
+    box.appendChild(li);
+  }
+  go("dayIntro");
+}
+
+/* ============================================================
+   영업 준비 — 오늘 쓸 재료를 사 둔다
+   ============================================================
+   여기서만 재료비가 빠진다. 담아 둔 수량은 아직 산 것이 아니다. */
+const PREP_TABS = [
+  { key: "sheet",   label: "시트" },
+  { key: "cream",   label: "크림" },
+  { key: "fruit",   label: "토핑" },
+  { key: "deco",    label: "장식" },
+];
+function prepGroup(tab) {
+  if (tab === "sheet" || tab === "cream") return INGREDIENTS.filter(i => i.kind === tab);
+  if (tab === "fruit") return INGREDIENTS.filter(i => i.cat === "fruit");
+  return INGREDIENTS.filter(i => i.cat === "deco" || i.cat === "special");
+}
+function ingAsset(ing) {
+  return ing.kind === "sheet" ? assetUrl("sheet", ing.key)
+       : ing.kind === "cream" ? assetUrl("piping", ing.key)
+       : assetUrl("topping", ing.key);
+}
+
+function openPrep() {
+  $("prepHead").textContent = "DAY " + S.day + " 영업 준비";
+  const note = $("prepNote");
+  if (S.day === 1) {
+    note.hidden = false;
+    note.textContent = "첫 영업 기념으로 기본 재료를 준비해뒀어요!";
+  } else {
+    note.hidden = false;
+    note.textContent = "오늘 손님 " + S.customers + "명 — 모자란 재료를 사두세요";
+  }
+  drawPrepTabs();
+  drawPrepCards();
+  paintPrepFoot();
+  go("prep");
+}
+
+function drawPrepTabs() {
+  const box = $("prepTabs");
+  box.innerHTML = "";
+  for (const t of PREP_TABS) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "mtab" + (S.prepTab === t.key ? " on" : "");
+    b.textContent = t.label;
+    b.addEventListener("click", () => { S.prepTab = t.key; drawPrepTabs(); drawPrepCards(); });
+    box.appendChild(b);
+  }
+}
+
+/* 카드 안에서만 다시 그린다 — 목록을 새로 만들면 스크롤이 처음으로 돌아간다 */
+function prepCard(ing) {
+  const wrap = document.createElement("div");
+  const im = document.createElement("img");
+  im.className = "pick-pic"; im.src = ingAsset(ing); im.alt = "";
+  const name = document.createElement("span");
+  name.className = "pick-label"; name.textContent = ing.label;
+  const stock = document.createElement("em");
+  stock.className = "prep-stock";
+  const cost = document.createElement("span");
+  cost.className = "prep-cost"; cost.textContent = "매입 " + won(getIngredientCost(ing.id));
+
+  const qty = document.createElement("div");
+  qty.className = "qty";
+  const minus = document.createElement("button");
+  minus.type = "button"; minus.className = "qty-btn"; minus.textContent = "−";
+  minus.setAttribute("aria-label", ing.label + " 한 개 빼기");
+  const num = document.createElement("b");
+  num.className = "qty-n";
+  const plus = document.createElement("button");
+  plus.type = "button"; plus.className = "qty-btn"; plus.textContent = "+";
+  plus.setAttribute("aria-label", ing.label + " 한 개 담기");
+  qty.appendChild(minus); qty.appendChild(num); qty.appendChild(plus);
+
+  const sum = document.createElement("span");
+  sum.className = "prep-sum";
+
+  const paint = () => {
+    const q = S.cart[ing.id] || 0;
+    const have = S.save.inventory[ing.id] || 0;
+    wrap.className = "prep-card" + (q ? " picked" : "");
+    num.textContent = String(q);
+    stock.textContent = q ? "재고 " + have + " → " + (have + q) : "재고 " + have + "개";
+    sum.textContent = q ? won(getIngredientCost(ing.id) * q) : "";
+    minus.disabled = !q;
+  };
+  minus.addEventListener("click", () => { if (bumpCart(ing.id, -1)) { paint(); paintPrepFoot(); } });
+  plus.addEventListener("click", () => { if (bumpCart(ing.id, 1)) { paint(); paintPrepFoot(); } });
+
+  wrap.appendChild(im); wrap.appendChild(name); wrap.appendChild(stock);
+  wrap.appendChild(cost); wrap.appendChild(qty); wrap.appendChild(sum);
+  paint();
+  return wrap;
+}
+function drawPrepCards() {
+  const box = $("prepCards");
+  box.innerHTML = "";
+  for (const ing of prepGroup(S.prepTab)) box.appendChild(prepCard(ing));
+}
+
+function bumpCart(id, d) {
+  const n = (S.cart[id] || 0) + d;
+  if (n < 0) return false;
+  const next = Object.assign({}, S.cart);
+  if (n) next[id] = n; else delete next[id];
+  if (cartCost(next) > money()) { toast("보유금이 모자라요"); return false; }
+  S.cart = next;
+  save();
+  return true;
+}
+
+function paintPrepFoot() {
+  const cost = cartCost(S.cart);
+  $("prepMoney").textContent = won(money());
+  $("prepTotal").textContent = won(cost);
+  $("prepAfter").textContent = won(money() - cost);
+  $("prepCap").textContent = "보유 재료 " + stockKinds(S.save.inventory) + "종";
+  const b = $("btnStartService");
+  b.disabled = cost > money();
+  b.textContent = cost ? "구매하고 영업 시작 (" + won(cost) + ")" : "영업 시작";
+}
+
+/* 추천 수량 — 담아만 둔다. 사는 것은 플레이어가 누를 때. */
+function recommend() {
+  const want = recommendCart(S.save.inventory, S.customers, S.day);
+  const fit = trimCart(want, money());
+  S.cart = fit;
+  save();
+  drawPrepCards();
+  paintPrepFoot();
+  const total = cartCost(fit);
+  if (!total) toast("이미 넉넉해요");
+  else if (cartCost(want) > total) toast("보유금에 맞춰 줄여 담았어요");
+  else toast("추천 수량을 담았어요 — " + won(total));
+}
+
+function startService() {
+  const cost = cartCost(S.cart);
+  if (cost > money()) { toast("보유금이 모자라요"); return; }
+  if (cost > 0) {
+    purchaseIngredients(S.save, S.cart, S.stats);
+    save();
+    toast("재료 " + won(cost) + " 구매");
+  }
+  S.cart = {};
+  track("day_open");
+  nextGuest();
+}
+
+/* ============================================================
+   손님 등장 -> 주문 공개
+   ============================================================ */
+let previewTimer = 0;
+let enterTimer = 0;
+
+function paintTopBar() {
+  const left = Math.max(0, S.customers - S.guest + 1) + " / " + S.customers;
+  for (const p of ["o", "b", "r", "c"]) {
+    $(p + "Day").textContent = String(S.day);
+    $(p + "Left").textContent = left;
+    $(p + "Money").textContent = won(money());
+  }
+}
+
+/* 손님 얼굴과 타입은 네 화면이 같이 쓴다 */
+function paintGuest() {
+  const c = S.customer;
+  for (const id of ["guestNo", "guestNo2", "enterNo", "reactNo"]) $(id).textContent = String(S.guest);
+  for (const id of ["guestType", "guestType2", "enterType", "reactType"]) {
+    const el = $(id);
+    el.textContent = c.label;
+    el.className = "guest-type t-" + c.key;
+  }
+  /* 클래스는 통째로 다시 쓴다 — 문자열을 잘라 내면 guest-ava 의 t-ava 까지 지워진다 */
+  $("enterAva").className = "guest-ava lg t-" + c.key;
+  $("guestAva").className = "guest-ava t-" + c.key;
+  $("guestAva2").className = "guest-ava sm t-" + c.key;
+  $("reactAva").className = "guest-ava sm t-" + c.key;
+  $("enterLine").textContent = c.line;
+  $("guestLine").textContent = c.line;
+}
+
+/* 초기 Day 에만 보조 텍스트를 함께 보여 준다 */
+function orderNote(order) {
+  const box = $("orderNote");
+  box.innerHTML = "";
+  if (S.day > 2) { box.hidden = true; return; }
+  box.hidden = false;
+  const bits = [order.tiers + "단"];
+  bits.push(labelOf("sheet", order.bottomSheet) + " 시트");
+  bits.push(labelOf("cream", order.bottomCream) + " 크림");
+  if (order.tiers === 2) {
+    bits.push("위층 " + labelOf("sheet", order.topSheet) + " 시트");
+    bits.push("위층 " + labelOf("cream", order.topCream) + " 크림");
+  }
+  for (const t of order.toppings) {
+    bits.push(labelOf("topping", t.type) + " ×" + t.count
+      + (t.position ? " " + labelOf("pos", t.position) : ""));
+  }
+  if (order.decoration) bits.push("장식 " + labelOf("topping", order.decoration));
+  for (const b of bits) {
+    const li = document.createElement("li");
+    li.textContent = b;
+    box.appendChild(li);
+  }
+}
+
+function nextGuest() {
+  S.guest += 1;
+  if (S.guest > S.customers) { endDay(); return; }
+
+  S.customer = generateCustomer(S.day);
+  S.order = generateOrder(S.day, S.customer.key, S.event && S.event.key);
+  S.cake = { tiers: 1, bottomSheet: null, topSheet: null,
+             bottomCream: null, topCream: null, toppings: [], decoration: null };
+  S.history = [];
+  S.tab = "tier"; S.layer = "bottom"; S.tierDone = false; S.activeTop = null;
+  S.memoLine = "";
+
+  paintGuest();
+  paintTopBar();
+  orderNote(S.order);
+
+  go("customerEnter");
+  if (enterTimer) clearTimeout(enterTimer);
+  enterTimer = setTimeout(showOrderPreview, CFG.enterMs);
+}
+
+function showOrderPreview(resuming = false, leftSec = 0) {
+  if (enterTimer) { clearTimeout(enterTimer); enterTimer = 0; }
+  if (S.state !== "customerEnter") return;
+
+  /* 두뇌 사탕은 주문을 볼 때 한 알 쓴다 */
+  const candy = S.save.candyLeft > 0;
+  const bonus = previewBonus(S.save.items, S.save.candyLeft);
+  if (candy && resuming !== true) S.save.candyLeft -= 1;
+
+  go("orderPreview");
+  const stage = $("orderStage");
+  stage.classList.remove("fade");
+  drawCake($("orderSlot"), S.order);
+
+  /* 정가는 숨긴다 — 범위만 */
+  const pr = priceRange(S.order);
+  $("priceHint").textContent = "예상 판매가 " + pr.lo.toLocaleString("ko-KR")
+    + "~" + won(pr.hi);
+
+  /* 이어하기로 돌아왔으면 남아 있던 만큼만 센다 */
+  const full = previewSec(S.day, bonus, S.customer.key, S.event && S.event.key);
+  const sec = leftSec > 0 ? Math.min(leftSec, full) : full;
+  S.previewLeft = sec;
+  $("ordFill").style.width = "100%";
+  $("ordCount").textContent = Math.ceil(sec);
+  const t0 = performance.now();
+  if (previewTimer) cancelAnimationFrame(previewTimer);
+  const step = now => {
+    /* rAF 의 시각이 performance.now() 보다 앞설 때가 있어 위도 묶는다 */
+    const left = Math.min(sec, Math.max(0, sec - (now - t0) / 1000));
+    S.previewLeft = left;
+    $("ordCount").textContent = Math.ceil(left) || 0;
+    $("ordFill").style.width = (left / sec * 100).toFixed(1) + "%";
+    if (left <= 0) { previewTimer = 0; stage.classList.add("fade"); toBuild(); return; }
+    previewTimer = requestAnimationFrame(step);
+  };
+  previewTimer = requestAnimationFrame(step);
+}
+
+/* 기억 메모 / 힌트 — 주문 정보 가운데 한 줄만 */
+function memoFor(order) {
+  const bits = [];
+  bits.push("단수: " + order.tiers + "단");
+  bits.push((order.tiers === 2 ? "아래층 시트: " : "시트: ") + labelOf("sheet", order.bottomSheet));
+  bits.push((order.tiers === 2 ? "아래층 크림: " : "크림: ") + labelOf("cream", order.bottomCream));
+  if (order.tiers === 2) {
+    bits.push("위층 시트: " + labelOf("sheet", order.topSheet));
+    bits.push("위층 크림: " + labelOf("cream", order.topCream));
+  }
+  for (const t of order.toppings) {
+    bits.push("토핑: " + labelOf("topping", t.type) + " ×" + t.count
+      + (t.position ? " (" + labelOf("pos", t.position) + ")" : ""));
+  }
+  if (order.decoration) bits.push("장식: " + labelOf("topping", order.decoration));
+  return pick(bits);
+}
+
+function toBuild() {
+  if (itemCount("memo")) {
+    S.memoLine = "메모 — " + memoFor(S.order);
+    useItem("memo");
+  } else if (itemCount("note") && S.order.tiers === 2) {
+    /* 셰프 노트는 2단 주문에서만 쓰인다 */
+    S.memoLine = "셰프 노트 — 위층 시트: " + labelOf("sheet", S.order.topSheet);
+    useItem("note");
+  }
+  go("build");
+  startPatience();
+  save();
+  buildScreen();
+}
+
+/* ============================================================
+   인내심 — 제작을 시작한 때부터 흐른다
+   ============================================================
+   0 이 되어도 주문은 실패하지 않는다. 팁만 사라진다. */
+function startPatience(elapsed = 0) {
+  if (S.patTimer) cancelAnimationFrame(S.patTimer);
+  S.buildStart = performance.now() - Math.max(0, elapsed) * 1000;
+  const tick = now => {
+    if (S.state !== "build") { S.patTimer = 0; return; }
+    paintPatience(patienceLeft(S.order, buildSec(now)));
+    S.patTimer = requestAnimationFrame(tick);
+  };
+  S.patTimer = requestAnimationFrame(tick);
+}
+function buildSec(now) {
+  return Math.max(0, ((now === undefined ? performance.now() : now) - S.buildStart) / 1000);
+}
+function paintPatience(frac) {
+  const box = $("patience");
+  if (!box._hearts) {
+    box._hearts = [];
+    for (let i = 0; i < PATIENCE_CONFIG.hearts; i++) {
+      const h = document.createElement("i");
+      box.appendChild(h);
+      box._hearts.push(h);
+    }
+  }
+  const on = Math.ceil(frac * PATIENCE_CONFIG.hearts);
+  for (let i = 0; i < box._hearts.length; i++) {
+    box._hearts[i].className = i < on ? "pat-on" : "pat-off";
+  }
+  box.className = "patience" + (frac > 0 && frac <= 0.4 ? " low" : "");
+  $("guestWait").textContent =
+    frac > 0.6 ? (S.customer && S.customer.key === "rush" ? "빨리요, 빨리!" : "기다리고 있어요")
+    : frac > 0.2 ? "아직 멀었나요?"
+    : frac > 0 ? "조금 늦어지네요..." : "너무 오래 걸려요...";
+}
+
+/* ============================================================
+   제작 화면
+   ============================================================
+   주문은 보이지 않는다. 기억만으로 만든다.
+   탭은 다섯 개. 재료를 고르면 다음 단계 탭으로 저절로 넘어간다. */
+const BUILD_TABS = [
+  { key: "tier",  label: "단수" },
+  { key: "sheet", label: "시트" },
+  { key: "cream", label: "크림" },
+  { key: "fruit", label: "토핑" },
+  { key: "deco",  label: "장식" },
+];
+
+function buildScreen() {
+  paintTopBar();
+  paintPatience(patienceLeft(S.order, buildSec()));
+  const memo = $("memoChip");
+  memo.hidden = !S.memoLine;
+  memo.textContent = S.memoLine;
+  $("judge").hidden = true;
+  S.busy = false;
+  drawTabs();
+  drawPicker();
+  drawChosen();
+  drawActions();
+  drawCake($("cakeSlot"), S.cake);
+}
+
+/* 지금 무엇을 고를 차례인가 — 안내 문구와 자동 탭 이동이 같은 곳에서 나온다 */
+function stepOf() {
+  const c = S.cake, two = c.tiers === 2;
+  if (!S.tierDone) return { tab: "tier", layer: "bottom", text: "몇 단 케이크인가요?" };
+  if (!c.bottomSheet) return { tab: "sheet", layer: "bottom",
+    text: two ? "아래층 시트를 골라주세요" : "시트를 골라주세요" };
+  if (!c.bottomCream) return { tab: "cream", layer: "bottom",
+    text: two ? "아래층 크림을 골라주세요" : "크림을 골라주세요" };
+  if (two && !c.topSheet) return { tab: "sheet", layer: "top", text: "위층 시트를 골라주세요" };
+  if (two && !c.topCream) return { tab: "cream", layer: "top", text: "위층 크림을 골라주세요" };
+  if (!c.toppings.length) return { tab: "fruit", layer: "bottom", text: "토핑을 올려주세요" };
+  if (needPos() && S.activeTop) {
+    return { tab: "fruit", layer: "bottom",
+             text: labelOf("topping", S.activeTop) + " 위치를 골라주세요" };
+  }
+  return { tab: S.tab, layer: S.layer, text: "다 올렸으면 완성하기!" };
+}
+function needPos() { return dayRules(S.day).positions; }
+
+/* 재료를 고른 뒤 — 다음 단계로 옮기고 다시 그린다 */
+function advance() {
+  const st = stepOf();
+  S.tab = st.tab; S.layer = st.layer;
+  drawTabs(); drawPicker(); drawChosen(); drawActions();
+  $("stepHint").textContent = st.text;
+  restart($("cakeSlot"), "put");
+  drawCake($("cakeSlot"), S.cake);
+  save();
+}
+
+/* 되돌리기 — 고르기 전에 스냅숏을 쌓아 둔다 */
+function snap() {
+  S.history.push({ cake: clone(S.cake), tierDone: S.tierDone, activeTop: S.activeTop });
+  if (S.history.length > 20) S.history.shift();
+}
+function undo() {
+  if (S.busy || !S.history.length) return;
+  const h = S.history.pop();
+  S.cake = h.cake;
+  S.tierDone = h.tierDone;
+  S.activeTop = h.activeTop;
+  advance();
+  track("undo");
+}
+
+function drawTabs() {
+  const box = $("buildTabs");
+  box.innerHTML = "";
+  for (const t of BUILD_TABS) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "mtab" + (S.tab === t.key ? " on" : "");
+    b.textContent = t.label;
+    b.addEventListener("click", () => { S.tab = t.key; drawTabs(); drawPicker(); });
+    box.appendChild(b);
+  }
+  $("stepHint").textContent = stepOf().text;
+}
+
+/* 보조줄 — 2단이면 층, 토핑 자리를 쓰는 Day 면 자리 */
+function drawSubRow() {
+  const box = $("subRow");
+  box.innerHTML = "";
+  box.hidden = true;
+
+  if ((S.tab === "sheet" || S.tab === "cream") && S.cake.tiers === 2) {
+    box.hidden = false;
+    for (const L of [{ k: "bottom", n: "아래층" }, { k: "top", n: "위층" }]) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "sub-btn" + (S.layer === L.k ? " on" : "");
+      b.textContent = L.n;
+      b.addEventListener("click", () => { S.layer = L.k; drawSubRow(); drawPicker(); });
+      box.appendChild(b);
+    }
+    return;
+  }
+
+  if (S.tab === "fruit" && needPos() && S.activeTop) {
+    const got = S.cake.toppings.find(x => x.type === S.activeTop);
+    box.hidden = false;
+    for (const p of POSITIONS) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "sub-btn pos" + (got && got.position === p.key ? " on" : "");
+      b.textContent = p.label;
+      b.addEventListener("click", () => setPos(p.key));
+      box.appendChild(b);
+    }
+  }
+}
+
+function card(o) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "pick-card" + (o.on ? " on" : "") + (o.out ? " out" : "")
+              + (o.extra ? " " + o.extra : "");
+  if (o.url) {
+    const im = document.createElement("img");
+    im.className = "pick-pic"; im.src = o.url; im.alt = "";
+    b.appendChild(im);
+  }
+  const t = document.createElement("span");
+  t.className = "pick-label"; t.textContent = o.label;
+  b.appendChild(t);
+  if (o.stock !== undefined) {
+    const s = document.createElement("em");
+    s.className = "pick-stock";
+    s.textContent = o.stock > 0 ? "남은 " + o.stock : "품절";
+    b.appendChild(s);
+  }
+  if (o.badge) {
+    const n = document.createElement("em");
+    n.className = "pick-count"; n.textContent = o.badge;
+    b.appendChild(n);
+  }
+  b.addEventListener("click", () => { restart(b, "pop"); o.fn(); });
+  return b;
+}
+
+/* 지금 이 케이크에 쓰기로 한 양을 뺀 나머지 — 제작 중에는 재고를 건드리지 않는다 */
+function leftOf(id) {
+  return (S.save.inventory[id] || 0) - (cakeNeeds(S.cake)[id] || 0);
+}
+
+function drawPicker() {
+  drawSubRow();
+  const box = $("pickCards");
+  box.innerHTML = "";
+  box.dataset.tab = S.tab;
+
+  if (S.tab === "tier") {
+    for (const n of [1, 2]) {
+      box.appendChild(card({ label: n + "단", on: S.cake.tiers === n && S.tierDone,
+                             fn: () => setTier(n), extra: "tier-card" }));
+    }
+    return;
+  }
+  if (S.tab === "sheet") {
+    const cur = S.layer === "top" ? S.cake.topSheet : S.cake.bottomSheet;
+    for (const p of SHEETS) {
+      const n = leftOf(ingId("sheet", p.key));
+      box.appendChild(card({ label: p.label, url: assetUrl("sheet", p.key), on: cur === p.key,
+                             fn: () => setSheet(p.key), stock: n, out: n <= 0 }));
+    }
+    return;
+  }
+  if (S.tab === "cream") {
+    const cur = S.layer === "top" ? S.cake.topCream : S.cake.bottomCream;
+    for (const p of CREAMS) {
+      const n = leftOf(ingId("cream", p.key));
+      box.appendChild(card({ label: p.label, url: assetUrl("piping", p.key), on: cur === p.key,
+                             fn: () => setCream(p.key), stock: n, out: n <= 0 }));
+    }
+    return;
+  }
+  if (S.tab === "fruit") {
+    for (const t of FRUITS) {
+      const got = S.cake.toppings.find(x => x.type === t.key);
+      const n = leftOf(t.key);
+      box.appendChild(card({ label: t.label, url: assetUrl("topping", t.key), on: !!got,
+                             fn: () => addTopping(t.key), stock: n, out: n <= 0,
+                             badge: got ? "×" + got.count : "" }));
+    }
+    return;
+  }
+  /* 장식은 한 가지만 — 다시 누르면 뺀다 */
+  for (const t of DECOS) {
+    const on = S.cake.decoration === t.key;
+    const n = leftOf(t.key);
+    box.appendChild(card({ label: t.label, url: assetUrl("topping", t.key), on: on,
+                           fn: () => setDeco(t.key), stock: n, out: !on && n <= 0 }));
+  }
+}
+
+/* ============================================================
+   품절과 긴급 구매
+   ============================================================
+   재고가 없어도 카드를 숨기지 않는다. 눌러서 두 배 값에 사거나,
+   다른 재료를 쓰거나, 그대로 완성할 수 있다. */
+function soldOut(id) {
+  const ing = ingredientOf(id);
+  if (!ing) return;
+  S.emgId = id;
+  $("emgName").textContent = ing.label + " 재고가 없어요!";
+  $("emgNormal").textContent = won(getIngredientCost(id));
+  $("emgPrice").textContent = won(emergencyCost(id));
+  const b = $("btnEmgBuy");
+  const poor = money() < emergencyCost(id);
+  b.disabled = poor;
+  b.textContent = poor ? "돈이 모자라요" : "1개 긴급 구매";
+  $("emgSheet").hidden = false;
+}
+function emgBuy() {
+  if (!S.emgId) return;
+  const id = S.emgId;
+  const cost = emergencyPurchase(S.save, id, S.stats);
+  if (!cost) { toast("보유금이 모자라요"); return; }
+  save();
+  closeSheets();
+  S.emgId = null;
+  toast(ingredientOf(id).label + " 긴급 구매 — " + won(cost));
+  paintTopBar();
+  drawPicker();
+  track("emergency_buy");
+}
+
+/* 재고를 넘기면 품절 창을 띄우고 선택을 되돌린다 */
+function withStock(next, after) {
+  const short = shortOf(S.save.inventory, next);
+  if (short) { soldOut(short); return false; }
+  snap();                       /* 되돌리기 기록은 바꾸기 전 상태로 남는다 */
+  S.cake = next;
+  if (after) after();
+  advance();
+  return true;
+}
+
+function drawChosen() {
+  const box = $("chosen");
+  box.innerHTML = "";
+  for (const t of S.cake.toppings) {
+    const li = document.createElement("li");
+    li.className = "chip-sel" + (S.activeTop === t.type ? " on" : "");
+    const s = document.createElement("button");
+    s.type = "button";
+    s.className = "chip-name";
+    s.textContent = labelOf("topping", t.type) + " ×" + t.count
+      + (t.position ? " · " + labelOf("pos", t.position) : "");
+    s.addEventListener("click", () => { S.activeTop = t.type; S.tab = "fruit"; drawTabs(); drawPicker(); drawChosen(); });
+    const x = document.createElement("button");
+    x.type = "button"; x.className = "chip-x"; x.textContent = "×";
+    x.setAttribute("aria-label", labelOf("topping", t.type) + " 빼기");
+    x.addEventListener("click", () => dropTopping(t.type));
+    li.appendChild(s); li.appendChild(x);
+    box.appendChild(li);
+  }
+  if (S.cake.decoration) {
+    const li = document.createElement("li");
+    li.className = "chip-sel deco";
+    const s = document.createElement("span");
+    s.className = "chip-name";
+    s.textContent = "장식 · " + labelOf("topping", S.cake.decoration);
+    const x = document.createElement("button");
+    x.type = "button"; x.className = "chip-x"; x.textContent = "×";
+    x.setAttribute("aria-label", "장식 빼기");
+    x.addEventListener("click", () => setDeco(S.cake.decoration));
+    li.appendChild(s); li.appendChild(x);
+    box.appendChild(li);
+  }
+}
+
+/* ---------------- 고르기 ---------------- */
+function setTier(n) {
+  snap();
+  S.cake.tiers = n;
+  S.tierDone = true;
+  if (n === 1) { S.cake.topSheet = null; S.cake.topCream = null; S.layer = "bottom"; }
+  advance();
+}
+function setSheet(k) {
+  const next = clone(S.cake);
+  if (S.layer === "top") next.topSheet = k; else next.bottomSheet = k;
+  withStock(next);
+}
+function setCream(k) {
+  const next = clone(S.cake);
+  if (S.layer === "top") next.topCream = k; else next.bottomCream = k;
+  withStock(next);
+}
+function addTopping(k) {
+  const meta = toppingOf(k);
+  const next = clone(S.cake);
+  const got = next.toppings.find(x => x.type === k);
+  if (got) {
+    if (got.count >= meta.max) { toast(meta.label + "은 " + meta.max + "개까지예요"); return; }
+    got.count += 1;
+  } else {
+    if (next.toppings.length >= 3) { toast("토핑은 세 종류까지예요"); return; }
+    next.toppings.push(needPos() ? { type: k, count: 1, position: "center" }
+                                 : { type: k, count: 1 });
+  }
+  withStock(next, () => { S.activeTop = k; });
+}
+function dropTopping(k) {
+  snap();
+  S.cake.toppings = S.cake.toppings.filter(x => x.type !== k);
+  if (S.activeTop === k) S.activeTop = S.cake.toppings.length ? S.cake.toppings[0].type : null;
+  advance();
+}
+function setPos(p) {
+  const got = S.cake.toppings.find(x => x.type === S.activeTop);
+  if (!got) return;
+  snap();
+  got.position = p;
+  advance();
+}
+function setDeco(k) {
+  const next = clone(S.cake);
+  next.decoration = next.decoration === k ? null : k;
+  withStock(next);
+}
+
+/* ============================================================
+   액션바 — 힌트 / 아이템 / 완성하기
+   ============================================================ */
+function drawActions() {
+  const hint = itemCount("hint");
+  $("hintN").textContent = String(hint);
+  $("btnHint").disabled = !hint || S.busy;
+  $("itemN").textContent = String(itemTotal());
+  $("btnItems").disabled = S.busy;
+  $("btnDone").disabled = S.busy;
+  $("btnUndo").disabled = S.busy || !S.history.length;
+}
+
+function useHint() {
+  if (S.busy || !useItem("hint")) return;
+  toast("힌트 — " + memoFor(S.order));
+  drawActions();
+  track("item_hint");
+}
+
+function usePeek() {
+  if (S.busy || !useItem("peek")) return;
+  closeSheets();
+  S.busy = true;
+  drawActions();
+  const slot = $("cakeSlot");
+  const keep = S.cake;
+  drawCake(slot, S.order);
+  restart(slot, "peek");
+  const j = $("judge");
+  j.hidden = false; j.className = "stage-flash peek-tag"; j.textContent = "주문 다시보기";
+  setTimeout(() => {
+    j.hidden = true;
+    drawCake(slot, keep);
+    S.busy = false;
+    drawActions();
+  }, CFG.peekMs);
+  track("item_peek");
+}
+
+/* 보유 아이템 — 화면을 다 덮지 않는 작은 시트 */
+function openItems() {
+  const box = $("holdList");
+  box.innerHTML = "";
+  let n = 0;
+  for (const it of ITEMS) {
+    const have = itemCount(it.key);
+    if (!have) continue;
+    n++;
+    const li = document.createElement("li");
+    const ico = document.createElement("i");
+    ico.className = "item-ico c" + ((ITEMS.indexOf(it) % 6) + 1);
+    ico.textContent = it.ico;
+    const info = document.createElement("div");
+    info.className = "hold-info";
+    const b = document.createElement("b"); b.textContent = it.name + " ×" + have;
+    const d = document.createElement("span"); d.textContent = it.desc;
+    info.appendChild(b); info.appendChild(d);
+    li.appendChild(ico); li.appendChild(info);
+    if (it.key === "peek") {
+      const u = document.createElement("button");
+      u.type = "button"; u.className = "use-btn"; u.textContent = "사용";
+      u.disabled = S.state !== "build" || S.busy;
+      u.addEventListener("click", usePeek);
+      li.appendChild(u);
+    } else {
+      const auto = document.createElement("span");
+      auto.className = "hold-tag";
+      auto.textContent = it.key === "hint" ? "액션바에서" : "자동 적용";
+      li.appendChild(auto);
+    }
+    box.appendChild(li);
+  }
+  if (S.save && S.save.candyLeft > 0) {
+    const li = document.createElement("li");
+    li.className = "hold-empty";
+    li.textContent = "두뇌 사탕 효과 " + S.save.candyLeft + "주문 남음";
+    box.appendChild(li);
+    n++;
+  }
+  if (!n) {
+    const li = document.createElement("li");
+    li.className = "hold-empty";
+    li.textContent = "아직 아이템이 없어요. 상점에서 살 수 있습니다.";
+    box.appendChild(li);
+  }
+  $("itemSheet").hidden = false;
+}
+function closeSheets() {
+  $("itemSheet").hidden = true;
+  $("setSheet").hidden = true;
+  $("emgSheet").hidden = true;
+}
+function openSettings() { $("setSheet").hidden = false; }
+function wipeSave() {
+  if (!confirm("저장된 장사 기록을 지울까요?")) return;
+  clearSave();
+  closeSheets();
+  showStart();
+}
+
+/* ============================================================
+   완성 -> 채점
+   ============================================================ */
+
+function submit() {
+  if (S.state !== "build" || S.busy) return;
+  if (!S.cake.bottomSheet || !S.cake.bottomCream) {
+    /* 고를 재료가 남아 있을 때만 막는다. 재고가 아예 없으면 빈 케이크라도
+       내보낼 수 있어야 한다 — 돈까지 떨어지면 영업이 멈춰 버린다. */
+    const anySheet = SHEETS.some(s => (S.save.inventory[ingId("sheet", s.key)] || 0) > 0);
+    const anyCream = CREAMS.some(c => (S.save.inventory[ingId("cream", c.key)] || 0) > 0);
+    if ((!S.cake.bottomSheet && anySheet) || (!S.cake.bottomCream && anyCream)) {
+      const j = $("judge");
+      j.hidden = false; j.className = "stage-flash miss";
+      j.textContent = "시트와 크림은 올려야 해요";
+      restart(j, "show");
+      setTimeout(() => { j.hidden = true; }, 1200);
+      return;
+    }
+  }
+  S.busy = true;
+  closeSheets();
+
+  /* 제작에 걸린 시간 — 인내심과 팁의 기준 */
+  const duration = buildSec();
+  if (S.patTimer) { cancelAnimationFrame(S.patTimer); S.patTimer = 0; }
+
+  /* 실수 방지권 — 틀린 항목이 있으면 하나를 고치고 한 장 쓴다 */
+  let fixed = null;
+  if (itemCount("fix") && calculateAccuracy(S.order, S.cake) < 100) {
+    fixed = autoFix(S.order, S.cake);
+    if (fixed) useItem("fix");
+  }
+
+  const acc = calculateAccuracy(S.order, S.cake);
+  const price = S.order.basePrice;
+  const earned = calculateEarnings(price, acc);
+  const bonuses = payBonuses(S.order, acc,
+    { event: S.event && S.event.key, tipItem: S.tipOn });
+  const paid = applyBonuses(earned, bonuses);
+  const tip = calculateTip(S.order, acc, duration);
+  const tipAmt = Math.round(paid * tip.rate);
+  const got = paid + tipAmt;
+  if (S.tipOn) S.tipOn = false;
+
+  /* 재료는 여기서 딱 한 번 빠진다 (제작 중 선택은 재고를 건드리지 않았다) */
+  consumeIngredients(S.save.inventory, S.cake);
+
+  const before = money();
+  const st = S.stats;
+  st.orders += 1;
+  st.accuracyTotal += acc;
+  st.revenue += paid;
+  st.tips += tipAmt;
+  if (acc >= 100) st.perfectOrders += 1;
+  if (got > st.best) st.best = got;
+  S.save.money += got;
+  S.save.totalSales += got;
+  S.result = { acc, price, earned, bonuses, paid, tip, tipAmt, got, fixed, duration, before };
+  renderOrderResult(S.result);
+  track("order_done");
+}
+
+function renderOrderResult(result) {
+  const { acc, price, earned, bonuses, paid, tip, tipAmt, got, fixed, duration, before } = result;
+  S.busy = true;
+  const band = payBand(acc);
+  $("resTag").textContent = band.tag;
+  $("resTag").className = "grade g-" + band.cls;
+  $("resAcc").textContent = acc + "%";
+
+  /* 정가 -> 정확도 반영 -> 보너스 -> 팁 */
+  const pay = $("payRows");
+  pay.innerHTML = "";
+  const payRow = (cap, val, cls) => {
+    const li = document.createElement("li");
+    if (cls) li.className = cls;
+    const a = document.createElement("span"); a.textContent = cap;
+    const b = document.createElement("b"); b.textContent = val;
+    li.appendChild(a); li.appendChild(b);
+    pay.appendChild(li);
+  };
+  payRow("케이크 정가", won(price));
+  payRow("정확도 반영 " + acc + "%", won(earned));
+  let run = earned;
+  bonuses.forEach((b, i) => {
+    run = i === bonuses.length - 1 ? paid : Math.round(run * b.mul);
+    payRow(b.label, won(run));
+  });
+  if (tipAmt) payRow("빠른 제작 팁 · " + tip.label, "+" + won(tipAmt), "tip");
+  else if (acc >= 80) payRow("제작 " + duration.toFixed(1) + "초 (" + tip.limit + "초 안)", "팁 없음");
+
+  $("payCap").textContent = "총 수입" + (fixed ? " · 실수 방지권" : "");
+  $("payGot").textContent = "+" + won(got);
+  $("reactLine").textContent = reactionFor(acc, tip.rate >= 0.2);
+
+  /* 조건별 판정 — 맞은 것과 틀린 것을 모두 보여 준다 */
+  const rows = $("resRows");
+  rows.innerHTML = "";
+  for (const r of accuracyDetail(S.order, S.cake)) {
+    const li = document.createElement("li");
+    li.className = r.ok ? "ok" : "bad";
+    const m = document.createElement("i");
+    m.textContent = r.ok ? "O" : "X";
+    const s = document.createElement("span");
+    s.textContent = r.ok ? r.label : r.label + " · 주문 " + r.want + " / 내 케이크 " + r.got;
+    li.appendChild(m); li.appendChild(s);
+    rows.appendChild(li);
+  }
+
+  go("orderResult");
+  paintTopBar();
+  drawCake($("resOrder"), S.order);
+  drawCake($("resMine"), S.cake);
+
+  /* 돈이 케이크에서 떠올라 상단 보유금으로 */
+  const fly = $("flyMoney");
+  fly.textContent = "+" + won(got);
+  fly.hidden = false;
+  restart(fly, "go");
+  $("rMoney").textContent = won(before);
+  countUp($("rMoney"), before, money());
+
+  if (fixed) toast("실수 방지권 — " + fixed + "를 고쳤어요");
+  $("btnNextGuest").textContent = S.guest >= S.customers ? "오늘 장사 마감하기" : "다음 손님 맞이하기";
+}
+
+/* 결과는 충분히 읽은 뒤 다음 버튼으로 진행한다. */
+function leaveResult() {
+  if (S.state !== "orderResult") return;
+  $("flyMoney").hidden = true;
+  nextGuest();
+}
+
+/* ============================================================
+   하루 정산
+   ============================================================ */
+function endDay(restoring = false) {
+  const st = S.stats;
+  const avg = dayAvgAccuracy(st);
+  let repGap = S.closing ? S.closing.repGap : 0;
+  let got = [];
+  if (!restoring) {
+  if (avg > S.save.bestAvgAcc) S.save.bestAvgAcc = avg;
+  S.save.day = S.day + 1;
+
+  /* 평판은 하루 평균 일치율로 마감 때 한 번만 움직인다 */
+  const repWas = S.save.shopReputation;
+  S.save.shopReputation = updateReputation(repWas, avg);
+  repGap = Math.round((S.save.shopReputation - repWas) * 10) / 10;
+
+  /* 가게 성장 — 해금만 기록해 둔다 */
+  got = newDecors(S.day, S.save.decor);
+  for (const d of got) S.save.decor.push(d.key);
+  S.closing = { repGap, got };
+  } else got = S.closing ? S.closing.got : [];
+  const line = $("decorLine");
+  if (got.length) {
+    line.hidden = false;
+    line.textContent = "가게가 바뀌었어요 — " + got.map(d => d.name).join(", ");
+  } else {
+    line.hidden = true;
+  }
+  /* 순이익은 보여 주기만 한다 — 재료비는 영업 준비에서 이미 빠졌다 */
+  const profit = calculateDayProfit(st);
+  $("dayResHead").textContent = "DAY " + S.day + " 마감";
+  $("dGuests").textContent = st.orders + "개";
+  $("dPerfect").textContent = st.perfectOrders + "개";
+  $("dAcc").textContent = avg + "%";
+  $("dBest").textContent = won(st.best);
+  countUp($("dSales"), 0, st.revenue);
+  $("dTips").textContent = (st.tips ? "+" : "") + won(st.tips);
+  $("dCost").textContent = (st.ingredientCost ? "-" : "") + won(st.ingredientCost);
+  $("dEmg").textContent = (st.emergencyPurchaseCost ? "-" : "") + won(st.emergencyPurchaseCost);
+  const pf = $("dProfit");
+  pf.className = profit < 0 ? "minus" : "";
+  pf.textContent = (profit < 0 ? "-" : "") + won(Math.abs(profit));
+  $("dMoney").textContent = won(money());
+  $("dRep").textContent = repStars(S.save.shopReputation)
+    + (repGap ? " (" + (repGap > 0 ? "+" : "") + repGap.toFixed(1) + ")" : "");
+  $("btnNextDay").textContent = "DAY " + (S.day + 1) + " 장사하기";
+  $("dayBubble").textContent =
+    profit <= 0 ? "재료비가 매출보다 많았어요..." :
+    avg >= 95 ? "오늘 장사 대박이에요!" :
+    avg >= 75 ? "손님들 만족했어요." :
+    avg >= 50 ? "조금만 더 기억해 봐요." : "내일은 더 잘할 수 있어요.";
+
+  /* 사장님 그림은 있으면 쓰고, 없으면 말풍선만 남는다 */
+  const slot = $("chefPic");
+  slot.innerHTML = ""; slot.hidden = true;
+  const im = new Image();
+  im.alt = "";
+  im.onload = () => { slot.appendChild(im); slot.hidden = false; };
+  im.onerror = () => {};
+  im.src = "assets/chef_great.png";
+
+  go("dayResult");
+  if (!restoring) track("day_done");
+}
+
+/* ============================================================
+   상점
+   ============================================================ */
+function openShop() {
+  $("shopMoney").textContent = won(money());
+  const box = $("shopList");
+  box.innerHTML = "";
+  ITEMS.forEach((it, i) => {
+    const li = document.createElement("li");
+    li.className = "shop-card";
+
+    const ico = document.createElement("i");
+    ico.className = "item-ico c" + ((i % 6) + 1);
+    ico.textContent = it.ico;
+
+    const info = document.createElement("div");
+    info.className = "shop-info";
+    const n = document.createElement("b"); n.textContent = it.name;
+    const d = document.createElement("span"); d.textContent = it.desc;
+    info.appendChild(n); info.appendChild(d);
+    if (itemCount(it.key)) {
+      const h = document.createElement("em");
+      h.textContent = "보유 " + itemCount(it.key) + "개";
+      info.appendChild(h);
+    }
+
+    const right = document.createElement("div");
+    right.className = "shop-buy";
+    const price = document.createElement("span");
+    price.className = "shop-price"; price.textContent = won(it.price);
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "buy-btn";
+    b.textContent = "구매";
+    const canHold = it.stack || !itemCount(it.key);
+    b.disabled = money() < it.price || !canHold;
+    if (!canHold) b.textContent = "보유 중";
+    b.addEventListener("click", () => buy(it));
+    right.appendChild(price); right.appendChild(b);
+
+    li.appendChild(ico); li.appendChild(info); li.appendChild(right);
+    box.appendChild(li);
+  });
+  go("shop");
+}
+
+function buy(it) {
+  if (money() < it.price) return;
+  if (!it.stack && itemCount(it.key)) return;
+  S.save.money -= it.price;
+  S.save.items[it.key] = itemCount(it.key) + 1;
+  if (it.key === "tip") S.tipOn = true;
+  if (it.key === "candy") {
+    S.save.candyLeft = 3;
+    delete S.save.items.candy;      /* 효과로 바로 바뀐다 */
+  }
+  save();
+  toast(it.name + "을 샀어요");
+  track("buy_" + it.key);
+  openShop();
+}
+
+/* ============================================================
+   복권 — 하루 한 번
+   ============================================================ */
+function openLottery() {
+  $("lottoMoney").textContent = won(money());
+  const odds = $("lottoOdds");
+  odds.innerHTML = "";
+  const total = LOTTERY_TABLE.reduce((a, b) => a + b.w, 0);
+  for (const row of LOTTERY_TABLE) {
+    const li = document.createElement("li");
+    const a = document.createElement("span"); a.textContent = row.tag;
+    const b = document.createElement("b"); b.textContent = Math.round(row.w / total * 100) + "%";
+    li.appendChild(a); li.appendChild(b);
+    odds.appendChild(li);
+  }
+  const used = S.save.lotteryDay === S.day;
+  const btn = $("btnScratch");
+  btn.disabled = used || money() < LOTTERY_PRICE;
+  btn.textContent = used ? "오늘은 다 썼어요" : "긁기 (" + won(LOTTERY_PRICE) + ")";
+  $("lottoLeft").textContent = used ? "0회" : "1회";
+  $("lottoFace").textContent = "?";
+  $("lottoCard").className = "lotto-card";
+  $("lottoMsg").textContent = used ? "복권은 하루 한 번만 살 수 있어요."
+    : money() < LOTTERY_PRICE ? won(LOTTERY_PRICE) + "이 필요합니다."
+    : "한 장에 " + won(LOTTERY_PRICE) + ". 하루 한 번만 살 수 있어요.";
+  go("lottery");
+}
+
+function scratch() {
+  if (S.save.lotteryDay === S.day || money() < LOTTERY_PRICE) return;
+  S.save.money -= LOTTERY_PRICE;
+  S.save.lotteryDay = S.day;
+  const row = drawLottery();
+  S.save.money += row.pay;
+  save();
+  const card = $("lottoCard");
+  $("lottoFace").textContent = row.pay ? won(row.pay) : "꽝!";
+  card.className = "lotto-card open" + (row.pay >= LOTTERY_PRICE * 1.5 ? " big" : row.pay ? "" : " zero");
+  restart(card, "pop");
+  $("lottoMsg").textContent = row.pay > LOTTERY_PRICE ? row.tag + " 당첨! 남는 장사네요."
+    : row.pay === LOTTERY_PRICE ? "본전입니다."
+    : row.pay ? "조금 돌려받았어요." : "다음엔 될지도?";
+  $("lottoMoney").textContent = won(money());
+  $("lottoLeft").textContent = "0회";
+  $("btnScratch").disabled = true;
+  $("btnScratch").textContent = "오늘은 다 썼어요";
+  track("lottery");
+}
+
+/* ============================================================
+   연결
+   ============================================================ */
+function track(name) {
+  try { if (window.SiteAnalytics && window.SiteAnalytics.track) window.SiteAnalytics.track(name); } catch (_) {}
+}
+
+function backToDay() {
+  $("dMoney").textContent = won(money());
+  go("dayResult");
+}
+
+$("btnNew").addEventListener("click", newGame);
+$("btnContinue").addEventListener("click", continueGame);
+$("btnSet").addEventListener("click", openSettings);
+$("btnSetClose").addEventListener("click", closeSheets);
+$("btnWipe").addEventListener("click", wipeSave);
+$("btnPrep").addEventListener("click", openPrep);
+$("btnRecommend").addEventListener("click", recommend);
+$("btnStartService").addEventListener("click", startService);
+$("btnEmgBuy").addEventListener("click", emgBuy);
+$("btnEmgClose").addEventListener("click", () => { closeSheets(); S.emgId = null; });
+$("scCustomer").addEventListener("click", showOrderPreview);
+$("btnUndo").addEventListener("click", undo);
+$("btnHint").addEventListener("click", useHint);
+$("btnItems").addEventListener("click", openItems);
+$("btnItemClose").addEventListener("click", closeSheets);
+$("btnDone").addEventListener("click", submit);
+$("btnNextGuest").addEventListener("click", leaveResult);
+$("btnShop").addEventListener("click", openShop);
+$("btnLotto").addEventListener("click", openLottery);
+$("btnShopBack").addEventListener("click", backToDay);
+$("btnShopNext").addEventListener("click", () => startDay(S.day + 1));
+$("btnLottoBack").addEventListener("click", backToDay);
+$("btnScratch").addEventListener("click", scratch);
+$("btnNextDay").addEventListener("click", () => startDay(S.day + 1));
+$("itemSheet").addEventListener("click", e => { if (e.target === $("itemSheet")) closeSheets(); });
+$("setSheet").addEventListener("click", e => { if (e.target === $("setSheet")) closeSheets(); });
+$("emgSheet").addEventListener("click", e => {
+  if (e.target === $("emgSheet")) { closeSheets(); S.emgId = null; }
+});
+
+window.addEventListener("resize", () => {
+  if (S.state === "build") drawCake($("cakeSlot"), S.cake);
+  if (S.state === "orderPreview") drawCake($("orderSlot"), S.order);
+  if (S.state === "start") drawHeroes();
+});
+
+window.addEventListener("pagehide", save);
+document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });
+
+showStart();
+
+window.__cake = {
+  S: S, go: go, showStart: showStart, newGame: newGame, startDay: startDay,
+  openPrep: openPrep, recommend: recommend, startService: startService,
+  bumpCart: bumpCart, soldOut: soldOut, emgBuy: emgBuy, leftOf: leftOf,
+  paintPatience: paintPatience, buildSec: buildSec,
+  nextGuest: nextGuest, showOrderPreview: showOrderPreview, toBuild: toBuild,
+  buildScreen: buildScreen, submit: submit, leaveResult: leaveResult, endDay: endDay,
+  openShop: openShop, buy: buy, openLottery: openLottery, scratch: scratch,
+  setTier: setTier, setSheet: setSheet, setCream: setCream, setDeco: setDeco, setPos: setPos,
+  addTopping: addTopping, dropTopping: dropTopping, stepOf: stepOf, undo: undo,
+  useHint: useHint, usePeek: usePeek, openItems: openItems, closeSheets: closeSheets,
+  openSettings: openSettings, drawCake: drawCake, memoFor: memoFor,
+  money: money, itemCount: itemCount, itemTotal: itemTotal, HEROES: HEROES,
+  save: save, useItem: useItem, continueGame: continueGame,
+};

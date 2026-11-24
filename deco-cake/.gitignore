@@ -1,0 +1,8 @@
+# 원본 PNG 18장과 _src(합계 11MB)는 저장소에 올리지 않는다.
+# 게임은 assets/opt/ 의 사본(772KB)과 assets/chef_great.png 만 읽는다.
+# 원본은 작업 폴더에 그대로 둔다 — 지우지 않는다.
+# 최적화본을 다시 만드는 법은 assets/README.md 에 적어 두었다.
+# 버전 관리에 넣고 싶으면 이 파일을 지우고 `git add -f assets` 하면 된다.
+assets/*.png
+!assets/chef_great.png
+assets/_src/
