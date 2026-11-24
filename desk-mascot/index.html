@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>desk-mascot</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="widget">
+    <div id="bubble">
+      <p id="bubble-text">불러오는 중</p>
+    </div>
+    <div id="character">
+      <img id="character-img" src="assets/character.png" alt="" draggable="false" />
+      <div id="character-fallback" hidden>
+        <svg viewBox="0 0 120 140" width="120" height="140">
+          <ellipse cx="60" cy="128" rx="34" ry="7" fill="rgba(0,0,0,0.12)" />
+          <rect x="34" y="70" width="52" height="52" rx="20" fill="#9bb7e8" />
+          <circle cx="60" cy="52" r="34" fill="#cfe0fb" />
+          <circle cx="48" cy="50" r="4.5" fill="#33415c" />
+          <circle cx="72" cy="50" r="4.5" fill="#33415c" />
+          <path d="M50 64 Q60 71 70 64" stroke="#33415c" stroke-width="3.5"
+                stroke-linecap="round" fill="none" />
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>

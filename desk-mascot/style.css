@@ -1,0 +1,90 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  /* 창 전체가 아니라 캐릭터/말풍선만 잡히게 */
+  user-select: none;
+  cursor: default;
+  font-family: "Malgun Gothic", "맑은 고딕", "Segoe UI", sans-serif;
+}
+
+#widget {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* ---- 말풍선 ---- */
+#bubble {
+  position: relative;
+  max-width: 280px;
+  background: #ffffff;
+  border: 2px solid #dfe3ea;
+  border-radius: 18px;
+  padding: 14px 18px;
+  text-align: center;
+  cursor: pointer;
+}
+
+/* 꼬리: 테두리용 바깥 삼각형 + 흰색 안쪽 삼각형 */
+#bubble::before,
+#bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+
+#bubble::before {
+  bottom: -14px;
+  margin-left: -11px;
+  border-width: 14px 11px 0 11px;
+  border-color: #dfe3ea transparent transparent transparent;
+}
+
+#bubble::after {
+  bottom: -10px;
+  margin-left: -9px;
+  border-width: 11px 9px 0 9px;
+  border-color: #ffffff transparent transparent transparent;
+}
+
+#bubble-text {
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.45;
+  color: #222a35;
+  word-break: keep-all;
+}
+
+/* 남은 시간이 적을 때 */
+#bubble.urgent #bubble-text {
+  color: #d8453a;
+}
+
+/* ---- 캐릭터 ---- */
+#character {
+  cursor: pointer;
+}
+
+#character-img,
+#character-fallback svg {
+  display: block;
+  width: 180px;
+  height: auto;
+  pointer-events: none;
+}

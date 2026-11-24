@@ -1,0 +1,13 @@
+{
+  "name": "desk-mascot",
+  "version": "1.0.0",
+  "description": "퇴근 타이머 데스크톱 마스코트 위젯",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^45.4.1"
+  }
+}
